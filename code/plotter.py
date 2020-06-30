@@ -1,0 +1,162 @@
+
+
+import numpy as np 
+import matplotlib.pyplot as plt 
+import matplotlib.patches as patches
+import os, subprocess
+from matplotlib.backends.backend_pdf import PdfPages 
+
+from utilities import dbgp
+
+# defaults
+plt.rcParams.update({'font.size': 10})
+plt.rcParams['lines.linewidth'] = 2.5
+
+
+def save_figs(filename):
+	fn = os.path.join( os.getcwd(), filename)
+	pp = PdfPages(fn)
+	for i in plt.get_fignums():
+		pp.savefig(plt.figure(i))
+		plt.close(plt.figure(i))
+	pp.close()
+
+
+def open_figs(filename):
+	pdf_path = os.path.join( os.getcwd(), filename)
+	if os.path.exists(pdf_path):
+		subprocess.call(["xdg-open", pdf_path])
+
+
+def make_fig():
+	return plt.subplots()
+
+
+def plot_nodes(sim_result, timestep, fig=None, ax=None):
+
+	times = sim_result["times"]
+	node_states = sim_result["info"]["node_state"] # [num timesteps, num nodes, state_dim_per_agent, 1]
+	reset_xlim_A = sim_result["param"]["reset_xlim_A"]
+	reset_ylim_A = sim_result["param"]["reset_ylim_A"]
+	reset_xlim_B = sim_result["param"]["reset_xlim_B"]
+	reset_ylim_B = sim_result["param"]["reset_ylim_B"]
+	goal_line_x = sim_result["param"]["goal_line_x"]
+	colors = get_node_colors(sim_result, timestep)
+
+	if fig is None or ax is None:
+		fig,ax = plt.subplots()
+	
+	# plot nodes
+	for node_idx in range(node_states.shape[1]):
+		node_state = node_states[timestep,node_idx,:,:]		
+		ax.scatter(node_state[0],node_state[1],100,color=colors[node_idx],zorder=10)
+
+	# plot trajectories 
+	for node_idx in range(node_states.shape[1]):
+		node_trajectory_x = node_states[:,node_idx,0,:]	
+		node_trajectory_y = node_states[:,node_idx,1,:]	
+		ax.plot(node_trajectory_x,node_trajectory_y,color='black',linestyle='--',alpha=0.5)	
+
+	# plot initialization 
+	reset_a = patches.Rectangle((reset_xlim_A[0],reset_ylim_A[0]),\
+		reset_xlim_A[1]-reset_xlim_A[0],reset_ylim_A[1]-reset_ylim_A[0],color=colors[0],alpha=0.1)
+	reset_b = patches.Rectangle((reset_xlim_B[0],reset_ylim_B[0]),\
+		reset_xlim_B[1]-reset_xlim_B[0],reset_ylim_B[1]-reset_ylim_B[0],color=colors[-1],alpha=0.1)
+	ax.add_patch(reset_a)
+	ax.add_patch(reset_b)
+
+	# plot goal line 
+	ax.axvline(goal_line_x,color='green',alpha=0.5,linestyle='--')
+
+	# ax.plot(np.nan,np.nan,color=colors[0],label='Team A')
+	# ax.plot(np.nan,np.nan,color=colors[-1],label='Team B')
+	# ax.legend(loc='upper right')
+	ax.set_xlim(sim_result["param"]["env_xlim"])
+	ax.set_ylim(sim_result["param"]["env_ylim"])
+	ax.grid(True)
+	ax.set_aspect('equal')
+	ax.set_xlabel('pos [m]')
+	ax.set_ylabel('pos [m]')
+	ax.set_title('State Space At Time {}'.format(times[timestep]))
+
+	return fig,ax
+
+
+def plot_state_estimate(sim_result):
+
+	node_state_estimates = sim_result["info"]["node_state_estimate"] # [num timesteps, num nodes, state dim, 1]
+	node_state_covariance = sim_result["info"]["node_state_covariance"] # [num timesteps, num nodes, state dim, state dim]
+	states = sim_result["states"] # [num timesteps, state dim, 1]
+	times = sim_result["times"]
+	colors = get_node_colors(sim_result, 0)
+
+	fig,ax = plt.subplots()
+
+	# plot mse and covariance  
+	for node_idx in range(node_state_estimates.shape[1]):
+
+		mse = np.linalg.norm(node_state_estimates[:,node_idx,:,:] - states, axis=1)
+		trace_covariance = np.linalg.norm(node_state_covariance[:,node_idx,:,:], ord = 'fro', axis=(1,2))
+
+		ax.plot(times, mse, color=colors[node_idx], alpha=0.5)
+		ax.plot(times, trace_covariance, color=colors[node_idx], alpha=0.5, linestyle = '--')
+
+	ax.plot(np.nan,np.nan,color=colors[0],label='Team A')
+	ax.plot(np.nan,np.nan,color=colors[-1],label='Team B')
+	ax.legend(loc='upper right')
+	ax.set_xlabel('time')
+	ax.set_ylabel('error')
+	ax.set_yscale('log')
+
+	return fig,ax
+
+
+def plot_control_effort(sim_result):
+
+	times = sim_result["times"]
+	actions = sim_result["actions"] # [nt, ni, control_dim x 1]
+	colors = get_node_colors(sim_result, 0)
+
+	fig,ax = plt.subplots() 
+	for node_idx in range(actions.shape[1]):
+		effort = np.linalg.norm(actions[:,node_idx,:,0],axis=1)
+		ax.plot(times, effort, color=colors[node_idx], alpha=0.5)
+
+	ax.set_xlabel('time')
+	ax.set_ylabel('effort')
+
+	return fig,ax
+
+
+
+def get_node_colors(sim_result, timestep=0):
+
+	# from https://stackoverflow.com/questions/8931268/using-colormaps-to-set-color-of-line-in-matplotlib
+	from matplotlib import cm
+
+	node_idx = sim_result["info"]["node_idx"] # [nt x ni] 
+	node_team_A = sim_result["info"]["node_team_A"] # [nt x ni] 
+	node_team_B = sim_result["info"]["node_team_B"] # [nt x ni] 
+
+	n_agent = len(node_idx[timestep])
+
+	# some param 
+	start = 0.55
+	stop = 0.56
+	number_of_lines= n_agent
+	cm_subsection = np.linspace(start, stop, number_of_lines) 
+
+	colors_A = [ cm.Blues(x) for x in cm_subsection]
+	colors_B = [ cm.Reds(x) for x in cm_subsection]
+
+	colors = []
+	for i in node_idx[0]:
+		if node_team_A[timestep][i]:
+			colors.append(colors_A[i])
+		elif node_team_B[timestep][i]:
+			colors.append(colors_B[i])
+		else:
+			print('theta value not understood')
+			exit()
+
+	return colors
