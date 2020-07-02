@@ -11,20 +11,32 @@ import importlib
 # my package
 import plotter 
 from utilities import dbgp, load_module
-from node import Node, Dynamics, Measurements
 
-# Swarm Testbed environment 
 class Swarm(Env):
 
 	def __init__(self, param):
 		self.param = param 
 
 
-	def step(self, actions):
+	def step(self, estimates, actions):
 
+		# update estimates
+		for node in self.nodes:
+			estimates[node].update_node(node) 
+
+		# regular dynamics 
 		for node in self.nodes: 
 			action_i = actions[node]
 			node.forward(action_i)
+
+		# check for tag
+		for node_i in self.nodes:  
+			for node_j in self.nodes: 
+				if np.linalg.norm(node_i.state[0:2]-node_j.state[0:2]) < self.param.tag_radius and \
+					node_i.team_A and node_j.team_B:
+					
+					node_i.reset_inside(self.param.reset_xlim_A,self.param.reset_ylim_A)
+					node_j.reset_inside(self.param.reset_xlim_B,self.param.reset_ylim_B)
 
 		self.state = self.nodes_to_state_vec()
 
@@ -79,6 +91,7 @@ class Swarm(Env):
 				[0.0],
 				[0.0]])
 			node["idx"] = idx
+			node["global_state_idxs"] = state_dim + np.arange(4)
 
 			nodes.append(node) 
 			state_dim += np.shape(node["state"])[0]
@@ -95,10 +108,10 @@ class Swarm(Env):
 		for node in nodes: 
 
 			state_covariance = self.param.initial_state_covariance*np.eye(state_dim)
-			state_estimate = state_initial + \
+			state_mean = state_initial + \
 				np.dot(state_covariance,np.random.normal(size=((state_dim,1))))
 
-			node["state_estimate"] = state_estimate
+			node["state_mean"] = state_mean
 			node["state_covariance"] = state_covariance 
 
 		reset["nodes"] = nodes 
@@ -127,8 +140,8 @@ class Swarm(Env):
 			node = Node(node_dict)
 
 			# assign a system 
-			node.dynamics = Dynamics(self.param)
-			node.measurements = Measurements(self.param)
+			node.dynamics = load_module('dynamics/double_integrator.py').Dynamics(self.param)
+			node.measurements = load_module('measurements/global.py').Measurements(self.param)
 
 			self.nodes.append(node)
 
@@ -204,3 +217,30 @@ class Swarm(Env):
 
 	def reward(self):
 		return 0 
+
+
+# helper classes 
+class Node:
+
+	def __init__(self,node_dict):
+		for key,value in node_dict.items():
+			setattr(self,key,value)
+
+	def dist_to_node(self,node):
+		return ((self.p_x - node.p_x)**2. + (self.p_y - node.p_y)**2.)**(1/2)
+
+	def measure(self,full_state):
+		return self.measurements.measure_per_node(full_state)
+
+	def forward(self,control):
+		self.state = self.dynamics.forward_per_node(self.state,control)
+
+	def reset_inside(self,xlim,ylim):
+
+		x = np.random.random()*(xlim[1] - xlim[0]) + xlim[0]
+		y = np.random.random()*(ylim[1] - ylim[0]) + ylim[0]
+
+		# self.state = np.expand_dims(np.array([
+		# 	x,y,0.0,0.0]),axis=1)
+		self.state = np.array([
+			[x],[y],[0.0],[0.0]])		

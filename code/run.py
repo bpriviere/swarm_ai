@@ -8,9 +8,6 @@ import shutil
 import itertools
 
 # my packages 
-from attacker import Attacker
-from estimator import Estimator
-from controller import Controller 
 from param import Param
 from env import Swarm
 from utilities import load_module, dbgp
@@ -31,9 +28,10 @@ def format_dir(param):
 def sim(param):
 
 	env = Swarm(param)
-	estimator = Estimator(param,env)
-	controller = Controller(param,env)
-	attacker = Attacker(param,env)
+
+	estimator = load_module('estimator/exact.py').Estimator(param,env)
+	attacker = load_module('attacker/empty.py').Attacker(param,env)
+	controller = load_module('controller/joint_mpc.py').Controller(param,env)
 
 	reset = env.get_reset()
 
@@ -42,21 +40,16 @@ def sim(param):
 
 	env.reset(reset)
 	states.append(env.state)
-	
+	action = controller.initial_policy()
+
 	for step,time in enumerate(param.sim_times):
 		print('\t\t t = {}/{}'.format(step,len(param.sim_times)))
 		
-		observation = env.observe() # state -> measurement 
-
-		controller_first_on = True
-		if controller_first_on:
-			estimate = env.state
-		else: 
-			observation = attacker.attack(observation)
-			estimate = estimator.estimate(observation)  # measurement -> state estimate
-
-		action = controller.policy(estimate) # state estimate -> action 
-		state, reward, done, info = env.step(action) # action -> new state
+		observation = env.observe() 
+		observation = attacker.attack(observation)
+		estimate = estimator.estimate(observation,action)  
+		action = controller.policy(estimate) 
+		state, reward, done, info = env.step(estimate,action) 
 
 		times.append(time)
 		states.append(state)
@@ -75,6 +68,7 @@ def sim(param):
 	sim_result["param"] = param.to_dict() 
 
 	return [sim_result]
+
 
 def save_lst_of_node_dicts_as_np(some_lst_of_node_dicts):
 
@@ -127,6 +121,7 @@ if __name__ == '__main__':
 				plotter.plot_nodes(sim_result,timestep) # at one timestep 
 			# plotter.plot_state_estimate(sim_result) # over time 
 			plotter.plot_control_effort(sim_result)
+			plotter.plot_speeds(sim_result)
 
 	print('saving and opening figs...')
 	plotter.save_figs(param.plot_fn)

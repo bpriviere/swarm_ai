@@ -27,28 +27,25 @@ class Param:
 
 		self.estimator_A_names = [
 			'estimator/empty.py',
-			# 'estimator/kalman.py'
 		]			
 
 		self.controller_A_names = [
 			'controller/empty.py',
-			# 'controller/team_A_lqg.py',
 		]
 
 		self.estimator_B_names = [
 			'estimator/empty.py',
-			# 'estimator/kalman.py'
 		]			
 
 		self.controller_B_names = [
+			# 'controller/empty.py',
 			'controller/empty.py',
-			# 'controller/team_A_lqg.py',
 		]		
 
 		# sim param 
 		self.n_trials = 1
 		self.sim_t0 = 0
-		self.sim_tf = 5
+		self.sim_tf = 10
 		self.sim_dt = 0.5
 		
 		# topology
@@ -56,17 +53,18 @@ class Param:
 		self.r_comm = 0.6
 		
 		# environment
+		# 	- small 
 		self.env_xlim = [0,1]
 		self.env_ylim = [0,1]
 		self.reset_xlim_A = [0,0.2]
 		self.reset_ylim_A = [0,1]
 		self.reset_xlim_B = [0.8,1]
-		self.reset_ylim_B = [0,1]		
+		self.reset_ylim_B = [0,1]
 		self.goal_line_x = 0.6
 		
 		# nodes 
 		self.num_nodes_A = 2
-		self.num_nodes_B = 1
+		self.num_nodes_B = 2
 		
 		# estimator parameters
 		self.initial_state_covariance = 3e1 # defines initial condition of estimators
@@ -79,12 +77,13 @@ class Param:
 
 		# policy 
 		self.rhc_horizon = 5
-		self.lambda_u = 0.1
-		self.speed_limit_a = 0.1
-		self.speed_limit_b = 0.1
+		self.lambda_u = 0.01
+		self.speed_limit_a = 0.05
+		self.speed_limit_b = 0.10
 		self.acceleration_limit_a = 0.05
-		self.acceleration_limit_b = 0.05
-		self.danger_radius = 0.2
+		self.acceleration_limit_b = 0.10
+		self.danger_radius = 0.5
+		self.tag_radius = 0.025
 
 		# path stuff
 		self.current_results_dir = '../current_results'
@@ -96,7 +95,7 @@ class Param:
 		self.info_keys = [
 			'state',
 			'node_idx',
-			'node_state_estimate',
+			'node_state_mean',
 			'node_state_covariance',
 			'node_state',
 			'node_team_A',

@@ -55,7 +55,7 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 	for node_idx in range(node_states.shape[1]):
 		node_trajectory_x = node_states[:,node_idx,0,:]	
 		node_trajectory_y = node_states[:,node_idx,1,:]	
-		ax.plot(node_trajectory_x,node_trajectory_y,color='black',linestyle='--',alpha=0.5)	
+		ax.plot(node_trajectory_x,node_trajectory_y,color='black',linestyle='--',alpha=0.05)	
 
 	# plot initialization 
 	reset_a = patches.Rectangle((reset_xlim_A[0],reset_ylim_A[0]),\
@@ -84,7 +84,7 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 
 def plot_state_estimate(sim_result):
 
-	node_state_estimates = sim_result["info"]["node_state_estimate"] # [num timesteps, num nodes, state dim, 1]
+	node_state_means = sim_result["info"]["node_state_mean"] # [num timesteps, num nodes, state dim, 1]
 	node_state_covariance = sim_result["info"]["node_state_covariance"] # [num timesteps, num nodes, state dim, state dim]
 	states = sim_result["states"] # [num timesteps, state dim, 1]
 	times = sim_result["times"]
@@ -93,9 +93,9 @@ def plot_state_estimate(sim_result):
 	fig,ax = plt.subplots()
 
 	# plot mse and covariance  
-	for node_idx in range(node_state_estimates.shape[1]):
+	for node_idx in range(node_state_means.shape[1]):
 
-		mse = np.linalg.norm(node_state_estimates[:,node_idx,:,:] - states, axis=1)
+		mse = np.linalg.norm(node_state_means[:,node_idx,:,:] - states, axis=1)
 		trace_covariance = np.linalg.norm(node_state_covariance[:,node_idx,:,:], ord = 'fro', axis=(1,2))
 
 		ax.plot(times, mse, color=colors[node_idx], alpha=0.5)
@@ -127,6 +127,22 @@ def plot_control_effort(sim_result):
 
 	return fig,ax
 
+
+def plot_speeds(sim_result):
+
+	times = sim_result["times"]
+	node_states = sim_result["info"]["node_state"] # [num timesteps, num nodes, state_dim_per_agent, 1]
+	colors = get_node_colors(sim_result, 0)
+
+	fig,ax = plt.subplots() 
+	for node_idx in range(node_states.shape[1]):
+		speed = np.linalg.norm(node_states[:,node_idx,2:,0],axis=1)
+		ax.plot(times, speed, color=colors[node_idx], alpha=0.5)
+
+	ax.set_xlabel('time')
+	ax.set_ylabel('speed')
+
+	return fig,ax
 
 
 def get_node_colors(sim_result, timestep=0):
