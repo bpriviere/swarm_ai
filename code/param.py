@@ -5,55 +5,27 @@ class Param:
 
 	def __init__(self):
 
-		self.dynamics_A_names = [
-			'system/identity.py',
-		]
+		# modules 
+		self.dynamics_name 		= 'dynamics/double_integrator.py' 	# 
+		self.measurements_name 	= 'measurements/global.py' 			# global, (local)
+		self.estimator_name 	= 'estimator/kalman.py'	 			# empty,(kalman),exact...
+		self.attacker_name 		= 'attacker/empty.py' 				# empty, ...
+		self.controller_name 	= 'controller/joint_mpc.py'		 	# empty, joint_mpc, ...
 
-		self.measurements_A_name = [
-			'system/global.py',
-		]
-
-		self.dynamics_B_names = [
-			'system/identity.py',
-		]
-
-		self.measurements_B_name = [
-			'system/global.py',
-		]		
-
-		self.attacker_names = [
-			'attacker/empty.py',
-		]
-
-		self.estimator_A_names = [
-			'estimator/empty.py',
-		]			
-
-		self.controller_A_names = [
-			'controller/empty.py',
-		]
-
-		self.estimator_B_names = [
-			'estimator/empty.py',
-		]			
-
-		self.controller_B_names = [
-			# 'controller/empty.py',
-			'controller/empty.py',
-		]		
+		# flags
+		self.gif_on = True
 
 		# sim param 
 		self.n_trials = 1
 		self.sim_t0 = 0
-		self.sim_tf = 10
-		self.sim_dt = 0.5
+		self.sim_tf = 25
+		self.sim_dt = 0.25
 		
 		# topology
-		self.r_sense = 0.6
-		self.r_comm = 0.6
+		self.r_sense = 1.6
+		self.r_comm = 1.6
 		
 		# environment
-		# 	- small 
 		self.env_xlim = [0,1]
 		self.env_ylim = [0,1]
 		self.reset_xlim_A = [0,0.2]
@@ -67,13 +39,13 @@ class Param:
 		self.num_nodes_B = 2
 		
 		# estimator parameters
-		self.initial_state_covariance = 3e1 # defines initial condition of estimators
+		self.initial_state_covariance = 1e-10 # defines initial condition of estimators
 		
 		# dynamics parameters
-		self.process_noise_covariance = 1.0 
+		self.process_noise_covariance = 1e-10
 		
 		# measurement parameters
-		self.measurement_noise_covariance = 1.0 
+		self.measurement_noise_covariance = 1e-10
 
 		# policy 
 		self.rhc_horizon = 5
@@ -82,7 +54,7 @@ class Param:
 		self.speed_limit_b = 0.10
 		self.acceleration_limit_a = 0.05
 		self.acceleration_limit_b = 0.10
-		self.danger_radius = 0.5
+		self.danger_radius = 0.1
 		self.tag_radius = 0.025
 
 		# path stuff
@@ -93,7 +65,7 @@ class Param:
 		
 		# save stuff 
 		self.info_keys = [
-			'state',
+			'state_vec',
 			'node_idx',
 			'node_state_mean',
 			'node_state_covariance',
@@ -109,7 +81,12 @@ class Param:
 		return self.__dict__
 
 
+	def from_dict(self,some_dict):
+		for key,value in some_dict.items():
+			setattr(self,key,value)
+
+
 	def update(self):
 		self.num_nodes = self.num_nodes_A + self.num_nodes_B
 		self.sim_times = np.arange(self.sim_t0,self.sim_tf,self.sim_dt)
-		self.sim_nt = len(self.sim_times)			
+		self.sim_nt = len(self.sim_times)

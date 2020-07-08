@@ -3,8 +3,10 @@
 import numpy as np 
 import cvxpy as cp 
 from scipy.optimize import linear_sum_assignment
+from scipy.spatial import Voronoi
 
 from controller.controller import Controller
+from utilities import dbgp
 	
 class Controller(Controller):
 
@@ -18,8 +20,8 @@ class Controller(Controller):
 		# team A policy is to go to goal 
 		states_A, actions_A = self.policy_A(self.env.nodes,estimate)
 
-		# team B policy is to do nothing
-		states_B, actions_B = self.policy_B(self.env.nodes, estimate, states_A, actions_A)
+		# team B policy is to tag team A
+		states_B, actions_B = self.policy_B(self.env.nodes,estimate,states_A,actions_A)
 
 		# recombine 
 		for node in self.env.nodes:
@@ -32,7 +34,6 @@ class Controller(Controller):
 
 
 	def policy_A(self,nodes,estimate):
-		# for now, estimate = state 
 
 		nodes_A, nodes_B = [], []
 		for node in nodes:
@@ -41,8 +42,13 @@ class Controller(Controller):
 			elif node.team_B:
 				nodes_B.append(node)
 
+		
+		# state_estimate = estimate[node].state_mean 
+		state_estimate = self.env.state_vec
+
 		# param
 		lambda_u = self.param.lambda_u
+		danger_radius = self.param.danger_radius
 		speed_limit_a = self.param.speed_limit_a
 		acceleration_limit_a = self.param.acceleration_limit_a
 		goal_line_x = self.param.goal_line_x
@@ -50,7 +56,26 @@ class Controller(Controller):
 		pos_lower_lim = np.array([self.param.env_xlim[0],self.param.env_ylim[0]])
 
 		# get utils
-		x0_A, u0_A, node_idxs_A, state_idxs_A, control_idxs_A, extract_pos_A, extract_vel_A = self.get_team_util(nodes_A,estimate)
+		x0_A, u0_A, node_idxs_A, state_idxs_A, control_idxs_A, extract_pos_A, extract_vel_A = self.get_team_util(nodes_A,state_estimate)
+		x0_B, u0_B, node_idxs_B, state_idxs_B, control_idxs_B, extract_pos_B, extract_vel_B = self.get_team_util(nodes_B,state_estimate)
+
+		# naive prediction 
+		states_B = self.naive_predict(nodes_B,state_idxs_B,extract_pos_B,extract_vel_B,state_estimate)
+
+		# voronoi cells
+		hyperplanes = dict()
+		shifts = dict()
+		for node_a in nodes_A:
+			hyperplanes[node_a] = []
+			shifts[node_a] = [] 
+			pose_a = state_estimate[node_a.global_state_idxs][0:2]  # should be state estimate 
+			for node_b in nodes_B:
+				pose_b = state_estimate[node_b.global_state_idxs][0:2]
+				hyperplane = pose_b - pose_a
+				shift = np.dot(1./2.*(pose_b + pose_a).T, pose_b - pose_a) 
+
+				hyperplanes[node_a].append(hyperplane)
+				shifts[node_a].append(shift)
 
 		# 
 		G = np.array([1,0,0,0]) 
@@ -58,6 +83,7 @@ class Controller(Controller):
 		# init 
 		x_t = cp.Variable((x0_A.shape[0],self.param.rhc_horizon+1))
 		u_t = cp.Variable((u0_A.shape[0],self.param.rhc_horizon))
+		delta_t = cp.Variable((len(nodes_B),self.param.rhc_horizon))
 		cost = 0
 		constr = []
 
@@ -86,7 +112,13 @@ class Controller(Controller):
 
 				# control authority constraints
 				constr.append(
-					cp.norm(u_t[control_idx,timestep],2) <= acceleration_limit_a)			
+					cp.norm(u_t[control_idx,timestep],2) <= acceleration_limit_a)
+
+				# evasion constraints
+				if timestep < 3: 
+					for k, (hyperplane, shift) in enumerate(zip(hyperplanes[node_a],shifts[node_a])):
+						constr.append( hyperplane.T @ x_t[state_idx,timestep][0:2] - shift + danger_radius <= delta_t[k,timestep])
+						constr.append( delta_t[:,timestep] >= 0) 
 
 				# cost 
 				relative_goal = G @ x_t[state_idx,timestep] - goal_line_x
@@ -94,18 +126,29 @@ class Controller(Controller):
 
 				cost += cp.sum_squares(relative_goal)
 				cost += cp.sum_squares(effort)
+				cost += cp.sum_squares(2*delta_t[:,timestep])
 
 		# solve 
 		obj = cp.Minimize(cost)
 		prob = cp.Problem(obj, constr)
+		# prob.solve(verbose=True,solver=cp.GUROBI) 
 		prob.solve(verbose=False,solver=cp.GUROBI) 
 
-		# assign 
 		states = dict()
 		actions = dict()
-		for node in nodes_A: 
-			states[node] = x_t.value[state_idxs_A[node],:]
-			actions[node] = u_t.value[control_idxs_A[node],:]
+		if prob.status not in ["infeasible", "unbounded"]:
+			# assign 
+			for node in nodes_A: 
+				states[node] = x_t.value[state_idxs_A[node],:]
+				actions[node] = u_t.value[control_idxs_A[node],:]
+
+		else: 
+			print('team A mpc failed')
+			# take no action  
+			for node in nodes_A: 
+				states[node] = np.dot(node.dynamics.A, x0_A[state_idxs_A[node]]) + \
+					np.dot(node.dynamics.B, u0_A[control_idxs_A[node]])
+				actions[node] = u0_A[control_idxs_A[node]]
 
 		return states,actions
 
@@ -128,9 +171,12 @@ class Controller(Controller):
 			elif node.team_B:
 				nodes_B.append(node)
 
+		# state_estimate = estimate[node].state_mean 
+		state_estimate = self.env.state_vec
+
 		# some utils 
-		x0_A, u0_A, node_idxs_A, state_idxs_A, control_idxs_A, extract_pos_A, extract_vel_A = self.get_team_util(nodes_A,estimate)
-		x0_B, u0_B, node_idxs_B, state_idxs_B, control_idxs_B, extract_pos_B, extract_vel_B = self.get_team_util(nodes_B,estimate)
+		x0_A, u0_A, node_idxs_A, state_idxs_A, control_idxs_A, extract_pos_A, extract_vel_A = self.get_team_util(nodes_A,state_estimate)
+		x0_B, u0_B, node_idxs_B, state_idxs_B, control_idxs_B, extract_pos_B, extract_vel_B = self.get_team_util(nodes_B,state_estimate)
 
 		# match 
 		dist = np.zeros((len(nodes_B),len(nodes_A)))
@@ -145,9 +191,6 @@ class Controller(Controller):
 		matching = dict()
 		for node_B in nodes_B:
 			matching[node_B] = nodes_A[node_b_assignment[node_idxs_B[node_B]]]
-
-
-		# convex policy 
 
 		# cost func stuff 
 		G, goal_vec = dict(), dict()
@@ -201,15 +244,37 @@ class Controller(Controller):
 		prob = cp.Problem(obj, constr)
 		prob.solve(verbose=False,solver=cp.GUROBI)
 
-		# assign 
 		states = dict()
 		actions = dict()
-		for node in nodes_B: 
-			states[node] = x_t.value[state_idxs_B[node],:]
-			actions[node] = u_t.value[control_idxs_B[node],:]
+		if prob.status not in ["infeasible", "unbounded"]:
+			# assign 
+			for node in nodes_B: 
+				states[node] = x_t.value[state_idxs_B[node],:]
+				actions[node] = u_t.value[control_idxs_B[node],:]
+
+		else: 
+			print('team B mpc failed')
+			# take no action  
+			for node in nodes_B: 
+				states[node] = np.dot(node.dynamics.A, x0_B[state_idxs_B[node]]) + \
+					np.dot(node.dynamics.B, u0_B[control_idxs_B[node]])
+				actions[node] = u0_B[control_idxs_B[node]]
 
 		return states,actions
 
+
+	def naive_predict(self,nodes,state_idxs,extract_pos,extract_vel,state_estimate):
+		# naively assumes nodes will take no action 
+
+		states = dict()
+		for node in nodes: 
+			state_idx = state_idxs[node]
+			state = np.zeros((node.dynamics.state_dim_per_agent,self.param.rhc_horizon+1))
+			state[:,0] = state_estimate[node.global_state_idxs][:,0]
+			for timestep in range(self.param.rhc_horizon):
+				state[:,timestep+1] = np.dot(node.dynamics.A,state[:,timestep]) 
+			states[node] = state
+		return states
 
 
 	def get_team_util(self,nodes,estimates):
@@ -234,7 +299,9 @@ class Controller(Controller):
 		u0 = np.zeros((curr_control_dim,1))
 		curr_state_dim = 0 
 		for node in nodes: 
-			x0[state_idxs[node]] = estimates[node].state_mean[node.global_state_idxs] 
+			# x0[state_idxs[node]] = estimates[node].state_mean[node.global_state_idxs] 
+			x0[state_idxs[node]] = estimates[node.global_state_idxs]
+			# x0[state_idxs[node]] = node.state
 
 		extract_pos = dict()
 		extract_vel = dict()

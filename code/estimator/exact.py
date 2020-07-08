@@ -23,7 +23,7 @@ class Estimator(Estimator):
 		estimates = dict()
 
 		for node in self.env.nodes: 
-			estimate = Estimate(self.env.state, 0)
+			estimate = Estimate(self.env.state_vec, np.zeros((self.param.state_dim,self.param.state_dim)))
 			estimates[node] = estimate 
 
 		return estimates 

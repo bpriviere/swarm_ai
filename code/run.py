@@ -29,9 +29,9 @@ def sim(param):
 
 	env = Swarm(param)
 
-	estimator = load_module('estimator/exact.py').Estimator(param,env)
-	attacker = load_module('attacker/empty.py').Attacker(param,env)
-	controller = load_module('controller/joint_mpc.py').Controller(param,env)
+	estimator = load_module(param.estimator_name).Estimator(param,env)
+	attacker = load_module(param.attacker_name).Attacker(param,env)
+	controller = load_module(param.controller_name).Controller(param,env)
 
 	reset = env.get_reset()
 
@@ -39,16 +39,17 @@ def sim(param):
 	times, states, actions, observations, rewards = [],[],[],[],[]
 
 	env.reset(reset)
-	states.append(env.state)
-	action = controller.initial_policy()
+	states.append(env.state_dict)
+	# action = controller.initial_policy()
+	estimate = estimator.initial_estimate()
 
 	for step,time in enumerate(param.sim_times):
 		print('\t\t t = {}/{}'.format(step,len(param.sim_times)))
 		
 		observation = env.observe() 
 		observation = attacker.attack(observation)
-		estimate = estimator.estimate(observation,action)  
 		action = controller.policy(estimate) 
+		estimate = estimator.estimate(observation,action)  
 		state, reward, done, info = env.step(estimate,action) 
 
 		times.append(time)
@@ -60,7 +61,7 @@ def sim(param):
 	states = states[0:-1]
 
 	sim_result["times"] = times 
-	sim_result["states"] = states 
+	sim_result["states"] = save_lst_of_node_dicts_as_np(states)
 	sim_result["actions"] = save_lst_of_node_dicts_as_np(actions)
 	sim_result["observations"] = observations 
 	sim_result["rewards"] = rewards 
@@ -114,15 +115,16 @@ if __name__ == '__main__':
 
 	# plotting 
 	print('plotting sim results...')
-	if True: #param.n_trials == 1:
-		for sim_result in sim_results:
+	for sim_result in sim_results:
+		# for timestep,time in enumerate(sim_result["times"]):
+		# 	plotter.plot_nodes(sim_result,timestep)
+		# plotter.plot_state_estimate(sim_result) 
+		# plotter.plot_control_effort(sim_result)
+		# plotter.plot_speeds(sim_result)
 
-			for timestep,time in enumerate(sim_result["times"]):
-				plotter.plot_nodes(sim_result,timestep) # at one timestep 
-			# plotter.plot_state_estimate(sim_result) # over time 
-			plotter.plot_control_effort(sim_result)
-			plotter.plot_speeds(sim_result)
+		if param.gif_on: 
+			plotter.make_gif(sim_result)
 
-	print('saving and opening figs...')
-	plotter.save_figs(param.plot_fn)
-	plotter.open_figs(param.plot_fn)
+	# print('saving and opening figs...')
+	# plotter.save_figs(param.plot_fn)
+	# plotter.open_figs(param.plot_fn)

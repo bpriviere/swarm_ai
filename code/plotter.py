@@ -86,7 +86,7 @@ def plot_state_estimate(sim_result):
 
 	node_state_means = sim_result["info"]["node_state_mean"] # [num timesteps, num nodes, state dim, 1]
 	node_state_covariance = sim_result["info"]["node_state_covariance"] # [num timesteps, num nodes, state dim, state dim]
-	states = sim_result["states"] # [num timesteps, state dim, 1]
+	states = sim_result["info"]["state_vec"] # [nt, state_dim, 1]
 	times = sim_result["times"]
 	colors = get_node_colors(sim_result, 0)
 
@@ -101,12 +101,13 @@ def plot_state_estimate(sim_result):
 		ax.plot(times, mse, color=colors[node_idx], alpha=0.5)
 		ax.plot(times, trace_covariance, color=colors[node_idx], alpha=0.5, linestyle = '--')
 
-	ax.plot(np.nan,np.nan,color=colors[0],label='Team A')
-	ax.plot(np.nan,np.nan,color=colors[-1],label='Team B')
+	# ax.plot(np.nan,np.nan,color=colors[0],label='Team A')
+	# ax.plot(np.nan,np.nan,color=colors[-1],label='Team B')
 	ax.legend(loc='upper right')
 	ax.set_xlabel('time')
 	ax.set_ylabel('error')
 	ax.set_yscale('log')
+	ax.grid(True)
 
 	return fig,ax
 
@@ -124,6 +125,7 @@ def plot_control_effort(sim_result):
 
 	ax.set_xlabel('time')
 	ax.set_ylabel('effort')
+	ax.grid(True)	
 
 	return fig,ax
 
@@ -141,6 +143,7 @@ def plot_speeds(sim_result):
 
 	ax.set_xlabel('time')
 	ax.set_ylabel('speed')
+	ax.grid(True)	
 
 	return fig,ax
 
@@ -176,3 +179,38 @@ def get_node_colors(sim_result, timestep=0):
 			exit()
 
 	return colors
+
+
+def make_gif(sim_result):
+	
+	import imageio, glob
+
+	# make gif directory 
+	gif_dir = '../gif/'
+	gif_name = gif_dir + 'movie.gif'
+	format_dir(gif_dir) 
+
+	# save images to 
+	for timestep,time in enumerate(sim_result["times"]):
+		fig,ax = plot_nodes(sim_result,timestep)
+		fig.savefig('{}{}.png'.format(gif_dir,timestep))
+
+	images = []
+	for filename in sorted(glob.glob(gif_dir + '*')):
+		images.append(imageio.imread(filename))
+
+	duration = 0.5 
+	imageio.mimsave(gif_name, images, duration = duration)
+
+def format_dir(dir_name):
+
+	import os, shutil, glob
+
+	if os.path.exists(dir_name):
+		shutil.rmtree(dir_name)
+
+	os.makedirs(dir_name,exist_ok=True)
+
+	# # clean gif dir
+	# for old_dir in glob.glob(dir_name):
+	# 	shutil.rmtree(old_dir)

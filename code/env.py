@@ -16,6 +16,7 @@ class Swarm(Env):
 
 	def __init__(self, param):
 		self.param = param 
+		self.reset(self.get_reset())
 
 
 	def step(self, estimates, actions):
@@ -32,16 +33,19 @@ class Swarm(Env):
 		# check for tag
 		for node_i in self.nodes:  
 			for node_j in self.nodes: 
-				if np.linalg.norm(node_i.state[0:2]-node_j.state[0:2]) < self.param.tag_radius and \
+				if node_i.dist_to_node(node_j) < self.param.tag_radius and \
 					node_i.team_A and node_j.team_B:
 					
-					node_i.reset_inside(self.param.reset_xlim_A,self.param.reset_ylim_A)
-					node_j.reset_inside(self.param.reset_xlim_B,self.param.reset_ylim_B)
+					node_i.reset_inside(self.param.reset_xlim_A,self.param.reset_ylim_A,self.state_vec)
+					node_j.reset_inside(self.param.reset_xlim_B,self.param.reset_ylim_B,self.state_vec)
 
-		self.state = self.nodes_to_state_vec()
+		self.state_vec = self.nodes_to_state_vec()
+		self.state_dict = dict()
+		for node in self.nodes: 
+			self.state_dict[node] = node.state
 
 		# outputs
-		s = self.state
+		s = self.state_dict
 		d = self.done()
 		r = self.reward()
 		info_dict = self.append_info_dict()
@@ -56,7 +60,7 @@ class Swarm(Env):
 
 		# get measurements and put in message 
 		for node in self.nodes:
-			measurement_i = node.measure(self.state)
+			measurement_i = node.measure(self.state_vec)
 			observations[node] = measurement_i
 		
 		return observations
@@ -69,6 +73,7 @@ class Swarm(Env):
 		# init positions 
 		nodes = [] 
 		state_dim = 0 
+		control_dim = 0 
 		for idx in range(self.param.num_nodes):
 
 			node = dict()
@@ -92,9 +97,11 @@ class Swarm(Env):
 				[0.0]])
 			node["idx"] = idx
 			node["global_state_idxs"] = state_dim + np.arange(4)
+			node["global_control_idxs"] = control_dim + np.arange(2)
 
 			nodes.append(node) 
 			state_dim += np.shape(node["state"])[0]
+			control_dim += 2 
 
 		# get state
 		state_initial = np.zeros((state_dim,1))
@@ -117,6 +124,7 @@ class Swarm(Env):
 		reset["nodes"] = nodes 
 		reset["state_initial"] = state_initial
 		reset["state_dim"] = state_dim
+		reset["control_dim"] = control_dim 
 
 		return reset 
 
@@ -127,23 +135,27 @@ class Swarm(Env):
 		# output:
 		# 	- 
 		
-		self.state = reset["state_initial"] 
+		self.state_vec = reset["state_initial"] 
 		self.param.state_dim = reset["state_dim"] 
+		self.param.control_dim = reset["control_dim"] 
 		self.timestep = 0 
 		
 		self.nodes = []
 		self.nodes_A = []
 		self.nodes_B = [] 
 
+		self.state_dict = dict()
+
 		# create nodes 
 		for node_dict in reset["nodes"]:
-			node = Node(node_dict)
+			node = Node(self.param,node_dict)
 
 			# assign a system 
-			node.dynamics = load_module('dynamics/double_integrator.py').Dynamics(self.param)
-			node.measurements = load_module('measurements/global.py').Measurements(self.param)
+			node.dynamics = load_module(self.param.dynamics_name).Dynamics(self.param)
+			node.measurements = load_module(self.param.measurements_name).Measurements(self.param)
 
 			self.nodes.append(node)
+			self.state_dict[node] = node.state
 
 		self.info_dict = self.init_info_dict()
 
@@ -195,6 +207,15 @@ class Swarm(Env):
 		return state 
 
 
+	def state_vec_to_dict(self,state_vec):
+
+		states = dict()
+		for node in self.nodes: 
+			states[node] = state_vec[node.global_state_idxs]
+
+		return states
+
+
 	def get_random_position_inside(self,xlim,ylim):
 
 		x = np.random.random()*(xlim[1] - xlim[0]) + xlim[0]
@@ -222,12 +243,13 @@ class Swarm(Env):
 # helper classes 
 class Node:
 
-	def __init__(self,node_dict):
+	def __init__(self,param,node_dict):
+		self.param = param 
 		for key,value in node_dict.items():
 			setattr(self,key,value)
 
 	def dist_to_node(self,node):
-		return ((self.p_x - node.p_x)**2. + (self.p_y - node.p_y)**2.)**(1/2)
+		return np.linalg.norm(self.state[0:2]-node.state[0:2])
 
 	def measure(self,full_state):
 		return self.measurements.measure_per_node(full_state)
@@ -235,7 +257,7 @@ class Node:
 	def forward(self,control):
 		self.state = self.dynamics.forward_per_node(self.state,control)
 
-	def reset_inside(self,xlim,ylim):
+	def reset_inside(self,xlim,ylim,state):
 
 		x = np.random.random()*(xlim[1] - xlim[0]) + xlim[0]
 		y = np.random.random()*(ylim[1] - ylim[0]) + ylim[0]
@@ -243,4 +265,8 @@ class Node:
 		# self.state = np.expand_dims(np.array([
 		# 	x,y,0.0,0.0]),axis=1)
 		self.state = np.array([
-			[x],[y],[0.0],[0.0]])		
+			[x],[y],[0.0],[0.0]])
+
+		self.state_covariance = self.param.initial_state_covariance*np.eye(self.param.state_dim)
+		self.state_mean = state + \
+				np.dot(self.state_covariance,np.random.normal(size=((self.param.state_dim,1))))
