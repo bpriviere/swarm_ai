@@ -1,4 +1,5 @@
 # swarm_ai
+https://github.com/bpriviere/swarm_ai.git
 
 ## Working with the code
 Developed using Ubuntu 20.20 (at least that's what Wolfgang uses, and has worked for matt too)
@@ -44,3 +45,4 @@ and activate the key using the tool (found in the installation directory /opt/gu
 ```
 python3 run.py
 ```
+
