@@ -1,22 +1,12 @@
 # swarm_ai
 
 ## Working with the code
-Developed using Ubuntu 20.20 (at least that's what Wolfgang uses)
-
+Developed using Ubuntu 20.20 (at least that's what Wolfgang uses, and has worked for matt too)
 The code as it currently stands should take under a minute to run.
 
 ## Dependencies
-
-### VS Code (Windows, didn't work...)
-Installed a standard version of VS Code (Windows x64)
-Installed the C++ build tools (requried for building cvxpy)
-
-Everything kind of seemed to go but it didn't like the os operations (and the file creation type stuff)
-
-### WSL
-Couldn't get gurobi to go...
-
-### Using Ubuntu 20.20 (Virtual Machine)
+These instructions were developed on a virtual machine on Windows running Xubuntu 20.04
+### Setting up (X)ubuntu 20.04
 Install dependencies for VM Addons (reboot required)
 ```
 sudo apt-get install build-essential gcc make perl dkms
@@ -24,37 +14,31 @@ sudo apt-get install build-essential gcc make perl dkms
 
 Install guest additions (Oracle VM Virtual Box)
 
-
 ### Python3
+Requires python3.X (X>=6 should be ok)
 ```
 sudo apt install python3-pip -y
 pip3 install wheel
 pip3 install numpy gym pandas matplotlib cvxpy
 ```
-Gurobi Python Interface
-Download from (you may need an account)
+
+### Gurobi
+Download from (you will need to make an account, but academic licence is free)
 ```
 https://www.gurobi.com/downloads/gurobi-software/
 ```
-Run the installer
+Follow the instructions at (remember to fix the folder names)
 ```
-sudo python3 setup.py install
+https://www.gurobi.com/documentation/8.1/quickstart_linux/software_installation_guid.html
 ```
 Get an academic licence key (grbgetkey 2d737662-c219-11ea-bd95-0a7c4f30bdbe)
 ```
 https://www.gurobi.com/downloads/end-user-license-agreement-academic/
 ```
-and activate the key using the tool
+and activate the key using the tool (found in the installation directory /opt/gurobiXXX/linux64/bin/
 ```
-./bin/grbgetkey
+./grbgetkey
 ```
-
-Link Gurobi to the installed python.
-Run 
-```
-C:\gurobi902\win64\bin\pysetup.bat
-```
-and use the local install (default is C:/Users/matt/AppData/Local/Programs/Python/Python38/ )
 
 ## Running the software
 ```
