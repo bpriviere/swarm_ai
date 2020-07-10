@@ -1,0 +1,6 @@
+# Ignore files for ARCL Swarm work
+
+*.pyc
+
+# results files
+/current_results/

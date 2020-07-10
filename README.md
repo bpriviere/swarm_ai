@@ -6,14 +6,30 @@ Developed using Ubuntu 20.20 (at least that's what Wolfgang uses)
 The code as it currently stands should take under a minute to run.
 
 ## Dependencies
-### VS Code
+
+### VS Code (Windows, didn't work...)
 Installed a standard version of VS Code (Windows x64)
 Installed the C++ build tools (requried for building cvxpy)
 
+Everything kind of seemed to go but it didn't like the os operations (and the file creation type stuff)
+
+### WSL
+Couldn't get gurobi to go...
+
+### Using Ubuntu 20.20 (Virtual Machine)
+Install dependencies for VM Addons (reboot required)
+```
+sudo apt-get install build-essential gcc make perl dkms
+```
+
+Install guest additions (Oracle VM Virtual Box)
+
+
 ### Python3
 ```
+sudo apt install python3-pip -y
 pip3 install wheel
-pip3 install numpy, gym, pandas, matplotlib, cvxpy
+pip3 install numpy gym pandas matplotlib cvxpy
 ```
 Gurobi Python Interface
 Download from (you may need an account)
