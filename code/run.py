@@ -51,6 +51,7 @@ def run_sim(param,env,reset,estimator,attacker,controller):
 	# action = controller.initial_policy()
 	estimate = estimator.initial_estimate()
 
+	# for time in tqdm(param.sim_times):
 	for step,time in enumerate(param.sim_times):
 		if not param.quiet_on: 
 			print('\t\t t = {}/{}'.format(step,len(param.sim_times)))

@@ -7,6 +7,7 @@ import torch
 import time 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from multiprocessing import cpu_count, Pool 
+import concurrent.futures
 
 # project
 sys.path.append("../")
@@ -53,8 +54,8 @@ def test(model,optimizer,loader):
 def prepare_raw_data_gen(gparam):
 
 	params, instance_keys  = [], []
-	cases = itertools.product(*(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst))
-	for (num_nodes_A, num_nodes_B) in cases:
+	# cases = itertools.product(*(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst))
+	for (num_nodes_A, num_nodes_B) in zip(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst):
 		for trial in range(gparam.num_trials):
 			
 			# save 
@@ -97,9 +98,11 @@ def run_batch(param, instance_key):
 	param_fn = '{}param_{}.json'.format( \
 		gparam.demonstration_data_dir,instance_key)
 
-	print('writing instance {}... ', instance_key)
+	print('writing instance {}... '.format(instance_key))
 	dh.write_state_action_pairs(sim_result,state_action_fn)
 	dh.write_parameters(param.to_dict(),param_fn)
+
+	print('completed instance {}'.format(instance_key))
 
 
 if __name__ == '__main__':

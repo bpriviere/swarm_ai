@@ -14,9 +14,9 @@ class Gparam:
 		self.serial_on 				= False
 
 		# generate demonstration data parameters
-		self.num_nodes_A_lst = [4]
-		self.num_nodes_B_lst = [2,4]
-		self.num_trials = 1
+		self.num_nodes_A_lst = [2,4,6]
+		self.num_nodes_B_lst = [2,4,6]
+		self.num_trials = 30
 		self.demonstration_data_dir = '../../data/demonstration/'
 
 		# learning parameters
