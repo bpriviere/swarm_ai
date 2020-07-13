@@ -6,14 +6,16 @@ import numpy as np
 import torch 
 import time 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from multiprocessing import cpu_count, Pool 
 
 # project
 sys.path.append("../")
 from env import Swarm
-from run import sim
+from run import run_sim
 from param import Param 
-from param_glas import Gparam
+from gparam import Gparam
 from learning.emptynet import EmptyNet
+from utilities import load_module
 import datahandler as dh
 
 
@@ -48,8 +50,60 @@ def test(model,optimizer,loader):
 	return epoch_loss/(step+1)
 
 
+def prepare_raw_data_gen(gparam):
+
+	params, instance_keys  = [], []
+	cases = itertools.product(*(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst))
+	for (num_nodes_A, num_nodes_B) in cases:
+		for trial in range(gparam.num_trials):
+			
+			# save 
+			instance_key = '{}a_{}b_{}trial'.format( \
+				num_nodes_A,num_nodes_B,trial)
+
+			# param 
+			sim_param = Param()
+			sim_param.num_nodes_A = num_nodes_A 
+			sim_param.num_nodes_B = num_nodes_B
+			sim_param.quiet_on = True 
+			sim_param.update()
+			
+			# assign 
+			params.append(sim_param)
+			instance_keys.append(instance_key)
+
+	return params, instance_keys
+
+
+def run_batch(param, instance_key):
+
+	env = Swarm(param)
+	estimator = load_module(param.estimator_name).Estimator(param,env)
+	attacker = load_module(param.attacker_name).Attacker(param,env)
+	controller = load_module(param.controller_name).Controller(param,env)
+	reset = env.get_reset()
+
+	print('running instance {}... '.format(instance_key))
+	sim_result = run_sim(param,env,reset,estimator,attacker,controller)
+	try: 
+		sim_result = run_sim(param,env,reset,estimator,attacker,controller)
+	except:
+		print('sim failed')
+		return 
+
+	state_action_fn = '{}raw_{}'.format( \
+		gparam.demonstration_data_dir,instance_key)
+
+	param_fn = '{}param_{}.json'.format( \
+		gparam.demonstration_data_dir,instance_key)
+
+	print('writing instance {}... ', instance_key)
+	dh.write_state_action_pairs(sim_result,state_action_fn)
+	dh.write_parameters(param.to_dict(),param_fn)
+
+
 if __name__ == '__main__':
-	
+
 	gparam = Gparam()
 
 	format_dir(gparam) 
@@ -59,37 +113,18 @@ if __name__ == '__main__':
 
 		print('making raw data...')
 
-		cases = itertools.product(*(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst))
-		for (num_nodes_A, num_nodes_B) in cases:
-			for trial in range(gparam.num_trials):
-				
-				# save 
-				instance_key = '{}a_{}b_{}trial'.format( \
-					num_nodes_A,num_nodes_B,trial)
+		# prepare run 
+		params, instance_keys  = prepare_raw_data_gen(gparam) 
 
-				state_action_fn = '{}raw_{}'.format( \
-					gparam.demonstration_data_dir,instance_key)
-
-				param_fn = '{}param_{}.json'.format( \
-					gparam.demonstration_data_dir,instance_key)
-
-				print('\t instance_key:',instance_key)
-
-				# param 
-				sim_param = Param()
-				sim_param.num_nodes_A = num_nodes_A 
-				sim_param.num_nodes_B = num_nodes_B
-				sim_param.update()
-				
-				try: 
-					# run sim 
-					sim_results = sim(sim_param) 
-					dh.write_state_action_pairs(sim_results[0],state_action_fn)
-					dh.write_parameters(sim_param.to_dict(),param_fn)
-
-				except:
-					print('sim failed')
-
+		# run 
+		if gparam.serial_on:
+			for (param, instance_key) in zip(params, instance_keys):
+				run_batch(param, instance_key)
+		else:	
+			ncpu = cpu_count()
+			print('ncpu: ', ncpu)
+			with Pool(ncpu-1) as p:
+				p.starmap(run_batch, zip(params,instance_keys))
 
 
 	# load (state,action) files, apply measurement model, and write (observation,action) binary files

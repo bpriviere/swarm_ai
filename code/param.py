@@ -13,13 +13,14 @@ class Param:
 		self.controller_name 	= 'controller/joint_mpc.py'		 	# empty, joint_mpc, ...
 
 		# flags
-		self.gif_on = True
+		self.gif_on 	= False
+		self.quiet_on 	= True
 
 		# sim param 
 		self.n_trials = 1
 		self.sim_t0 = 0
-		self.sim_tf = 25
-		self.sim_dt = 0.25
+		self.sim_tf = 10
+		self.sim_dt = 0.5
 		
 		# topology
 		self.r_sense = 1.6

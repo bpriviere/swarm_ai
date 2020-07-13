@@ -1,4 +1,5 @@
 
+
 # standard packages
 import numpy as np 
 import time as time_pkg
@@ -6,6 +7,8 @@ import os
 import glob
 import shutil
 import itertools
+from tqdm import tqdm
+from p_tqdm import p_tqdm
 
 # my packages 
 from param import Param
@@ -28,12 +31,17 @@ def format_dir(param):
 def sim(param):
 
 	env = Swarm(param)
-
 	estimator = load_module(param.estimator_name).Estimator(param,env)
 	attacker = load_module(param.attacker_name).Attacker(param,env)
 	controller = load_module(param.controller_name).Controller(param,env)
-
 	reset = env.get_reset()
+
+	sim_result = run_sim(param,env,reset,estimator,attacker,controller)
+
+	return [sim_result]
+
+
+def run_sim(param,env,reset,estimator,attacker,controller):
 
 	sim_result = dict() 
 	times, states, actions, observations, rewards = [],[],[],[],[]
@@ -44,7 +52,8 @@ def sim(param):
 	estimate = estimator.initial_estimate()
 
 	for step,time in enumerate(param.sim_times):
-		print('\t\t t = {}/{}'.format(step,len(param.sim_times)))
+		if not param.quiet_on: 
+			print('\t\t t = {}/{}'.format(step,len(param.sim_times)))
 		
 		observation = env.observe() 
 		observation = attacker.attack(observation)
@@ -68,7 +77,7 @@ def sim(param):
 	sim_result["info"] = info
 	sim_result["param"] = param.to_dict() 
 
-	return [sim_result]
+	return sim_result
 
 
 def save_lst_of_node_dicts_as_np(some_lst_of_node_dicts):
@@ -116,15 +125,15 @@ if __name__ == '__main__':
 	# plotting 
 	print('plotting sim results...')
 	for sim_result in sim_results:
-		# for timestep,time in enumerate(sim_result["times"]):
-		# 	plotter.plot_nodes(sim_result,timestep)
-		# plotter.plot_state_estimate(sim_result) 
-		# plotter.plot_control_effort(sim_result)
-		# plotter.plot_speeds(sim_result)
+		for timestep,time in enumerate(sim_result["times"]):
+			plotter.plot_nodes(sim_result,timestep)
+		plotter.plot_state_estimate(sim_result) 
+		plotter.plot_control_effort(sim_result)
+		plotter.plot_speeds(sim_result)
 
 		if param.gif_on: 
 			plotter.make_gif(sim_result)
 
-	# print('saving and opening figs...')
-	# plotter.save_figs(param.plot_fn)
-	# plotter.open_figs(param.plot_fn)
+	print('saving and opening figs...')
+	plotter.save_figs(param.plot_fn)
+	plotter.open_figs(param.plot_fn)

@@ -8,13 +8,15 @@ class Gparam:
 
 		# behavior 
 		self.make_raw_data_on 		= True
-		self.make_labelled_data_on 	= True
-		self.train_model_on 		= True
+		self.make_labelled_data_on 	= False
+		self.train_model_on 		= False
+
+		self.serial_on 				= False
 
 		# generate demonstration data parameters
 		self.num_nodes_A_lst = [4]
 		self.num_nodes_B_lst = [2,4]
-		self.num_trials = 50
+		self.num_trials = 1
 		self.demonstration_data_dir = '../../data/demonstration/'
 
 		# learning parameters

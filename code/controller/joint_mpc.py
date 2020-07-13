@@ -134,21 +134,25 @@ class Controller(Controller):
 		# prob.solve(verbose=True,solver=cp.GUROBI) 
 		prob.solve(verbose=False,solver=cp.GUROBI) 
 
+		if not self.param.quiet_on: 
+			print('\t\t\t prob status: ',prob.status)
+
 		states = dict()
 		actions = dict()
-		if prob.status not in ["infeasible", "unbounded"]:
-			# assign 
-			for node in nodes_A: 
-				states[node] = x_t.value[state_idxs_A[node],:]
-				actions[node] = u_t.value[control_idxs_A[node],:]
-
-		else: 
-			print('team A mpc failed')
+		if prob.status in ["infeasible", "unbounded"]:
 			# take no action  
+			print('team A mpc failed')
+
 			for node in nodes_A: 
 				states[node] = np.dot(node.dynamics.A, x0_A[state_idxs_A[node]]) + \
 					np.dot(node.dynamics.B, u0_A[control_idxs_A[node]])
 				actions[node] = u0_A[control_idxs_A[node]]
+
+		else: 
+			# assign 
+			for node in nodes_A: 
+				states[node] = x_t.value[state_idxs_A[node],:]
+				actions[node] = u_t.value[control_idxs_A[node],:]
 
 		return states,actions
 
@@ -243,22 +247,26 @@ class Controller(Controller):
 		obj = cp.Minimize(cost)
 		prob = cp.Problem(obj, constr)
 		prob.solve(verbose=False,solver=cp.GUROBI)
+		
+		if not self.param.quiet_on: 
+			print('\t\t\t prob status: ',prob.status)
 
 		states = dict()
 		actions = dict()
-		if prob.status not in ["infeasible", "unbounded"]:
-			# assign 
-			for node in nodes_B: 
-				states[node] = x_t.value[state_idxs_B[node],:]
-				actions[node] = u_t.value[control_idxs_B[node],:]
-
-		else: 
-			print('team B mpc failed')
+		if prob.status in ["infeasible", "unbounded"]:
 			# take no action  
+			print('team B mpc failed')
+			
 			for node in nodes_B: 
 				states[node] = np.dot(node.dynamics.A, x0_B[state_idxs_B[node]]) + \
 					np.dot(node.dynamics.B, u0_B[control_idxs_B[node]])
 				actions[node] = u0_B[control_idxs_B[node]]
+
+		else: 
+			# assign 
+			for node in nodes_B: 
+				states[node] = x_t.value[state_idxs_B[node],:]
+				actions[node] = u_t.value[control_idxs_B[node],:]
 
 		return states,actions
 
