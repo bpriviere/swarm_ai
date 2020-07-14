@@ -34,6 +34,8 @@ class DeepSet(nn.Module):
 	def forward(self,x):
 		# x is list of relative state measurements to members on team a (or b)
 
+		# print(x)
+
 		X = torch.zeros((len(x),self.rho.in_dim), device=self.device)
 		num_elements = int(x.size()[1] / self.phi.in_dim)
 		for i in range(num_elements):

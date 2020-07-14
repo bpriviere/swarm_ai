@@ -10,7 +10,7 @@ class Param:
 		self.measurements_name 	= 'measurements/global.py' 			# global, (local)
 		self.estimator_name 	= 'estimator/kalman.py'	 			# empty,(kalman),exact...
 		self.attacker_name 		= 'attacker/empty.py' 				# empty, ...
-		self.controller_name 	= 'controller/joint_mpc.py'		 	# empty, joint_mpc, ...
+		self.controller_name 	= 'controller/glas.py'		 	# empty, glas, joint_mpc, ...
 
 		# flags
 		self.gif_on 	= False
@@ -60,6 +60,7 @@ class Param:
 
 		# path stuff
 		self.current_results_dir = '../current_results'
+		self.glas_model = '../models/il_current.pt'
 		
 		# plotting 
 		self.plot_fn = 'plots.pdf'

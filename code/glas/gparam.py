@@ -6,11 +6,12 @@ class Gparam:
 
 	def __init__(self):
 
-		# behavior 
-		self.make_raw_data_on 		= True
+		# flags  
+		self.make_raw_data_on 		= False
 		self.make_labelled_data_on 	= False
-		self.train_model_on 		= False
+		self.train_model_on 		= True
 
+		# raw data param  
 		self.serial_on 				= False
 
 		# generate demonstration data parameters
@@ -19,7 +20,9 @@ class Gparam:
 		self.num_trials = 30
 		self.demonstration_data_dir = '../../data/demonstration/'
 
-		# learning parameters
+		# train parameters
+		self.training_team = "B"
+
 		# learning hyperparameters
 		self.device = 'cpu'
 
@@ -41,7 +44,8 @@ class Gparam:
 
 		self.il_network_activation = relu
 		self.il_train_model_fn = '../../models/il_current.pt'
-		self.il_test_train_ratio = 0.85
+		self.il_test_train_ratio = 0.50
+		self.il_n_points = 200
 		self.il_batch_size = 500
 		self.il_n_epoch = 50
 		self.il_lr = 1e-3
