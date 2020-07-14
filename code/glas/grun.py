@@ -25,7 +25,9 @@ import datahandler as dh
 def format_dir(param):
 	if not os.path.exists(param.demonstration_data_dir):
 		os.makedirs(param.demonstration_data_dir,exist_ok=True)
-
+	if not os.path.exists(param.model_dir):
+		os.makedirs(param.model_dir,exist_ok=True)
+		
 
 def train(model,optimizer,loader):
 	

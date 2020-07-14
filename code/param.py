@@ -14,7 +14,7 @@ class Param:
 
 		# flags
 		self.gif_on 	= False
-		self.quiet_on 	= True
+		self.quiet_on 	= False
 
 		# sim param 
 		self.n_trials = 1

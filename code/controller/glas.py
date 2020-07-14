@@ -19,13 +19,13 @@ class Controller(Controller):
 		device = "cpu"
 		self.model = EmptyNet(gparam, device)
 		self.model.load_state_dict(torch.load(self.param.glas_model))
-		self.policy_A = MPC(param,env).policy_A 
+		self.MPC = MPC(param,env)
 
 
 	def policy(self,estimate):
 
 		# team A policy is mpc
-		states_A, actions_A = self.policy_A(self.env.nodes,estimate)
+		states_A, actions_A = self.MPC.policy_A(self.env.nodes,estimate)
 
 		# team B policy is glas 
 		actions_B = self.policy_B(self.env.nodes,estimate)
@@ -52,7 +52,7 @@ class Controller(Controller):
 		observations = relative_state(self.env.nodes, self.param.r_sense)
 		for node in nodes_B:
 			o_a, o_b = observations[node]
-			o_a = torch.from_numpy(np.expand_dims(o_a,axis=0)).float()
+			o_a = torch.from_numpy(np.expand_dims(o_a,axis=0)).float() 
 			o_b = torch.from_numpy(np.expand_dims(o_b,axis=0)).float()
 			actions[node] = self.model(o_a,o_b).detach().numpy().T # 2 x 1 
 		return actions
