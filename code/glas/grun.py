@@ -27,7 +27,7 @@ def format_dir(param):
 		os.makedirs(param.demonstration_data_dir,exist_ok=True)
 	if not os.path.exists(param.model_dir):
 		os.makedirs(param.model_dir,exist_ok=True)
-		
+
 
 def train(model,optimizer,loader):
 	
@@ -70,6 +70,9 @@ def prepare_raw_data_gen(gparam):
 			sim_param.num_nodes_A = num_nodes_A 
 			sim_param.num_nodes_B = num_nodes_B
 			sim_param.quiet_on = True 
+			if sim_param.num_nodes_A >= 6:
+				sim_param.sim_dt = sim_param.sim_dt / 2
+			sim_param.controller_name 	= 'controller/joint_mpc.py'
 			sim_param.update()
 			
 			# assign 

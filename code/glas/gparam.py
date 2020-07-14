@@ -7,9 +7,9 @@ class Gparam:
 	def __init__(self):
 
 		# flags  
-		self.make_raw_data_on 		= False
+		self.make_raw_data_on 		= True
 		self.make_labelled_data_on 	= False
-		self.train_model_on 		= True
+		self.train_model_on 		= False
 
 		# raw data param  
 		self.serial_on 				= False
