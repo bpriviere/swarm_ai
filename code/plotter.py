@@ -55,7 +55,7 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 	for node_idx in range(node_states.shape[1]):
 		node_trajectory_x = node_states[:,node_idx,0,:]	
 		node_trajectory_y = node_states[:,node_idx,1,:]	
-		ax.plot(node_trajectory_x,node_trajectory_y,color='black',linestyle='--',alpha=0.05)	
+		ax.plot(node_trajectory_x,node_trajectory_y,color='black',linestyle='--',alpha=0.25)	
 
 	# plot initialization 
 	reset_a = patches.Rectangle((reset_xlim_A[0],reset_ylim_A[0]),\
@@ -244,5 +244,6 @@ def plot_loss(losses):
 	ax.legend()
 	ax.set_ylabel('mse')
 	ax.set_xlabel('epoch')
+	ax.set_yscale('log')
 	ax.grid(True)
 	fig.tight_layout()

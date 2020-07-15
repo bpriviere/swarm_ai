@@ -28,7 +28,7 @@ class Gparam:
 		# learning hyperparameters
 		self.device = 'cpu'
 
-		n,m,h,l,p = 4,2,16,8,8 # state dim, action dim, hidden layer, output phi, output rho
+		n,m,h,l,p = 4,2,32,8,8 # state dim, action dim, hidden layer, output phi, output rho
 		self.il_phi_network_architecture = nn.ModuleList([
 			nn.Linear(n,h),
 			nn.Linear(h,h),

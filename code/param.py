@@ -36,8 +36,8 @@ class Param:
 		self.goal_line_x = 0.6
 		
 		# nodes 
-		self.num_nodes_A = 4
-		self.num_nodes_B = 4
+		self.num_nodes_A = 2
+		self.num_nodes_B = 2
 		
 		# estimator parameters
 		self.initial_state_covariance = 1e-10 # defines initial condition of estimators
@@ -60,7 +60,7 @@ class Param:
 
 		# path stuff
 		self.current_results_dir = '../current_results'
-		self.glas_model = '../models/il_current.pt'
+		self.glas_model = '../models/il_save.pt'
 		
 		# plotting 
 		self.plot_fn = 'plots.pdf'
