@@ -232,14 +232,17 @@ def plot_sa_pairs(states,actions,param,instance):
 		ax.set_title('{} at time {}'.format(instance,timestep))
 
 
-# def plot_oa_pairs(o_a,o_b,actions):
+def plot_loss(losses):
 
-# 	print(o_a.shape)
-# 	print(o_b.shape)
-# 	print(actions.shape)
+	losses = np.array(losses)
 
+	fig,ax = plt.subplots()
+
+	ax.plot(losses[:,0],label='train')
+	ax.plot(losses[:,1],label='test')
 	
-	
-# 	exit()
-
-# 	pass 
+	ax.legend()
+	ax.set_ylabel('mse')
+	ax.set_xlabel('epoch')
+	ax.grid(True)
+	fig.tight_layout()

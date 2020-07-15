@@ -20,7 +20,7 @@ class Param:
 		self.n_trials = 1
 		self.sim_t0 = 0
 		self.sim_tf = 20
-		self.sim_dt = 0.5
+		self.sim_dt = 0.25
 		
 		# topology
 		self.r_sense = 1.6

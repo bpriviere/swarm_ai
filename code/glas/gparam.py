@@ -16,9 +16,9 @@ class Gparam:
 		self.serial_on 				= False
 
 		# generate demonstration data parameters
-		self.num_nodes_A_lst = [2]
-		self.num_nodes_B_lst = [2]
-		self.num_trials = 1
+		self.num_nodes_A_lst = [2,4,6]
+		self.num_nodes_B_lst = [2,4,6]
+		self.num_trials = 500
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'
 
@@ -28,7 +28,7 @@ class Gparam:
 		# learning hyperparameters
 		self.device = 'cpu'
 
-		n,m,h,l,p = 4,2,16,8,8 # state dim, action dim, hidden layer, output phi, output rho
+		n,m,h,l,p = 4,2,32,8,8 # state dim, action dim, hidden layer, output phi, output rho
 		self.il_phi_network_architecture = nn.ModuleList([
 			nn.Linear(n,h),
 			nn.Linear(h,h),
@@ -47,8 +47,8 @@ class Gparam:
 		self.il_network_activation = relu
 		self.il_train_model_fn = self.model_dir + 'il_current.pt'
 		self.il_test_train_ratio = 0.50
-		self.il_n_points = 200
-		self.il_batch_size = 500
+		self.il_n_points = 200000
+		self.il_batch_size = 5000
 		self.il_n_epoch = 50
 		self.il_lr = 1e-3
 		self.il_wd = 0 

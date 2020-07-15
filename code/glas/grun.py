@@ -74,7 +74,7 @@ def prepare_raw_data_gen(gparam):
 			sim_param = Param()
 			sim_param.num_nodes_A = num_nodes_A 
 			sim_param.num_nodes_B = num_nodes_B
-			sim_param.quiet_on = False
+			sim_param.quiet_on = True
 			if sim_param.num_nodes_A >= 6:
 				sim_param.sim_dt = sim_param.sim_dt / 2
 			sim_param.controller_name = 'controller/joint_mpc.py'
@@ -240,39 +240,37 @@ if __name__ == '__main__':
 		# 	plotter.plot_oa_pairs(o_a,o_b,action)
 		# 	break 
 
-		plotter.save_figs(param.plot_fn)
-		plotter.open_figs(param.plot_fn)
-		exit()
-
 
 	# load (observation,action) binary files, train a model, and write model to file 
 	if gparam.train_model_on: 
 		print('training model...')
 		
+		batched_files = glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,gparam.training_team))
+		
+		n_points = 0 
+		for batched_file in batched_files:
+			o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
+			n_points += action.shape[0]
+		n_points = np.min((n_points, gparam.il_n_points))
+
 		# get loader 
 		train_loader = [] # lst of batches 
 		test_loader  = [] 
-		n_points 	 = 0 
-		batched_files = glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,gparam.training_team))
-		for batched_file in batched_files:
-			o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
-			
-			if n_points < gparam.il_test_train_ratio * gparam.il_n_points: 
+		curr_points = 0 
+		for batched_file in batched_files: 
+			if curr_points < gparam.il_test_train_ratio * n_points: 
 				train_loader.append([
 					torch.from_numpy(o_a).float().to(gparam.device),
 					torch.from_numpy(o_b).float().to(gparam.device),
 					torch.from_numpy(action).float().to(gparam.device)])
 
-			elif n_points < gparam.il_n_points:
+			elif curr_points < n_points:
 				test_loader.append([
 					torch.from_numpy(o_a).float().to(gparam.device),
 					torch.from_numpy(o_b).float().to(gparam.device),
 					torch.from_numpy(action).float().to(gparam.device)])
 
-			else: 
-				break 
-
-			n_points += action.shape[0]
+			curr_points += action.shape[0]
 
 		# get sizes
 		test_dataset_size = 0 
@@ -292,6 +290,7 @@ if __name__ == '__main__':
 		optimizer = torch.optim.Adam(model.parameters(), lr=gparam.il_lr, weight_decay=gparam.il_wd)
 		
 		# train 
+		losses = []
 		with open(gparam.il_train_model_fn + ".csv", 'w') as log_file:
 			log_file.write("time,epoch,train_loss,test_loss\n")
 			start_time = time.time()
@@ -301,6 +300,8 @@ if __name__ == '__main__':
 				train_epoch_loss = train(model,optimizer,train_loader)
 				test_epoch_loss = test(model,optimizer,test_loader)
 				scheduler.step(test_epoch_loss)
+
+				losses.append((train_epoch_loss,test_epoch_loss))
 			
 				if epoch%gparam.il_log_interval==0:
 					print('epoch: ', epoch)
@@ -315,3 +316,7 @@ if __name__ == '__main__':
 
 				log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
 
+		plotter.plot_loss(losses)
+
+	plotter.save_figs(param.plot_fn)
+	plotter.open_figs(param.plot_fn)
