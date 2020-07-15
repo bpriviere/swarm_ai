@@ -49,7 +49,7 @@ class Controller(Controller):
 				nodes_B.append(node)
 
 		actions = dict() 
-		observations = relative_state(self.env.nodes, self.param.r_sense)
+		observations = relative_state(self.env.nodes, self.param.r_sense,flatten=True)
 		for node in nodes_B:
 			o_a, o_b = observations[node]
 			o_a = torch.from_numpy(np.expand_dims(o_a,axis=0)).float() 

@@ -202,15 +202,44 @@ def make_gif(sim_result):
 	duration = 0.5 
 	imageio.mimsave(gif_name, images, duration = duration)
 
-def format_dir(dir_name):
 
-	import os, shutil, glob
+def plot_sa_pairs(states,actions,param,instance):
 
-	if os.path.exists(dir_name):
-		shutil.rmtree(dir_name)
+	from env import Swarm 
 
-	os.makedirs(dir_name,exist_ok=True)
+	env = Swarm(param)
 
-	# # clean gif dir
-	# for old_dir in glob.glob(dir_name):
-	# 	shutil.rmtree(old_dir)
+	colors = ['red','blue']
+
+	for timestep,(state,action) in enumerate(zip(states,actions)):
+
+		fig,ax = plt.subplots()
+
+		# first update state 
+		state_dict = env.state_vec_to_dict(state)
+		for node in env.nodes: 
+			node.state = state_dict[node]
+			ax.scatter(node.state[0],node.state[1],100,color=colors[node.team_A],zorder=10)
+
+		ax.axvline(param.goal_line_x,color='green',alpha=0.5,linestyle='--')
+
+		ax.set_xlim(param.env_xlim)
+		ax.set_ylim(param.env_ylim)
+		ax.grid(True)
+		ax.set_aspect('equal')
+		ax.set_xlabel('pos [m]')
+		ax.set_ylabel('pos [m]')
+		ax.set_title('{} at time {}'.format(instance,timestep))
+
+
+# def plot_oa_pairs(o_a,o_b,actions):
+
+# 	print(o_a.shape)
+# 	print(o_b.shape)
+# 	print(actions.shape)
+
+	
+	
+# 	exit()
+
+# 	pass 

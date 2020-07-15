@@ -2,7 +2,7 @@
 import numpy as np 
 
 
-def relative_state(nodes,r_sense):
+def relative_state(nodes,r_sense,flatten=False):
 
 	# make neighbors
 	observations = dict()
@@ -19,6 +19,9 @@ def relative_state(nodes,r_sense):
 				elif node_j.team_B:
 					o_b.append(node_j.state - node_i.state)
 
-		observations[node_i] = (np.array(o_a).flatten(),np.array(o_b).flatten())
+		if flatten:
+			observations[node_i] = (np.array(o_a).flatten(),np.array(o_b).flatten())
+		else:
+			observations[node_i] = (o_a,o_b)
 
 	return observations

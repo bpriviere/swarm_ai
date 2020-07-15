@@ -107,21 +107,8 @@ def write_state_action_pairs(sim_result,fn):
 	np.save(fn,state_action_pairs)
 
 
-def write_observation_action_pairs(observation_action_pairs_dict, datadir):
-
-	for (team, num_a, num_b), observation_action_pairs in observation_action_pairs_dict.items():
-		batched_dataset = [] 
-		for (o_a, o_b, action) in observation_action_pairs:
-			data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(action).flatten()))
-			batched_dataset.append(data)
-
-		if team: 
-			team_name = "A"
-		else:
-			team_name = "B"
-
-		fn = '{}labelled_{}team_{}a_{}b.npy'.format(datadir,team_name,num_a,num_b)
-		np.save(fn,batched_dataset)
+def write_oa_pair_batch(batched_dataset,batch_fn):
+	np.save(batch_fn, batched_dataset)
 
 
 def write_parameters(param_dict,fn):
