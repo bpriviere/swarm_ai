@@ -252,33 +252,29 @@ if __name__ == '__main__':
 			o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
 			n_points += action.shape[0]
 		n_points = np.min((n_points, gparam.il_n_points))
+		print('n_points',n_points)
 
 		# get loader 
 		train_loader = [] # lst of batches 
 		test_loader  = [] 
-		curr_points = 0 
+		curr_points, train_dataset_size, test_dataset_size = 0,0,0
 		for batched_file in batched_files: 
+			o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
 			if curr_points < gparam.il_test_train_ratio * n_points: 
 				train_loader.append([
 					torch.from_numpy(o_a).float().to(gparam.device),
 					torch.from_numpy(o_b).float().to(gparam.device),
 					torch.from_numpy(action).float().to(gparam.device)])
+				train_dataset_size += action.shape[0]
 
 			elif curr_points < n_points:
 				test_loader.append([
 					torch.from_numpy(o_a).float().to(gparam.device),
 					torch.from_numpy(o_b).float().to(gparam.device),
 					torch.from_numpy(action).float().to(gparam.device)])
+				test_dataset_size += action.shape[0]
 
 			curr_points += action.shape[0]
-
-		# get sizes
-		test_dataset_size = 0 
-		train_dataset_size = 0 
-		for batch in test_loader: 
-			test_dataset_size += batch[2].shape[0]
-		for batch in train_loader: 
-			train_dataset_size += batch[2].shape[0]	
 
 		print('train dataset size: ', train_dataset_size)
 		print('test dataset size: ', test_dataset_size)
@@ -318,5 +314,5 @@ if __name__ == '__main__':
 
 		plotter.plot_loss(losses)
 
-	plotter.save_figs(param.plot_fn)
-	plotter.open_figs(param.plot_fn)
+	plotter.save_figs('plots.pdf')
+	plotter.open_figs('plots.pdf')

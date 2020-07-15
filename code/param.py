@@ -36,8 +36,8 @@ class Param:
 		self.goal_line_x = 0.6
 		
 		# nodes 
-		self.num_nodes_A = 2
-		self.num_nodes_B = 2
+		self.num_nodes_A = 4
+		self.num_nodes_B = 4
 		
 		# estimator parameters
 		self.initial_state_covariance = 1e-10 # defines initial condition of estimators
