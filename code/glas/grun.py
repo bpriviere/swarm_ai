@@ -19,6 +19,7 @@ from learning.emptynet import EmptyNet
 from measurements.relative_state import relative_state
 from utilities import load_module
 import datahandler as dh
+import plotter 
 
 
 
@@ -59,20 +60,24 @@ def prepare_raw_data_gen(gparam):
 	params, instance_keys  = [], []
 	# cases = itertools.product(*(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst))
 	for (num_nodes_A, num_nodes_B) in zip(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst):
+
+		start = len(glob.glob('{}raw_{}a_{}b_*'.format(\
+			gparam.demonstration_data_dir,num_nodes_A,num_nodes_B)))
+
 		for trial in range(gparam.num_trials):
 			
 			# save 
 			instance_key = '{}a_{}b_{}trial'.format( \
-				num_nodes_A,num_nodes_B,trial)
+				num_nodes_A,num_nodes_B,trial+start)
 
 			# param 
 			sim_param = Param()
 			sim_param.num_nodes_A = num_nodes_A 
 			sim_param.num_nodes_B = num_nodes_B
-			sim_param.quiet_on = True 
+			sim_param.quiet_on = False
 			if sim_param.num_nodes_A >= 6:
 				sim_param.sim_dt = sim_param.sim_dt / 2
-			sim_param.controller_name 	= 'controller/joint_mpc.py'
+			sim_param.controller_name = 'controller/joint_mpc.py'
 			sim_param.update()
 			
 			# assign 
@@ -91,24 +96,47 @@ def run_batch(param, instance_key):
 	reset = env.get_reset()
 
 	print('running instance {}... '.format(instance_key))
-	sim_result = run_sim(param,env,reset,estimator,attacker,controller)
 	try: 
 		sim_result = run_sim(param,env,reset,estimator,attacker,controller)
 	except:
 		print('sim failed')
 		return 
 
-	state_action_fn = '{}raw_{}'.format( \
-		gparam.demonstration_data_dir,instance_key)
-
-	param_fn = '{}param_{}.json'.format( \
-		gparam.demonstration_data_dir,instance_key)
+	state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
+	param_fn = get_param_fn(gparam.demonstration_data_dir,instance_key)
 
 	print('writing instance {}... '.format(instance_key))
 	dh.write_state_action_pairs(sim_result,state_action_fn)
 	dh.write_parameters(param.to_dict(),param_fn)
 
 	print('completed instance {}'.format(instance_key))
+
+
+def get_instance_keys(gparam):
+	instance_keys = [] 
+	for instance_key in glob.glob('{}*.json'.format(gparam.demonstration_data_dir)):
+		instance_key = instance_key.split(gparam.demonstration_data_dir)[-1]
+		instance_key = instance_key.split('.json')[0]
+		instance_key = instance_key.split('param_')[-1]	
+		instance_keys.append(instance_key)
+	return instance_keys
+
+
+def get_sa_pair_fn(demonstration_data_dir,instance):
+	return '{}raw_{}.npy'.format(demonstration_data_dir,instance)
+
+def get_param_fn(demonstration_data_dir,instance):
+	return '{}param_{}.json'.format(demonstration_data_dir,instance)
+
+def get_batch_fn(datadir,team_name,num_a,num_b,batch_num):
+	team_name = "a" if team else "b"
+	return '{}labelled_{}team_{}a_{}b_{}trial.npy'.format(datadir,team_name,num_a,num_b,batch_num)
+
+def load_param(param_fn):
+	param_dict = dh.read_parameters(param_fn)
+	param = Param()
+	param.from_dict(param_dict)	
+	return param 
 
 
 if __name__ == '__main__':
@@ -136,26 +164,18 @@ if __name__ == '__main__':
 	if gparam.make_labelled_data_on: 
 		print('make labelled data...')
 
-		batched_oa_pairs = dict() # batched by number neighbors team_a, team_b 
-		for instance_key in glob.glob('{}*.json'.format(gparam.demonstration_data_dir)):
+		oa_pairs_by_size = dict() # batched by number neighbors team_a, team_b 
+		instance_keys = get_instance_keys(gparam) 
 
-			instance_key = instance_key.split(gparam.demonstration_data_dir)[-1]
-			instance_key = instance_key.split('.json')[0]
-			instance_key = instance_key.split('param_')[-1]
-
+		for instance_key in instance_keys: 
 			print('\t instance_key:',instance_key)
 
 			# filenames 
-			state_action_fn = '{}raw_{}.npy'.format(\
-				gparam.demonstration_data_dir,instance_key)
-
-			param_fn = '{}param_{}.json'.format(\
-				gparam.demonstration_data_dir,instance_key)
+			state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
+			param_fn = get_param_fn(gparam.demonstration_data_dir,instance_key)
 
 			# parameters
-			param_dict = dh.read_parameters(param_fn)
-			param = Param()
-			param.from_dict(param_dict)
+			param = load_param(param_fn) 
 
 			# state action pairs 
 			states,actions = dh.read_state_action_pairs(state_action_fn,param)
@@ -181,24 +201,60 @@ if __name__ == '__main__':
 
 					# append datapoint 
 					key = (node_i.team_A,len(o_a),len(o_b))
-					if key not in batched_oa_pairs.keys():
-						batched_oa_pairs[key] = [(o_a, o_b, action_i)]
+					if key not in oa_pairs_by_size.keys():
+						oa_pairs_by_size[key] = [(o_a, o_b, action_i)]
 					else:
-						batched_oa_pairs[key].append((o_a, o_b, action_i))
+						oa_pairs_by_size[key].append((o_a, o_b, action_i))
 
-		dh.write_observation_action_pairs(batched_oa_pairs,gparam.demonstration_data_dir)
+		# make actual batches
+		for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
+			batch_num = 0 
+			batched_dataset = [] 
+			for (o_a, o_b, action) in oa_pairs:
+				data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(action).flatten()))
+				batched_dataset.append(data)
+				if len(batched_dataset) > gparam.il_batch_size:
+					batch_fn = get_batch_fn(gparam.demonstration_data_dir,team,num_a,num_b,batch_num)
+					dh.write_oa_pair_batch(batched_dataset,batch_fn) 
+					batch_num += 1 
+					batched_dataset = [] 
+			batch_fn = get_batch_fn(gparam.demonstration_data_dir,team,num_a,num_b,batch_num)
+			dh.write_oa_pair_batch(batched_dataset,batch_fn) 
+
+	# check data
+	if gparam.dbg_vis_on:
+		print('vis...')
+
+		instance_keys = get_instance_keys(gparam)
+		for instance_key in instance_keys:
+			state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
+			param_fn = get_param_fn(gparam.demonstration_data_dir,instance_key)
+			param = load_param(param_fn) 
+			states,actions = dh.read_state_action_pairs(state_action_fn,param)
+			plotter.plot_sa_pairs(states,actions,param,instance_key)
+			break 
+
+		# batched_files = glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,gparam.training_team))
+		# for batched_file in batched_files:
+		# 	o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
+		# 	plotter.plot_oa_pairs(o_a,o_b,action)
+		# 	break 
+
+		plotter.save_figs(param.plot_fn)
+		plotter.open_figs(param.plot_fn)
+		exit()
 
 
 	# load (observation,action) binary files, train a model, and write model to file 
 	if gparam.train_model_on: 
-
 		print('training model...')
 		
 		# get loader 
 		train_loader = [] # lst of batches 
 		test_loader  = [] 
 		n_points 	 = 0 
-		for batched_file in glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,gparam.training_team)):
+		batched_files = glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,gparam.training_team))
+		for batched_file in batched_files:
 			o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
 			
 			if n_points < gparam.il_test_train_ratio * gparam.il_n_points: 

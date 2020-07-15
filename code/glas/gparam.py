@@ -7,22 +7,23 @@ class Gparam:
 	def __init__(self):
 
 		# flags  
-		self.make_raw_data_on 		= True
-		self.make_labelled_data_on 	= False
-		self.train_model_on 		= False
+		self.make_raw_data_on 		= False
+		self.make_labelled_data_on 	= True
+		self.dbg_vis_on			 	= False
+		self.train_model_on 		= True
 
 		# raw data param  
 		self.serial_on 				= False
 
 		# generate demonstration data parameters
-		self.num_nodes_A_lst = [2,4,6]
-		self.num_nodes_B_lst = [2,4,6]
-		self.num_trials = 30
+		self.num_nodes_A_lst = [2]
+		self.num_nodes_B_lst = [2]
+		self.num_trials = 1
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'
 
 		# train parameters
-		self.training_team = "B"
+		self.training_team = "b"
 
 		# learning hyperparameters
 		self.device = 'cpu'
