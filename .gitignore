@@ -1,7 +1,13 @@
-current_results/
+# Ignore files for ARCL Swarm work
+
+*.pyc
+
+# results files
+/current_results/
 gif/
 models/
 data/
 movie.gif
 movie.mp4
 swarm_game.pdf
+
