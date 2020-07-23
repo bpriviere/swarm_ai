@@ -77,7 +77,7 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 	ax.set_aspect('equal')
 	ax.set_xlabel('pos [m]')
 	ax.set_ylabel('pos [m]')
-	ax.set_title('State Space At Time {}'.format(times[timestep]))
+	ax.set_title('State Space At Time {:.2f}'.format(times[timestep]))
 
 	return fig,ax
 

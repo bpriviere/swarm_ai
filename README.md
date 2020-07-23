@@ -50,7 +50,30 @@ and activate the key using the tool (found in the installation directory /opt/gu
 ```
 
 ## Running the software
+
+### Regular MPC controller
+
+Set `controller_name` to `controller/joint_mpc.py` in `param.py`.
+
 ```
-python3 run.py
+code$ python3 run.py
 ```
 
+### Learning
+
+#### Generate data and Generate Policy
+
+* In `glas/gparam.py` set `make_raw_data_on` and `make_labelled_data_on` to True in order to generate data.
+* Set `train_model_on` in order to use learning.
+
+```
+code/glas$ python3 grun.py
+```
+
+#### Evaluation
+
+Set `controller_name` to `controller/glas.py` in `param.py`.
+
+```
+code$ python3 run.py
+```
