@@ -22,6 +22,14 @@ sudo apt install python3-pip -y
 pip3 install wheel
 pip3 install numpy gym pandas matplotlib cvxpy
 ```
+For CUDA support (nvidea VGA required)
+```
+pip3 install pytorch
+```
+otherwise install
+```
+pip3 install torch==1.5.0+cpu torchvision==0.6.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
+```
 
 ### Gurobi
 Download from (you will need to make an account, but academic licence is free)
