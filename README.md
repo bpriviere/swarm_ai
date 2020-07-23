@@ -32,7 +32,7 @@ pip3 install torch==1.5.0+cpu torchvision==0.6.0+cpu -f https://download.pytorch
 ```
 
 ### Gurobi
-Download from (you will need to make an account, but academic licence is free)
+Download from
 ```
 https://www.gurobi.com/downloads/gurobi-software/
 ```
@@ -40,14 +40,24 @@ Follow the instructions at (remember to fix the folder names)
 ```
 https://www.gurobi.com/documentation/8.1/quickstart_linux/software_installation_guid.html
 ```
-Get an academic licence key (grbgetkey 2d737662-c219-11ea-bd95-0a7c4f30bdbe)
+Get an academic licence key.  You will need to make an account, but the academic licence is free.
 ```
 https://www.gurobi.com/downloads/end-user-license-agreement-academic/
 ```
-and activate the key using the tool (found in the installation directory /opt/gurobiXXX/linux64/bin/
+and activate the key using the tool (found in the installation directory /opt/gurobi902/linux64/bin/
 ```
 ./grbgetkey
 ```
+Check that the install went correctly with 
+```
+gurobi_cl
+```
+
+When all else fails:
+* Remember that installing gurobi sucks 
+* Try running `sudo python3 /opt/gurobi902/linux64/setup.py`
+* Put the environment variables into both `.bashrc` and `.profile`
+
 
 ### VS Code (IDE)
 For those who want to use VS Code and forget how to install it
@@ -56,12 +66,11 @@ sudo snap install --classic code
 ```
 Upon opening a python file in VS Code, should be prompted to install a python add-on.
 Install the python add-on and then make sure `Python 3.X.X 64-bit (/usr/bin/python3)` is selected
-Also should install pylint as well.
+Also should install pylint (used for debugging) as well.
 
 ## Running the software
 ### Before First Run
-Need to generate the data for using glas, or get a `/models/` directory.
-
+Need to generate the data for using glas, or get a `/models/` directory and files from somewhere.
 
 ### Regular MPC controller
 
