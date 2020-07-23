@@ -49,7 +49,19 @@ and activate the key using the tool (found in the installation directory /opt/gu
 ./grbgetkey
 ```
 
+### VS Code (IDE)
+For those who want to use VS Code and forget how to install it
+```
+sudo snap install --classic code 
+```
+Upon opening a python file in VS Code, should be prompted to install a python add-on.
+Install the python add-on and then make sure `Python 3.X.X 64-bit (/usr/bin/python3)` is selected
+Also should install pylint as well.
+
 ## Running the software
+### Before First Run
+Need to generate the data for using glas, or get a `/models/` directory.
+
 
 ### Regular MPC controller
 
