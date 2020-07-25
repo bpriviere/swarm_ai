@@ -10,7 +10,7 @@ class Param:
 		self.measurements_name 	= 'measurements/global.py' 			# global, (local)
 		self.estimator_name 	= 'estimator/kalman.py'	 			# empty,(kalman),exact...
 		self.attacker_name 		= 'attacker/empty.py' 				# empty, ...
-		self.controller_name 	= 'controller/glas.py'		 	# empty, glas, joint_mpc, ...
+		self.controller_name 	= 'controller/joint_mpc.py'		 	# empty, glas, joint_mpc, ...
 
 		# flags
 		self.gif_on 	= False
@@ -34,6 +34,12 @@ class Param:
 		self.reset_xlim_B = [0.8,1]
 		self.reset_ylim_B = [0,1]
 		self.goal_line_x = 0.6
+		self.goal = np.array([0.6,0])
+
+		# mcts parameters 
+		self.tree_size = 100
+		self.c_param = 1.4
+		self.rollout_horizon = 20
 		
 		# nodes 
 		self.num_nodes_A = 2
@@ -92,3 +98,11 @@ class Param:
 		self.num_nodes = self.num_nodes_A + self.num_nodes_B
 		self.sim_times = np.arange(self.sim_t0,self.sim_tf,self.sim_dt)
 		self.sim_nt = len(self.sim_times)
+
+		self.team_1_idxs = []
+		self.team_2_idxs = []
+		for i in range(self.num_nodes):
+			if i < self.num_nodes_A: 
+				self.team_1_idxs.append(i) 
+			else:
+				self.team_2_idxs.append(i) 

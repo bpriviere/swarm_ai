@@ -4,47 +4,112 @@ import mcts
 import numpy as np 
 import matplotlib.pyplot as plt 
 
-initial_state = np.array([
-	[0,0,0,0],
-	# [0,0.25,0,0],
-	[0,1,0,0],
-	[1,0,0,0],
-	])
-n_timesteps = 40 
-goal = mcts.goal
+import sys
+sys.path.append("../")
+from param import Param 
+from env import Swarm
 
-timesteps = [] 
-states = [initial_state]
-for timestep in range(n_timesteps):
+def main():
 
-	print(timestep/n_timesteps)
-	old_state = states[timestep]
-	
-	_,team_1_action = mcts.best_action(old_state,True)
-	_,team_2_action = mcts.best_action(old_state,False)
+	# prep (just to get initial state)
+	param = Param()
+	env = Swarm(param)
+	reset = env.get_reset()
+	state_vec = reset["state_initial"] 
 
-	if team_1_action is not None and team_2_action is not None:
-		new_state = np.zeros((old_state.shape))
-		for idx in range(old_state.shape[0]):
-			if idx in mcts.team_1_idxs:
-				new_state[idx,:] = mcts.forward_per_robot(old_state[idx,:],team_1_action[idx,:])
+	robots_state = np.reshape(state_vec,(param.num_nodes,4))
+	robots_done = np.zeros(param.num_nodes_A)
+	team_1_turn = True
+
+	tree = mcts.Tree(param)
+	state = mcts.State(param,robots_state,robots_done,team_1_turn)
+
+	# run sim 
+	times,dones,states = [],[state.robots_done],[state.robots_state]
+	for step,time in enumerate(param.sim_times):
+
+		print('\t\t t = {}/{}'.format(step,len(param.sim_times)))
+		for team in range(2):
+
+			adaptive_on = False
+			if adaptive_on:
+				tree.set_root(state) 
+				tree.grow()
+
 			else:
-				new_state[idx,:] = mcts.forward_per_robot(old_state[idx,:],team_2_action[idx,:])
-		timesteps.append(timestep)
-		states.append(new_state)
+				tree = mcts.Tree(param)
+				tree.set_root(state) 
+				tree.grow()
 
-	else:
-		break 
+			state, action = tree.best_action()
 
-states = np.asarray(states) 
-timesteps = np.asarray(timesteps)
+			times.append(time)
+			dones.append(state.robots_done)
+			states.append(state.robots_state)
 
-fig,ax = plt.subplots()
-ax.grid(True)
-ax.scatter(mcts.goal[0],mcts.goal[1],label='goal',color='green',marker='o')
-for i in range(initial_state.shape[0]):
-	line = ax.plot(states[:,i,0],states[:,i,1],label='robot {}'.format(i),linewidth=3)
-	ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=line[0].get_color())
-ax.legend()
-# ax.set_aspect('equal')
-plt.show()
+		if np.all(state.robots_done):
+			break 
+
+	# plot 
+	times = np.asarray(times)
+	dones = np.asarray(dones)
+	states = np.asarray(states) 
+
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
+
+	fig,ax = plt.subplots()
+	ax.grid(True)
+	ax.scatter(param.goal[0],param.goal[1],label='goal',color=goal_color,marker='o')
+	ax.plot(np.nan,np.nan,color=team_1_color,label='attackers')
+	ax.plot(np.nan,np.nan,color=team_2_color,label='defenders')
+	for i in range(param.num_nodes):
+		color = team_2_color 
+		if i in param.team_1_idxs:
+			color = team_1_color
+		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=color)
+		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=color)
+	ax.legend()
+	plt.show()
+
+if __name__ == '__main__':
+	main()
+
+
+# class Param:
+# 	def __init__(self):
+
+# 		# tree param 
+# 		self.c_param = 1.4 
+# 		self.num_simulations = 10
+# 		self.rollout_horizon = 10 
+# 		self.num_nodes = 10
+
+# 		# sim param 
+# 		self.initial_robot_state = np.array([
+# 			[0,0,0,0],
+# 			[0,0.25,0,0],
+# 			[0,1,0,0],
+# 			[1,0,0,0],
+# 			])
+# 		self.n_timesteps = 40 
+
+# 		# parameters
+# 		self.r_capture = 0.05 
+# 		self.goal = np.array([0.45,0.05]) 
+# 		self.u_max_1 = 0.1 
+# 		self.u_max_2 = 0.2 
+# 		self.v_max_1 = 0.1 
+# 		self.v_max_2 = 0.2 
+# 		self.dt 		= 0.25 
+
+# 		self.num_nodes_A = 1 
+# 		self.num_nodes_B = 1 
+
+# 	def update(self):
+
+# 		self.team_1_idxs = []
+# 		self.team_2_idxs = [] 
+
+# 		for i in range(self.num_nodes_A + self.num_nodes_B):
