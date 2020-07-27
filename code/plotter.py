@@ -31,7 +31,21 @@ def open_figs(filename):
 def make_fig():
 	return plt.subplots()
 
+# Function to detect when collisions occur in a trajectory
+def calc_idx_collisions(pos_x,pos_y):
+	# Calculates the indicies of captures by detecting large jumps in the array
+	print("\tChecking for collisions\n")
+	idx = np.empty(0,int)
+	dist2 = pos_x**2 + pos_y**2
 
+	for ii in range(1,dist2.size-1):
+		if (abs(dist2[ii]-dist2[ii+1]) > 0.2):
+			print("\t\tCollision at idx: "+str(ii))
+			idx = np.append(idx,ii)
+
+	return idx
+
+# Function to plot the current timestep
 def plot_nodes(sim_result, timestep, fig=None, ax=None):
 
 	times = sim_result["times"]
@@ -46,15 +60,35 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 	if fig is None or ax is None:
 		fig,ax = plt.subplots()
 	
-	# plot nodes
+	# Loop through each agent for plotting
 	for node_idx in range(node_states.shape[1]):
-		node_state = node_states[timestep,node_idx,:,:]		
-		ax.scatter(node_state[0],node_state[1],100,color=colors[node_idx],zorder=10)
-
-	# plot trajectories 
-	for node_idx in range(node_states.shape[1]):
+		print("idx = ",timestep,", Agent: ",node_idx)
+		
+		# Extract trajectories
 		node_trajectory_x = node_states[:,node_idx,0,:]	
-		node_trajectory_y = node_states[:,node_idx,1,:]	
+		node_trajectory_y = node_states[:,node_idx,1,:]
+
+		# Calculate and remove paths when collisions reset
+		idx = calc_idx_collisions(node_trajectory_x,node_trajectory_y)
+		node_trajectory_x[idx] = np.nan
+		node_trajectory_y[idx] = np.nan
+
+		if timestep > 10:
+			b = 1
+			c = 2
+
+		# Extract node data
+		node_state = node_states[timestep,node_idx,:,:]	
+
+		# Plot node ("o" if normal, "x" if captured)
+#		test = idx==timestep
+#		print(timestep," - ",test[0])
+		if np.isnan(node_state[0]):
+			ax.scatter(node_state[0],node_state[1],200,color=colors[node_idx],zorder=10,marker="x")
+		else: 
+			ax.scatter(node_state[0],node_state[1],100,color=colors[node_idx],zorder=10,marker="o")
+
+		# Plot trajectories
 		ax.plot(node_trajectory_x,node_trajectory_y,color='black',linestyle='--',alpha=0.25)	
 
 	# plot initialization 

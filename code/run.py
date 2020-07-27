@@ -101,19 +101,24 @@ def save_lst_of_node_dicts_as_np(some_lst_of_node_dicts):
 
 if __name__ == '__main__':
 
+    # Load parameters
 	param = Param() 
 
-	# prep run directory
-	format_dir(param)
-		
-	# run sim 
-	sim_results = sim(param)
+    # Run the simulator
+	if param.run_sim:
+		print("Running simulator")
 
-	# write sim results
-	print('writing sim results...')
-	for case_i,sim_result in enumerate(sim_results):
-		results_dir = param.current_results_dir + '/sim_result_{}'.format(case_i)
-		datahandler.write_sim_result(sim_result,results_dir)
+		# prep run directory
+		format_dir(param)
+		
+		# run sim 
+		sim_results = sim(param)
+
+		# write sim results
+		print('writing sim results...')
+		for case_i,sim_result in enumerate(sim_results):
+			results_dir = param.current_results_dir + '/sim_result_{}'.format(case_i)
+			datahandler.write_sim_result(sim_result,results_dir)
 
 	# load sim results 
 	print('loading sim results...')
