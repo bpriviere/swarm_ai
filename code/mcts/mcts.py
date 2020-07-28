@@ -66,6 +66,9 @@ class State:
 		self.dist_robots = self.make_dist_robots()
 		self.dist_goal = self.make_dist_goal()
 
+	def __repr__(self):
+		return "State(robots_state={}, team_1_turn={})".format(self.robots_state, self.team_1_turn)
+
 	def make_dist_robots(self):
 		dist_robots = np.zeros((self.robots_state.shape[0],self.robots_state.shape[0]))
 		for idx_i,state_i in enumerate(self.robots_state):
@@ -135,14 +138,20 @@ class Node:
 		self.number_of_visits = 0.
 		self.value_1 = 0.
 		self.value_2 = 0.
-		self.children = [] 
+		self.children = []
+		self.children_weights = []
 
-	@property
-	def q(self):
-		if self.parent.state.team_1_turn:
+	def __repr__(self):
+		children_list = [(w, c.action_to_node) for w, c in zip(self.children_weights, self.children)]
+		children_list.sort(key = lambda x: x[0], reverse=True)
+
+		return "Node(state={}, n={}, v1={}, v2={}, children={})".format(self.state, self.n, self.value_1, self.value_2, children_list)
+
+	def q(self, team_1_turn):
+		if team_1_turn:
 			value = self.value_1
 		else:
-			value = self.value_2 
+			value = self.value_2
 		return value
 
 	@property
@@ -160,17 +169,16 @@ class Node:
 		next_state = forward(self.state,action)
 		child_node = Node(self.param,next_state,parent=self,action_to_node=action)
 		self.children.append(child_node)
+		self.children_weights.append(None)
 		return child_node
 
 	def best_child(self, c_param=None):
 		if c_param is None:
 			c_param = self.param.c_param 
 
-		weights = []
-		for c in self.children: 
-			weight = (c.q / c.n) + c_param * np.sqrt((2 * np.log(self.n) / c.n))
-			weights.append(weight)
-		return self.children[np.argmax(weights)]	
+		for k, c in enumerate(self.children): 
+			self.children_weights[k] = (c.q(self.state.team_1_turn) / c.n) + c_param * np.sqrt((2 * np.log(self.n) / c.n))
+		return self.children[np.argmax(self.children_weights)]
 
 
 class Tree: 
@@ -179,6 +187,9 @@ class Tree:
 		self.param = param 
 		self.num_nodes = 0 
 		self.root_node = None
+
+	def __repr__(self):
+		return "Tree(root_node={}, num_nodes={})".format(self.root_node, self.num_nodes)
 
 	def grow(self):	
 		# while self.num_nodes < self.param.tree_size:
