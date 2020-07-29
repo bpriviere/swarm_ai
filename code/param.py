@@ -34,12 +34,12 @@ class Param:
 		self.reset_xlim_B = [0.8,1]
 		self.reset_ylim_B = [0,1]
 		self.goal_line_x = 0.6
-		self.goal = np.array([0.6,0])
+		self.goal = np.array([0.5,0.5])
 
 		# mcts parameters 
 		self.tree_size = 10
-		self.c_param = 1.4
 		self.rollout_horizon = 10
+		self.c_param = 1.4
 		
 		# nodes 
 		self.num_nodes_A = 2
@@ -57,8 +57,8 @@ class Param:
 		# policy 
 		self.rhc_horizon = 5
 		self.lambda_u = 0.01
-		self.speed_limit_a = 0.05
-		self.speed_limit_b = 0.10
+		self.speed_limit_a = 0.5
+		self.speed_limit_b = 1.0
 		self.acceleration_limit_a = 0.05
 		self.acceleration_limit_b = 0.10
 		self.danger_radius = 0.1
