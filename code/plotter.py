@@ -4,6 +4,8 @@ import numpy as np
 import matplotlib.pyplot as plt 
 import matplotlib.patches as patches
 import os, subprocess
+import matplotlib.patches as mpatches
+
 from matplotlib.backends.backend_pdf import PdfPages 
 
 from utilities import dbgp
@@ -256,7 +258,7 @@ def plot_tree_results(sim_result):
 	team_1_idxs = sim_result["param"]["team_1_idxs"]
 	num_nodes = sim_result["param"]["num_nodes"]
 	goal = sim_result["param"]["goal"]
-
+	tag_radius = sim_result["param"]["tag_radius"]
 
 	team_1_color = 'blue'
 	team_2_color = 'orange'
@@ -264,7 +266,7 @@ def plot_tree_results(sim_result):
 
 	fig,ax = plt.subplots()
 	ax.grid(True)
-	ax.scatter(goal[0],goal[1],label='goal',color=goal_color,marker='o')
+	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 	ax.plot(np.nan,np.nan,color=team_1_color,label='attackers')
 	ax.plot(np.nan,np.nan,color=team_2_color,label='defenders')
 	for i in range(num_nodes):

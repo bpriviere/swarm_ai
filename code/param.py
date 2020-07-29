@@ -37,12 +37,12 @@ class Param:
 		self.goal = np.array([0.5,0.5])
 
 		# mcts parameters 
-		self.tree_size = 10
+		self.tree_size = 10 # 500
 		self.rollout_horizon = 10
 		self.c_param = 1.4
 		
 		# nodes 
-		self.num_nodes_A = 2
+		self.num_nodes_A = 1
 		self.num_nodes_B = 1
 		
 		# estimator parameters
@@ -59,8 +59,8 @@ class Param:
 		self.lambda_u = 0.01
 		self.speed_limit_a = 0.5
 		self.speed_limit_b = 1.0
-		self.acceleration_limit_a = 0.05
-		self.acceleration_limit_b = 0.10
+		self.acceleration_limit_a = 0.10
+		self.acceleration_limit_b = 0.20
 		self.danger_radius = 0.1
 		self.tag_radius = 0.025
 

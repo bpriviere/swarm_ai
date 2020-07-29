@@ -15,21 +15,10 @@ def sample(actions):
 
 class State:
 
-	def __init__(self,param,state,done,turn):
+	def __init__(self,param,state,prev_done,turn):
 		self.param = param 
 		self.state = state
 		self.turn = turn 
-		self.done = done 
-		self.not_done = list(set(self.param.team_1_idxs)-set(self.done))
-
-		if self.turn: 
-			self.u_max = self.param.acceleration_limit_a
-			self.v_max = self.param.speed_limit_a
-			self.idxs = self.not_done 
-		else:
-			self.u_max = self.param.acceleration_limit_b
-			self.v_max = self.param.speed_limit_b
-			self.idxs = self.param.team_2_idxs
 
 		self.A = np.array([
 			[1,0,self.param.sim_dt,0],
@@ -45,6 +34,18 @@ class State:
 
 		self.dist_robots = self.make_dist_robots()
 		self.dist_goal = self.make_dist_goal()
+
+		self.done = self.get_done(prev_done) 
+		self.not_done = list(set(self.param.team_1_idxs)-set(self.done))
+
+		if self.turn: 
+			self.u_max = self.param.acceleration_limit_a
+			self.v_max = self.param.speed_limit_a
+			self.idxs = self.not_done 
+		else:
+			self.u_max = self.param.acceleration_limit_b
+			self.v_max = self.param.speed_limit_b
+			self.idxs = self.param.team_2_idxs
 
 	def __repr__(self):
 		return "State(state={}, turn={}, done={})".format(self.state, self.turn, self.done)
@@ -63,31 +64,40 @@ class State:
 		next_state = np.copy(self.state)
 		for idx in self.idxs:
 			next_state[idx,:] = np.dot(self.A,self.state[idx,:]) + np.dot(self.B,action[idx,:])
+		next_turn = not self.turn 
+		return State(self.param,next_state,self.done,next_turn)
 
+	def get_done(self,prev_done):
 		next_done = []
 		for idx in self.param.team_1_idxs:
 			captured = np.any(self.dist_robots[idx,self.param.team_2_idxs] < self.param.tag_radius)
 			reached_goal = self.dist_goal[idx] < self.param.tag_radius
 			
-			if idx in self.done or captured: 
+			if idx in prev_done or captured: 
 				next_done.append(idx)
 			if reached_goal: 
 				next_done = self.param.team_1_idxs
 				break 
-
-		next_turn = not self.turn 
-		return State(self.param,next_state,next_done,next_turn)
+		return next_done 		
 
 	def is_terminal(self):
-		return len(self.done) == len(self.param.team_1_idxs) or len(self.get_legal_actions()) == 0
+		return len(self.done) == len(self.param.team_1_idxs) 
 
-	def is_valid(self):
-		for idx in self.idxs: 
-			if not (self.state[idx,0] > self.param.env_xlim[0] and \
-				self.state[idx,0] < self.param.env_xlim[1] and \
-				self.state[idx,1] > self.param.env_ylim[0] and \
-				self.state[idx,1] < self.param.env_ylim[1] and \
-				np.linalg.norm(self.state[idx,2:]) < self.v_max): 
+	def is_next_state_valid(self,action):
+		if self.turn: 
+			v_max = self.param.speed_limit_b
+			idxs = self.param.team_2_idxs
+		else:
+			v_max = self.param.speed_limit_a
+			idxs = self.not_done 
+
+		for idx in idxs: 
+			next_state = np.dot(self.A,self.state[idx,:]) + np.dot(self.B,action[idx,:])
+			if not (next_state[0] > self.param.env_xlim[0] and \
+				next_state[0] < self.param.env_xlim[1] and \
+				next_state[1] > self.param.env_ylim[0] and \
+				next_state[1] < self.param.env_ylim[1] and \
+				np.linalg.norm(next_state[2:]) < v_max): 
 				return False 
 		return True 
 
@@ -125,7 +135,7 @@ class State:
 			action = np.zeros((self.state.shape[0],2))
 			for action_idx,robot_idx in enumerate(self.idxs): 
 				action[robot_idx,:] = np.array(elem)[action_idx*2 + np.arange(2)] 
-			if self.forward(action).is_valid(): 
+			if self.is_next_state_valid(action): 
 				actions.append(action)
 		return actions
 
@@ -144,8 +154,8 @@ class Node:
 		self.children = []
 		self.children_weights = []
 
-		self.is_terminal_node = self.state.is_terminal()
 		self.untried_actions = self.state.get_legal_actions()
+		self.is_terminal_node = self.state.is_terminal() or len(self.untried_actions) == 0
 		random.shuffle(self.untried_actions)
 
 	def __repr__(self):
@@ -226,9 +236,9 @@ class Tree:
 		state = node.state
 		reward_1,reward_2 = state.eval_reward()
 		for i in range(self.param.rollout_horizon):
-			if state.is_terminal(): 
-				return reward_1,reward_2
 			actions = state.get_legal_actions()
+			if state.is_terminal() or len(actions) == 0: 
+				return reward_1,reward_2
 			action = sample(actions)
 			state = state.forward(action)
 			reward_1,reward_2 = state.eval_reward()
