@@ -55,12 +55,12 @@ def run_sim(param):
 			if len(state.done) == len(param.team_1_idxs):
 				break 
 
-		if len(state.done) == len(param.team_1_idxs):
-			break 
-
 		times.append(time)
 		dones.append(state.done)
 		states.append(state.state) 
+
+		if len(state.done) == len(param.team_1_idxs):
+			break 
 
 	#  
 	sim_result = dict()

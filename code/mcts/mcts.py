@@ -56,8 +56,7 @@ class State:
 
 	def make_dist_goal(self):
 		idxs = self.param.team_1_idxs
-		dist_goal = np.zeros(len(idxs))
-		dist_goal[:] = np.linalg.norm(self.state[idxs,0:2] - self.param.goal)
+		dist_goal = np.linalg.norm(self.state[idxs,0:2] - self.param.goal, axis=1)
 		return dist_goal
 
 	def forward(self,action):

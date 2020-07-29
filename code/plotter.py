@@ -266,6 +266,7 @@ def plot_tree_results(sim_result):
 
 	fig,ax = plt.subplots()
 	ax.grid(True)
+	ax.set_aspect('equal')
 	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 	ax.plot(np.nan,np.nan,color=team_1_color,label='attackers')
 	ax.plot(np.nan,np.nan,color=team_2_color,label='defenders')
