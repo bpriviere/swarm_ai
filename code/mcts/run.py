@@ -1,6 +1,6 @@
 
 
-import mcts2 as mcts
+import mcts
 import numpy as np 
 import matplotlib.pyplot as plt 
 
@@ -66,7 +66,7 @@ def main():
 	ax.legend()
 	ax.set_xlim([0,1])
 	ax.set_ylim([0,1])
-	plt.show()
 
 if __name__ == '__main__':
 	main()
+	plt.show()
