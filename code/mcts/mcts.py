@@ -10,9 +10,6 @@ sys.path.append("../")
 from utilities import dbgp
 
 
-def sample(actions):
-	return actions[np.random.randint(len(actions))]
-
 class State:
 
 	def __init__(self,param,state,prev_done,turn):
@@ -120,7 +117,7 @@ class State:
 		reward_2 /= len(self.param.team_1_idxs)
 		return reward_1,reward_2
 
-	def get_legal_actions(self):
+	def get_possible_actions(self):
 		u_xs = self.u_max*np.asarray([-1,0,1])
 		u_ys = self.u_max*np.asarray([-1,0,1])
 
@@ -134,8 +131,7 @@ class State:
 			action = np.zeros((self.state.shape[0],2))
 			for action_idx,robot_idx in enumerate(self.idxs): 
 				action[robot_idx,:] = np.array(elem)[action_idx*2 + np.arange(2)] 
-			if self.is_next_state_valid(action): 
-				actions.append(action)
+			actions.append(action)
 		return actions
 
 
@@ -153,7 +149,7 @@ class Node:
 		self.children = []
 		self.children_weights = []
 
-		self.untried_actions = self.state.get_legal_actions()
+		self.untried_actions = self.state.get_possible_actions()
 		self.is_terminal_node = self.state.is_terminal() or len(self.untried_actions) == 0
 		random.shuffle(self.untried_actions)
 
@@ -166,11 +162,15 @@ class Node:
 		value = self.value_1 if team_1_turn else self.value_2 
 		return value
 
-	def is_fully_expanded(self):
-		return len(self.untried_actions) == 0
-
 	def expand(self):
-		action = self.untried_actions.pop()
+		if len(self.untried_actions) == 0:
+			return None
+		while len(self.untried_actions) > 0:
+			action = self.untried_actions.pop()
+			if self.state.is_next_state_valid(action):
+				break
+			if len(self.untried_actions) == 0:
+				return None
 		next_state = self.state.forward(action)
 		child_node = Node(self.param,next_state,parent=self,action_to_node=action)
 		self.children.append(child_node)
@@ -211,10 +211,11 @@ class Tree:
 	def tree_policy(self):
 		current_node = self.root_node
 		while not current_node.is_terminal_node:
-			if not current_node.is_fully_expanded():
-				return current_node.expand()
-			else:
+			child = current_node.expand()
+			if child is None:
 				current_node = current_node.best_child()
+			else:
+				return child
 		return current_node
 
 	def best_action(self):
@@ -235,10 +236,17 @@ class Tree:
 		state = node.state
 		reward_1,reward_2 = state.eval_reward()
 		for i in range(self.param.rollout_horizon):
-			actions = state.get_legal_actions()
-			if state.is_terminal() or len(actions) == 0: 
+			untried_actions = state.get_possible_actions()
+			random.shuffle(untried_actions)
+			if state.is_terminal() or len(untried_actions) == 0: 
 				return reward_1,reward_2
-			action = sample(actions)
+			# TODO: next state is now computed twice...
+			while len(untried_actions) > 0:
+				action = untried_actions.pop()
+				if state.is_next_state_valid(action):
+					break
+				if len(untried_actions) == 0:
+					return reward_1,reward_2
 			state = state.forward(action)
 			reward_1,reward_2 = state.eval_reward()
 		return reward_1,reward_2
