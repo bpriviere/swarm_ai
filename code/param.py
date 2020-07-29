@@ -37,13 +37,13 @@ class Param:
 		self.goal = np.array([0.6,0])
 
 		# mcts parameters 
-		self.tree_size = 100
+		self.tree_size = 10
 		self.c_param = 1.4
-		self.rollout_horizon = 20
+		self.rollout_horizon = 10
 		
 		# nodes 
 		self.num_nodes_A = 2
-		self.num_nodes_B = 2
+		self.num_nodes_B = 1
 		
 		# estimator parameters
 		self.initial_state_covariance = 1e-10 # defines initial condition of estimators

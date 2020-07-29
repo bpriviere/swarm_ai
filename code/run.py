@@ -8,7 +8,6 @@ import glob
 import shutil
 import itertools
 from tqdm import tqdm
-from p_tqdm import p_tqdm
 
 # my packages 
 from param import Param
