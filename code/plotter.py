@@ -247,3 +247,32 @@ def plot_loss(losses):
 	ax.set_yscale('log')
 	ax.grid(True)
 	fig.tight_layout()
+
+
+def plot_tree_results(sim_result): 
+
+	times = sim_result["times"]
+	states = sim_result["states"]
+	team_1_idxs = sim_result["param"]["team_1_idxs"]
+	num_nodes = sim_result["param"]["num_nodes"]
+	goal = sim_result["param"]["goal"]
+
+
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
+
+	fig,ax = plt.subplots()
+	ax.grid(True)
+	ax.scatter(goal[0],goal[1],label='goal',color=goal_color,marker='o')
+	ax.plot(np.nan,np.nan,color=team_1_color,label='attackers')
+	ax.plot(np.nan,np.nan,color=team_2_color,label='defenders')
+	for i in range(num_nodes):
+		color = team_2_color 
+		if i in team_1_idxs:
+			color = team_1_color
+		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=color)
+		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=color)
+	ax.legend()
+	ax.set_xlim([0,1])
+	ax.set_ylim([0,1])
