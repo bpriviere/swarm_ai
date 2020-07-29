@@ -13,7 +13,7 @@ class Param:
 		self.controller_name 	= 'controller/joint_mpc.py'		 	# empty, glas, joint_mpc, ...
 
 		# flags
-		self.run_sim    = False
+		self.run_sim    = True
 		self.gif_on 	= False
 		self.quiet_on 	= False
 

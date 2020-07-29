@@ -32,15 +32,16 @@ def make_fig():
 	return plt.subplots()
 
 # Function to detect when collisions occur in a trajectory
+# We really only need to do this once but that's a bit beyond me at the moment
 def calc_idx_collisions(pos_x,pos_y):
 	# Calculates the indicies of captures by detecting large jumps in the array
-	print("\tChecking for collisions\n")
+	#print("\tChecking for collisions\n")
 	idx = np.empty(0,int)
-	dist2 = pos_x**2 + pos_y**2
 
-	for ii in range(1,dist2.size-1):
-		if (abs(dist2[ii]-dist2[ii+1]) > 0.2):
-			print("\t\tCollision at idx: "+str(ii))
+	for ii in range(0,pos_x.size-2):
+		dist_between_steps = (pos_x[ii+1]-pos_x[ii])**2 + (pos_y[ii+1]-pos_y[ii])**2
+		if (dist_between_steps > 0.1**2):
+			#print("\t\tCollision at idx: "+str(ii))
 			idx = np.append(idx,ii)
 
 	return idx
@@ -62,34 +63,31 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 	
 	# Loop through each agent for plotting
 	for node_idx in range(node_states.shape[1]):
-		print("idx = ",timestep,", Agent: ",node_idx)
-		
+		#print("idx = ",timestep,", Agent: ",node_idx)
+
 		# Extract trajectories
-		node_trajectory_x = node_states[:,node_idx,0,:]	
-		node_trajectory_y = node_states[:,node_idx,1,:]
+		node_trajectory_x = sim_result["states"][:,node_idx,0,:]
+		node_trajectory_y = sim_result["states"][:,node_idx,1,:]
 
 		# Calculate and remove paths when collisions reset
 		idx = calc_idx_collisions(node_trajectory_x,node_trajectory_y)
-		node_trajectory_x[idx] = np.nan
-		node_trajectory_y[idx] = np.nan
-
-		if timestep > 10:
-			b = 1
-			c = 2
 
 		# Extract node data
 		node_state = node_states[timestep,node_idx,:,:]	
 
 		# Plot node ("o" if normal, "x" if captured)
-#		test = idx==timestep
-#		print(timestep," - ",test[0])
-		if np.isnan(node_state[0]):
+		if np.any(timestep == idx-1):
 			ax.scatter(node_state[0],node_state[1],200,color=colors[node_idx],zorder=10,marker="x")
-		else: 
+		else : 
 			ax.scatter(node_state[0],node_state[1],100,color=colors[node_idx],zorder=10,marker="o")
 
 		# Plot trajectories
-		ax.plot(node_trajectory_x,node_trajectory_y,color='black',linestyle='--',alpha=0.25)	
+		idx_start = np.hstack((0, idx+1))
+		idx_stop  = np.hstack((idx,node_trajectory_x.size))
+		for ii in range(0, idx_start.size):
+			plot_x = node_trajectory_x[idx_start[ii]:idx_stop[ii]]
+			plot_y = node_trajectory_y[idx_start[ii]:idx_stop[ii]]
+			ax.plot( plot_x,plot_y,color='black',linestyle='--',alpha=0.25)
 
 	# plot initialization 
 	reset_a = patches.Rectangle((reset_xlim_A[0],reset_ylim_A[0]),\
