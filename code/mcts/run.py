@@ -48,7 +48,7 @@ def run_sim(param):
 		save_action = np.zeros((param.num_nodes,2))
 		for team in range(2):
 
-			tree = mcts.Tree(param)
+			# tree = mcts.Tree(param)
 			tree.set_root(state) 
 			tree.grow()
 			state, action = tree.best_action()
