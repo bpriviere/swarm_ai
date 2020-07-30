@@ -220,18 +220,28 @@ class Tree:
 		return "Tree(root_node={})".format(self.root_node)
 
 	def grow(self):	
-		for _ in range(self.param.tree_size):
+		while self.root_node.number_of_visits < self.param.tree_size:
 			current_node = self.tree_policy()
 			reward_1,reward_2 = self.rollout(current_node)
 			self.backpropagate(current_node,reward_1,reward_2)
 
 	def set_root(self,root_state):
-		root_node = Node(root_state)
-		if self.root_node is None: 
-			pass
-		else: 
-			self.remove_branch(self.root_node,root_node)
-		self.root_node = root_node
+		if self.root_node is None:
+			self.root_node = Node(root_state)
+			return
+
+		# check if we already have the state in the tree (as direct child of root)
+		for node in self.root_node.children:
+			if node.state == root_state:
+				self.root_node = node
+				self.root_node.parent = None
+				# the garbage collector should clean up the now otherwise
+				# not connected children
+				print("Re-use search tree with {} nodes".format(self.root_node.number_of_visits))
+				return
+
+		# not found = re-create root
+		self.root_node = Node(root_state)
 
 	def tree_policy(self):
 		current_node = self.root_node
