@@ -255,16 +255,26 @@ def plot_tree_results(sim_result):
 
 	times = sim_result["times"]
 	states = sim_result["states"]
+	actions = sim_result["actions"]
 	team_1_idxs = sim_result["param"]["team_1_idxs"]
 	num_nodes = sim_result["param"]["num_nodes"]
 	goal = sim_result["param"]["goal"]
 	tag_radius = sim_result["param"]["tag_radius"]
+	speed_limit_a = sim_result["param"]["speed_limit_a"]
+	speed_limit_b = sim_result["param"]["speed_limit_b"]
+	acceleration_limit_a = sim_result["param"]["acceleration_limit_a"]
+	acceleration_limit_b = sim_result["param"]["acceleration_limit_b"]	
+	env_xlim = sim_result["param"]["env_xlim"]	
+	env_ylim = sim_result["param"]["env_ylim"]	
 
 	team_1_color = 'blue'
 	team_2_color = 'orange'
 	goal_color = 'green'
 
-	fig,ax = plt.subplots()
+	fig,axs = plt.subplots(nrows=1,ncols=2) 
+
+	# state space
+	ax = axs[0]
 	ax.grid(True)
 	ax.set_aspect('equal')
 	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
@@ -277,5 +287,23 @@ def plot_tree_results(sim_result):
 		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=color)
 		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=color)
 	ax.legend()
-	ax.set_xlim([0,1])
-	ax.set_ylim([0,1])
+	ax.set_xlim([env_xlim[0],env_xlim[1]])
+	ax.set_ylim([env_ylim[0],env_ylim[1]])
+
+	# time varying states 
+	ax = axs[1]
+	ax.grid(True)
+	ratio = (times[-1] - times[0])/(max((speed_limit_a,speed_limit_b,acceleration_limit_a,acceleration_limit_b))-0)
+	ax.set_aspect(ratio)
+	ax.axhline(speed_limit_a,color=team_1_color,label=r'$\overline{v}_1$')
+	ax.axhline(speed_limit_b,color=team_2_color,label=r'$\overline{v}_2$')
+	ax.axhline(acceleration_limit_a,color=team_1_color,linestyle='--',label=r'$\overline{u}_1$')
+	ax.axhline(acceleration_limit_b,color=team_2_color,linestyle='--',label=r'$\overline{u}_2$')
+	for i in range(num_nodes):
+		color = team_2_color 
+		if i in team_1_idxs:
+			color = team_1_color
+		ax.plot(times,np.linalg.norm(states[:,i,2:],axis=1),color=color)
+		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),linestyle='--',color=color)
+	ax.legend(loc='upper right')
+	fig.tight_layout()

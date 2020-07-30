@@ -27,19 +27,32 @@ class Param:
 		self.r_comm = 1.6
 		
 		# environment
-		self.env_xlim = [0,1]
-		self.env_ylim = [0,1]
-		self.reset_xlim_A = [0,0.2]
-		self.reset_ylim_A = [0,1]
-		self.reset_xlim_B = [0.8,1]
-		self.reset_ylim_B = [0,1]
-		self.goal_line_x = 0.6
-		self.goal = np.array([0.5,0.5])
+		large_env = False 
+		if large_env:
+			self.env_xlim = [0,1]
+			self.env_ylim = [0,1]
+			self.reset_xlim_A = [0,0.2]
+			self.reset_ylim_A = [0,1]
+			self.reset_xlim_B = [0.8,1]
+			self.reset_ylim_B = [0,1]
+			self.goal_line_x = 0.6
+			self.goal = np.array([0.5,0.5])
+		else: 
+			l = 0.5
+			self.env_xlim = [0,l]
+			self.env_ylim = [0,l]
+			self.reset_xlim_A = [0.1*l,0.1*l]
+			self.reset_ylim_A = [0.5*l,0.5*l]
+			self.reset_xlim_B = [0.9*l,0.9*l]
+			self.reset_ylim_B = [0.5*l,0.5*l]
+			self.goal_line_x = 0.6
+			self.goal = np.array([0.5*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 10 # 500
-		self.rollout_horizon = 10
+		self.tree_size = 500
+		self.rollout_horizon = 100
 		self.c_param = 1.4
+		self.gamma = 0.9
 		
 		# nodes 
 		self.num_nodes_A = 1
@@ -57,8 +70,8 @@ class Param:
 		# policy 
 		self.rhc_horizon = 5
 		self.lambda_u = 0.01
-		self.speed_limit_a = 0.5
-		self.speed_limit_b = 1.0
+		self.speed_limit_a = 0.5 # 0.05 
+		self.speed_limit_b = 0*1.0 # 0.1 
 		self.acceleration_limit_a = 0.10
 		self.acceleration_limit_b = 0.20
 		self.danger_radius = 0.1

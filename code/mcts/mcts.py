@@ -9,6 +9,14 @@ import sys
 sys.path.append("../")
 from utilities import dbgp
 
+def eval_value(value_1,value_2,eta,reward_1,reward_2,gamma,timestep):
+	discount = gamma**timestep 
+	value_1 = value_1 + discount * reward_1
+	value_2 = value_2 + discount * reward_2
+	eta = eta + discount 
+	return value_1,value_2,eta 
+
+
 class RobotDynamics:
 	def __init__(self, param, team):
 		self.param = param
@@ -27,12 +35,12 @@ class RobotDynamics:
 		self.possible_actions_dict = dict()
 
 		if team == 'a': 
-			self.u_max = param.acceleration_limit_a
-			self.v_max = param.speed_limit_a
+			self.u_max = param.acceleration_limit_a / np.sqrt(2)
+			self.v_max = param.speed_limit_a / np.sqrt(2)
 			self.idxs = param.team_1_idxs
 		elif team == 'b':
-			self.u_max = param.acceleration_limit_b
-			self.v_max = param.speed_limit_b
+			self.u_max = param.acceleration_limit_b / np.sqrt(2)
+			self.v_max = param.speed_limit_b / np.sqrt(2)
 			self.idxs = param.team_2_idxs
 
 	def step(self, state, action):
@@ -150,6 +158,7 @@ class State:
 			reward_2 += np.exp(-1*np.sum(self.dist_robots[idx,self.param.team_2_idxs]))
 		reward_1 /= len(self.param.team_1_idxs)
 		reward_2 /= len(self.param.team_1_idxs)
+		# reward_2 = 1 - reward_1
 		return reward_1,reward_2
 
 
@@ -204,6 +213,20 @@ class Node:
 				c_param * np.sqrt((2 * np.log(self.number_of_visits) / c.number_of_visits))
 		return self.children[np.argmax(self.children_weights)]
 
+	def get_value_to_come(self):
+		rewards = [] 
+		curr_node = self
+		while curr_node.parent:		 
+			reward_1,reward_2 = curr_node.state.eval_reward()
+			rewards.append((reward_1,reward_2))
+			curr_node = curr_node.parent 
+
+		value_1,value_2,eta,depth = 0,0,1,0
+		for depth,(reward_1,reward_2) in enumerate(reversed(rewards)):
+			value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,depth)
+
+		return value_1,value_2,eta,depth
+
 
 class Tree:
 
@@ -222,8 +245,8 @@ class Tree:
 	def grow(self):	
 		for _ in range(self.param.tree_size):
 			current_node = self.tree_policy()
-			reward_1,reward_2 = self.rollout(current_node)
-			self.backpropagate(current_node,reward_1,reward_2)
+			value_1,value_2 = self.rollout(current_node)
+			self.backpropagate(current_node,value_1,value_2)
 
 	def set_root(self,root_state):
 		root_node = Node(root_state)
@@ -253,21 +276,24 @@ class Tree:
 			best_child = self.root_node.best_child(c_param=0.0)
 		return best_child.state, best_child.action_to_node
 
-	def backpropagate(self,node,reward_1,reward_2):
+	def backpropagate(self,node,value_1,value_2):
 		node.number_of_visits += 1.
-		node.value_1 += reward_1
-		node.value_2 += reward_2
+		node.value_1 += value_1
+		node.value_2 += value_2
 		if node.parent:
-			self.backpropagate(node.parent,reward_1,reward_2)
+			self.backpropagate(node.parent,value_1,value_2)
 
 	def rollout(self,node):
 		state = node.state
+		value_1,value_2,eta,depth = node.get_value_to_come()
 		reward_1,reward_2 = state.eval_reward()
+		value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,depth)
 		for i in range(self.param.rollout_horizon):
 			untried_actions = state.possible_actions().copy()
 			random.shuffle(untried_actions)
 			if state.is_terminal() or len(untried_actions) == 0: 
 				return reward_1,reward_2
+				# return value_1/eta,value_2/eta
 			while len(untried_actions) > 0:
 				action = untried_actions.pop()
 				next_state = state.forward(action)
@@ -276,5 +302,8 @@ class Tree:
 					break
 				if len(untried_actions) == 0:
 					return reward_1,reward_2
+					# return value_1/eta,value_2/eta
 			reward_1,reward_2 = state.eval_reward()
+			value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,depth)
 		return reward_1,reward_2
+		# return value_1/eta,value_2/eta
