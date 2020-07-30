@@ -38,13 +38,14 @@ def run_sim(param):
 	turn = True
 
 	tree = mcts.Tree(param)
-	state = mcts.State(param,state,done,turn)
+	state = mcts.State(state,done,turn)
 
 	# run sim 
-	times,dones,states = [],[state.done],[state.state]
+	times,actions,dones,states = [],[],[state.done],[state.state]
 	for step,time in enumerate(param.sim_times):
 
 		print('\t\t t = {}/{}'.format(step,len(param.sim_times)))
+		save_action = np.zeros((param.num_nodes,2))
 		for team in range(2):
 
 			tree = mcts.Tree(param)
@@ -55,9 +56,13 @@ def run_sim(param):
 			if len(state.done) == len(param.team_1_idxs):
 				break 
 
-		times.append(time)
-		dones.append(state.done)
+			if action is not None:
+				save_action += action 
+
+		times.append(time) 
+		dones.append(state.done) 
 		states.append(state.state) 
+		actions.append(save_action)
 
 		if len(state.done) == len(param.team_1_idxs):
 			break 
@@ -65,8 +70,9 @@ def run_sim(param):
 	#  
 	sim_result = dict()
 	sim_result["times"] = np.asarray(times)
-	sim_result["dones"] = np.asarray(dones)
-	sim_result["states"] = np.asarray(states) 
+	sim_result["actions"] = np.asarray(actions) 
+	sim_result["dones"] = np.asarray(dones[1:])
+	sim_result["states"] = np.asarray(states[1:]) 
 	sim_result["param"] = param.to_dict() 	
 
 	# write sim results
