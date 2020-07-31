@@ -44,14 +44,16 @@ class RobotDynamics:
 			self.idxs = param.team_2_idxs
 
 	def step(self, state, action):
-		return np.dot(self.A, state) + np.dot(self.B, action)
+		next_state = np.dot(self.A, state) + np.dot(self.B, action)
+		alpha = np.linalg.norm(next_state[2:]) / self.v_max
+		next_state[2:] = next_state[2:] / np.max((alpha,1))
+		return next_state
 
 	def valid(self, state):
 		if not (state[0] > self.param.env_xlim[0] and \
 				state[0] < self.param.env_xlim[1] and \
 				state[1] > self.param.env_ylim[0] and \
-				state[1] < self.param.env_ylim[1] and \
-				np.linalg.norm(state[2:]) <= self.v_max):
+				state[1] < self.param.env_ylim[1]):
 			return False
 		return True
 
@@ -95,10 +97,11 @@ class State:
 		self.dist_robots = np.linalg.norm(self.state[:,0:2][:, np.newaxis] - self.state[:,0:2],axis=2)
 		self.dist_goal = np.linalg.norm(self.state[self.param.team_1_idxs,0:2] - self.param.goal, axis=1)
 		self.done = self.__compute_done(prev_done) 
+		self.not_done = list(set(self.param.team_1_idxs)-set(self.done))
 		if turn:
 			self.dynamics = self.dynamicsA
 			# the indices are the ones of team 1 that are still actively playing
-			self.idxs = list(set(self.param.team_1_idxs)-set(self.done))
+			self.idxs = self.not_done
 		else:
 			self.dynamics = self.dynamicsB
 			self.idxs = self.param.team_2_idxs
@@ -153,11 +156,7 @@ class State:
 
 	def eval_predict(self):
 		reward_1,reward_2 = 0,0
-		for idx in self.param.team_1_idxs: 
-			reward_1 += np.exp(-1*self.dist_goal[idx])
-			# reward_2 += np.exp(-1*np.sum(self.dist_robots[idx,self.param.team_2_idxs]))
-		reward_1 /= len(self.param.team_1_idxs)
-		# reward_2 /= len(self.param.team_1_idxs)
+		reward_1 = np.exp(-1*np.min(self.dist_goal[self.not_done]))
 		reward_2 = 1 - reward_1
 		return reward_1,reward_2
 
@@ -297,25 +296,75 @@ class Tree:
 		value_1,value_2,eta,depth = node.get_value_to_come()
 		reward_1,reward_2 = state.eval_reward()
 		value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,depth)
-		for i in range(self.param.rollout_horizon):
-			untried_actions = state.possible_actions().copy()
-			random.shuffle(untried_actions)
-			if state.is_terminal() or len(untried_actions) == 0: 
-				for k in range(self.param.rollout_horizon-i):
-					value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,i+k+depth)
-				return value_1/eta,value_2/eta
-			while len(untried_actions) > 0:
-				action = untried_actions.pop()
-				next_state = state.forward(action)
-				if next_state is not None:
-					state = next_state
-					break
-				if len(untried_actions) == 0:
-					for k in range(self.param.rollout_horizon-i):
-						value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,i+k+depth)
-					# return reward_1,reward_2
+
+		if self.param.fixed_tree_depth_on:
+
+			i = 0 
+			while i + depth < self.param.fixed_tree_depth:
+				untried_actions = state.possible_actions().copy()
+				random.shuffle(untried_actions)
+				
+				# terminal state 
+				if state.is_terminal() or len(untried_actions) == 0: 
+					k = 0 
+					while k + i + depth < self.param.fixed_tree_depth:
+						value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,\
+							self.param.gamma,i+k+depth)
+						k += 1 
 					return value_1/eta,value_2/eta
-			reward_1,reward_2 = state.eval_reward()
-			value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,i+depth)
-		# return reward_1,reward_2
-		return value_1/eta,value_2/eta
+				
+				# get next state
+				while len(untried_actions) > 0:
+					action = untried_actions.pop()
+					next_state = state.forward(action)
+					if next_state is not None:
+						state = next_state
+						break
+
+					# no available next state, terminal 
+					if len(untried_actions) == 0:
+						k = 0 
+						while k + i + depth < self.param.fixed_tree_depth:
+							value_1,value_2,eta = eval_value(value_1,value_2,eta,0,0,\
+								self.param.gamma,i+k+depth)
+							k += 1 
+						return value_1/eta,value_2/eta
+
+				# nominal rollout
+				reward_1,reward_2 = state.eval_reward()
+				value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,\
+					self.param.gamma,i+depth)
+				i += 1 
+			return value_1/eta,value_2/eta
+
+		else: 
+
+			for i in range(self.param.rollout_horizon):
+				untried_actions = state.possible_actions().copy()
+				random.shuffle(untried_actions)
+				if state.is_terminal() or len(untried_actions) == 0: 
+					for k in range(self.param.rollout_horizon-i):
+						value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,\
+							self.param.gamma,i+k+depth)
+						if k + i + depth >= self.param.effective_depth: 
+							break 
+					return value_1/eta,value_2/eta
+				while len(untried_actions) > 0:
+					action = untried_actions.pop()
+					next_state = state.forward(action)
+					if next_state is not None:
+						state = next_state
+						break
+					if len(untried_actions) == 0:
+						for k in range(self.param.rollout_horizon-i):
+							value_1,value_2,eta = eval_value(value_1,value_2,eta,0,0,\
+								self.param.gamma,i+k+depth)
+							if k + i + depth >= self.param.effective_depth: 
+								break 
+						return value_1/eta,value_2/eta
+				reward_1,reward_2 = state.eval_reward()
+				value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,\
+					self.param.gamma,i+depth)
+				if i + depth >= self.param.fixed_tree_depth: 
+					break 
+			return value_1/eta,value_2/eta

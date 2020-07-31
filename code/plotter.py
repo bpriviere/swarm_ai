@@ -278,6 +278,7 @@ def plot_tree_results(sim_result):
 	ax = axs[0,0]
 	ax.grid(True)
 	ax.set_aspect('equal')
+	ax.set_title('State Space')
 	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 	ax.plot(np.nan,np.nan,color=team_1_color,label='attackers')
 	ax.plot(np.nan,np.nan,color=team_2_color,label='defenders')
@@ -294,37 +295,40 @@ def plot_tree_results(sim_result):
 	# value func 
 	ax = axs[0,1] 
 	ax.grid(True)
-	ratio = (times[-1] - times[0])/(1 - 0) 
-	ax.set_aspect(ratio)
+	# ratio = (times[-1] - times[0])/(1 - 0) 
+	# ax.set_aspect(ratio)
+	ax.set_title('Value Function')
 	ax.plot(times,values[:,0],color=team_1_color)
 	ax.plot(times,values[:,1],color=team_2_color)
 
 	# time varying velocity
 	ax = axs[1,0]
 	ax.grid(True)
-	ratio = (times[-1] - times[0])/(max((speed_limit_a,speed_limit_b))-0)
-	ax.set_aspect(ratio)
-	ax.axhline(speed_limit_a,color=team_1_color,linestyle='--',label=r'$\overline{v}_1$')
-	ax.axhline(speed_limit_b,color=team_2_color,linestyle='--',label=r'$\overline{v}_2$')
+	# ratio = (times[-1] - times[0])/(max((speed_limit_a,speed_limit_b))-0)
+	# ax.set_aspect(ratio)
+	ax.axhline(speed_limit_a,color=team_1_color,linestyle='--')
+	ax.axhline(speed_limit_b,color=team_2_color,linestyle='--')
+	ax.set_title('Speed Profile')
 	for i in range(num_nodes):
 		color = team_2_color 
 		if i in team_1_idxs:
 			color = team_1_color
 		ax.plot(times,np.linalg.norm(states[:,i,2:],axis=1),color=color)
-	ax.legend(loc='upper right')
+	# ax.legend(loc='upper right')
 
 	# time varying acc
 	ax = axs[1,1]
 	ax.grid(True)
-	ratio = (times[-1] - times[0])/(max((acceleration_limit_a,acceleration_limit_b))-0)
-	ax.set_aspect(ratio)
-	ax.axhline(acceleration_limit_a,color=team_1_color,linestyle='--',label=r'$\overline{u}_1$')
-	ax.axhline(acceleration_limit_b,color=team_2_color,linestyle='--',label=r'$\overline{u}_2$')
+	# ratio = (times[-1] - times[0])/(max((acceleration_limit_a,acceleration_limit_b))-0)
+	# ax.set_aspect(ratio)
+	ax.axhline(acceleration_limit_a,color=team_1_color,linestyle='--')
+	ax.axhline(acceleration_limit_b,color=team_2_color,linestyle='--')
+	ax.set_title('Acceleration Profile')
 	for i in range(num_nodes):
 		color = team_2_color 
 		if i in team_1_idxs:
 			color = team_1_color
 		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=color)
-	ax.legend(loc='upper right')
+	# ax.legend(loc='upper right')
 
 	fig.tight_layout()

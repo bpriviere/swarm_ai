@@ -27,6 +27,7 @@ class Param:
 		self.r_comm = 1.6
 		
 		# environment
+		self.goal_line_x = 0.6
 		large_env = False 
 		if large_env:
 			self.env_xlim = [0,1]
@@ -35,7 +36,6 @@ class Param:
 			self.reset_ylim_A = [0,1]
 			self.reset_xlim_B = [0.8,1]
 			self.reset_ylim_B = [0,1]
-			self.goal_line_x = 0.6
 			self.goal = np.array([0.5,0.5])
 		else: 
 			l = 0.5
@@ -45,17 +45,18 @@ class Param:
 			self.reset_ylim_A = [0.5*l,0.5*l]
 			self.reset_xlim_B = [0.9*l,0.9*l]
 			self.reset_ylim_B = [0.5*l,0.5*l]
-			self.goal_line_x = 0.6
-			self.goal = np.array([0.5*l,0.75*l])
+			self.goal = np.array([0.9*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 100
-		self.rollout_horizon = 100
+		self.tree_size = 1000
+		self.fixed_tree_depth = 100
+		self.fixed_tree_depth_on = True
+		self.rollout_horizon = 1000
 		self.c_param = 1.4
 		self.gamma = 1.0
 		
 		# nodes 
-		self.num_nodes_A = 1
+		self.num_nodes_A = 2
 		self.num_nodes_B = 1
 		
 		# estimator parameters
@@ -70,12 +71,12 @@ class Param:
 		# policy 
 		self.rhc_horizon = 5
 		self.lambda_u = 0.01
-		self.speed_limit_a = 0.25 # 0.05 
+		self.speed_limit_a = 0.5 # 0.05 
 		self.speed_limit_b = 0.5 # 0.1 
-		self.acceleration_limit_a = 0.10
-		self.acceleration_limit_b = 0.20
+		self.acceleration_limit_a = 0.5
+		self.acceleration_limit_b = 0.5 
 		self.danger_radius = 0.1
-		self.tag_radius = 0.075
+		self.tag_radius = 0.05
 
 		# path stuff
 		self.current_results_dir = '../current_results'
