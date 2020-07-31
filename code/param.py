@@ -49,7 +49,7 @@ class Param:
 
 		# mcts parameters 
 		self.tree_size = 1000
-		self.fixed_tree_depth = 100
+		self.fixed_tree_depth = 50
 		self.fixed_tree_depth_on = True
 		self.rollout_horizon = 1000
 		self.c_param = 1.4
@@ -73,10 +73,10 @@ class Param:
 		self.lambda_u = 0.01
 		self.speed_limit_a = 0.5 # 0.05 
 		self.speed_limit_b = 0.5 # 0.1 
-		self.acceleration_limit_a = 0.5
-		self.acceleration_limit_b = 0.5 
+		self.acceleration_limit_a = 0.125
+		self.acceleration_limit_b = 0.125 
 		self.danger_radius = 0.1
-		self.tag_radius = 0.05
+		self.tag_radius = 0.025
 
 		# path stuff
 		self.current_results_dir = '../current_results'

@@ -136,26 +136,25 @@ class State:
 			captured = np.any(self.dist_robots[idx,self.param.team_2_idxs] < self.param.tag_radius)
 			reached_goal = self.dist_goal[idx] < self.param.tag_radius
 			
-			if idx in prev_done or captured: 
+			if idx in prev_done or captured or reached_goal: 
 				next_done.append(idx)
-			if reached_goal: 
-				next_done = self.param.team_1_idxs
-				break
 		return next_done
 
 	def eval_reward(self):
-		if np.any(self.dist_goal[self.param.team_1_idxs] < self.param.tag_radius):
-			reward_1 = 1 
-			reward_2 = 0
-		elif len(self.done) == len(self.param.team_1_idxs):
-			reward_1 = 0 
-			reward_2 = 1
-		else: 
-			reward_1,reward_2 = self.eval_predict()
+		reward_1 = 0 
+		for idx in self.param.team_1_idxs: 
+			if idx in self.done: 
+				if self.dist_goal[idx] < self.param.tag_radius:
+					reward_1 += 1 
+			else: 
+				reward_1 += 0.5 
+		reward_1 /= len(self.param.team_1_idxs)
+		reward_2 = 1 - reward_1
 		return reward_1,reward_2
 
 	def eval_predict(self):
 		reward_1,reward_2 = 0,0
+		return reward_1,reward_2
 		reward_1 = np.exp(-1*np.min(self.dist_goal[self.not_done]))
 		reward_2 = 1 - reward_1
 		return reward_1,reward_2
