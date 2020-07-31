@@ -49,10 +49,10 @@ class Param:
 			self.goal = np.array([0.5*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 500
+		self.tree_size = 100
 		self.rollout_horizon = 100
 		self.c_param = 1.4
-		self.gamma = 0.9
+		self.gamma = 1.0
 		
 		# nodes 
 		self.num_nodes_A = 1
@@ -70,12 +70,12 @@ class Param:
 		# policy 
 		self.rhc_horizon = 5
 		self.lambda_u = 0.01
-		self.speed_limit_a = 0.5 # 0.05 
-		self.speed_limit_b = 0*1.0 # 0.1 
+		self.speed_limit_a = 0.25 # 0.05 
+		self.speed_limit_b = 0.5 # 0.1 
 		self.acceleration_limit_a = 0.10
 		self.acceleration_limit_b = 0.20
 		self.danger_radius = 0.1
-		self.tag_radius = 0.025
+		self.tag_radius = 0.075
 
 		# path stuff
 		self.current_results_dir = '../current_results'

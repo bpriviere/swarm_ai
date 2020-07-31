@@ -51,7 +51,7 @@ class RobotDynamics:
 				state[0] < self.param.env_xlim[1] and \
 				state[1] > self.param.env_ylim[0] and \
 				state[1] < self.param.env_ylim[1] and \
-				np.linalg.norm(state[2:]) < self.v_max):
+				np.linalg.norm(state[2:]) <= self.v_max):
 			return False
 		return True
 
@@ -155,10 +155,10 @@ class State:
 		reward_1,reward_2 = 0,0
 		for idx in self.param.team_1_idxs: 
 			reward_1 += np.exp(-1*self.dist_goal[idx])
-			reward_2 += np.exp(-1*np.sum(self.dist_robots[idx,self.param.team_2_idxs]))
+			# reward_2 += np.exp(-1*np.sum(self.dist_robots[idx,self.param.team_2_idxs]))
 		reward_1 /= len(self.param.team_1_idxs)
-		reward_2 /= len(self.param.team_1_idxs)
-		# reward_2 = 1 - reward_1
+		# reward_2 /= len(self.param.team_1_idxs)
+		reward_2 = 1 - reward_1
 		return reward_1,reward_2
 
 
@@ -281,9 +281,8 @@ class Tree:
 
 	def best_action(self):
 		if self.root_node.is_terminal():
-			best_child = self.root_node 
-		else: 
-			best_child = self.root_node.best_child(c_param=0.0)
+			return None,None
+		best_child = self.root_node.best_child(c_param=0.0)
 		return best_child.state, best_child.action_to_node
 
 	def backpropagate(self,node,value_1,value_2):
@@ -302,8 +301,9 @@ class Tree:
 			untried_actions = state.possible_actions().copy()
 			random.shuffle(untried_actions)
 			if state.is_terminal() or len(untried_actions) == 0: 
-				return reward_1,reward_2
-				# return value_1/eta,value_2/eta
+				for k in range(self.param.rollout_horizon-i):
+					value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,i+k+depth)
+				return value_1/eta,value_2/eta
 			while len(untried_actions) > 0:
 				action = untried_actions.pop()
 				next_state = state.forward(action)
@@ -311,9 +311,11 @@ class Tree:
 					state = next_state
 					break
 				if len(untried_actions) == 0:
-					return reward_1,reward_2
-					# return value_1/eta,value_2/eta
+					for k in range(self.param.rollout_horizon-i):
+						value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,i+k+depth)
+					# return reward_1,reward_2
+					return value_1/eta,value_2/eta
 			reward_1,reward_2 = state.eval_reward()
-			value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,depth)
-		return reward_1,reward_2
-		# return value_1/eta,value_2/eta
+			value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,self.param.gamma,i+depth)
+		# return reward_1,reward_2
+		return value_1/eta,value_2/eta

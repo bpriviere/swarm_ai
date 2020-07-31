@@ -41,31 +41,34 @@ def run_sim(param):
 	state = mcts.State(state,done,turn)
 
 	# run sim 
-	times,actions,dones,states = [],[],[state.done],[state.state]
+	times,actions,dones,states,values = [],[],[state.done],[state.state],[]
 	for step,time in enumerate(param.sim_times):
 
 		print('\t\t t = {}/{}'.format(step,len(param.sim_times)))
 		save_action = np.zeros((param.num_nodes,2))
 		for team in range(2):
 
-			# tree = mcts.Tree(param)
+			tree = mcts.Tree(param)
 			tree.set_root(state) 
 			tree.grow()
 			state, action = tree.best_action()
 			
-			if len(state.done) == len(param.team_1_idxs):
+			if state is None: 
 				break 
 
-			if action is not None:
-				save_action += action 
+			save_action += action 
+		
+		if state is None: 
+			break 
 
+		values.append((\
+			tree.root_node.value_1/tree.root_node.number_of_visits,\
+			tree.root_node.value_2/tree.root_node.number_of_visits))
 		times.append(time) 
 		dones.append(state.done) 
 		states.append(state.state) 
 		actions.append(save_action)
 
-		if len(state.done) == len(param.team_1_idxs):
-			break 
 
 	#  
 	sim_result = dict()
@@ -73,6 +76,7 @@ def run_sim(param):
 	sim_result["actions"] = np.asarray(actions) 
 	sim_result["dones"] = np.asarray(dones[1:])
 	sim_result["states"] = np.asarray(states[1:]) 
+	sim_result["values"] = np.asarray(values) 
 	sim_result["param"] = param.to_dict() 	
 
 	# write sim results
@@ -88,7 +92,7 @@ if __name__ == '__main__':
 	param.current_results_dir = '../'+param.current_results_dir
 	format_dir(param)
 
-	parallel = False
+	parallel = True
 	if parallel: 
 		ncases = 50
 		nprocess = np.min((mp.cpu_count()-1,ncases))
