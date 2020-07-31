@@ -51,15 +51,12 @@ def run_sim(param):
 			tree = mcts.Tree(param)
 			tree.set_root(state) 
 			tree.grow()
-			state, action = tree.best_action()
-			
-			if state is None: 
-				break 
+			next_state, action = tree.best_action()
+			if next_state is None:
+				break
 
-			save_action += action 
-		
-		if state is None: 
-			break 
+			save_action += action
+			state = next_state
 
 		values.append((\
 			tree.root_node.value_1/tree.root_node.number_of_visits,\
@@ -68,6 +65,9 @@ def run_sim(param):
 		dones.append(state.done) 
 		states.append(state.state) 
 		actions.append(save_action)
+
+		if next_state is None: 
+			break 
 
 
 	#  
