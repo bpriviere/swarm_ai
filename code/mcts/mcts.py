@@ -341,29 +341,32 @@ class Tree:
 			for i in range(self.param.rollout_horizon):
 				untried_actions = state.possible_actions().copy()
 				random.shuffle(untried_actions)
+				
+				# terminal state 
 				if state.is_terminal() or len(untried_actions) == 0: 
 					for k in range(self.param.rollout_horizon-i):
 						value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,\
 							self.param.gamma,i+k+depth)
-						if k + i + depth >= self.param.effective_depth: 
-							break 
 					return value_1/eta,value_2/eta
+
+				# get next state 
 				while len(untried_actions) > 0:
 					action = untried_actions.pop()
 					next_state = state.forward(action)
 					if next_state is not None:
 						state = next_state
 						break
+
+					# no available actions, terminal 
 					if len(untried_actions) == 0:
 						for k in range(self.param.rollout_horizon-i):
 							value_1,value_2,eta = eval_value(value_1,value_2,eta,0,0,\
 								self.param.gamma,i+k+depth)
-							if k + i + depth >= self.param.effective_depth: 
-								break 
 						return value_1/eta,value_2/eta
+
+				# nominal rollout 
 				reward_1,reward_2 = state.eval_reward()
 				value_1,value_2,eta = eval_value(value_1,value_2,eta,reward_1,reward_2,\
 					self.param.gamma,i+depth)
-				if i + depth >= self.param.fixed_tree_depth: 
-					break 
+
 			return value_1/eta,value_2/eta

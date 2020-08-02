@@ -48,16 +48,16 @@ class Param:
 			self.goal = np.array([0.9*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 1000
-		self.fixed_tree_depth = 50
-		self.fixed_tree_depth_on = True
+		self.tree_size = 100000
+		self.fixed_tree_depth_on = False
+		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000
 		self.c_param = 1.4
 		self.gamma = 1.0
 		
 		# nodes 
 		self.num_nodes_A = 2
-		self.num_nodes_B = 1
+		self.num_nodes_B = 2
 		
 		# estimator parameters
 		self.initial_state_covariance = 1e-10 # defines initial condition of estimators
@@ -71,9 +71,9 @@ class Param:
 		# policy 
 		self.rhc_horizon = 5
 		self.lambda_u = 0.01
-		self.speed_limit_a = 0.5 # 0.05 
-		self.speed_limit_b = 0.5 # 0.1 
-		self.acceleration_limit_a = 0.125
+		self.speed_limit_a = 0.125 # 0.05 
+		self.speed_limit_b = 0.125 # 0.1 
+		self.acceleration_limit_a = 0.25 
 		self.acceleration_limit_b = 0.125 
 		self.danger_radius = 0.1
 		self.tag_radius = 0.025

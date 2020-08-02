@@ -7,6 +7,7 @@ import multiprocessing as mp
 import glob
 import os 
 import shutil 
+import time as timer
 
 import sys
 sys.path.append("../")
@@ -41,6 +42,7 @@ def run_sim(param):
 	state = mcts.State(state,done,turn)
 
 	# run sim 
+	start_time = timer.time()
 	times,actions,dones,states,values = [],[],[state.done],[state.state],[]
 	for step,time in enumerate(param.sim_times):
 
@@ -69,6 +71,7 @@ def run_sim(param):
 		if next_state is None: 
 			break 
 
+	param.elapsed_time = timer.time() - start_time
 
 	#  
 	sim_result = dict()
@@ -94,10 +97,10 @@ if __name__ == '__main__':
 
 	parallel = True
 	if parallel: 
-		ncases = 50
+		ncases = 10
 		nprocess = np.min((mp.cpu_count()-1,ncases))
 		pool = mp.Pool(nprocess)
-		for _ in pool.imap_unordered(run_sim, [param for _ in range(nprocess)]):
+		for _ in pool.imap_unordered(run_sim, [param for _ in range(ncases)]):
 			pass 
 	else: 
 		run_sim(param)
