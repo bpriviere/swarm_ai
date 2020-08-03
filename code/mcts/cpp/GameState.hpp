@@ -37,6 +37,43 @@ std::ostream& operator<<(std::ostream& out, const RobotState& s)
 	return out;
 }
 
+class RobotType
+{
+public:
+	Eigen::Vector2f p_min;
+	Eigen::Vector2f p_max;
+	Eigen::Vector2f velocity_limit;
+	Eigen::Vector2f acceleration_limit;
+
+	void step(const RobotState& state, const Eigen::Vector2f& action, float dt, RobotState& result) const
+	{
+		result.position = state.position + state.velocity * dt;
+		result.velocity = clip(state.velocity + action * dt, -velocity_limit, velocity_limit);
+	}
+
+	bool isStateValid(const RobotState& state) const
+	{
+		return (state.position >= p_min).all() && (state.position <= p_max).all();
+	}
+
+private:
+
+	std::vector<Eigen::Vector2f> buildDiscreteActions() const
+	{
+		std::vector<Eigen::Vector2f> result(9);
+		result[0] << -acceleration_limit, -acceleration_limit;
+		result[1] << -acceleration_limit, 0;
+		result[2] << -acceleration_limit, acceleration_limit;
+		result[3] << 0, -acceleration_limit;
+		result[4] << 0, 0;
+		result[5] << 0, acceleration_limit;
+		result[6] << acceleration_limit, -acceleration_limit;
+		result[7] << acceleration_limit, 0;
+		result[8] << acceleration_limit, acceleration_limit;
+		return result;
+	}
+};
+
 template <std::size_t NumAttackers, std::size_t NumDefenders>
 class GameState
 {
@@ -84,6 +121,13 @@ class GameLogic
 public:
 	typedef GameState<NumAttackers, NumDefenders> GameStateT;
 
+	GameLogic(
+		const std::array<RobotType, NumAttackers>& attackerTypes,
+		const std::array<RobotType, NumDefenders>& defenderTypes)
+		: attackerTypes_(attackerTypes)
+		, defenderTypes_(defenderTypes)
+	{
+	}
 
 	bool step(const GameStateT& state, const Eigen::Vector2f& action, float dt, GameStateT& result)
 	{

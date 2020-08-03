@@ -20,3 +20,10 @@ add_executable(test_mcts
 target_link_libraries(test_mcts
   Eigen3::Eigen
 )
+
+add_executable(test_tictactoe
+  test_tictactoe.cpp
+)
+# target_link_libraries(test_mcts
+  # Eigen3::Eigen
+# )
