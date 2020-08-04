@@ -10,7 +10,7 @@ class Gparam:
 		# flags  
 		self.make_raw_data_on 		= False
 		self.make_labelled_data_on 	= True 
-		self.train_model_on 		= True 
+		self.train_model_on 		= False
 		self.dbg_vis_on			 	= False
 		self.discrete_on 			= True 
 

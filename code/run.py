@@ -118,7 +118,7 @@ if __name__ == '__main__':
 	format_dir(param)
 		
 	# run sim 
-	parallel = True
+	parallel = False
 	if parallel: 
 		ncases = 10
 		nprocess = np.min((mp.cpu_count()-1,ncases))

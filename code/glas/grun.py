@@ -150,9 +150,15 @@ def action_to_classification(param,gparam,action_i,node_i):
 	elif node_i.idx in param.team_2_idxs: 
 		u_max = param.acceleration_limit_b / np.sqrt(2)
 
+	not_found = True
 	for k,action in enumerate(gparam.actions): 
 		if np.allclose(u_max*action.flatten(),action_i.flatten()):
+			not_found = False
 			break 
+
+	if not_found: 
+		print('not found!')
+		exit()
 
 	return k
 
@@ -347,5 +353,6 @@ if __name__ == '__main__':
 
 			plotter.plot_loss(losses,training_team)
 
-	plotter.save_figs('plots.pdf')
-	plotter.open_figs('plots.pdf')
+	if plotter.has_figs():
+		plotter.save_figs('plots.pdf')
+		plotter.open_figs('plots.pdf')

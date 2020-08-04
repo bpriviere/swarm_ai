@@ -36,5 +36,8 @@ class Controller(Controller):
 				actions[node] = self.param.acceleration_limit_a*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1   
 			elif node.idx in self.param.team_2_idxs: 
 				classification = self.model_A(o_a,o_b).detach().numpy().T # 9 x 1 
-				actions[node] = self.param.acceleration_limit_a*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1   
+				actions[node] = self.param.acceleration_limit_a*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1  
+		# 	print('classification:',classification)
+		# exit()
+
 		return actions

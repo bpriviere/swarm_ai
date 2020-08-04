@@ -14,6 +14,12 @@ from utilities import dbgp
 plt.rcParams.update({'font.size': 10})
 plt.rcParams['lines.linewidth'] = 2.5
 
+def has_figs():
+	if len(plt.get_fignums()) > 0:
+		return True
+	else:
+		return False
+
 
 def save_figs(filename):
 	fn = os.path.join( os.getcwd(), filename)
@@ -256,7 +262,7 @@ def plot_sa_pairs(states,actions,param,instance):
 			color = team_1_color
 		elif node_idx in param.team_2_idxs:
 			color = team_2_color
-			
+
 		ax.plot(states[:,pos_x_idx],states[:,pos_y_idx],linewidth=3,color=color)
 		ax.scatter(states[:,pos_x_idx],states[:,pos_y_idx],color=color)
 
