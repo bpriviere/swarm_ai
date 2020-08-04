@@ -78,8 +78,11 @@ public:
   {
     result.position = state.position + state.velocity * dt;
     Eigen::Vector2f velocity = state.velocity + action * dt;
+
+    float alpha = velocity.norm() / velocity_limit;
+    result.velocity = velocity / std::max(alpha, 1.0f);
     // result.velocity = clip(velocity, -velocity_limit, velocity_limit);
-    result.velocity = velocity.cwiseMin(velocity_limit).cwiseMax(-velocity_limit);
+    // result.velocity = velocity.cwiseMin(velocity_limit).cwiseMax(-velocity_limit);
   }
 
   bool isStateValid(const RobotState& state) const
@@ -410,15 +413,15 @@ int main(int argc, char* argv[]) {
   RobotType robotTypeAttacker;
   robotTypeAttacker.p_min << 0, 0;
   robotTypeAttacker.p_max << 0.5, 0.5;
-  robotTypeAttacker.velocity_limit = 0.125;
-  robotTypeAttacker.acceleration_limit = 0.25;
+  robotTypeAttacker.velocity_limit = 0.125 / sqrtf(2.0);
+  robotTypeAttacker.acceleration_limit = 0.25 / sqrtf(2.0);
   robotTypeAttacker.init();
 
   RobotType robotTypeDefender;
   robotTypeDefender.p_min << 0, 0;
   robotTypeDefender.p_max << 0.5, 0.5;
-  robotTypeDefender.velocity_limit = 0.125;
-  robotTypeDefender.acceleration_limit = 0.125;
+  robotTypeDefender.velocity_limit = 0.125 / sqrtf(2.0);
+  robotTypeDefender.acceleration_limit = 0.125 / sqrtf(2.0);
   robotTypeDefender.init();
 
   std::array<RobotType, 1> attackerTypes;
