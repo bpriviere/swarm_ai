@@ -246,6 +246,7 @@ if __name__ == '__main__':
 	if gparam.dbg_vis_on:
 		print('vis...')
 
+		count = 0 
 		instance_keys = get_instance_keys(gparam)
 		for instance_key in instance_keys:
 			state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
@@ -253,7 +254,10 @@ if __name__ == '__main__':
 			param = load_param(param_fn) 
 			states,actions = dh.read_state_action_pairs(state_action_fn,param)
 			plotter.plot_sa_pairs(states,actions,param,instance_key)
-			break 
+			count += 1 
+
+			if count > 30:
+				break 
 
 		# batched_files = glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,gparam.training_team))
 		# for batched_file in batched_files:
@@ -264,81 +268,84 @@ if __name__ == '__main__':
 
 	# load (observation,action) binary files, train a model, and write model to file 
 	if gparam.train_model_on: 
-		print('training model...')
+
+		for training_team in gparam.training_teams:
+			print('training model for team {}...'.format(training_team))
 		
-		batched_files = glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,gparam.training_team))
-		
-		n_points = 0 
-		for batched_file in batched_files:
-			o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
-			n_points += action.shape[0]
-		n_points = np.min((n_points, gparam.il_n_points))
-		print('n_points',n_points)
-
-		# get loader 
-		train_loader = [] # lst of batches 
-		test_loader  = [] 
-		curr_points, train_dataset_size, test_dataset_size = 0,0,0
-		for batched_file in batched_files: 
-			o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
-			if curr_points < gparam.il_test_train_ratio * n_points: 
-				train_loader.append([
-					torch.from_numpy(o_a).float().to(gparam.device),
-					torch.from_numpy(o_b).float().to(gparam.device),
-					# torch.from_numpy(action).float().to(gparam.device)])
-					torch.from_numpy(action).type(torch.long).to(gparam.device)])
-				train_dataset_size += action.shape[0]
-
-			elif curr_points < n_points:
-				test_loader.append([
-					torch.from_numpy(o_a).float().to(gparam.device),
-					torch.from_numpy(o_b).float().to(gparam.device),
-					# torch.from_numpy(action).float().to(gparam.device)])
-					torch.from_numpy(action).type(torch.long).to(gparam.device)])
-				test_dataset_size += action.shape[0]
-
-			curr_points += action.shape[0]
-
-		print('train dataset size: ', train_dataset_size)
-		print('test dataset size: ', test_dataset_size)
-
-		# init model
-		if gparam.discrete_on:
-			model = DiscreteEmptyNet(gparam,gparam.device)
-		else:
-			model = EmptyNet(gparam,gparam.device)
-
-		# init optimizer
-		optimizer = torch.optim.Adam(model.parameters(), lr=gparam.il_lr, weight_decay=gparam.il_wd)
-		
-		# train 
-		losses = []
-		with open(gparam.il_train_model_fn + ".csv", 'w') as log_file:
-			log_file.write("time,epoch,train_loss,test_loss\n")
-			start_time = time.time()
-			best_test_loss = np.Inf
-			scheduler = ReduceLROnPlateau(optimizer, 'min')
-			for epoch in range(1,gparam.il_n_epoch+1):
-				train_epoch_loss = train(model,optimizer,train_loader)
-				test_epoch_loss = test(model,optimizer,test_loader)
-				scheduler.step(test_epoch_loss)
-
-				losses.append((train_epoch_loss,test_epoch_loss))
+			batched_files = glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,training_team))
 			
-				if epoch%gparam.il_log_interval==0:
-					print('epoch: ', epoch)
-					print('   Train Epoch Loss: ', train_epoch_loss)
-					print('   Test Epoch Loss: ', test_epoch_loss)
+			n_points = 0 
+			for batched_file in batched_files:
+				o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
+				n_points += action.shape[0]
+			n_points = np.min((n_points, gparam.il_n_points))
+			print('n_points',n_points)
 
-					if test_epoch_loss < best_test_loss:
-						best_test_loss = test_epoch_loss
-						print('      saving @ best test loss:', best_test_loss)
-						torch.save(model.state_dict(), gparam.il_train_model_fn)
-						model.to(gparam.device)
+			# get loader 
+			train_loader = [] # lst of batches 
+			test_loader  = [] 
+			curr_points, train_dataset_size, test_dataset_size = 0,0,0
+			for batched_file in batched_files: 
+				o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
+				if curr_points < gparam.il_test_train_ratio * n_points: 
+					train_loader.append([
+						torch.from_numpy(o_a).float().to(gparam.device),
+						torch.from_numpy(o_b).float().to(gparam.device),
+						# torch.from_numpy(action).float().to(gparam.device)])
+						torch.from_numpy(action).type(torch.long).to(gparam.device)])
+					train_dataset_size += action.shape[0]
 
-				log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
+				elif curr_points < n_points:
+					test_loader.append([
+						torch.from_numpy(o_a).float().to(gparam.device),
+						torch.from_numpy(o_b).float().to(gparam.device),
+						# torch.from_numpy(action).float().to(gparam.device)])
+						torch.from_numpy(action).type(torch.long).to(gparam.device)])
+					test_dataset_size += action.shape[0]
 
-		plotter.plot_loss(losses)
+				curr_points += action.shape[0]
+
+			print('train dataset size: ', train_dataset_size)
+			print('test dataset size: ', test_dataset_size)
+
+			# init model
+			if gparam.discrete_on:
+				model = DiscreteEmptyNet(gparam,gparam.device)
+			else:
+				model = EmptyNet(gparam,gparam.device)
+
+			# init optimizer
+			optimizer = torch.optim.Adam(model.parameters(), lr=gparam.il_lr, weight_decay=gparam.il_wd)
+			
+			# train 
+			losses = []
+			il_train_model_fn = gparam.il_train_model_fn.format(training_team)
+			with open(il_train_model_fn + ".csv", 'w') as log_file:
+				log_file.write("time,epoch,train_loss,test_loss\n")
+				start_time = time.time()
+				best_test_loss = np.Inf
+				scheduler = ReduceLROnPlateau(optimizer, 'min')
+				for epoch in range(1,gparam.il_n_epoch+1):
+					train_epoch_loss = train(model,optimizer,train_loader)
+					test_epoch_loss = test(model,optimizer,test_loader)
+					scheduler.step(test_epoch_loss)
+
+					losses.append((train_epoch_loss,test_epoch_loss))
+				
+					if epoch%gparam.il_log_interval==0:
+						print('epoch: ', epoch)
+						print('   Train Epoch Loss: ', train_epoch_loss)
+						print('   Test Epoch Loss: ', test_epoch_loss)
+
+						if test_epoch_loss < best_test_loss:
+							best_test_loss = test_epoch_loss
+							print('      saving @ best test loss:', best_test_loss)
+							torch.save(model.state_dict(), il_train_model_fn)
+							model.to(gparam.device)
+
+					log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
+
+			plotter.plot_loss(losses,training_team)
 
 	plotter.save_figs('plots.pdf')
 	plotter.open_figs('plots.pdf')

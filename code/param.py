@@ -1,5 +1,6 @@
 
 import numpy as np 
+import itertools
 
 class Param:
 
@@ -10,7 +11,7 @@ class Param:
 		self.measurements_name 	= 'measurements/global.py' 			# global, (local)
 		self.estimator_name 	= 'estimator/kalman.py'	 			# empty,(kalman),exact...
 		self.attacker_name 		= 'attacker/empty.py' 				# empty, ...
-		self.controller_name 	= 'controller/mcts.py'			 	# empty, glas, joint_mpc, mcts, ...
+		self.controller_name 	= 'controller/glas.py'			 	# empty, glas, joint_mpc, mcts, ...
 
 		# flags
 		self.gif_on 	= False
@@ -19,9 +20,20 @@ class Param:
 		# sim param 
 		self.n_trials = 1
 		self.sim_t0 = 0
-		self.sim_tf = 5
+		self.sim_tf = 20
 		self.sim_dt = 0.25
+
+		# nodes 
+		self.num_nodes_A = 1
+		self.num_nodes_B = 1
 		
+		# dynamics 
+		self.speed_limit_a = 0.125 # 0.05 
+		self.speed_limit_b = 0.125 # 0.1 
+		self.acceleration_limit_a = 0.25 
+		self.acceleration_limit_b = 0.125 
+		self.tag_radius = 0.025
+
 		# topology
 		self.r_sense = 1.6
 		self.r_comm = 1.6
@@ -48,16 +60,12 @@ class Param:
 			self.goal = np.array([0.9*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 100
+		self.tree_size = 5000
 		self.fixed_tree_depth_on = False
 		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000
 		self.c_param = 1.4
 		self.gamma = 1.0
-		
-		# nodes 
-		self.num_nodes_A = 1
-		self.num_nodes_B = 1
 		
 		# estimator parameters
 		self.initial_state_covariance = 1e-10 # defines initial condition of estimators
@@ -68,19 +76,15 @@ class Param:
 		# measurement parameters
 		self.measurement_noise_covariance = 1e-10
 
-		# policy 
+		# MPC policy 
 		self.rhc_horizon = 5
 		self.lambda_u = 0.01
-		self.speed_limit_a = 0.125 # 0.05 
-		self.speed_limit_b = 0.125 # 0.1 
-		self.acceleration_limit_a = 0.25 
-		self.acceleration_limit_b = 0.125 
 		self.danger_radius = 0.1
-		self.tag_radius = 0.025
 
 		# path stuff
 		self.current_results_dir = '../current_results'
-		self.glas_model = '../models/il_save.pt'
+		self.glas_model_A = '../models/il_current_a.pt'
+		self.glas_model_B = '../models/il_current_b.pt'
 		
 		# plotting 
 		self.plot_fn = 'plots.pdf'
@@ -120,3 +124,5 @@ class Param:
 				self.team_1_idxs.append(i) 
 			else:
 				self.team_2_idxs.append(i) 
+
+		self.actions = np.asarray(list(itertools.product(*[[-1,0,1],[-1,0,1]])))

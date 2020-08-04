@@ -8,6 +8,7 @@ from measurements.relative_state import relative_state
 from controller.controller import Controller
 from controller.joint_mpc import Controller as MPC
 from learning.emptynet import EmptyNet
+from learning.discrete_emptynet import DiscreteEmptyNet
 from glas.gparam import Gparam 	
 
 class Controller(Controller):
@@ -17,42 +18,23 @@ class Controller(Controller):
 
 		gparam = Gparam() 
 		device = "cpu"
-		self.model = EmptyNet(gparam, device)
-		self.model.load_state_dict(torch.load(self.param.glas_model))
-		self.MPC = MPC(param,env)
-
+		self.model_A = DiscreteEmptyNet(gparam, device)
+		self.model_A.load_state_dict(torch.load(self.param.glas_model_A))
+		self.model_B = DiscreteEmptyNet(gparam, device)
+		self.model_B.load_state_dict(torch.load(self.param.glas_model_B))
 
 	def policy(self,estimate):
-
-		# team A policy is mpc
-		states_A, actions_A = self.MPC.policy_A(self.env.nodes,estimate)
-
-		# team B policy is glas 
-		actions_B = self.policy_B(self.env.nodes,estimate)
-
-		# recombine 
-		actions = dict()
-		for node in self.env.nodes:
-			if node.team_A:
-				actions[node] = np.expand_dims(actions_A[node][:,0],axis=1)
-			elif node.team_B:
-				actions[node] = actions_B[node]
-
-		return actions 
-
-
-	def policy_B(self,nodes,estimate):
-
-		nodes_B = []
-		for node in nodes: 
-			if node.team_B: 
-				nodes_B.append(node)
-
+		nodes = self.env.nodes
 		actions = dict() 
 		observations = relative_state(self.env.nodes, self.param.r_sense,flatten=True)
-		for node in nodes_B:
+		for node in nodes:
 			o_a, o_b = observations[node]
 			o_a = torch.from_numpy(np.expand_dims(o_a,axis=0)).float() 
 			o_b = torch.from_numpy(np.expand_dims(o_b,axis=0)).float()
-			actions[node] = self.model(o_a,o_b).detach().numpy().T # 2 x 1 
+			if node.idx in self.param.team_1_idxs: 
+				classification = self.model_A(o_a,o_b).detach().numpy().T # 9 x 1 
+				actions[node] = self.param.acceleration_limit_a*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1   
+			elif node.idx in self.param.team_2_idxs: 
+				classification = self.model_A(o_a,o_b).detach().numpy().T # 9 x 1 
+				actions[node] = self.param.acceleration_limit_a*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1   
 		return actions

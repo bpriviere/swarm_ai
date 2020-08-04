@@ -5,6 +5,7 @@ import numpy as np
 import time as time_pkg
 import os 
 import glob
+import time 
 import shutil
 import itertools
 import multiprocessing as mp 
@@ -37,6 +38,8 @@ def sim(param):
 	reset = env.get_reset()
 
 	sim_result = run_sim(param,env,reset,estimator,attacker,controller)
+
+	time.sleep(1)
 
 	# write sim results
 	case = len(glob.glob(param.current_results_dir + '/*'))
@@ -136,12 +139,6 @@ if __name__ == '__main__':
 	print('plotting sim results...')
 	for sim_result in sim_results:
 		plotter.plot_tree_results(sim_result)
-
-		# for timestep,time in enumerate(sim_result["times"]):
-		# 	plotter.plot_nodes(sim_result,timestep)
-		# plotter.plot_state_estimate(sim_result) 
-		# plotter.plot_control_effort(sim_result)
-		# plotter.plot_speeds(sim_result)
 
 		if param.gif_on: 
 			plotter.make_gif(sim_result)

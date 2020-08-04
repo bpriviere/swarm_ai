@@ -205,36 +205,71 @@ def make_gif(sim_result):
 	imageio.mimsave(gif_name, images, duration = duration)
 
 
+# def plot_sa_pairs(states,actions,param,instance):
+
+# 	from env import Swarm 
+
+# 	env = Swarm(param)
+
+# 	colors = ['red','blue']
+
+# 	for timestep,(state,action) in enumerate(zip(states,actions)):
+
+# 		fig,ax = plt.subplots()
+
+# 		# first update state 
+# 		state_dict = env.state_vec_to_dict(state)
+# 		for node in env.nodes: 
+# 			node.state = state_dict[node]
+# 			ax.scatter(node.state[0],node.state[1],100,color=colors[node.team_A],zorder=10)
+
+# 		ax.axvline(param.goal_line_x,color='green',alpha=0.5,linestyle='--')
+
+# 		ax.set_xlim(param.env_xlim)
+# 		ax.set_ylim(param.env_ylim)
+# 		ax.grid(True)
+# 		ax.set_aspect('equal')
+# 		ax.set_xlabel('pos [m]')
+# 		ax.set_ylabel('pos [m]')
+# 		ax.set_title('{} at time {}'.format(instance,timestep))
+
 def plot_sa_pairs(states,actions,param,instance):
 
-	from env import Swarm 
+	states = np.asarray(states) # nt x state_dim 
+	actions = np.asarray(actions) # nt x action dim 
 
-	env = Swarm(param)
+	fig,ax = plt.subplots()
 
-	colors = ['red','blue']
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
 
-	for timestep,(state,action) in enumerate(zip(states,actions)):
+	ax.add_patch(mpatches.Circle(param.goal, param.tag_radius, color=goal_color,alpha=0.5))
 
-		fig,ax = plt.subplots()
+	for node_idx in range(param.num_nodes):
 
-		# first update state 
-		state_dict = env.state_vec_to_dict(state)
-		for node in env.nodes: 
-			node.state = state_dict[node]
-			ax.scatter(node.state[0],node.state[1],100,color=colors[node.team_A],zorder=10)
+		pos_x_idx = 4*node_idx + 0 
+		pos_y_idx = 4*node_idx + 1 
+		action_idx = 2*node_idx + np.arange(2)
 
-		ax.axvline(param.goal_line_x,color='green',alpha=0.5,linestyle='--')
+		if node_idx in param.team_1_idxs:
+			color = team_1_color
+		elif node_idx in param.team_2_idxs:
+			color = team_2_color
+			
+		ax.plot(states[:,pos_x_idx],states[:,pos_y_idx],linewidth=3,color=color)
+		ax.scatter(states[:,pos_x_idx],states[:,pos_y_idx],color=color)
 
-		ax.set_xlim(param.env_xlim)
-		ax.set_ylim(param.env_ylim)
-		ax.grid(True)
-		ax.set_aspect('equal')
-		ax.set_xlabel('pos [m]')
-		ax.set_ylabel('pos [m]')
-		ax.set_title('{} at time {}'.format(instance,timestep))
+	ax.set_xlim(param.env_xlim)
+	ax.set_ylim(param.env_ylim)
+	ax.grid(True)
+	ax.set_aspect('equal')
+	ax.set_xlabel('pos [m]')
+	ax.set_ylabel('pos [m]')
+	ax.set_title('instance {}'.format(instance))
 
 
-def plot_loss(losses):
+def plot_loss(losses,team):
 
 	losses = np.array(losses)
 
@@ -247,6 +282,7 @@ def plot_loss(losses):
 	ax.set_ylabel('mse')
 	ax.set_xlabel('epoch')
 	ax.set_yscale('log')
+	ax.set_title('Team {}'.format(team))
 	ax.grid(True)
 	fig.tight_layout()
 

@@ -34,6 +34,7 @@ class Controller(Controller):
 				self.done = [] 
 				break 
 
+			state_mat = next_tree_state.state
 			actions_mat += action
 			turn = not turn 
 			done = next_tree_state.done 
