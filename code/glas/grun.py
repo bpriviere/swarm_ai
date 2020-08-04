@@ -16,6 +16,7 @@ from run import run_sim
 from param import Param 
 from gparam import Gparam
 from learning.emptynet import EmptyNet
+from learning.discrete_emptynet import DiscreteEmptyNet
 from measurements.relative_state import relative_state
 from utilities import load_module
 import datahandler as dh
@@ -32,11 +33,13 @@ def format_dir(param):
 
 def train(model,optimizer,loader):
 	
-	loss_func = torch.nn.MSELoss()  # this is for regression mean squared loss
+	# loss_func = torch.nn.MSELoss()  # this is for regression mean squared loss
+	loss_func = torch.nn.CrossEntropyLoss()  
 	epoch_loss = 0
 	for step, (o_a,o_b,action) in enumerate(loader): 
 		prediction = model(o_a,o_b)     
-		loss = loss_func(prediction, action) 
+		# loss = loss_func(prediction, action) 
+		loss = loss_func(prediction, action.flatten()) 
 		optimizer.zero_grad()   
 		loss.backward()         
 		optimizer.step()        
@@ -46,11 +49,13 @@ def train(model,optimizer,loader):
 
 def test(model,optimizer,loader):
 	
-	loss_func = torch.nn.MSELoss()  
+	# loss_func = torch.nn.MSELoss()  
+	loss_func = torch.nn.CrossEntropyLoss()  
 	epoch_loss = 0
 	for step, (o_a,o_b,action) in enumerate(loader): 
 		prediction = model(o_a,o_b)     
-		loss = loss_func(prediction, action)
+		loss = loss_func(prediction, action.flatten())
+		# loss = loss_func(prediction, action)
 		epoch_loss += float(loss)
 	return epoch_loss/(step+1)
 
@@ -77,7 +82,7 @@ def prepare_raw_data_gen(gparam):
 			sim_param.quiet_on = True
 			if sim_param.num_nodes_A >= 6:
 				sim_param.sim_dt = sim_param.sim_dt / 2
-			sim_param.controller_name = 'controller/joint_mpc.py'
+			sim_param.controller_name = gparam.expert_controller
 			sim_param.update()
 			
 			# assign 
@@ -138,6 +143,19 @@ def load_param(param_fn):
 	param.from_dict(param_dict)	
 	return param 
 
+def action_to_classification(param,gparam,action_i,node_i):
+
+	if node_i.idx in param.team_1_idxs: 
+		u_max = param.acceleration_limit_a / np.sqrt(2)
+	elif node_i.idx in param.team_2_idxs: 
+		u_max = param.acceleration_limit_b / np.sqrt(2)
+
+	for k,action in enumerate(gparam.actions): 
+		if np.allclose(u_max*action.flatten(),action_i.flatten()):
+			break 
+
+	return k
+
 
 if __name__ == '__main__':
 
@@ -196,6 +214,9 @@ if __name__ == '__main__':
 					action_dim_per_agent = 2
 					action_idxs = action_dim_per_agent * node_i.idx + np.arange(2)
 					action_i = np.expand_dims(action[action_idxs],axis=1)
+
+					if gparam.discrete_on: 
+						action_i = action_to_classification(param,gparam,action_i,node_i)
 
 					o_a, o_b = observations[node_i]
 
@@ -264,14 +285,16 @@ if __name__ == '__main__':
 				train_loader.append([
 					torch.from_numpy(o_a).float().to(gparam.device),
 					torch.from_numpy(o_b).float().to(gparam.device),
-					torch.from_numpy(action).float().to(gparam.device)])
+					# torch.from_numpy(action).float().to(gparam.device)])
+					torch.from_numpy(action).type(torch.long).to(gparam.device)])
 				train_dataset_size += action.shape[0]
 
 			elif curr_points < n_points:
 				test_loader.append([
 					torch.from_numpy(o_a).float().to(gparam.device),
 					torch.from_numpy(o_b).float().to(gparam.device),
-					torch.from_numpy(action).float().to(gparam.device)])
+					# torch.from_numpy(action).float().to(gparam.device)])
+					torch.from_numpy(action).type(torch.long).to(gparam.device)])
 				test_dataset_size += action.shape[0]
 
 			curr_points += action.shape[0]
@@ -280,7 +303,10 @@ if __name__ == '__main__':
 		print('test dataset size: ', test_dataset_size)
 
 		# init model
-		model = EmptyNet(gparam,gparam.device)
+		if gparam.discrete_on:
+			model = DiscreteEmptyNet(gparam,gparam.device)
+		else:
+			model = EmptyNet(gparam,gparam.device)
 
 		# init optimizer
 		optimizer = torch.optim.Adam(model.parameters(), lr=gparam.il_lr, weight_decay=gparam.il_wd)

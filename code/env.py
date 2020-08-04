@@ -26,32 +26,32 @@ class Swarm(Env):
 			estimates[node].update_node(node) 
 
 		# regular dynamics 
-		for node in self.nodes: 
-			action_i = actions[node]
-			node.forward(action_i)
+		for node in self.nodes:
+			if not node.idx in self.done:
+				node.forward(actions[node])
 
-		# check for tag
-		for node_i in self.nodes:  
-			for node_j in self.nodes: 
-				if node_i.dist_to_node(node_j) < self.param.tag_radius and \
-					node_i.team_A and node_j.team_B:
-					
-					node_i.reset_inside(self.param.reset_xlim_A,self.param.reset_ylim_A,self.state_vec)
-					node_j.reset_inside(self.param.reset_xlim_B,self.param.reset_ylim_B,self.state_vec)
+				# velocity scaling 
+				if node.idx in self.param.team_1_idxs: 
+					v_max = self.param.speed_limit_a
+				else: 
+					v_max = self.param.speed_limit_b
 
+				alpha = np.linalg.norm(node.state[2:]) / v_max
+				node.state[2:] = node.state[2:] / np.max((alpha,1))
+		
+		# update state dict	
 		self.state_vec = self.nodes_to_state_vec()
 		self.state_dict = dict()
 		for node in self.nodes: 
 			self.state_dict[node] = node.state
 
 		# outputs
-		s = self.state_dict
-		d = self.done()
+		self.done = self._compute_done()
 		r = self.reward()
 		info_dict = self.append_info_dict()
 
 		self.timestep += 1
-		return s, r, d, info_dict 
+		return self.state_dict, r, self.done, info_dict 
 
 
 	def observe(self):
@@ -158,6 +158,7 @@ class Swarm(Env):
 			self.state_dict[node] = node.state
 
 		self.info_dict = self.init_info_dict()
+		self.done = [] 
 
 
 	def append_info_dict(self):
@@ -224,8 +225,25 @@ class Swarm(Env):
 		return x,y 				
 
 
-	def done(self):
-		return False
+	def _compute_done(self):
+		next_done = []
+
+		state_mat = np.reshape(self.state_vec,(self.param.num_nodes,4))
+
+		dist_robots = np.linalg.norm(state_mat[:,0:2][:, np.newaxis] - state_mat[:,0:2],axis=2)
+		dist_goal = np.linalg.norm(state_mat[self.param.team_1_idxs,0:2] - self.param.goal, axis=1)
+		
+		for idx in self.param.team_1_idxs:
+			captured = np.any(dist_robots[idx,self.param.team_2_idxs] < self.param.tag_radius)
+			reached_goal = dist_goal[idx] < self.param.tag_radius
+			
+			if idx in self.done or captured or reached_goal: 
+				next_done.append(idx)
+
+		return next_done
+
+	def is_terminal(self):
+		return len(self.done) == len(self.param.team_1_idxs)
 
 
 	def render(self):

@@ -10,7 +10,7 @@ class Param:
 		self.measurements_name 	= 'measurements/global.py' 			# global, (local)
 		self.estimator_name 	= 'estimator/kalman.py'	 			# empty,(kalman),exact...
 		self.attacker_name 		= 'attacker/empty.py' 				# empty, ...
-		self.controller_name 	= 'controller/joint_mpc.py'		 	# empty, glas, joint_mpc, ...
+		self.controller_name 	= 'controller/mcts.py'			 	# empty, glas, joint_mpc, mcts, ...
 
 		# flags
 		self.gif_on 	= False
@@ -19,7 +19,7 @@ class Param:
 		# sim param 
 		self.n_trials = 1
 		self.sim_t0 = 0
-		self.sim_tf = 20
+		self.sim_tf = 5
 		self.sim_dt = 0.25
 		
 		# topology
@@ -48,7 +48,7 @@ class Param:
 			self.goal = np.array([0.9*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 100000
+		self.tree_size = 100
 		self.fixed_tree_depth_on = False
 		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000
@@ -56,8 +56,8 @@ class Param:
 		self.gamma = 1.0
 		
 		# nodes 
-		self.num_nodes_A = 2
-		self.num_nodes_B = 2
+		self.num_nodes_A = 1
+		self.num_nodes_B = 1
 		
 		# estimator parameters
 		self.initial_state_covariance = 1e-10 # defines initial condition of estimators

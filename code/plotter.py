@@ -256,7 +256,11 @@ def plot_tree_results(sim_result):
 	times = sim_result["times"]
 	states = sim_result["states"]
 	actions = sim_result["actions"]
-	values = sim_result["values"]	
+	try:
+		values = sim_result["values"]	
+	except: 
+		values = None 
+
 	team_1_idxs = sim_result["param"]["team_1_idxs"]
 	num_nodes = sim_result["param"]["num_nodes"]
 	goal = sim_result["param"]["goal"]
@@ -292,14 +296,15 @@ def plot_tree_results(sim_result):
 	ax.set_xlim([env_xlim[0],env_xlim[1]])
 	ax.set_ylim([env_ylim[0],env_ylim[1]])
 
-	# value func 
-	ax = axs[0,1] 
-	ax.grid(True)
-	# ratio = (times[-1] - times[0])/(1 - 0) 
-	# ax.set_aspect(ratio)
-	ax.set_title('Value Function')
-	ax.plot(times,values[:,0],color=team_1_color)
-	ax.plot(times,values[:,1],color=team_2_color)
+	# value func
+	if not values is None: 
+		ax = axs[0,1] 
+		ax.grid(True)
+		# ratio = (times[-1] - times[0])/(1 - 0) 
+		# ax.set_aspect(ratio)
+		ax.set_title('Value Function')
+		ax.plot(times,values[:,0],color=team_1_color)
+		ax.plot(times,values[:,1],color=team_2_color)
 
 	# time varying velocity
 	ax = axs[1,0]

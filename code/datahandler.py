@@ -145,7 +145,7 @@ def read_observation_action_pairs(fn,datadir):
 
 	o_a = data[:,0:num_a*state_dim_per_agent]
 	o_b = data[:,num_a*state_dim_per_agent:(num_a+num_b)*state_dim_per_agent]
-	action = data[:,-action_dim_per_agent:]
+	action = data[:,(num_a+num_b)*state_dim_per_agent:]
 	
 	return o_a,o_b,action 
 

@@ -100,7 +100,8 @@ if __name__ == '__main__':
 		ncases = 10
 		nprocess = np.min((mp.cpu_count()-1,ncases))
 		pool = mp.Pool(nprocess)
-		for _ in pool.imap_unordered(run_sim, [param for _ in range(ncases)]):
+		for _ in pool.imap_unordered(run_sim, [param for _ in range(nprocess)]):
+		# for _ in pool.imap_unordered(run_sim, [param for _ in range(ncases)]):
 			pass 
 	else: 
 		run_sim(param)
