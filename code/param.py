@@ -53,10 +53,10 @@ class Param:
 			l = 0.5
 			self.env_xlim = [0,l]
 			self.env_ylim = [0,l]
-			self.reset_xlim_A = [0.1*l,0.1*l]
-			self.reset_ylim_A = [0.5*l,0.5*l]
-			self.reset_xlim_B = [0.9*l,0.9*l]
-			self.reset_ylim_B = [0.5*l,0.5*l]
+			self.reset_xlim_A = [0.0*l,0.1*l]
+			self.reset_ylim_A = [0.4*l,0.5*l]
+			self.reset_xlim_B = [0.8*l,0.9*l]
+			self.reset_ylim_B = [0.4*l,0.5*l]
 			self.goal = np.array([0.9*l,0.75*l])
 
 		# mcts parameters 
