@@ -1,9 +1,9 @@
 #pragma once
 
 template <typename DerivedV, typename DerivedB>
-auto clip(const Eigen::ArrayBase<DerivedV>& v,
-          const Eigen::ArrayBase<DerivedB>& v_min,
-          const Eigen::ArrayBase<DerivedB>& v_max)
+auto clip(const Eigen::DenseBase<DerivedV>& v,
+          const Eigen::DenseBase<DerivedB>& v_min,
+          const Eigen::DenseBase<DerivedB>& v_max)
 {
-  return v.min(v_max).max(v_min);
+  return v.cwiseMin(v_max).cwiseMax(v_min);
 }

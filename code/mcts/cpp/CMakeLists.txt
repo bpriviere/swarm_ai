@@ -14,10 +14,10 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
 )
 
-add_executable(test_mcts
-  test_mcts.cpp
+add_executable(test_swarmgame
+  test_swarmgame.cpp
 )
-target_link_libraries(test_mcts
+target_link_libraries(test_swarmgame
   Eigen3::Eigen
 )
 
