@@ -9,8 +9,8 @@ class Gparam:
 
 		# flags  
 		self.make_raw_data_on 		= False
-		self.make_labelled_data_on 	= True 
-		self.train_model_on 		= False
+		self.make_labelled_data_on 	= False 
+		self.train_model_on 		= True
 		self.dbg_vis_on			 	= False
 		self.discrete_on 			= True 
 
@@ -29,7 +29,7 @@ class Gparam:
 		self.model_dir = '../../models/'
 
 		# train parameters
-		self.training_teams = ["a","b"]
+		self.training_teams = ["a"] #["b"] #["a","b"]
 
 		# learning hyperparameters
 		self.device = 'cpu'
@@ -52,7 +52,7 @@ class Gparam:
 		# 	nn.Linear(h,m)])
 
 		self.il_psi_network_architecture = nn.ModuleList([
-			nn.Linear(2*p,h), # because two deepsets 
+			nn.Linear(2*p+n,h), # because two deepsets 
 			nn.Linear(h,h),
 			nn.Linear(h,9)])
 
@@ -66,7 +66,7 @@ class Gparam:
 		self.il_test_train_ratio = 0.8
 		self.il_n_points = 1000000
 		self.il_batch_size = 500
-		self.il_n_epoch = 100
+		self.il_n_epoch = 200
 		self.il_lr = 1e-3
 		self.il_wd = 0 
 		self.il_log_interval = 1

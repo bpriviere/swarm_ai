@@ -36,8 +36,8 @@ def train(model,optimizer,loader):
 	# loss_func = torch.nn.MSELoss()  # this is for regression mean squared loss
 	loss_func = torch.nn.CrossEntropyLoss()  
 	epoch_loss = 0
-	for step, (o_a,o_b,action) in enumerate(loader): 
-		prediction = model(o_a,o_b)     
+	for step, (o_a,o_b,goal,action) in enumerate(loader): 
+		prediction = model(o_a,o_b,goal)
 		# loss = loss_func(prediction, action) 
 		loss = loss_func(prediction, action.flatten()) 
 		optimizer.zero_grad()   
@@ -52,8 +52,8 @@ def test(model,optimizer,loader):
 	# loss_func = torch.nn.MSELoss()  
 	loss_func = torch.nn.CrossEntropyLoss()  
 	epoch_loss = 0
-	for step, (o_a,o_b,action) in enumerate(loader): 
-		prediction = model(o_a,o_b)     
+	for step, (o_a,o_b,goal,action) in enumerate(loader): 
+		prediction = model(o_a,o_b,goal)     
 		loss = loss_func(prediction, action.flatten())
 		# loss = loss_func(prediction, action)
 		epoch_loss += float(loss)
@@ -80,8 +80,6 @@ def prepare_raw_data_gen(gparam):
 			sim_param.num_nodes_A = num_nodes_A 
 			sim_param.num_nodes_B = num_nodes_B
 			sim_param.quiet_on = True
-			if sim_param.num_nodes_A >= 6:
-				sim_param.sim_dt = sim_param.sim_dt / 2
 			sim_param.controller_name = gparam.expert_controller
 			sim_param.update()
 			
@@ -212,33 +210,33 @@ if __name__ == '__main__':
 				for node in env.nodes: 
 					node.state = state_dict[node]
 
-				observations = relative_state(env.nodes,param.r_sense)
+				observations = relative_state(env.nodes,param.r_sense,param.goal)
 
-				# extract observation/action pair 			
+				# extract observation/action pair 
 				for node_i in env.nodes: 
 
 					action_dim_per_agent = 2
-					action_idxs = action_dim_per_agent * node_i.idx + np.arange(2)
+					action_idxs = action_dim_per_agent * node_i.idx + np.arange(action_dim_per_agent)
 					action_i = np.expand_dims(action[action_idxs],axis=1)
 
 					if gparam.discrete_on: 
 						action_i = action_to_classification(param,gparam,action_i,node_i)
 
-					o_a, o_b = observations[node_i]
+					o_a, o_b, goal = observations[node_i]
 
 					# append datapoint 
 					key = (node_i.team_A,len(o_a),len(o_b))
 					if key not in oa_pairs_by_size.keys():
-						oa_pairs_by_size[key] = [(o_a, o_b, action_i)]
+						oa_pairs_by_size[key] = [(o_a, o_b, goal, action_i)]
 					else:
-						oa_pairs_by_size[key].append((o_a, o_b, action_i))
-
+						oa_pairs_by_size[key].append((o_a, o_b, goal, action_i))
+			
 		# make actual batches
 		for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
 			batch_num = 0 
 			batched_dataset = [] 
-			for (o_a, o_b, action) in oa_pairs:
-				data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(action).flatten()))
+			for (o_a, o_b, goal, action) in oa_pairs:
+				data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
 				batched_dataset.append(data)
 				if len(batched_dataset) > gparam.il_batch_size:
 					batch_fn = get_batch_fn(gparam.demonstration_data_dir,team,num_a,num_b,batch_num)
@@ -265,13 +263,6 @@ if __name__ == '__main__':
 			if count > 30:
 				break 
 
-		# batched_files = glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,gparam.training_team))
-		# for batched_file in batched_files:
-		# 	o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
-		# 	plotter.plot_oa_pairs(o_a,o_b,action)
-		# 	break 
-
-
 	# load (observation,action) binary files, train a model, and write model to file 
 	if gparam.train_model_on: 
 
@@ -282,7 +273,7 @@ if __name__ == '__main__':
 			
 			n_points = 0 
 			for batched_file in batched_files:
-				o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
+				o_a,o_b,goal,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
 				n_points += action.shape[0]
 			n_points = np.min((n_points, gparam.il_n_points))
 			print('n_points',n_points)
@@ -292,11 +283,12 @@ if __name__ == '__main__':
 			test_loader  = [] 
 			curr_points, train_dataset_size, test_dataset_size = 0,0,0
 			for batched_file in batched_files: 
-				o_a,o_b,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
+				o_a,o_b,goal,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
 				if curr_points < gparam.il_test_train_ratio * n_points: 
 					train_loader.append([
 						torch.from_numpy(o_a).float().to(gparam.device),
 						torch.from_numpy(o_b).float().to(gparam.device),
+						torch.from_numpy(goal).float().to(gparam.device),
 						# torch.from_numpy(action).float().to(gparam.device)])
 						torch.from_numpy(action).type(torch.long).to(gparam.device)])
 					train_dataset_size += action.shape[0]
@@ -305,6 +297,7 @@ if __name__ == '__main__':
 					test_loader.append([
 						torch.from_numpy(o_a).float().to(gparam.device),
 						torch.from_numpy(o_b).float().to(gparam.device),
+						torch.from_numpy(goal).float().to(gparam.device),
 						# torch.from_numpy(action).float().to(gparam.device)])
 						torch.from_numpy(action).type(torch.long).to(gparam.device)])
 					test_dataset_size += action.shape[0]

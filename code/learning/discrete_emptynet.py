@@ -46,12 +46,14 @@ class DiscreteEmptyNet(nn.Module):
 		return super().to(device)
 
 
-	def __call__(self,o_a,o_b):
+	def __call__(self,o_a,o_b,goal):
 
 		output_rho_team_a = self.model_team_a(o_a)
 		output_rho_team_b = self.model_team_b(o_b)
 
-		x = torch.cat((output_rho_team_a, output_rho_team_b),1)
+		x = torch.cat((output_rho_team_a, output_rho_team_b, goal),1)
+
 		x = self.psi(x)
 		x = F.softmax(x,dim=1)
+		
 		return x
