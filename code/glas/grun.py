@@ -8,6 +8,8 @@ import time
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from multiprocessing import cpu_count, Pool 
 import concurrent.futures
+import tempfile 
+import subprocess
 
 # project
 sys.path.append("../")
@@ -55,6 +57,26 @@ def test(model,optimizer,loader):
 	return epoch_loss/(step+1)
 
 
+def run_mcts_batch(param, instance_key): 
+
+	with tempfile.TemporaryDirectory() as tmpdirname:
+		print('TEMP!') # TEMP! 
+		tmpdirname = os.getcwd() # TEMP! 
+		input_file = dh.write_mcts_config_file(param, tmpdirname + "/config.yaml")
+		output_file = tmpdirname + "/output.csv"
+		print('running instance {}'.format(instance_key))
+		subprocess.run("../mcts/cpp/buildRelease/test_swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
+		data = np.loadtxt(output_file, delimiter=',', skiprows=1, dtype=np.float32)
+
+	state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
+	param_fn = get_param_fn(gparam.demonstration_data_dir,instance_key)
+
+	print('writing instance {}... '.format(instance_key))
+	dh.write_mcts_state_action_pairs(data,state_action_fn,param)
+	dh.write_parameters(param.to_dict(),param_fn)
+	print('completed instance {}'.format(instance_key))
+
+
 def prepare_raw_data_gen(gparam):
 
 	params, instance_keys  = [], []
@@ -71,17 +93,15 @@ def prepare_raw_data_gen(gparam):
 				num_nodes_A,num_nodes_B,trial+start)
 
 			# param 
-			sim_param = Param()
-			sim_param.num_nodes_A = num_nodes_A 
-			sim_param.num_nodes_B = num_nodes_B
-			sim_param.quiet_on = True
-			if sim_param.num_nodes_A >= 6:
-				sim_param.sim_dt = sim_param.sim_dt / 2
-			sim_param.controller_name = 'controller/joint_mpc.py'
-			sim_param.update()
+			param = Param()
+			param.num_nodes_A = num_nodes_A 
+			param.num_nodes_B = num_nodes_B
+			param.quiet_on = True
+			param.controller_name = 'controller/mcts.py'
+			param.update()
 			
 			# assign 
-			params.append(sim_param)
+			params.append(param)
 			instance_keys.append(instance_key)
 
 	return params, instance_keys
@@ -108,7 +128,6 @@ def run_batch(param, instance_key):
 	print('writing instance {}... '.format(instance_key))
 	dh.write_state_action_pairs(sim_result,state_action_fn)
 	dh.write_parameters(param.to_dict(),param_fn)
-
 	print('completed instance {}'.format(instance_key))
 
 
@@ -125,12 +144,15 @@ def get_instance_keys(gparam):
 def get_sa_pair_fn(demonstration_data_dir,instance):
 	return '{}raw_{}.npy'.format(demonstration_data_dir,instance)
 
+
 def get_param_fn(demonstration_data_dir,instance):
 	return '{}param_{}.json'.format(demonstration_data_dir,instance)
+
 
 def get_batch_fn(datadir,team_name,num_a,num_b,batch_num):
 	team_name = "a" if team else "b"
 	return '{}labelled_{}team_{}a_{}b_{}trial.npy'.format(datadir,team_name,num_a,num_b,batch_num)
+
 
 def load_param(param_fn):
 	param_dict = dh.read_parameters(param_fn)
@@ -152,12 +174,15 @@ if __name__ == '__main__':
 		params, instance_keys = prepare_raw_data_gen(gparam) 
 		if gparam.serial_on:
 			for (param, instance_key) in zip(params, instance_keys):
-				run_batch(param, instance_key)
+				# run_batch(param, instance_key)
+				run_mcts_batch(param, instance_key)
+				exit('safe exit')
 		else:	
 			ncpu = cpu_count()
 			print('ncpu: ', ncpu)
 			with Pool(ncpu-1) as p:
-				p.starmap(run_batch, zip(params,instance_keys))
+				p.starmap(run_mcts_batch, zip(params,instance_keys))
+				# p.starmap(run_batch, zip(params,instance_keys))
 
 
 	# load (state,action) files, apply measurement model, and write (observation,action) binary files

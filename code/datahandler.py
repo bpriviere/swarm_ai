@@ -4,6 +4,7 @@ import os
 import shutil
 import json
 import glob
+import yaml
 import pandas as pd
 from datetime import datetime,timedelta
 
@@ -104,6 +105,34 @@ def write_state_action_pairs(sim_result,fn):
 	for timestep,(state,action) in enumerate(zip(states,flat_actions)):
 		state_action_pairs[timestep,:] = np.vstack((state,action)).flatten()
 
+	np.save(fn,state_action_pairs)
+
+
+def write_mcts_config_file(param, config_fn):
+
+	config = param.to_dict()
+	for key, value in config.items():
+		if isinstance(value,np.ndarray):
+			config[key] = value.tolist()
+
+	with open(config_fn,'w') as f:
+		yaml.dump(config,f)
+
+def write_mcts_state_action_pairs(data, fn, param):
+
+	key = os.path.basename(fn)
+	key = key.split('_')
+	num_a = int(key[1].split('a')[0])
+	num_b = int(key[2].split('b')[0])
+	states = data[0:-1,:]
+
+	actions = np.zeros((data.shape[0]-1,2*(num_a + num_b)))
+	for node_idx in range(num_a + num_b):
+		action_idxs = node_idx * 2 + np.arange(2)
+		data_idxs = node_idx * 4 + np.arange(2) + 2 
+		actions[:,action_idxs] = (data[1:,data_idxs] - data[0:-1,data_idxs]) / param.sim_dt
+
+	state_action_pairs = np.hstack((states,actions))
 	np.save(fn,state_action_pairs)
 
 
