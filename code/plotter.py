@@ -56,6 +56,10 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 	reset_xlim_B = sim_result["param"]["reset_xlim_B"]
 	reset_ylim_B = sim_result["param"]["reset_ylim_B"]
 	goal_line_x = sim_result["param"]["goal_line_x"]
+
+	score_attackers = 1 - times[timestep]/20
+	score_defenders = 1 - score_attackers
+
 	colors = get_node_colors(sim_result, timestep)
 
 	if fig is None or ax is None:
@@ -63,7 +67,6 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 	
 	# Loop through each agent for plotting
 	for node_idx in range(node_states.shape[1]):
-		#print("idx = ",timestep,", Agent: ",node_idx)
 
 		# Extract trajectories
 		node_trajectory_x = sim_result["states"][:,node_idx,0,:]
@@ -110,6 +113,17 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 	ax.set_xlabel('pos [m]')
 	ax.set_ylabel('pos [m]')
 	ax.set_title('State Space At Time {:.2f}'.format(times[timestep]))
+
+	# Add Zone Labels
+	textBox = dict(boxstyle='round',  facecolor='none', edgecolor='none', alpha=0.5) # Create the box
+	ax.text(np.mean(reset_xlim_A), 0.02, 'Attackers', transform=ax.transAxes, fontsize=6, color=colors[0], verticalalignment='bottom', horizontalalignment='center', bbox=textBox,zorder=3)
+	ax.text(np.mean(reset_xlim_B), 0.02, 'Defenders', transform=ax.transAxes, fontsize=6, color=colors[-1], verticalalignment='bottom', horizontalalignment='center', bbox=textBox,zorder=3)
+	ax.text(goal_line_x,0.02, 'Goal Line', transform=ax.transAxes, fontsize=10, color='green', verticalalignment='bottom', horizontalalignment='right',  bbox=textBox,zorder=3, rotation=90)
+
+	# Add Scores
+	textBox = dict(boxstyle='round', facecolor='darkgray', alpha=0.5)
+	ax.text(np.mean(reset_xlim_A), 0.95, "{:.2f}".format(score_attackers), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center',  bbox=textBox,zorder=11)
+	ax.text(np.mean(reset_xlim_B), 0.95, "{:.2f}".format(score_defenders), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center', bbox=textBox,zorder=11)
 
 	return fig,ax
 
