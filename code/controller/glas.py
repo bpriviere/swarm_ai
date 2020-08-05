@@ -26,18 +26,22 @@ class Controller(Controller):
 	def policy(self,estimate):
 		nodes = self.env.nodes
 		actions = dict() 
-		observations = relative_state(self.env.nodes, self.param.r_sense,flatten=True)
+		observations = relative_state(self.env.nodes, self.param.r_sense, self.param.goal, flatten=True)
 		for node in nodes:
-			o_a, o_b = observations[node]
+			
+			o_a, o_b, goal = observations[node]
 			o_a = torch.from_numpy(np.expand_dims(o_a,axis=0)).float() 
 			o_b = torch.from_numpy(np.expand_dims(o_b,axis=0)).float()
+			goal = torch.from_numpy(np.expand_dims(goal,axis=0)).float()
+
 			if node.idx in self.param.team_1_idxs: 
-				classification = self.model_A(o_a,o_b).detach().numpy().T # 9 x 1 
-				actions[node] = self.param.acceleration_limit_a*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1   
+				classification = self.model_A(o_a,o_b,goal).detach().numpy().T # 9 x 1 
+				actions[node] = self.param.acceleration_limit_a/np.sqrt(2)*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1   
 			elif node.idx in self.param.team_2_idxs: 
-				classification = self.model_A(o_a,o_b).detach().numpy().T # 9 x 1 
-				actions[node] = self.param.acceleration_limit_a*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1  
-		# 	print('classification:',classification)
-		# exit()
+				classification = self.model_B(o_a,o_b,goal).detach().numpy().T # 9 x 1 
+				actions[node] = self.param.acceleration_limit_b/np.sqrt(2)*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1  
+		
+			print('team {}, classification {}:'.format(node.team_A,classification))
+		exit()
 
 		return actions
