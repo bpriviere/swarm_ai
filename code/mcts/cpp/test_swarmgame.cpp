@@ -2,6 +2,8 @@
 #include <array>
 #include <Eigen/Dense>
 #include <fstream>
+#include <bitset>
+#include <unordered_map>
 
 #include "monte_carlo_tree_search.hpp"
 #include "eigen_helper.hpp"
@@ -10,23 +12,22 @@ typedef Eigen::Vector2f RobotAction;
 
 ///
 
-// template <class T, std::size_t Dim>
-// std::vector<std::array<T,Dim>> cart_product(const std::array<std::vector<T>, Dim>& v)
-// {
-//   std::vector<std::array<T,Dim>> s = {{}};
-//   // for (const auto& u : v) {
-//   for (size_t d = 0; d < Dim; ++d) {
-//     std::vector<std::array<T,Dim>> r;
-//     for (const auto& x : s) {
-//       for (const auto y : v[d]) {
-//         r.push_back(x);
-//         r.back().push_back(y);
-//       }
-//     }
-//     s = std::move(r);
-//   }
-//   return s;
-// }
+template <class T>
+std::vector<std::vector<T>> cart_product(const std::vector<std::vector<T>>& v)
+{
+  std::vector<std::vector<T>> s = {{}};
+  for (const auto& u : v) {
+    std::vector<std::vector<T>> r;
+    for (const auto& x : s) {
+      for (const auto y : u) {
+        r.push_back(x);
+        r.back().push_back(y);
+      }
+    }
+    s = std::move(r);
+  }
+  return s;
+}
 
 
 struct RobotState
@@ -72,7 +73,7 @@ public:
   float velocity_limit;
   float acceleration_limit;
   std::vector<RobotAction> possibleActions;
-  // RobotAction invalidAction;
+  RobotAction invalidAction;
 
   void step(const RobotState& state, const RobotAction& action, float dt, RobotState& result) const
   {
@@ -124,6 +125,7 @@ public:
   float defendersReward;
 
   size_t depth;
+  std::bitset<NumAttackers> activeMask;
 };
 
 template <std::size_t NumAttackers, std::size_t NumDefenders>
@@ -223,6 +225,7 @@ class Environment {
         if (distToGoalSquared <= m_goalRadiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
           nextState.attackers[i].status = RobotState::Status::ReachedGoal;
+          nextState.activeMask.reset(i);
         }
 
         for (size_t j = 0; j < NumDefenders; ++j) {
@@ -230,6 +233,7 @@ class Environment {
             float distToDefenderSquared = (nextState.attackers[i].position - nextState.defenders[j].position).squaredNorm();
             if (distToDefenderSquared <= m_tagRadiusSquared) {
               nextState.attackers[i].status = RobotState::Status::Captured;
+              nextState.activeMask.reset(i);
             }
           }
         }
@@ -248,12 +252,13 @@ class Environment {
 
   bool isTerminal(const GameStateT& state)
   {
-    for (const auto& attacker : state.attackers) {
-      if (attacker.status == RobotState::Status::Active) {
-        return false;
-      }
-    }
-    return true;
+    return state.activeMask.none();
+    // for (const auto& attacker : state.attackers) {
+    //   if (attacker.status == RobotState::Status::Active) {
+    //     return false;
+    //   }
+    // }
+    // return true;
   }
 
   float rewardToFloat(const GameStateT& state, const Reward& reward)
@@ -269,52 +274,57 @@ class Environment {
     // We could filter here the "valid" actions, but this is also checked in the "step" function
     actions.clear();
 
-    // std::vector<std::vector<RobotAction>> allActions;
-
-    // generate actions for active robots only
-    if (state.turn == GameStateT::Turn::Attackers) {
-      for (size_t i = 0; i < NumAttackers; ++i) {
-        // if (nextState.attackers[i].status == RobotState::Status::Active) {
-        //   allActions.push_back(m_attackerTypes[i].possibleActions);
-        // } else {
-        //   allActions.push_back.push_back(m_attackerTypes[i].invalidAction);
-        // }
-
-        // TODO: This logic only works for a single robot
-        if (state.attackers[i].status == RobotState::Status::Active) {
-          for (const auto& a : m_attackerTypes[i].possibleActions) {
-            actions.resize(actions.size() + 1);
-            actions.back()[i] = a;
-          }
-        }
-
-      }
-    } else {
-      for (size_t i = 0; i < NumDefenders; ++i) {
-        if (state.defenders[i].status == RobotState::Status::Active) {
-          // if (nextState.defenders[i].status == RobotState::Status::Active) {
-          //   allActions.push_back(m_defenderTypes[i].possibleActions);
-          // } else {
-          //   allActions.push_back.push_back(m_defenderTypes[i].invalidAction);
-          // }
-
-          // TODO: This logic only works for a single robot
-          if (state.defenders[i].status == RobotState::Status::Active) {
-            for (const auto& a : m_defenderTypes[i].possibleActions) {
-              actions.resize(actions.size() + 1);
-              actions.back()[NumAttackers + i] = a;
-            }
-          }
-        }
-      }
+    int turn = 0;
+    if (state.turn == GameStateT::Turn::Defenders) {
+      turn = 1;
     }
 
-    // auto cartActions = cart_product(allActions);
-    // for (const auto& a : cartActions) {
-    //   actions.push
-    // }
+    const auto& cache = m_possibleActionsMap[turn].find(state.activeMask);
+    if (cache == m_possibleActionsMap[turn].end()) {
+      // cache miss -> compute new action set
 
+      std::vector<std::vector<RobotAction>> allActions;
 
+      // generate actions for active robots only
+      if (state.turn == GameStateT::Turn::Attackers) {
+        for (size_t i = 0; i < NumAttackers; ++i) {
+          if (state.attackers[i].status == RobotState::Status::Active) {
+            allActions.push_back(m_attackerTypes[i].possibleActions);
+          } else {
+            allActions.push_back({m_attackerTypes[i].invalidAction});
+          }
+        }
+        for (size_t i = 0; i < NumDefenders; ++i) {
+          allActions.push_back({m_defenderTypes[i].invalidAction});
+        }
+      } else {
+        for (size_t i = 0; i < NumAttackers; ++i) {
+          allActions.push_back({m_attackerTypes[i].invalidAction});
+        }
+        for (size_t i = 0; i < NumDefenders; ++i) {
+          allActions.push_back(m_defenderTypes[i].possibleActions);
+        }
+      }
+
+      // compute cartesian product
+      const auto& cartActions = cart_product(allActions);
+
+      // convert to std::vector<GameActionT>
+      actions.resize(cartActions.size());
+      for (size_t i = 0; i < actions.size(); ++i) {
+        assert(cartActions[i].size() == NumAttackers + NumDefenders);
+        for (size_t j = 0; j < NumAttackers + NumDefenders; ++j) {
+          actions[i][j] = cartActions[i][j];
+        }
+      }
+
+      // cache result
+      m_possibleActionsMap[turn][state.activeMask] = actions;
+    }
+    else {
+      // cache hit -> copy to output
+      actions = cache->second;
+    }
   }
 
   Reward rollout(const GameStateT& state)
@@ -384,6 +394,9 @@ private:
   float m_tagRadiusSquared;
   size_t m_maxDepth;
   std::default_random_engine& m_generator;
+
+  // Maps activeRobots -> possible actions
+  std::unordered_map<std::bitset<NumAttackers>, std::vector<GameActionT>> m_possibleActionsMap[2];
 };
 
 
@@ -395,18 +408,27 @@ int main(int argc, char* argv[]) {
   std::default_random_engine generator(r());
   // std::default_random_engine generator(0);
 
-  GameState<1,1> state;
-  state.turn = GameState<1,1>::Turn::Attackers;
-  state.attackers[0].status = RobotState::Status::Active;
-  state.attackers[0].position << 0.05,0.2;
-  state.attackers[0].velocity << 0,0;
-  // state.attackers[1].status = RobotState::Status::Active;
-  // state.attackers[1].position << -1,0;
-  // state.attackers[1].velocity << 0,0;
+  const size_t NumAttackers = 1;
+  const size_t NumDefenders = 1;
 
-  state.defenders[0].status = RobotState::Status::Active;
-  state.defenders[0].position << 0.45,0.2;
-  state.defenders[0].velocity << 0,0;
+  typedef Environment<NumAttackers,NumDefenders> EnvironmentT;
+  typedef EnvironmentT::GameStateT GameStateT;
+  typedef EnvironmentT::GameActionT GameActionT;
+
+  GameStateT state;
+
+  state.turn = GameStateT::Turn::Attackers;
+  state.activeMask.set();
+  for (size_t i = 0; i < NumAttackers; ++i) {
+    state.attackers[i].status = RobotState::Status::Active;
+    state.attackers[i].position << 0.05,0.2;
+    state.attackers[i].velocity << 0,0;
+  }
+  for (size_t i = 0; i < NumDefenders; ++i) {
+    state.defenders[i].status = RobotState::Status::Active;
+    state.defenders[i].position << 0.45,0.2;
+    state.defenders[i].velocity << 0,0;
+  }
 
   std::cout << state << std::endl;
 
@@ -424,10 +446,14 @@ int main(int argc, char* argv[]) {
   robotTypeDefender.acceleration_limit = 0.125 / sqrtf(2.0);
   robotTypeDefender.init();
 
-  std::array<RobotType, 1> attackerTypes;
-  attackerTypes[0] = robotTypeAttacker;
-  std::array<RobotType, 1> defenderTypes;
-  defenderTypes[0] = robotTypeDefender;
+  std::array<RobotType, NumAttackers> attackerTypes;
+  for (size_t i = 0; i < NumAttackers; ++i) {
+    attackerTypes[i] = robotTypeAttacker;
+  }
+  std::array<RobotType, NumDefenders> defenderTypes;
+  for (size_t i = 0; i < NumDefenders; ++i) {
+    defenderTypes[i] = robotTypeDefender;
+  }
 
   float dt = 0.25;
   Eigen::Vector2f goal;
@@ -437,9 +463,9 @@ int main(int argc, char* argv[]) {
 
   size_t max_depth = 1000;
 
-  Environment<1,1> env(attackerTypes, defenderTypes, dt, goal, goalRadius, tagRadius, max_depth, generator);
+  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, goalRadius, tagRadius, max_depth, generator);
 
-  libMultiRobotPlanning::MonteCarloTreeSearch<GameState<1,1>, std::array<RobotAction,2>, Reward, Environment<1,1>> mcts(env, generator, num_nodes, 1.4);
+  libMultiRobotPlanning::MonteCarloTreeSearch<GameStateT, GameActionT, Reward, EnvironmentT> mcts(env, generator, num_nodes, 1.4);
 
   std::ofstream out("output.csv");
 
@@ -448,13 +474,22 @@ int main(int argc, char* argv[]) {
     state.defendersReward = 0;
     state.depth = 0;
     if (i % 2 == 0) {
-      out << state.attackers[0].position(0) << "," << state.attackers[0].position(1) << ","
-          << state.attackers[0].velocity(0) << "," << state.attackers[0].velocity(1) << ","
-          << state.defenders[0].position(0) << "," << state.defenders[0].position(1) << ","
-          << state.defenders[0].velocity(0) << "," << state.defenders[0].velocity(1) << std::endl;
+      for (size_t j = 0; j < NumAttackers; ++j) {
+        out << state.attackers[j].position(0) << "," << state.attackers[j].position(1) << ","
+            << state.attackers[j].velocity(0) << "," << state.attackers[j].velocity(1) << ",";
+      }
+      for (size_t j = 0; j < NumDefenders; ++j) {
+        out << state.defenders[j].position(0) << "," << state.defenders[j].position(1) << ","
+            << state.defenders[j].velocity(0) << "," << state.defenders[j].velocity(1);
+        if (j == NumDefenders - 1) {
+          out << std::endl;
+        } else {
+          out << ",";
+        }
+      }
     }
 
-    std::array<RobotAction,2> action;
+    GameActionT action;
     bool success = mcts.search(state, action);
     if (!success) {
       break;
