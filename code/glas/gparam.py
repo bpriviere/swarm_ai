@@ -19,12 +19,12 @@ class Gparam:
 		self.learning_module = 'learning/discrete_emptynet.py'
 
 		# raw data param  
-		self.serial_on 				= False
+		self.serial_on 				= True
 
 		# generate demonstration data parameters
-		self.num_nodes_A_lst = [1] #[2,4,6]
-		self.num_nodes_B_lst = [1] #[2,4,6]
-		self.num_trials = 500
+		self.num_nodes_A_lst = [2] # [2,4,6]
+		self.num_nodes_B_lst = [1] # [2,4,6]
+		self.num_trials = 1
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'
 
