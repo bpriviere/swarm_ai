@@ -39,3 +39,15 @@ instead of plot.py
   * Splitting the gamestate in A/B could avoid some copy operations
   * If we have an upper bound on the branching, we can use static allocation for children pointers and actions
 * Multi-Robot extension (needs cartesian product, everything else is prepared)
+
+### Profiling
+
+```
+mkdir buildProfile
+cd buildProfile
+cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+perf record --call-graph dwarf ./test_swarmgame -i ../config.yaml -o output.csv
+~/sw/hotspot-v1.2.0-x86_64.AppImage perf.data
+```
+
+Where hotspot is from https://www.kdab.com/hotspot-gui-linux-perf-profiler/

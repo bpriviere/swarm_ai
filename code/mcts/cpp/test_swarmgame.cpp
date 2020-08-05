@@ -337,9 +337,13 @@ class Environment {
     while (true) {
       std::vector<GameActionT> actions;
       getPossibleActions(s, actions);
-      std::shuffle(actions.begin(), actions.end(), m_generator);
 
       while (actions.size() > 0) {
+        // shuffle on demand
+        std::uniform_int_distribution<int> dist(0, actions.size() - 1);
+        int idx = dist(m_generator);
+        std::swap(actions.back(), actions.begin()[idx]);
+
         const auto& action = actions.back();
         GameStateT nextState;
         bool valid = step(s, action, nextState);
