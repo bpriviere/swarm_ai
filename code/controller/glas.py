@@ -41,7 +41,4 @@ class Controller(Controller):
 				classification = self.model_B(o_a,o_b,goal).detach().numpy().T # 9 x 1 
 				actions[node] = self.param.acceleration_limit_b/np.sqrt(2)*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1  
 		
-			print('team {}, classification {}:'.format(node.team_A,classification))
-		exit()
-
 		return actions
