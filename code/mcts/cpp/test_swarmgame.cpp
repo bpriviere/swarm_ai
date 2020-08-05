@@ -411,22 +411,35 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
 
   size_t num_nodes = config["tree_size"].as<int>();
 
-  std::random_device r;
-  std::default_random_engine generator(r());
-  // std::default_random_engine generator(0);
+  size_t seed;
+  if (config["seed"]) {
+    seed = config["seed"].as<size_t>();
+  } else {
+    std::random_device r;
+    seed = r();
+  }
+  std::default_random_engine generator(seed);
 
   GameStateT state;
 
   state.turn = GameStateT::Turn::Attackers;
   state.activeMask.set();
+  std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
+  std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
+  std::uniform_real_distribution<float> velDist(-config["speed_limit_a"].as<float>() / sqrtf(2.0), config["speed_limit_a"].as<float>() / sqrtf(2.0));
   for (size_t i = 0; i < NumAttackers; ++i) {
     state.attackers[i].status = RobotState::Status::Active;
-    state.attackers[i].position << 0.05,0.2;
+    state.attackers[i].position << xPosDist(generator),yPosDist(generator);
+    // state.attackers[i].velocity << velDist(generator),velDist(generator);
     state.attackers[i].velocity << 0,0;
   }
+  xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
+  yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
+  velDist = std::uniform_real_distribution<float>(-config["speed_limit_b"].as<float>() / sqrtf(2.0), config["speed_limit_b"].as<float>() / sqrtf(2.0));
   for (size_t i = 0; i < NumDefenders; ++i) {
     state.defenders[i].status = RobotState::Status::Active;
-    state.defenders[i].position << 0.45,0.2;
+    state.defenders[i].position << xPosDist(generator),yPosDist(generator);
+    // state.defenders[i].velocity << velDist(generator),velDist(generator);
     state.defenders[i].velocity << 0,0;
   }
 

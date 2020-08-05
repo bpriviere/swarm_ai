@@ -1,5 +1,11 @@
 ## C++ Version
 
+### Dependencies
+
+```
+sudo apt install libboost-all-dev libyaml-cpp-dev
+```
+
 ### Build
 
 ```
