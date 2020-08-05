@@ -9,7 +9,6 @@
 #include <yaml-cpp/yaml.h>
 
 #include "monte_carlo_tree_search.hpp"
-#include "eigen_helper.hpp"
 
 typedef Eigen::Vector2f RobotAction;
 
