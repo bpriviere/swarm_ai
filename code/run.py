@@ -20,13 +20,12 @@ import plotter
 
 def format_dir(param):
 
-	# make current results dir 
-	if not os.path.exists(param.current_results_dir + '/*'):
-		os.makedirs(param.current_results_dir + '/*',exist_ok=True)
-
 	# clean current results dir 
 	for old_sim_result_dir in glob.glob(param.current_results_dir):
 		shutil.rmtree(old_sim_result_dir)
+
+	# make current results dir 
+	os.makedirs(param.current_results_dir,exist_ok=True)
 
 
 def sim(param):
@@ -43,8 +42,8 @@ def sim(param):
 
 	# write sim results
 	case = len(glob.glob(param.current_results_dir + '/*'))
-	results_dir = param.current_results_dir + '/sim_result_{}'.format(case)
-	datahandler.write_sim_result(sim_result,results_dir)
+	results_fn = param.current_results_dir + '/sim_result_{}'.format(case)
+	datahandler.write_sim_result(sim_result,results_fn)
 
 
 def run_sim(param,env,reset,estimator,attacker,controller):
