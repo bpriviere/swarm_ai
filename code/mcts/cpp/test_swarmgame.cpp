@@ -5,6 +5,9 @@
 #include <bitset>
 #include <unordered_map>
 
+#include <boost/program_options.hpp>
+#include <yaml-cpp/yaml.h>
+
 #include "monte_carlo_tree_search.hpp"
 #include "eigen_helper.hpp"
 
@@ -399,21 +402,18 @@ private:
   std::unordered_map<std::bitset<NumAttackers>, std::vector<GameActionT>> m_possibleActionsMap[2];
 };
 
+template <std::size_t NumAttackers, std::size_t NumDefenders>
+void runMCTS(const YAML::Node& config, const std::string& outputFile)
+{
+  using EnvironmentT = Environment<NumAttackers, NumDefenders>;
+  using GameStateT = typename EnvironmentT::GameStateT;
+  using GameActionT = typename EnvironmentT::GameActionT;
 
-int main(int argc, char* argv[]) {
-
-  size_t num_nodes = 1000;
+  size_t num_nodes = config["tree_size"].as<int>();
 
   std::random_device r;
   std::default_random_engine generator(r());
   // std::default_random_engine generator(0);
-
-  const size_t NumAttackers = 1;
-  const size_t NumDefenders = 1;
-
-  typedef Environment<NumAttackers,NumDefenders> EnvironmentT;
-  typedef EnvironmentT::GameStateT GameStateT;
-  typedef EnvironmentT::GameActionT GameActionT;
 
   GameStateT state;
 
@@ -433,17 +433,17 @@ int main(int argc, char* argv[]) {
   std::cout << state << std::endl;
 
   RobotType robotTypeAttacker;
-  robotTypeAttacker.p_min << 0, 0;
-  robotTypeAttacker.p_max << 0.5, 0.5;
-  robotTypeAttacker.velocity_limit = 0.125 / sqrtf(2.0);
-  robotTypeAttacker.acceleration_limit = 0.25 / sqrtf(2.0);
+  robotTypeAttacker.p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
+  robotTypeAttacker.p_max << config["env_xlim"][1].as<float>(), config["env_ylim"][1].as<float>();
+  robotTypeAttacker.velocity_limit = config["speed_limit_a"].as<float>() / sqrtf(2.0);
+  robotTypeAttacker.acceleration_limit = config["acceleration_limit_a"].as<float>() / sqrtf(2.0);
   robotTypeAttacker.init();
 
   RobotType robotTypeDefender;
-  robotTypeDefender.p_min << 0, 0;
-  robotTypeDefender.p_max << 0.5, 0.5;
-  robotTypeDefender.velocity_limit = 0.125 / sqrtf(2.0);
-  robotTypeDefender.acceleration_limit = 0.125 / sqrtf(2.0);
+  robotTypeDefender.p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
+  robotTypeDefender.p_max << config["env_xlim"][1].as<float>(), config["env_ylim"][1].as<float>();
+  robotTypeDefender.velocity_limit = config["speed_limit_b"].as<float>() / sqrtf(2.0);
+  robotTypeDefender.acceleration_limit = config["acceleration_limit_b"].as<float>() / sqrtf(2.0);
   robotTypeDefender.init();
 
   std::array<RobotType, NumAttackers> attackerTypes;
@@ -455,19 +455,19 @@ int main(int argc, char* argv[]) {
     defenderTypes[i] = robotTypeDefender;
   }
 
-  float dt = 0.25;
+  float dt = config["sim_dt"].as<float>();
   Eigen::Vector2f goal;
-  goal << 0.45,0.375;
-  float goalRadius = 0.025;
-  float tagRadius = 0.025;
+  goal << config["goal"][0].as<float>(),config["goal"][1].as<float>();
+  float goalRadius = config["tag_radius"].as<float>();
+  float tagRadius = config["tag_radius"].as<float>();
 
-  size_t max_depth = 1000;
+  size_t max_depth = config["rollout_horizon"].as<int>();
 
   EnvironmentT env(attackerTypes, defenderTypes, dt, goal, goalRadius, tagRadius, max_depth, generator);
 
   libMultiRobotPlanning::MonteCarloTreeSearch<GameStateT, GameActionT, Reward, EnvironmentT> mcts(env, generator, num_nodes, 1.4);
 
-  std::ofstream out("output.csv");
+  std::ofstream out(outputFile);
 
   for(int i = 0; ; ++i) {
     state.attackersReward = 0;
@@ -505,6 +505,56 @@ int main(int argc, char* argv[]) {
     //   r += env.rollout(state);
     // }
     // std::cout << i << " " << r.first / i << " " << r.second / i << std::endl;
+  }
+}
+
+
+int main(int argc, char* argv[]) {
+
+  namespace po = boost::program_options;
+  // Declare the supported options.
+  po::options_description desc("Allowed options");
+  std::string inputFile;
+  std::string outputFile;
+  desc.add_options()
+    ("help", "produce help message")
+    ("input,i", po::value<std::string>(&inputFile)->required(),"input file (YAML)")
+    ("output,o", po::value<std::string>(&outputFile)->required(),"output file (YAML)");
+
+  try {
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
+
+    if (vm.count("help") != 0u) {
+      std::cout << desc << "\n";
+      return 0;
+    }
+  } catch (po::error& e) {
+    std::cerr << e.what() << std::endl << std::endl;
+    std::cerr << desc << std::endl;
+    return 1;
+  }
+
+  YAML::Node config = YAML::LoadFile(inputFile);
+
+  int numAttackers = config["num_nodes_A"].as<int>();
+  int numDefenders = config["num_nodes_B"].as<int>();
+
+  if (numAttackers == 1 && numDefenders == 1) {
+    runMCTS<1,1>(config, outputFile);
+  }
+  else if (numAttackers == 2 && numDefenders == 1) {
+    runMCTS<2,1>(config, outputFile);
+  }
+  else if (numAttackers == 1 && numDefenders == 2) {
+    runMCTS<1,2>(config, outputFile);
+  }
+  else if (numAttackers == 2 && numDefenders == 2) {
+    runMCTS<2,2>(config, outputFile);
+  } else {
+    std::cerr << "Need to recompile for " << numAttackers << "," << numDefenders << std::endl;
+    return 1;
   }
 
   return 0;

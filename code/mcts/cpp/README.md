@@ -13,7 +13,7 @@ make
 
 ### Run
 ```
-./test_swarmgame && python3 ../plot.py
+./test_swarmgame -i ../config.yaml -o output.csv && python3 ../plot.py
 ```
 
 ### Notes

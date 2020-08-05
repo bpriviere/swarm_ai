@@ -1,0 +1,14 @@
+sim_dt: 0.25
+env_xlim: [0, 0.5]
+env_ylim: [0, 0.5]
+tree_size: 100000
+rollout_horizon: 1000
+c_param: 1.4
+goal: [0.45, 0.375]
+speed_limit_a: 0.125
+speed_limit_b: 0.125
+acceleration_limit_a: 0.25
+acceleration_limit_b: 0.125
+tag_radius: 0.025
+num_nodes_A: 1
+num_nodes_B: 1
