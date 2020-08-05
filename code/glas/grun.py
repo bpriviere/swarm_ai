@@ -51,7 +51,7 @@ def test(model,optimizer,loader):
 	loss_func = torch.nn.MSELoss()  
 	epoch_loss = 0
 	for step, (o_a,o_b,action) in enumerate(loader): 
-		prediction = model(o_a,o_b)     
+		prediction = model(o_a,o_b)
 		loss = loss_func(prediction, action)
 		epoch_loss += float(loss)
 	return epoch_loss/(step+1)
@@ -60,9 +60,8 @@ def test(model,optimizer,loader):
 def run_mcts_batch(param, instance_key): 
 
 	with tempfile.TemporaryDirectory() as tmpdirname:
-		print('TEMP!') # TEMP! 
-		tmpdirname = os.getcwd() # TEMP! 
-		input_file = dh.write_mcts_config_file(param, tmpdirname + "/config.yaml")
+		input_file = tmpdirname + "/config.yaml" 
+		dh.write_mcts_config_file(param, input_file)
 		output_file = tmpdirname + "/output.csv"
 		print('running instance {}'.format(instance_key))
 		subprocess.run("../mcts/cpp/buildRelease/test_swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
@@ -96,6 +95,7 @@ def prepare_raw_data_gen(gparam):
 			param = Param()
 			param.num_nodes_A = num_nodes_A 
 			param.num_nodes_B = num_nodes_B
+			param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
 			param.quiet_on = True
 			param.controller_name = 'controller/mcts.py'
 			param.update()
