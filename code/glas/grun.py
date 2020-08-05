@@ -27,8 +27,14 @@ import plotter
 
 
 def format_dir(param):
+	
+	# if param.reset_demonstration_data:
+	# 	shutil
+
 	if not os.path.exists(param.demonstration_data_dir):
 		os.makedirs(param.demonstration_data_dir,exist_ok=True)
+
+
 	if not os.path.exists(param.model_dir):
 		os.makedirs(param.model_dir,exist_ok=True)
 
@@ -98,6 +104,7 @@ def prepare_raw_data_gen(gparam):
 
 			# param 
 			param = Param()
+			env = Swarm(param)
 			param.num_nodes_A = num_nodes_A 
 			param.num_nodes_B = num_nodes_B
 			param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
@@ -172,6 +179,8 @@ def action_to_classification(param,gparam,action_i,node_i):
 	elif node_i.idx in param.team_2_idxs: 
 		u_max = param.acceleration_limit_b / np.sqrt(2)
 
+	u_max = 1
+
 	not_found = True
 	for k,action in enumerate(gparam.actions): 
 		if np.allclose(u_max*action.flatten(),action_i.flatten()):
@@ -179,7 +188,7 @@ def action_to_classification(param,gparam,action_i,node_i):
 			break 
 
 	if not_found: 
-		print('not found!')
+		print('action {} not found in {}!'.format(action_i,gparam.actions))
 		exit()
 
 	return k
@@ -200,7 +209,6 @@ if __name__ == '__main__':
 			for (param, instance_key) in zip(params, instance_keys):
 				# run_batch(param, instance_key)
 				run_mcts_batch(param, instance_key)
-				exit('safe exit')
 		else:	
 			ncpu = cpu_count()
 			print('ncpu: ', ncpu)

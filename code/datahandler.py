@@ -130,9 +130,26 @@ def write_mcts_state_action_pairs(data, fn, param):
 	for node_idx in range(num_a + num_b):
 		action_idxs = node_idx * 2 + np.arange(2)
 		data_idxs = node_idx * 4 + np.arange(2) + 2 
-		actions[:,action_idxs] = (data[1:,data_idxs] - data[0:-1,data_idxs]) / param.sim_dt
+		# actions[:,action_idxs] = (data[1:,data_idxs] - data[0:-1,data_idxs]) / param.sim_dt
+
+		pos_x = np.where(data[1:,data_idxs[0]] > data[0:-1,data_idxs[0]])
+		neg_x = np.where(data[1:,data_idxs[0]] < data[0:-1,data_idxs[0]])
+		equ_x = np.where(data[1:,data_idxs[0]] == data[0:-1,data_idxs[0]])
+
+		pos_y = np.where(data[1:,data_idxs[1]] > data[0:-1,data_idxs[1]])
+		neg_y = np.where(data[1:,data_idxs[1]] < data[0:-1,data_idxs[1]])
+		equ_y = np.where(data[1:,data_idxs[1]] == data[0:-1,data_idxs[1]])
+
+		actions[pos_x,action_idxs[0]] = 1 
+		actions[neg_x,action_idxs[0]] = 0 
+		actions[equ_x,action_idxs[0]] = -1 
+		
+		actions[pos_y,action_idxs[1]] = 1 
+		actions[neg_y,action_idxs[1]] = 0 
+		actions[equ_y,action_idxs[1]] = -1 
 
 	state_action_pairs = np.hstack((states,actions))
+
 	np.save(fn,state_action_pairs)
 
 

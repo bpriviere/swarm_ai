@@ -15,7 +15,7 @@ def relative_state(nodes,r_sense,abs_goal,flatten=False):
 		# todo, get param.goal
 		# print(abs_goal) 
 		if len(abs_goal) == 2: 
-			abs_goal = np.array([abs_goal[0],abs_goal[1],0,0])[:,np.newaxis]
+			abs_goal = np.array((abs_goal[0],abs_goal[1],0,0))
 		goal = abs_goal - node_i.state
 
 		for node_j in nodes: 
