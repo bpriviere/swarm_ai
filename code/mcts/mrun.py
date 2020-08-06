@@ -8,86 +8,44 @@ import glob
 import os 
 import shutil 
 import time as timer
+import tempfile
+import subprocess
 
 import sys
 sys.path.append("../")
 from param import Param 
 from env import Swarm
-import datahandler
+import datahandler as dh
 import plotter 
 
 def format_dir(param):
-
-	# make current results dir 
-	if not os.path.exists(param.current_results_dir + '/*'):
-		os.makedirs(param.current_results_dir + '/*',exist_ok=True)
 
 	# clean current results dir 
 	for old_sim_result_dir in glob.glob(param.current_results_dir):
 		shutil.rmtree(old_sim_result_dir)
 
+	# make current results dir 
+	os.makedirs(param.current_results_dir,exist_ok=True)
+
+
 
 def run_sim(param):
 
-	# prep (just to get initial state)
-	env = Swarm(param)
-	reset = env.get_reset()
-	state_vec = reset["state_initial"] 
+	with tempfile.TemporaryDirectory() as tmpdirname:
+		input_file = tmpdirname + "/config.yaml" 
+		dh.write_mcts_config_file(param, input_file)
+		output_file = tmpdirname + "/output.csv"
+		print('running instance...')
+		subprocess.run("../mcts/cpp/buildRelease/test_swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
+		data = np.loadtxt(output_file, delimiter=',', skiprows=1, dtype=np.float32)
 
-	state = np.reshape(state_vec,(param.num_nodes,4))
-	done = [] 
-	turn = True
+	sim_result = dh.convert_cpp_data_to_sim_result(data,param)
 
-	tree = mcts.Tree(param)
-	state = mcts.State(state,done,turn)
-
-	# run sim 
-	start_time = timer.time()
-	times,actions,dones,states,values = [],[],[state.done],[state.state],[]
-	for step,time in enumerate(param.sim_times):
-
-		print('\t\t t = {}/{}'.format(step,len(param.sim_times)))
-		save_action = np.zeros((param.num_nodes,2))
-		for team in range(2):
-
-			tree = mcts.Tree(param)
-			tree.set_root(state) 
-			tree.grow()
-			next_state, action = tree.best_action()
-			if next_state is None:
-				break
-
-			save_action += action
-			state = next_state
-
-		values.append((\
-			tree.root_node.value_1/tree.root_node.number_of_visits,\
-			tree.root_node.value_2/tree.root_node.number_of_visits))
-		times.append(time) 
-		dones.append(state.done) 
-		states.append(state.state) 
-		actions.append(save_action)
-
-		if next_state is None: 
-			break 
-
-	param.elapsed_time = timer.time() - start_time
-
-	#  
-	sim_result = dict()
-	sim_result["times"] = np.asarray(times)
-	sim_result["actions"] = np.asarray(actions) 
-	sim_result["dones"] = np.asarray(dones[1:])
-	sim_result["states"] = np.asarray(states[1:]) 
-	sim_result["values"] = np.asarray(values) 
-	sim_result["param"] = param.to_dict() 	
-
-	# write sim results
-	print('writing sim result...')
 	case = len(glob.glob(param.current_results_dir + '/*'))
-	results_dir = param.current_results_dir + '/sim_result_{}'.format(case)
-	datahandler.write_sim_result(sim_result,results_dir)
-
+	save_fn = param.current_results_dir + '/sim_result_{}'.format(case)
+	print('writing instance {}... '.format(save_fn))
+	dh.write_sim_result(sim_result,save_fn)
+	print('completed instance {}'.format(save_fn))
 
 if __name__ == '__main__':
 
@@ -95,7 +53,7 @@ if __name__ == '__main__':
 	param.current_results_dir = '../'+param.current_results_dir
 	format_dir(param)
 
-	parallel = True
+	parallel = False
 	if parallel: 
 		ncases = 10
 		nprocess = np.min((mp.cpu_count()-1,ncases))
@@ -108,7 +66,7 @@ if __name__ == '__main__':
 
 	sim_results = [] 
 	for sim_result_dir in glob.glob(param.current_results_dir + '/*'):
-		sim_results.append(datahandler.load_sim_result(sim_result_dir))
+		sim_results.append(dh.load_sim_result(sim_result_dir))
 
 	for sim_result in sim_results:
 		plotter.plot_tree_results(sim_result)

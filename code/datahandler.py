@@ -53,44 +53,59 @@ def write_mcts_config_file(param, config_fn):
 	with open(config_fn,'w') as f:
 		yaml.dump(config,f)
 
-def write_mcts_state_action_pairs(data, fn, param):
+def convert_cpp_data_to_sim_result(data,param):
 
-	key = os.path.basename(fn)
-	key = key.split('_')
-	num_a = int(key[1].split('a')[0])
-	num_b = int(key[2].split('b')[0])
-	states = data[0:-1,:]
+	num_a = param.num_nodes_A 
+	num_b = param.num_nodes_B
+	
+	times = param.sim_dt*np.arange(data.shape[0]-1)
+	states = np.zeros((times.shape[0],param.num_nodes,4))
+	actions = np.zeros((times.shape[0],param.num_nodes,2))
 
-	actions = np.zeros((data.shape[0]-1,2*(num_a + num_b)))
-	for node_idx in range(num_a + num_b):
-		action_idxs = node_idx * 2 + np.arange(2)
-		data_idxs = node_idx * 4 + np.arange(2) + 2 
-		# actions[:,action_idxs] = (data[1:,data_idxs] - data[0:-1,data_idxs]) / param.sim_dt
+	for node_idx in range(param.num_nodes):
 
-		pos_x = np.where(data[1:,data_idxs[0]] > data[0:-1,data_idxs[0]])
-		neg_x = np.where(data[1:,data_idxs[0]] < data[0:-1,data_idxs[0]])
-		equ_x = np.where(data[1:,data_idxs[0]] == data[0:-1,data_idxs[0]])
+		state_idx = node_idx * 4 + np.arange(4) 
+		vel_idx = node_idx * 4 + np.arange(2) + 2 
 
-		pos_y = np.where(data[1:,data_idxs[1]] > data[0:-1,data_idxs[1]])
-		neg_y = np.where(data[1:,data_idxs[1]] < data[0:-1,data_idxs[1]])
-		equ_y = np.where(data[1:,data_idxs[1]] == data[0:-1,data_idxs[1]])
+		states[:,node_idx,:] = data[0:-1,state_idx]
+		actions[:,node_idx,:] = (data[1:,vel_idx] - data[0:-1,vel_idx]) / param.sim_dt 
 
-		actions[pos_x,action_idxs[0]] = 1 
-		actions[neg_x,action_idxs[0]] = 0 
-		actions[equ_x,action_idxs[0]] = -1 
+	# states = data[0:-1,:]
+
+	# actions = np.zeros((data.shape[0]-1,2*(num_a + num_b)))
+	# for node_idx in range(num_a + num_b):
+	# 	action_idxs = node_idx * 2 + np.arange(2)
+	# 	data_idxs = node_idx * 4 + np.arange(2) + 2 
+	# 	# actions[:,action_idxs] = (data[1:,data_idxs] - data[0:-1,data_idxs]) / param.sim_dt
+
+	# 	pos_x = np.where(data[1:,data_idxs[0]] > data[0:-1,data_idxs[0]])
+	# 	neg_x = np.where(data[1:,data_idxs[0]] < data[0:-1,data_idxs[0]])
+	# 	equ_x = np.where(data[1:,data_idxs[0]] == data[0:-1,data_idxs[0]])
+
+	# 	pos_y = np.where(data[1:,data_idxs[1]] > data[0:-1,data_idxs[1]])
+	# 	neg_y = np.where(data[1:,data_idxs[1]] < data[0:-1,data_idxs[1]])
+	# 	equ_y = np.where(data[1:,data_idxs[1]] == data[0:-1,data_idxs[1]])
+
+	# 	actions[pos_x,action_idxs[0]] = 1 
+	# 	actions[neg_x,action_idxs[0]] = 0 
+	# 	actions[equ_x,action_idxs[0]] = -1 
 		
-		actions[pos_y,action_idxs[1]] = 1 
-		actions[neg_y,action_idxs[1]] = 0 
-		actions[equ_y,action_idxs[1]] = -1 
+	# 	actions[pos_y,action_idxs[1]] = 1 
+	# 	actions[neg_y,action_idxs[1]] = 0 
+	# 	actions[equ_y,action_idxs[1]] = -1 
 
-	state_action_pairs = np.hstack((states,actions))
 
-	np.save(fn,state_action_pairs)
+	sim_result = {
+		'param' : param.to_dict(),
+		'states' : states,
+		'actions' : actions,
+		'times' : times,
+	}
 
+	return sim_result 
 
 def write_oa_pair_batch(batched_dataset,batch_fn):
 	np.save(batch_fn, batched_dataset)
-
 
 def write_parameters(param_dict,fn):
 

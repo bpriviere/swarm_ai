@@ -78,12 +78,10 @@ def run_mcts_batch(param, instance_key):
 		subprocess.run("../mcts/cpp/buildRelease/test_swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
 		data = np.loadtxt(output_file, delimiter=',', skiprows=1, dtype=np.float32)
 
-	state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
-	param_fn = get_param_fn(gparam.demonstration_data_dir,instance_key)
+	sim_result = dh.convert_cpp_data_to_sim_result(data)
 
 	print('writing instance {}... '.format(instance_key))
-	dh.write_mcts_state_action_pairs(data,state_action_fn,param)
-	dh.write_parameters(param.to_dict(),param_fn)
+	dh.write_sim_result(sim_result,instance_key)
 	print('completed instance {}'.format(instance_key))
 
 
