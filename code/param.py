@@ -22,24 +22,38 @@ class Param:
 		self.sim_t0 = 0
 		self.sim_tf = 20
 		self.sim_dt = 0.25
-
-		# nodes 
-		self.num_nodes_A = 1
-		self.num_nodes_B = 1
 		
-		# dynamics 
-		self.speed_limit_a = 0.125 # 0.05 
-		self.speed_limit_b = 0.125 # 0.1 
-		self.acceleration_limit_a = 0.25 
-		self.acceleration_limit_b = 0.125 
-		self.tag_radius = 0.025
-
-		# topology
-		self.r_sense = 1.6
-		self.r_comm = 1.6
+		# robots
+		self.robots = \
+			[{
+				'speed_limit': 0.125,
+				'acceleration_limit':0.25,
+				'tag_radius': 0.025,
+				'team':'a',
+				'dynamics':'double_integrator',
+				'r_comm': 1.6,
+				'r_sense': 1.6,
+			},
+			{
+				'speed_limit': 0.125,
+				'acceleration_limit':0.125,
+				'tag_radius': 0.025,
+				'team':'b',
+				'dynamics':'double_integrator',
+				'r_comm': 1.6,
+				'r_sense': 1.6,				
+			},
+			{
+				'speed_limit': 0.075,
+				'acceleration_limit':0.075,
+				'tag_radius': 0.05,
+				'team':'b',
+				'dynamics':'double_integrator',
+				'r_comm': 1.6,
+				'r_sense': 1.6,
+			}]
 		
 		# environment
-		self.goal_line_x = 0.6
 		large_env = False 
 		if large_env:
 			self.env_xlim = [0,1]
@@ -50,7 +64,7 @@ class Param:
 			self.reset_ylim_B = [0,1]
 			self.goal = np.array([0.5,0.5])
 		else: 
-			l = 0.5
+			l = 1.0
 			self.env_xlim = [0,l]
 			self.env_ylim = [0,l]
 			self.reset_xlim_A = [0.0*l,0.1*l]
@@ -60,7 +74,7 @@ class Param:
 			self.goal = np.array([0.9*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 5000
+		self.tree_size = 10000
 		self.fixed_tree_depth_on = False
 		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000
@@ -113,6 +127,18 @@ class Param:
 
 
 	def update(self):
+
+		num_nodes_A, num_nodes_B = 0,0
+		for robot in self.robots:
+			if robot["team"] is 'a':
+				num_nodes_A += 1
+			elif robot["team"] is 'b':
+				num_nodes_B += 1
+
+		self.num_nodes_A = num_nodes_A
+		self.num_nodes_B = num_nodes_B
+
+
 		self.num_nodes = self.num_nodes_A + self.num_nodes_B
 		self.sim_times = np.arange(self.sim_t0,self.sim_tf,self.sim_dt)
 		self.sim_nt = len(self.sim_times)
