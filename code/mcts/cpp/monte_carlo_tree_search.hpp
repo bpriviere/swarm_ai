@@ -98,6 +98,16 @@ class MonteCarloTreeSearch {
     return false;
   }
 
+  const Reward& rootNodeReward() const {
+    assert(m_nodes.size() >= 1);
+    return m_nodes[0].reward;
+  }
+
+  size_t rootNodeNumVisits() const {
+    assert(m_nodes.size() >= 1);
+    return m_nodes[0].number_of_visits;
+  }
+
  private:
   struct Node {
     Node()
@@ -148,8 +158,6 @@ class MonteCarloTreeSearch {
     // if this node was never attempted to be expanded, query potential actions first
     if (!nodePtr->gotActions) {
       m_env.getPossibleActions(nodePtr->state, nodePtr->untried_actions);
-      // shuffle, so we end up choosing the next one randomly
-      std::shuffle(nodePtr->untried_actions.begin(), nodePtr->untried_actions.end(), m_generator);
       nodePtr->gotActions = true;
     }
 
@@ -157,6 +165,11 @@ class MonteCarloTreeSearch {
     m_nodes.resize(m_nodes.size() + 1);
     auto& newNode = m_nodes[m_nodes.size()-1];
     while (nodePtr->untried_actions.size() > 0) {
+      // shuffle on demand
+      std::uniform_int_distribution<int> dist(0, nodePtr->untried_actions.size() - 1);
+      int idx = dist(m_generator);
+      std::swap(nodePtr->untried_actions.back(), nodePtr->untried_actions.begin()[idx]);
+
       const auto& action = nodePtr->untried_actions.back();
       bool success = m_env.step(nodePtr->state, action, newNode.state);
       if (success) {

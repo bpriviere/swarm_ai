@@ -16,10 +16,10 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
 )
 
-add_executable(test_swarmgame
-  test_swarmgame.cpp
+add_executable(swarmgame
+  swarmgame.cpp
 )
-target_link_libraries(test_swarmgame
+target_link_libraries(swarmgame
   ${Boost_LIBRARIES}
   yaml-cpp
 )
@@ -27,6 +27,3 @@ target_link_libraries(test_swarmgame
 add_executable(test_tictactoe
   test_tictactoe.cpp
 )
-# target_link_libraries(test_mcts
-  # Eigen3::Eigen
-# )

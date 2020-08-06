@@ -12,3 +12,16 @@ acceleration_limit_b: 0.125
 tag_radius: 0.025
 num_nodes_A: 1
 num_nodes_B: 1
+reset_xlim_A:
+- 0.05
+- 0.05
+reset_xlim_B:
+- 0.45
+- 0.45
+reset_ylim_A:
+- 0.25
+- 0.25
+reset_ylim_B:
+- 0.25
+- 0.25
+# seed: 1

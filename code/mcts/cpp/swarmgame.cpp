@@ -9,7 +9,6 @@
 #include <yaml-cpp/yaml.h>
 
 #include "monte_carlo_tree_search.hpp"
-#include "eigen_helper.hpp"
 
 typedef Eigen::Vector2f RobotAction;
 
@@ -337,9 +336,13 @@ class Environment {
     while (true) {
       std::vector<GameActionT> actions;
       getPossibleActions(s, actions);
-      std::shuffle(actions.begin(), actions.end(), m_generator);
 
       while (actions.size() > 0) {
+        // shuffle on demand
+        std::uniform_int_distribution<int> dist(0, actions.size() - 1);
+        int idx = dist(m_generator);
+        std::swap(actions.back(), actions.begin()[idx]);
+
         const auto& action = actions.back();
         GameStateT nextState;
         bool valid = step(s, action, nextState);
@@ -411,22 +414,35 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
 
   size_t num_nodes = config["tree_size"].as<int>();
 
-  std::random_device r;
-  std::default_random_engine generator(r());
-  // std::default_random_engine generator(0);
+  size_t seed;
+  if (config["seed"]) {
+    seed = config["seed"].as<size_t>();
+  } else {
+    std::random_device r;
+    seed = r();
+  }
+  std::default_random_engine generator(seed);
 
   GameStateT state;
 
   state.turn = GameStateT::Turn::Attackers;
   state.activeMask.set();
+  std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
+  std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
+  std::uniform_real_distribution<float> velDist(-config["speed_limit_a"].as<float>() / sqrtf(2.0), config["speed_limit_a"].as<float>() / sqrtf(2.0));
   for (size_t i = 0; i < NumAttackers; ++i) {
     state.attackers[i].status = RobotState::Status::Active;
-    state.attackers[i].position << 0.05,0.2;
+    state.attackers[i].position << xPosDist(generator),yPosDist(generator);
+    // state.attackers[i].velocity << velDist(generator),velDist(generator);
     state.attackers[i].velocity << 0,0;
   }
+  xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
+  yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
+  velDist = std::uniform_real_distribution<float>(-config["speed_limit_b"].as<float>() / sqrtf(2.0), config["speed_limit_b"].as<float>() / sqrtf(2.0));
   for (size_t i = 0; i < NumDefenders; ++i) {
     state.defenders[i].status = RobotState::Status::Active;
-    state.defenders[i].position << 0.45,0.2;
+    state.defenders[i].position << xPosDist(generator),yPosDist(generator);
+    // state.defenders[i].velocity << velDist(generator),velDist(generator);
     state.defenders[i].velocity << 0,0;
   }
 
@@ -468,29 +484,50 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
   libMultiRobotPlanning::MonteCarloTreeSearch<GameStateT, GameActionT, Reward, EnvironmentT> mcts(env, generator, num_nodes, 1.4);
 
   std::ofstream out(outputFile);
+  // write file header
+  for (size_t j = 0; j < NumAttackers+NumDefenders; ++j) {
+    out << "x,y,vx,vy,ax,ay,";
+  }
+  out << "rewardAttacker,rewardDefender" << std::endl;
 
+  GameActionT action;
+  GameActionT lastAction;
+  GameStateT lastState = state;
+  float rewardAttacker;
+  float rewardDefender;
   for(int i = 0; ; ++i) {
     state.attackersReward = 0;
     state.defendersReward = 0;
     state.depth = 0;
-    if (i % 2 == 0) {
-      for (size_t j = 0; j < NumAttackers; ++j) {
-        out << state.attackers[j].position(0) << "," << state.attackers[j].position(1) << ","
-            << state.attackers[j].velocity(0) << "," << state.attackers[j].velocity(1) << ",";
-      }
-      for (size_t j = 0; j < NumDefenders; ++j) {
-        out << state.defenders[j].position(0) << "," << state.defenders[j].position(1) << ","
-            << state.defenders[j].velocity(0) << "," << state.defenders[j].velocity(1);
-        if (j == NumDefenders - 1) {
-          out << std::endl;
-        } else {
-          out << ",";
-        }
-      }
+
+    lastAction = action;
+    bool success = mcts.search(state, action);
+    if (state.turn == GameStateT::Turn::Attackers) {
+      rewardAttacker = env.rewardToFloat(state, mcts.rootNodeReward()) / mcts.rootNodeNumVisits();
+    } else {
+      rewardDefender = env.rewardToFloat(state, mcts.rootNodeReward()) / mcts.rootNodeNumVisits();
     }
 
-    GameActionT action;
-    bool success = mcts.search(state, action);
+    if ((i > 0 && i % 2 == 0) || !success) {
+      // if we are done, print out current state, otherwise print last state and the action we took
+      if (!success) {
+        lastState = state;
+      }
+
+      for (size_t j = 0; j < NumAttackers; ++j) {
+        out << lastState.attackers[j].position(0) << "," << lastState.attackers[j].position(1) << ","
+            << lastState.attackers[j].velocity(0) << "," << lastState.attackers[j].velocity(1) << ","
+            << action[j](0) << "," << action[j](1) << ",";
+      }
+      for (size_t j = 0; j < NumDefenders; ++j) {
+        out << lastState.defenders[j].position(0) << "," << lastState.defenders[j].position(1) << ","
+            << lastState.defenders[j].velocity(0) << "," << lastState.defenders[j].velocity(1) << ","
+            << lastAction[j+NumAttackers](0) << "," << lastAction[j+NumAttackers](1) << ",";
+      }
+      out << rewardAttacker << "," << rewardDefender << std::endl;
+      lastState = state;
+    }
+
     if (!success) {
       break;
     }

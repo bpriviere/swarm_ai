@@ -379,3 +379,20 @@ def plot_tree_results(sim_result):
 	# ax.legend(loc='upper right')
 
 	fig.tight_layout()
+
+if __name__ == '__main__':
+	import argparse
+	import datahandler
+
+	parser = argparse.ArgumentParser()
+	parser.add_argument("file", help="pickle file to visualize")
+	parser.add_argument("--output", default="plots.pdf", help="output pdf file")
+	# parser.add_argument("--animate", action='store_true', help="animate using meshlab")
+	args = parser.parse_args()
+
+	sim_result = datahandler.load_sim_result(args.file)
+
+	plot_tree_results(sim_result)
+
+	save_figs(args.output)
+	open_figs(args.output)
