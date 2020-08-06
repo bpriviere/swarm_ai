@@ -98,6 +98,16 @@ class MonteCarloTreeSearch {
     return false;
   }
 
+  const Reward& rootNodeReward() const {
+    assert(m_nodes.size() >= 1);
+    return m_nodes[0].reward;
+  }
+
+  size_t rootNodeNumVisits() const {
+    assert(m_nodes.size() >= 1);
+    return m_nodes[0].number_of_visits;
+  }
+
  private:
   struct Node {
     Node()

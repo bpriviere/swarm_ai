@@ -484,29 +484,50 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
   libMultiRobotPlanning::MonteCarloTreeSearch<GameStateT, GameActionT, Reward, EnvironmentT> mcts(env, generator, num_nodes, 1.4);
 
   std::ofstream out(outputFile);
+  // write file header
+  for (size_t j = 0; j < NumAttackers+NumDefenders; ++j) {
+    out << "x,y,vx,vy,ax,ay,";
+  }
+  out << "rewardAttacker,rewardDefender" << std::endl;
 
+  GameActionT action;
+  GameActionT lastAction;
+  GameStateT lastState = state;
+  float rewardAttacker;
+  float rewardDefender;
   for(int i = 0; ; ++i) {
     state.attackersReward = 0;
     state.defendersReward = 0;
     state.depth = 0;
-    if (i % 2 == 0) {
-      for (size_t j = 0; j < NumAttackers; ++j) {
-        out << state.attackers[j].position(0) << "," << state.attackers[j].position(1) << ","
-            << state.attackers[j].velocity(0) << "," << state.attackers[j].velocity(1) << ",";
-      }
-      for (size_t j = 0; j < NumDefenders; ++j) {
-        out << state.defenders[j].position(0) << "," << state.defenders[j].position(1) << ","
-            << state.defenders[j].velocity(0) << "," << state.defenders[j].velocity(1);
-        if (j == NumDefenders - 1) {
-          out << std::endl;
-        } else {
-          out << ",";
-        }
-      }
+
+    lastAction = action;
+    bool success = mcts.search(state, action);
+    if (state.turn == GameStateT::Turn::Attackers) {
+      rewardAttacker = env.rewardToFloat(state, mcts.rootNodeReward()) / mcts.rootNodeNumVisits();
+    } else {
+      rewardDefender = env.rewardToFloat(state, mcts.rootNodeReward()) / mcts.rootNodeNumVisits();
     }
 
-    GameActionT action;
-    bool success = mcts.search(state, action);
+    if ((i > 0 && i % 2 == 0) || !success) {
+      // if we are done, print out current state, otherwise print last state and the action we took
+      if (!success) {
+        lastState = state;
+      }
+
+      for (size_t j = 0; j < NumAttackers; ++j) {
+        out << lastState.attackers[j].position(0) << "," << lastState.attackers[j].position(1) << ","
+            << lastState.attackers[j].velocity(0) << "," << lastState.attackers[j].velocity(1) << ","
+            << action[j](0) << "," << action[j](1) << ",";
+      }
+      for (size_t j = 0; j < NumDefenders; ++j) {
+        out << lastState.defenders[j].position(0) << "," << lastState.defenders[j].position(1) << ","
+            << lastState.defenders[j].velocity(0) << "," << lastState.defenders[j].velocity(1) << ","
+            << lastAction[j+NumAttackers](0) << "," << lastAction[j+NumAttackers](1) << ",";
+      }
+      out << rewardAttacker << "," << rewardDefender << std::endl;
+      lastState = state;
+    }
+
     if (!success) {
       break;
     }
