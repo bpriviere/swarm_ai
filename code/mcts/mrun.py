@@ -53,7 +53,7 @@ if __name__ == '__main__':
 	param.current_results_dir = '../'+param.current_results_dir
 	format_dir(param)
 
-	parallel = False
+	parallel = True
 	if parallel: 
 		ncases = 10
 		nprocess = np.min((mp.cpu_count()-1,ncases))

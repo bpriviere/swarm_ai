@@ -6,6 +6,7 @@ import matplotlib.patches as patches
 import os, subprocess
 import matplotlib.patches as mpatches
 
+from matplotlib import cm	
 from matplotlib.backends.backend_pdf import PdfPages 
 
 from utilities import dbgp
@@ -211,34 +212,6 @@ def make_gif(sim_result):
 	imageio.mimsave(gif_name, images, duration = duration)
 
 
-# def plot_sa_pairs(states,actions,param,instance):
-
-# 	from env import Swarm 
-
-# 	env = Swarm(param)
-
-# 	colors = ['red','blue']
-
-# 	for timestep,(state,action) in enumerate(zip(states,actions)):
-
-# 		fig,ax = plt.subplots()
-
-# 		# first update state 
-# 		state_dict = env.state_vec_to_dict(state)
-# 		for node in env.nodes: 
-# 			node.state = state_dict[node]
-# 			ax.scatter(node.state[0],node.state[1],100,color=colors[node.team_A],zorder=10)
-
-# 		ax.axvline(param.goal_line_x,color='green',alpha=0.5,linestyle='--')
-
-# 		ax.set_xlim(param.env_xlim)
-# 		ax.set_ylim(param.env_ylim)
-# 		ax.grid(True)
-# 		ax.set_aspect('equal')
-# 		ax.set_xlabel('pos [m]')
-# 		ax.set_ylabel('pos [m]')
-# 		ax.set_title('{} at time {}'.format(instance,timestep))
-
 def plot_sa_pairs(states,actions,param,instance):
 
 	states = np.asarray(states) # nt x state_dim 
@@ -293,30 +266,44 @@ def plot_loss(losses,team):
 	fig.tight_layout()
 
 
+def get_colors(param):
+
+	colors = []
+
+	start, stop = 0.4, 0.7
+	cm_subsection = np.linspace(start, stop, param["num_nodes"]) 
+
+	colors_a = [ cm.Blues(x) for x in cm_subsection]
+	colors_b = [ cm.Oranges(x) for x in cm_subsection]
+
+	colors = []
+	for i in range(param["num_nodes"]):
+		if i < param["num_nodes_A"]:
+			colors.append(colors_a[i])
+		else:
+			colors.append(colors_b[i])
+
+	return colors
+
+
 def plot_tree_results(sim_result): 
 
 	times = sim_result["times"]
 	states = sim_result["states"]
 	actions = sim_result["actions"]
-	try:
-		values = sim_result["values"]	
-	except: 
-		values = None 
-
+	rewards = sim_result["rewards"]
 	team_1_idxs = sim_result["param"]["team_1_idxs"]
 	num_nodes = sim_result["param"]["num_nodes"]
 	goal = sim_result["param"]["goal"]
 	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
-	speed_limit_a = sim_result["param"]["robots"][0]["speed_limit"]
-	speed_limit_b = sim_result["param"]["robots"][-1]["speed_limit"]
-	acceleration_limit_a = sim_result["param"]["robots"][0]["acceleration_limit"]
-	acceleration_limit_b = sim_result["param"]["robots"][-1]["acceleration_limit"]	
 	env_xlim = sim_result["param"]["env_xlim"]	
 	env_ylim = sim_result["param"]["env_ylim"]	
 
 	team_1_color = 'blue'
 	team_2_color = 'orange'
 	goal_color = 'green'
+
+	colors = get_colors(sim_result["param"])
 
 	fig,axs = plt.subplots(nrows=2,ncols=2) 
 
@@ -326,57 +313,38 @@ def plot_tree_results(sim_result):
 	ax.set_aspect('equal')
 	ax.set_title('State Space')
 	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
-	ax.plot(np.nan,np.nan,color=team_1_color,label='attackers')
-	ax.plot(np.nan,np.nan,color=team_2_color,label='defenders')
 	for i in range(num_nodes):
-		color = team_2_color 
-		if i in team_1_idxs:
-			color = team_1_color
-		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=color)
-		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=color)
-	ax.legend()
+		for t in range(states.shape[0]):
+			ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
+				color=colors[i],alpha=0.2,fill=False))
+		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
+		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i])
 	ax.set_xlim([env_xlim[0],env_xlim[1]])
 	ax.set_ylim([env_ylim[0],env_ylim[1]])
 
 	# value func
-	if not values is None: 
-		ax = axs[0,1] 
-		ax.grid(True)
-		# ratio = (times[-1] - times[0])/(1 - 0) 
-		# ax.set_aspect(ratio)
-		ax.set_title('Value Function')
-		ax.plot(times,values[:,0],color=team_1_color)
-		ax.plot(times,values[:,1],color=team_2_color)
+	ax = axs[0,1] 
+	ax.grid(True)
+	ax.set_title('Value Function')
+	ax.plot(times,rewards[:,0],color=team_1_color,label='attackers')
+	ax.plot(times,rewards[:,1],color=team_2_color,label='defenders')
+	ax.legend()
 
 	# time varying velocity
 	ax = axs[1,0]
 	ax.grid(True)
-	# ratio = (times[-1] - times[0])/(max((speed_limit_a,speed_limit_b))-0)
-	# ax.set_aspect(ratio)
-	ax.axhline(speed_limit_a,color=team_1_color,linestyle='--')
-	ax.axhline(speed_limit_b,color=team_2_color,linestyle='--')
 	ax.set_title('Speed Profile')
 	for i in range(num_nodes):
-		color = team_2_color 
-		if i in team_1_idxs:
-			color = team_1_color
-		ax.plot(times,np.linalg.norm(states[:,i,2:],axis=1),color=color)
-	# ax.legend(loc='upper right')
+		ax.axhline(sim_result["param"]["robots"][i]["speed_limit"],color=colors[i],linestyle='--')
+		ax.plot(times,np.linalg.norm(states[:,i,2:],axis=1),color=colors[i])
 
 	# time varying acc
 	ax = axs[1,1]
 	ax.grid(True)
-	# ratio = (times[-1] - times[0])/(max((acceleration_limit_a,acceleration_limit_b))-0)
-	# ax.set_aspect(ratio)
-	ax.axhline(acceleration_limit_a,color=team_1_color,linestyle='--')
-	ax.axhline(acceleration_limit_b,color=team_2_color,linestyle='--')
 	ax.set_title('Acceleration Profile')
 	for i in range(num_nodes):
-		color = team_2_color 
-		if i in team_1_idxs:
-			color = team_1_color
-		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=color)
-	# ax.legend(loc='upper right')
+		ax.axhline(sim_result["param"]["robots"][i]["acceleration_limit"],color=colors[i],linestyle='--')
+		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=colors[i])
 
 	fig.tight_layout()
 

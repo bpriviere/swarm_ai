@@ -448,7 +448,7 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
     const auto& node = config["robots"][i];
     attackerTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
     attackerTypes[i].p_max << config["env_xlim"][1].as<float>(), config["env_ylim"][1].as<float>();
-    attackerTypes[i].velocity_limit = node["speed_limit"].as<float>() / sqrtf(2.0);
+    attackerTypes[i].velocity_limit = node["speed_limit"].as<float>(); // / sqrtf(2.0);
     attackerTypes[i].acceleration_limit = node["acceleration_limit"].as<float>() / sqrtf(2.0);
     attackerTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
     attackerTypes[i].init();

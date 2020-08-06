@@ -25,9 +25,10 @@ class Param:
 		
 		# robots
 		self.robots = \
-			[{
+			[
+			{
 				'speed_limit': 0.125,
-				'acceleration_limit':0.25,
+				'acceleration_limit':0.2,
 				'tag_radius': 0.025,
 				'team':'a',
 				'dynamics':'double_integrator',
@@ -44,37 +45,28 @@ class Param:
 				'r_sense': 1.6,				
 			},
 			{
-				'speed_limit': 0.075,
-				'acceleration_limit':0.075,
-				'tag_radius': 0.05,
+				'speed_limit': 0.125,
+				'acceleration_limit':0.125,
+				'tag_radius': 0.075,
 				'team':'b',
 				'dynamics':'double_integrator',
 				'r_comm': 1.6,
 				'r_sense': 1.6,
-			}]
+			}
+			]
 		
 		# environment
-		large_env = False 
-		if large_env:
-			self.env_xlim = [0,1]
-			self.env_ylim = [0,1]
-			self.reset_xlim_A = [0,0.2]
-			self.reset_ylim_A = [0,1]
-			self.reset_xlim_B = [0.8,1]
-			self.reset_ylim_B = [0,1]
-			self.goal = np.array([0.5,0.5])
-		else: 
-			l = 1.0
-			self.env_xlim = [0,l]
-			self.env_ylim = [0,l]
-			self.reset_xlim_A = [0.0*l,0.1*l]
-			self.reset_ylim_A = [0.4*l,0.5*l]
-			self.reset_xlim_B = [0.8*l,0.9*l]
-			self.reset_ylim_B = [0.4*l,0.5*l]
-			self.goal = np.array([0.9*l,0.75*l])
+		l = 0.5
+		self.env_xlim = [0,l]
+		self.env_ylim = [0,l]
+		self.reset_xlim_A = [0.0*l,0.1*l]
+		self.reset_ylim_A = [0.4*l,0.5*l]
+		self.reset_xlim_B = [0.8*l,0.9*l]
+		self.reset_ylim_B = [0.4*l,0.5*l]
+		self.goal = np.array([0.9*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 10000
+		self.tree_size = 500000
 		self.fixed_tree_depth_on = False
 		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000
