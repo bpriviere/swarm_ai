@@ -74,6 +74,7 @@ public:
   Eigen::Vector2f p_max;
   float velocity_limit;
   float acceleration_limit;
+  float tag_radiusSquared;
   std::vector<RobotAction> possibleActions;
   RobotAction invalidAction;
 
@@ -175,16 +176,12 @@ class Environment {
     const std::array<RobotType, NumDefenders>& defenderTypes,
     float dt,
     const Eigen::Vector2f& goal,
-    float goalRadius,
-    float tagRadius,
     size_t maxDepth,
     std::default_random_engine& generator)
     : m_attackerTypes(attackerTypes)
     , m_defenderTypes(defenderTypes)
     , m_dt(dt)
     , m_goal(goal)
-    , m_goalRadiusSquared(goalRadius * goalRadius)
-    , m_tagRadiusSquared(tagRadius * tagRadius)
     , m_maxDepth(maxDepth)
     , m_generator(generator)
   {
@@ -224,7 +221,7 @@ class Environment {
     for (size_t i = 0; i < NumAttackers; ++i) {
       if (nextState.attackers[i].status == RobotState::Status::Active) {
         float distToGoalSquared = (nextState.attackers[i].position - m_goal).squaredNorm();
-        if (distToGoalSquared <= m_goalRadiusSquared) {
+        if (distToGoalSquared <= m_attackerTypes[i].tag_radiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
           nextState.attackers[i].status = RobotState::Status::ReachedGoal;
           nextState.activeMask.reset(i);
@@ -233,7 +230,7 @@ class Environment {
         for (size_t j = 0; j < NumDefenders; ++j) {
           if (nextState.defenders[j].status == RobotState::Status::Active) {
             float distToDefenderSquared = (nextState.attackers[i].position - nextState.defenders[j].position).squaredNorm();
-            if (distToDefenderSquared <= m_tagRadiusSquared) {
+            if (distToDefenderSquared <= m_defenderTypes[j].tag_radiusSquared) {
               nextState.attackers[i].status = RobotState::Status::Captured;
               nextState.activeMask.reset(i);
             }
@@ -396,8 +393,6 @@ private:
   const std::array<RobotType, NumDefenders>& m_defenderTypes;
   float m_dt;
   Eigen::Vector2f m_goal;
-  float m_goalRadiusSquared;
-  float m_tagRadiusSquared;
   size_t m_maxDepth;
   std::default_random_engine& m_generator;
 
@@ -429,7 +424,7 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
   state.activeMask.set();
   std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
   std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
-  std::uniform_real_distribution<float> velDist(-config["speed_limit_a"].as<float>() / sqrtf(2.0), config["speed_limit_a"].as<float>() / sqrtf(2.0));
+  // std::uniform_real_distribution<float> velDist(-config["speed_limit_a"].as<float>() / sqrtf(2.0), config["speed_limit_a"].as<float>() / sqrtf(2.0));
   for (size_t i = 0; i < NumAttackers; ++i) {
     state.attackers[i].status = RobotState::Status::Active;
     state.attackers[i].position << xPosDist(generator),yPosDist(generator);
@@ -438,7 +433,7 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
   }
   xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
   yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
-  velDist = std::uniform_real_distribution<float>(-config["speed_limit_b"].as<float>() / sqrtf(2.0), config["speed_limit_b"].as<float>() / sqrtf(2.0));
+  // velDist = std::uniform_real_distribution<float>(-config["speed_limit_b"].as<float>() / sqrtf(2.0), config["speed_limit_b"].as<float>() / sqrtf(2.0));
   for (size_t i = 0; i < NumDefenders; ++i) {
     state.defenders[i].status = RobotState::Status::Active;
     state.defenders[i].position << xPosDist(generator),yPosDist(generator);
@@ -448,38 +443,34 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
 
   std::cout << state << std::endl;
 
-  RobotType robotTypeAttacker;
-  robotTypeAttacker.p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
-  robotTypeAttacker.p_max << config["env_xlim"][1].as<float>(), config["env_ylim"][1].as<float>();
-  robotTypeAttacker.velocity_limit = config["speed_limit_a"].as<float>() / sqrtf(2.0);
-  robotTypeAttacker.acceleration_limit = config["acceleration_limit_a"].as<float>() / sqrtf(2.0);
-  robotTypeAttacker.init();
-
-  RobotType robotTypeDefender;
-  robotTypeDefender.p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
-  robotTypeDefender.p_max << config["env_xlim"][1].as<float>(), config["env_ylim"][1].as<float>();
-  robotTypeDefender.velocity_limit = config["speed_limit_b"].as<float>() / sqrtf(2.0);
-  robotTypeDefender.acceleration_limit = config["acceleration_limit_b"].as<float>() / sqrtf(2.0);
-  robotTypeDefender.init();
-
   std::array<RobotType, NumAttackers> attackerTypes;
   for (size_t i = 0; i < NumAttackers; ++i) {
-    attackerTypes[i] = robotTypeAttacker;
+    const auto& node = config["robots"][i];
+    attackerTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
+    attackerTypes[i].p_max << config["env_xlim"][1].as<float>(), config["env_ylim"][1].as<float>();
+    attackerTypes[i].velocity_limit = node["speed_limit"].as<float>() / sqrtf(2.0);
+    attackerTypes[i].acceleration_limit = node["acceleration_limit"].as<float>() / sqrtf(2.0);
+    attackerTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
+    attackerTypes[i].init();
   }
   std::array<RobotType, NumDefenders> defenderTypes;
   for (size_t i = 0; i < NumDefenders; ++i) {
-    defenderTypes[i] = robotTypeDefender;
+    const auto& node = config["robots"][i+NumAttackers];
+    defenderTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
+    defenderTypes[i].p_max << config["env_xlim"][1].as<float>(), config["env_ylim"][1].as<float>();
+    defenderTypes[i].velocity_limit = node["speed_limit"].as<float>() / sqrtf(2.0);
+    defenderTypes[i].acceleration_limit = node["acceleration_limit"].as<float>() / sqrtf(2.0);
+    defenderTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
+    defenderTypes[i].init();
   }
 
   float dt = config["sim_dt"].as<float>();
   Eigen::Vector2f goal;
   goal << config["goal"][0].as<float>(),config["goal"][1].as<float>();
-  float goalRadius = config["tag_radius"].as<float>();
-  float tagRadius = config["tag_radius"].as<float>();
 
   size_t max_depth = config["rollout_horizon"].as<int>();
 
-  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, goalRadius, tagRadius, max_depth, generator);
+  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, max_depth, generator);
 
   libMultiRobotPlanning::MonteCarloTreeSearch<GameStateT, GameActionT, Reward, EnvironmentT> mcts(env, generator, num_nodes, 1.4);
 
