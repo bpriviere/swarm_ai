@@ -13,7 +13,6 @@ Install dependencies for VM Addons (reboot required)
 sudo apt-get install build-essential gcc make perl dkms
 ```
 
-Install guest additions (Oracle VM Virtual Box)
 
 ### Python3
 Requires python3.X (X>=6 should be ok)
@@ -76,4 +75,11 @@ Set `controller_name` to `controller/glas.py` in `param.py`.
 
 ```
 code$ python3 run.py
+```
+
+## Visualizing result
+
+```
+python3 plotter.py ../current_results/sim_result_0.pickle --outputPDF test.pdf
+python3 plotter.py ../current_results/sim_result_0.pickle --outputMP4 test.mp4
 ```

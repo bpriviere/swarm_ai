@@ -5,8 +5,10 @@ import numpy as np
 import time as time_pkg
 import os 
 import glob
+import time 
 import shutil
 import itertools
+import multiprocessing as mp 
 
 # my packages 
 from param import Param
@@ -17,13 +19,12 @@ import plotter
 
 def format_dir(param):
 
-	# make current results dir 
-	if not os.path.exists(param.current_results_dir + '/*'):
-		os.makedirs(param.current_results_dir + '/*',exist_ok=True)
-
 	# clean current results dir 
 	for old_sim_result_dir in glob.glob(param.current_results_dir):
 		shutil.rmtree(old_sim_result_dir)
+
+	# make current results dir 
+	os.makedirs(param.current_results_dir,exist_ok=True)
 
 
 def sim(param):
@@ -36,7 +37,12 @@ def sim(param):
 
 	sim_result = run_sim(param,env,reset,estimator,attacker,controller)
 
-	return [sim_result]
+	time.sleep(1)
+
+	# write sim results
+	case = len(glob.glob(param.current_results_dir + '/*'))
+	results_fn = param.current_results_dir + '/sim_result_{}'.format(case)
+	datahandler.write_sim_result(sim_result,results_fn)
 
 
 def run_sim(param,env,reset,estimator,attacker,controller):
@@ -65,6 +71,9 @@ def run_sim(param,env,reset,estimator,attacker,controller):
 		actions.append(action)
 		observations.append(observation)
 		rewards.append(reward)
+
+		if env.is_terminal(): 
+			break 
 
 	states = states[0:-1]
 
@@ -107,13 +116,16 @@ if __name__ == '__main__':
 	format_dir(param)
 		
 	# run sim 
-	sim_results = sim(param)
-
-	# write sim results
-	print('writing sim results...')
-	for case_i,sim_result in enumerate(sim_results):
-		results_dir = param.current_results_dir + '/sim_result_{}'.format(case_i)
-		datahandler.write_sim_result(sim_result,results_dir)
+	parallel = False
+	if parallel: 
+		ncases = 10
+		nprocess = np.min((mp.cpu_count()-1,ncases))
+		pool = mp.Pool(nprocess)
+		for _ in pool.imap_unordered(sim, [param for _ in range(nprocess)]):
+		# for _ in pool.imap_unordered(run_sim, [param for _ in range(ncases)]):
+			pass 
+	else: 
+		sim(param)
 
 	# load sim results 
 	print('loading sim results...')
@@ -124,11 +136,7 @@ if __name__ == '__main__':
 	# plotting 
 	print('plotting sim results...')
 	for sim_result in sim_results:
-		for timestep,time in enumerate(sim_result["times"]):
-			plotter.plot_nodes(sim_result,timestep)
-		plotter.plot_state_estimate(sim_result) 
-		plotter.plot_control_effort(sim_result)
-		plotter.plot_speeds(sim_result)
+		plotter.plot_tree_results(sim_result)
 
 		if param.gif_on: 
 			plotter.make_gif(sim_result)

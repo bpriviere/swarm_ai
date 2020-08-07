@@ -307,9 +307,7 @@ class Controller(Controller):
 		u0 = np.zeros((curr_control_dim,1))
 		curr_state_dim = 0 
 		for node in nodes: 
-			# x0[state_idxs[node]] = estimates[node].state_mean[node.global_state_idxs] 
 			x0[state_idxs[node]] = estimates[node.global_state_idxs]
-			# x0[state_idxs[node]] = node.state
 
 		extract_pos = dict()
 		extract_vel = dict()
