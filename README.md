@@ -14,5 +14,6 @@ Notes:
 ## Visualizing result
 
 ```
-python3 plotter.py ../current_results/sim_result_0.pickle
+python3 plotter.py ../current_results/sim_result_0.pickle --outputPDF test.pdf
+python3 plotter.py ../current_results/sim_result_0.pickle --outputMP4 test.mp4
 ```

@@ -354,13 +354,20 @@ if __name__ == '__main__':
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("file", help="pickle file to visualize")
-	parser.add_argument("--output", default="plots.pdf", help="output pdf file")
+	parser.add_argument("--outputPDF", help="output pdf file")
+	parser.add_argument("--outputMP4", help="output video file")
+
 	# parser.add_argument("--animate", action='store_true', help="animate using meshlab")
 	args = parser.parse_args()
 
 	sim_result = datahandler.load_sim_result(args.file)
 
-	plot_tree_results(sim_result)
+	if args.outputPDF:
+		plot_tree_results(sim_result)
 
-	save_figs(args.output)
-	open_figs(args.output)
+		save_figs(args.outputPDF)
+		open_figs(args.outputPDF)
+
+	if args.outputMP4:
+		# Matt's magic
+		pass
