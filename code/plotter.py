@@ -394,6 +394,55 @@ def plot_tree_results(sim_result):
 
 	fig.tight_layout()
 
+def plot_animation(sim_result):
+	## Setup
+	# Extract data from pickle
+	times = sim_result["times"]
+	states = sim_result["states"]
+	actions = sim_result["actions"]
+	rewards = sim_result["rewards"]
+	team_1_idxs = sim_result["param"]["team_1_idxs"]
+	num_nodes = sim_result["param"]["num_nodes"]
+	goal = sim_result["param"]["goal"]
+	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+	env_xlim = sim_result["param"]["env_xlim"]	
+	env_ylim = sim_result["param"]["env_ylim"]	
+
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
+
+	colors = get_colors(sim_result["param"])
+
+	fig,axs = plt.subplots(nrows=2,ncols=2) 
+
+	# Output directory for the images
+	fn = os.path.join( os.getcwd(), pdf_path)
+
+	## Make plot
+	# Plot setup
+	fig, ax = plt.subplots()
+	fig.set_size_inches(12.80,7.20) # Output movie size will be this * 100
+	ax.axis('equal')
+
+	# Save png image
+	fig.savefig(png_path+"-"+"{:03.0f}".format(ii)+".png", dpi=100)
+	fig.close()
+
+	'''
+	# Open PDF
+	subprocess.call(["xdg-open", pdf_path])
+
+	# Combine images into a movie
+	# https://stackoverflow.com/questions/4256107/running-bash-commands-in-python
+	bashCommand = "cwm --rdf test.rdf --ntriples > test.nt"
+
+	process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+	output, error = process.communicate()
+	'''
+
+
+
 if __name__ == '__main__':
 	import argparse
 	import datahandler
@@ -415,5 +464,6 @@ if __name__ == '__main__':
 		open_figs(args.outputPDF)
 
 	if args.outputMP4:
-		# Matt's magic
+		plot_animation(sim_result)
+
 		pass

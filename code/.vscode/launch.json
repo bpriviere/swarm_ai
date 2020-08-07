@@ -4,11 +4,23 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python: Current File",
             "type": "python",
             "request": "launch",
             "program": "/home/matt/Documents/swarm_ai/code/run.py",  //"${file}"
+            "console": "integratedTerminal"
+        }
+
+        {
+            "name": "Plotter",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceRoot}/plotter.py",  //${file}, ${workspaceFolder}, 
+            "args": ["/home/matt/Documents/swarm_ai/current_results/sim_result_0.pickle",
+                "--outputPDF","test.pdf",
+                "--outputMP4","test.mp4"],
             "console": "integratedTerminal"
         }
     ]
