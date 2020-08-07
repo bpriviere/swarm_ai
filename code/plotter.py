@@ -4,6 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt 
 import matplotlib.patches as patches
 import os, subprocess
+import matplotlib.patches as mpatches
+
+from matplotlib import cm	
 from matplotlib.backends.backend_pdf import PdfPages 
 
 from utilities import dbgp
@@ -11,6 +14,12 @@ from utilities import dbgp
 # defaults
 plt.rcParams.update({'font.size': 10})
 plt.rcParams['lines.linewidth'] = 2.5
+
+def has_figs():
+	if len(plt.get_fignums()) > 0:
+		return True
+	else:
+		return False
 
 
 def save_figs(filename):
@@ -251,34 +260,41 @@ def make_gif(sim_result):
 
 def plot_sa_pairs(states,actions,param,instance):
 
-	from env import Swarm 
+	states = np.asarray(states) # nt x state_dim 
+	actions = np.asarray(actions) # nt x action dim 
 
-	env = Swarm(param)
+	fig,ax = plt.subplots()
 
-	colors = ['red','blue']
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
 
-	for timestep,(state,action) in enumerate(zip(states,actions)):
+	ax.add_patch(mpatches.Circle(param.goal, param.tag_radius, color=goal_color,alpha=0.5))
 
-		fig,ax = plt.subplots()
+	for node_idx in range(param.num_nodes):
 
-		# first update state 
-		state_dict = env.state_vec_to_dict(state)
-		for node in env.nodes: 
-			node.state = state_dict[node]
-			ax.scatter(node.state[0],node.state[1],100,color=colors[node.team_A],zorder=10)
+		pos_x_idx = 4*node_idx + 0 
+		pos_y_idx = 4*node_idx + 1 
+		action_idx = 2*node_idx + np.arange(2)
 
-		ax.axvline(param.goal_line_x,color='green',alpha=0.5,linestyle='--')
+		if node_idx in param.team_1_idxs:
+			color = team_1_color
+		elif node_idx in param.team_2_idxs:
+			color = team_2_color
 
-		ax.set_xlim(param.env_xlim)
-		ax.set_ylim(param.env_ylim)
-		ax.grid(True)
-		ax.set_aspect('equal')
-		ax.set_xlabel('pos [m]')
-		ax.set_ylabel('pos [m]')
-		ax.set_title('{} at time {}'.format(instance,timestep))
+		ax.plot(states[:,pos_x_idx],states[:,pos_y_idx],linewidth=3,color=color)
+		ax.scatter(states[:,pos_x_idx],states[:,pos_y_idx],color=color)
+
+	ax.set_xlim(param.env_xlim)
+	ax.set_ylim(param.env_ylim)
+	ax.grid(True)
+	ax.set_aspect('equal')
+	ax.set_xlabel('pos [m]')
+	ax.set_ylabel('pos [m]')
+	ax.set_title('instance {}'.format(instance))
 
 
-def plot_loss(losses):
+def plot_loss(losses,team):
 
 	losses = np.array(losses)
 
@@ -291,5 +307,113 @@ def plot_loss(losses):
 	ax.set_ylabel('mse')
 	ax.set_xlabel('epoch')
 	ax.set_yscale('log')
+	ax.set_title('Team {}'.format(team))
 	ax.grid(True)
 	fig.tight_layout()
+
+
+def get_colors(param):
+
+	colors = []
+
+	start, stop = 0.4, 0.7
+	cm_subsection = np.linspace(start, stop, param["num_nodes"]) 
+
+	colors_a = [ cm.Blues(x) for x in cm_subsection]
+	colors_b = [ cm.Oranges(x) for x in cm_subsection]
+
+	colors = []
+	for i in range(param["num_nodes"]):
+		if i < param["num_nodes_A"]:
+			colors.append(colors_a[i])
+		else:
+			colors.append(colors_b[i])
+
+	return colors
+
+
+def plot_tree_results(sim_result): 
+
+	times = sim_result["times"]
+	states = sim_result["states"]
+	actions = sim_result["actions"]
+	rewards = sim_result["rewards"]
+	team_1_idxs = sim_result["param"]["team_1_idxs"]
+	num_nodes = sim_result["param"]["num_nodes"]
+	goal = sim_result["param"]["goal"]
+	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+	env_xlim = sim_result["param"]["env_xlim"]	
+	env_ylim = sim_result["param"]["env_ylim"]	
+
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
+
+	colors = get_colors(sim_result["param"])
+
+	fig,axs = plt.subplots(nrows=2,ncols=2) 
+
+	# state space
+	ax = axs[0,0]
+	ax.grid(True)
+	ax.set_aspect('equal')
+	ax.set_title('State Space')
+	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
+	for i in range(num_nodes):
+		for t in range(states.shape[0]):
+			ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
+				color=colors[i],alpha=0.2,fill=False))
+		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
+		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i])
+	ax.set_xlim([env_xlim[0],env_xlim[1]])
+	ax.set_ylim([env_ylim[0],env_ylim[1]])
+
+	# value func
+	ax = axs[0,1] 
+	ax.grid(True)
+	ax.set_title('Value Function')
+	ax.plot(times,rewards[:,0],color=team_1_color,label='attackers')
+	ax.plot(times,rewards[:,1],color=team_2_color,label='defenders')
+	ax.legend()
+
+	# time varying velocity
+	ax = axs[1,0]
+	ax.grid(True)
+	ax.set_title('Speed Profile')
+	for i in range(num_nodes):
+		ax.axhline(sim_result["param"]["robots"][i]["speed_limit"],color=colors[i],linestyle='--')
+		ax.plot(times,np.linalg.norm(states[:,i,2:],axis=1),color=colors[i])
+
+	# time varying acc
+	ax = axs[1,1]
+	ax.grid(True)
+	ax.set_title('Acceleration Profile')
+	for i in range(num_nodes):
+		ax.axhline(sim_result["param"]["robots"][i]["acceleration_limit"],color=colors[i],linestyle='--')
+		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=colors[i])
+
+	fig.tight_layout()
+
+if __name__ == '__main__':
+	import argparse
+	import datahandler
+
+	parser = argparse.ArgumentParser()
+	parser.add_argument("file", help="pickle file to visualize")
+	parser.add_argument("--outputPDF", help="output pdf file")
+	parser.add_argument("--outputMP4", help="output video file")
+
+	# parser.add_argument("--animate", action='store_true', help="animate using meshlab")
+	args = parser.parse_args()
+
+	sim_result = datahandler.load_sim_result(args.file)
+
+	if args.outputPDF:
+		plot_tree_results(sim_result)
+
+		save_figs(args.outputPDF)
+		open_figs(args.outputPDF)
+
+	if args.outputMP4:
+		# Matt's magic
+		pass
