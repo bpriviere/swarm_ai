@@ -18,8 +18,8 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceRoot}/plotter.py",  //${file}, ${workspaceFolder}, 
-            "args": ["/home/matt/Documents/swarm_ai/current_results/sim_result_0.pickle",
-                "--outputPDF","test.pdf",
+            "args": ["/home/matt/Documents/swarm_ai/current_results/sim_result_1.pickle",
+                //"--outputPDF","test.pdf",
                 "--outputMP4","test.mp4"],
             "console": "integratedTerminal"
         }

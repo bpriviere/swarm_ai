@@ -394,19 +394,21 @@ def plot_tree_results(sim_result):
 
 	fig.tight_layout()
 
-def plot_animation(sim_result):
+def plot_animation(sim_result,args):
 	## Setup
 	# Extract data from pickle
 	times = sim_result["times"]
 	states = sim_result["states"]
 	actions = sim_result["actions"]
 	rewards = sim_result["rewards"]
-	team_1_idxs = sim_result["param"]["team_1_idxs"]
-	num_nodes = sim_result["param"]["num_nodes"]
-	goal = sim_result["param"]["goal"]
-	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
-	env_xlim = sim_result["param"]["env_xlim"]	
-	env_ylim = sim_result["param"]["env_ylim"]	
+
+	num_nodes = sim_result["param"]["num_nodes"]		# Number of agents
+	team_1_idxs = sim_result["param"]["team_1_idxs"]	# Identites of attackers
+	tag_radius = sim_result["param"]["robots"][0]["tag_radius"] # Tag area of defenders
+
+	goal = sim_result["param"]["goal"] 			# Goal area
+	env_xlim = sim_result["param"]["env_xlim"]	# Environment Size (X)
+	env_ylim = sim_result["param"]["env_ylim"]	# Environment Size (Y)
 
 	team_1_color = 'blue'
 	team_2_color = 'orange'
@@ -414,34 +416,83 @@ def plot_animation(sim_result):
 
 	colors = get_colors(sim_result["param"])
 
-	fig,axs = plt.subplots(nrows=2,ncols=2) 
+	# Inputs
+	marker_size_compensation = 0.003						# Compensation of marker size to make tag radius look correct
+	trail_intensity = []
+
+	textBox0 = dict(boxstyle='round', facecolor='darkgray', alpha=0.5)
+
+	# Work out file names and directories
+	input_dir,  input_file  = os.path.split(args.file)
+	input_file, input_ext   = os.path.splitext(os.path.basename(args.file))
+
+	output_dir,  output_file = os.path.split(args.outputMP4)
+	output_file, output_ext  = os.path.splitext(os.path.basename(args.outputMP4))
+
+	if output_dir:
+		png_directory = output_dir+"/"+input_file+"_png/"
+	else:
+		png_directory = input_file+"_png/"
+
+	if not os.path.isdir(png_directory):
+		os.makedirs(png_directory)
 
 	# Output directory for the images
-	fn = os.path.join( os.getcwd(), pdf_path)
+	print("Generating images...")
 
-	## Make plot
-	# Plot setup
-	fig, ax = plt.subplots()
-	fig.set_size_inches(12.80,7.20) # Output movie size will be this * 100
-	ax.axis('equal')
+	# Plot each frame
+	for ii in range(0, times.size):
+		## Plot setup
+		fig, ax = plt.subplots()
+		fig.set_size_inches(12.80,7.20) # Output movie size will be this * 100
 
-	# Save png image
-	fig.savefig(png_path+"-"+"{:03.0f}".format(ii)+".png", dpi=100)
-	fig.close()
+		# Grid
+		ax.grid(True)
+		ax.set_axisbelow(True)
+		ax.set_title("t = "+"{:03.2f}".format(times[ii])+" [ s ]")
 
-	'''
-	# Open PDF
-	subprocess.call(["xdg-open", pdf_path])
+		# Fix axes to game arena
+		ax.set_xlim([env_xlim[0],env_xlim[1]])
+		ax.set_ylim([env_ylim[0],env_ylim[1]])
+		ax.set_aspect('equal','box')
 
-	# Combine images into a movie
-	# https://stackoverflow.com/questions/4256107/running-bash-commands-in-python
-	bashCommand = "cwm --rdf test.rdf --ntriples > test.nt"
+		# Axis lables
+		ax.set_xlabel(args.file)
 
-	process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-	output, error = process.communicate()
-	'''
+		## Plot Elements
+		# Plot goal
+		ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 
+		# Plot players
+		for jj in range(num_nodes):
+			# Tag circle
+			ax.add_patch(mpatches.Circle(states[ii,jj,0:2], sim_result["param"]["robots"][jj]["tag_radius"]-marker_size_compensation, \
+				color=colors[jj],alpha=0.3,fill=False,linestyle='--'))   
+			# Path                        						
+			ax.plot(   states[0:ii+1,jj,0], states[0:ii+1,jj,1], linewidth=3, color=colors[jj], zorder=1)
+			# Previous Positions Marker    
+			ax.scatter(states[0:ii+1,jj,0], states[0:ii+1,jj,1], marker='o' , color=colors[jj], zorder=1)
+			# Current Position Marker
+			ax.scatter(states[ii,jj,0]    , states[ii,jj,1],100, marker='o' , color=colors[jj], zorder=10)
 
+		# Rewards of Each Team
+		ax.text(0.10, 0.95, "Reward\n"+"{:.2f}".format(rewards[ii,0]), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center', bbox=textBox0,zorder=50)
+		ax.text(0.90, 0.95, "Reward\n"+"{:.2f}".format(rewards[ii,1]), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center', bbox=textBox0,zorder=50)
+
+		# Save png image
+		fig.savefig(png_directory+"{:03.0f}".format(ii)+".png", dpi=100)
+		
+		# Save a couple of extra frames if this is the last image
+		if ii == times.size-1:
+			for jj in range(ii,ii+10):
+				fig.savefig(png_directory+"{:03.0f}".format(jj)+".png", dpi=100)
+
+		# Close figure
+
+	# Combine images to form the movie
+	print("Creating MP4")
+	cmd = "ffmpeg -y -r 15 -i "+png_directory+"%03d.png -c:v libx264 -vf \"fps=25,format=yuv420p\" "+output_dir+output_file+".mp4"
+	os.system(cmd)
 
 if __name__ == '__main__':
 	import argparse
@@ -464,6 +515,6 @@ if __name__ == '__main__':
 		open_figs(args.outputPDF)
 
 	if args.outputMP4:
-		plot_animation(sim_result)
+		plot_animation(sim_result,args)
 
 		pass

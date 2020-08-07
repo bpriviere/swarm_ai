@@ -17,7 +17,7 @@ sudo apt-get install build-essential gcc make perl dkms
 ### Python3
 Requires python3.X (X>=6 should be ok)
 ```
-sudo apt install python3-pip -y
+sudo apt install ffmpeg python3-pip -y
 pip3 install wheel
 pip3 install numpy gym pandas matplotlib cvxpy imageio
 ```
@@ -99,6 +99,8 @@ code$ python3 run.py
 ```
 
 ## Visualizing result
+
+mp4 output requires ffmpeg to be installed
 
 ```
 python3 plotter.py ../current_results/sim_result_0.pickle --outputPDF test.pdf
