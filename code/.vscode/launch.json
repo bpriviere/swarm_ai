@@ -11,16 +11,27 @@
             "request": "launch",
             "program": "/home/matt/Documents/swarm_ai/code/run.py",  //"${file}"
             "console": "integratedTerminal"
-        }
+        },
 
         {
-            "name": "Plotter",
+            "name": "Plotter - File",
             "type": "python",
             "request": "launch",
             "program": "${workspaceRoot}/plotter.py",  //${file}, ${workspaceFolder}, 
-            "args": ["/home/matt/Documents/swarm_ai/current_results/sim_result_1.pickle",
-                //"--outputPDF","test.pdf",
-                "--outputMP4","test.mp4"],
+            "args": ["../current_results/sim_result_1.pickle",
+                "--outputPDF","../plots/test.pdf",
+                "--outputMP4","../plots/test.mp4"],
+            "console": "integratedTerminal"
+        },
+
+        {
+            "name": "Plotter - Path",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceRoot}/plotter.py",  //${file}, ${workspaceFolder}, 
+            "args": ["${workspaceRoot}/../current_results/",
+                "--outputPDF","../plots/test.pdf",
+                "--outputMP4","../plots/test.mp4"],
             "console": "integratedTerminal"
         }
     ]

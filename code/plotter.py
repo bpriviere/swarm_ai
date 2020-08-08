@@ -10,6 +10,7 @@ from matplotlib import cm
 from matplotlib.backends.backend_pdf import PdfPages 
 
 from utilities import dbgp
+import glob
 
 # defaults
 plt.rcParams.update({'font.size': 10})
@@ -23,6 +24,17 @@ def has_figs():
 
 
 def save_figs(filename):
+	'''
+	Saves all open figures into a pdf
+	'''
+
+	# Make sure the directory exists, otherwise create it
+	file_dir,  file_name = os.path.split(filename)
+
+	if not (os.path.isdir(file_dir)):
+		os.makedirs(file_dir)
+
+	# Open the PDF and save each of the figures 
 	fn = os.path.join( os.getcwd(), filename)
 	pp = PdfPages(fn)
 	for i in plt.get_fignums():
@@ -394,6 +406,7 @@ def plot_tree_results(sim_result):
 
 	fig.tight_layout()
 
+
 def plot_animation(sim_result,args):
 	## Setup
 	# Extract data from pickle
@@ -430,9 +443,9 @@ def plot_animation(sim_result,args):
 	output_file, output_ext  = os.path.splitext(os.path.basename(args.outputMP4))
 
 	if output_dir:
-		png_directory = output_dir+"/"+input_file+"_png/"
+		png_directory = output_dir+"/"+output_file+"_png/"
 	else:
-		png_directory = input_file+"_png/"
+		png_directory = output_file+"_png/"
 
 	if not os.path.isdir(png_directory):
 		os.makedirs(png_directory)
@@ -488,11 +501,33 @@ def plot_animation(sim_result,args):
 				fig.savefig(png_directory+"{:03.0f}".format(jj)+".png", dpi=100)
 
 		# Close figure
+		plt.close()
 
 	# Combine images to form the movie
 	print("Creating MP4")
-	cmd = "ffmpeg -y -r 15 -i "+png_directory+"%03d.png -c:v libx264 -vf \"fps=25,format=yuv420p\" "+output_dir+output_file+".mp4"
+	cmd = "ffmpeg -y -r 15 -i "+png_directory+"%03d.png -c:v libx264 -vf \"fps=25,format=yuv420p\" "+output_dir+"/"+output_file+".mp4"
 	os.system(cmd)
+
+
+def sanitise_filenames(filename):
+	# Puts paths and things in where required to stop things writing to /
+
+	# If the filename string is empty, then we didn't request this file
+	if not (filename):
+		return filename
+
+	# Split the file name up
+	file_dir,  file_name = os.path.split(filename)
+
+	# Fill in extra elements
+	if not (file_dir):
+		file_dir = os.getcwd()
+
+	# Make new filename
+	filename = os.path.join(file_dir, file_name)
+
+	return filename
+
 
 if __name__ == '__main__':
 	import argparse
@@ -506,15 +541,66 @@ if __name__ == '__main__':
 	# parser.add_argument("--animate", action='store_true', help="animate using meshlab")
 	args = parser.parse_args()
 
-	sim_result = datahandler.load_sim_result(args.file)
+	args.filename = "./current_results/"
 
-	if args.outputPDF:
-		plot_tree_results(sim_result)
+	# Detect if input file is a directory or a pickle file
+	input_file, input_ext = os.path.splitext(os.path.basename(args.file))
+	if ("pickle" in input_ext):
+		print("Generating for a file")
 
-		save_figs(args.outputPDF)
-		open_figs(args.outputPDF)
+		# Assign argument as per normal
+		files = [args.file]
+		PDFs = [args.outputPDF]
+		MP4s = [args.outputMP4]
 
-	if args.outputMP4:
-		plot_animation(sim_result,args)
+	else:
+		# Search directory for matching files
+		print("Generating for a directory")
+		files = glob.glob(args.file+'**/*.pickle', recursive = True)
 
-		pass
+		PDFs = []
+		MP4s = []
+
+		# Generate save names
+		for ii in range(0,len(files)):
+			# PDF files
+			output_dir,  output_file = os.path.split(args.outputPDF)
+			output_file, output_ext  = os.path.splitext(os.path.basename(args.outputPDF))
+
+			PDFs.append(os.path.join(output_dir, "{:03.0f}".format(ii+1)+'-'+output_file+'.pdf'))
+
+			# MP4 files
+			output_dir,  output_file = os.path.split(args.outputMP4)
+			output_file, output_ext  = os.path.splitext(os.path.basename(args.outputMP4))
+
+			MP4s.append(os.path.join(output_dir, "{:03.0f}".format(ii+1)+'-'+output_file+'.mp4'))
+
+	# Loop through each of the files in files
+	for ii in range(0,len(files)):
+		print("{:3.0f}".format(ii+1),"/"+"{:3.0f}".format(len(files))+" - Generating plots for "+files[ii])
+		
+		args.file      = sanitise_filenames(files[ii])
+		args.outputPDF = sanitise_filenames(PDFs[ii])
+		args.outputMP4 = sanitise_filenames(MP4s[ii])
+
+		# Load results
+		sim_result = datahandler.load_sim_result(args.file)
+
+		if args.outputPDF:
+			plot_tree_results(sim_result)
+
+			save_figs(args.outputPDF)
+			# Only open PDF if we're looking at one file
+			if len(files) == 1:
+				open_figs(args.outputPDF)
+
+		if args.outputMP4:
+			plot_animation(sim_result,args)
+	
+	# Join the movies together if running in batch mode
+	# This piece of code will work but needs to be run from the correct directory...
+	# Also it doesn't join them up intelligently so perhaps the list.text file should be made in python
+	#for f in *.mp4 ; do echo file \'$f\' >> list.txt; done && ffmpeg -f concat -safe 0 -i list.txt -c copy swarm-AI.mp4 && rm list.txt
+
+	
+	print("\n\nDone!\n")

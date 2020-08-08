@@ -99,10 +99,19 @@ code$ python3 run.py
 ```
 
 ## Visualizing result
+mp4 output requires ffmpeg to be installed.  This can be installed via apt (sudo apt install ffmpeg).  The script 'test_plotter.sh' will run these commands to make life easier
 
-mp4 output requires ffmpeg to be installed
+### Single Files
+Single files can be converted by specifying the .pickle file to be used
 
 ```
-python3 plotter.py ../current_results/sim_result_0.pickle --outputPDF test.pdf
-python3 plotter.py ../current_results/sim_result_0.pickle --outputMP4 test.mp4
+code$ python3 plotter.py ../current_results/sim_result_0.pickle --outputPDF ../plots/test.pdf
+code$ python3 plotter.py ../current_results/sim_result_0.pickle --outputMP4 ../plots/test.mp4
+```
+
+### Batch Processing
+Batch processing can be invoked by specifying the folder (remember the trailing slash) to search for .pickle files.  This will search recursively so is good for checking each of the
+
+```
+code$ python3 plotter.py ../current_results/ --outputPDF ../plots/test.pdf --outputMP4 ../plots/test.mp4
 ```
