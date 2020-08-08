@@ -19,7 +19,7 @@ Requires python3.X (X>=6 should be ok)
 ```
 sudo apt install ffmpeg python3-pip -y
 pip3 install wheel
-pip3 install numpy gym pandas matplotlib cvxpy imageio
+pip3 install numpy gym pandas matplotlib cvxpy
 ```
 For CUDA support (nvidea VGA required)
 ```

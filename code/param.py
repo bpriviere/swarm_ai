@@ -83,7 +83,7 @@ class Param:
 		# measurement parameters
 		self.measurement_noise_covariance = 1e-10
 
-		# policy 
+		# MPC policy 
 		self.rhc_horizon = 5
 		self.lambda_u = 0.01
 		self.danger_radius = 0.1

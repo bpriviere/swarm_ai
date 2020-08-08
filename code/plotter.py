@@ -52,10 +52,14 @@ def open_figs(filename):
 def make_fig():
 	return plt.subplots()
 
-# Function to detect when collisions occur in a trajectory
-# We really only need to do this once but that's a bit beyond me at the moment
+
 def calc_idx_collisions(pos_x,pos_y):
+	'''
+	# Function to detect when collisions occur in a trajectory
+	# We really only need to do this once but that's a bit beyond me at the moment
 	# Calculates the indicies of captures by detecting large jumps in the array
+	'''
+
 	#print("\tChecking for collisions\n")
 	idx = np.empty(0,int)
 
