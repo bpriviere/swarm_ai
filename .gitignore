@@ -4,6 +4,7 @@
 
 # results files
 /current_results/
+/plots/
 gif/
 models/
 data/

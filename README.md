@@ -17,7 +17,7 @@ sudo apt-get install build-essential gcc make perl dkms
 ### Python3
 Requires python3.X (X>=6 should be ok)
 ```
-sudo apt install python3-pip -y
+sudo apt install ffmpeg python3-pip -y
 pip3 install wheel
 pip3 install numpy gym pandas matplotlib cvxpy
 ```
@@ -31,7 +31,7 @@ pip3 install torch==1.5.0+cpu torchvision==0.6.0+cpu -f https://download.pytorch
 ```
 
 ### Gurobi
-Download from (you will need to make an account, but academic licence is free)
+Download from
 ```
 https://www.gurobi.com/downloads/gurobi-software/
 ```
@@ -39,16 +39,37 @@ Follow the instructions at (remember to fix the folder names)
 ```
 https://www.gurobi.com/documentation/8.1/quickstart_linux/software_installation_guid.html
 ```
-Get an academic licence key (grbgetkey 2d737662-c219-11ea-bd95-0a7c4f30bdbe)
+Get an academic licence key.  You will need to make an account, but the academic licence is free.
 ```
 https://www.gurobi.com/downloads/end-user-license-agreement-academic/
 ```
-and activate the key using the tool (found in the installation directory /opt/gurobiXXX/linux64/bin/
+and activate the key using the tool (found in the installation directory /opt/gurobi902/linux64/bin/
 ```
 ./grbgetkey
 ```
+Check that the install went correctly with 
+```
+gurobi_cl
+```
+
+When all else fails:
+* Remember that installing gurobi sucks 
+* Try running `sudo python3 /opt/gurobi902/linux64/setup.py`
+* Put the environment variables into both `.bashrc` and `.profile`
+
+
+### VS Code (IDE)
+For those who want to use VS Code and forget how to install it
+```
+sudo snap install --classic code 
+```
+Upon opening a python file in VS Code, should be prompted to install a python add-on.
+Install the python add-on and then make sure `Python 3.X.X 64-bit (/usr/bin/python3)` is selected
+Also should install pylint (used for debugging) as well.
 
 ## Running the software
+### Before First Run
+Need to generate the data for using glas, or get a `/models/` directory and files from somewhere.
 
 ### Regular MPC controller
 
@@ -78,8 +99,19 @@ code$ python3 run.py
 ```
 
 ## Visualizing result
+mp4 output requires ffmpeg to be installed.  This can be installed via apt (sudo apt install ffmpeg).  The script 'test_plotter.sh' will run these commands to make life easier
+
+### Single Files
+Single files can be converted by specifying the .pickle file to be used
 
 ```
-python3 plotter.py ../current_results/sim_result_0.pickle --outputPDF test.pdf
-python3 plotter.py ../current_results/sim_result_0.pickle --outputMP4 test.mp4
+code$ python3 plotter.py ../current_results/sim_result_0.pickle --outputPDF ../plots/test.pdf
+code$ python3 plotter.py ../current_results/sim_result_0.pickle --outputMP4 ../plots/test.mp4
+```
+
+### Batch Processing
+Batch processing can be invoked by specifying the folder (remember the trailing slash) to search for .pickle files.  This will search recursively so is good for checking each of the
+
+```
+code$ python3 plotter.py ../current_results/ --outputPDF ../plots/test.pdf --outputMP4 ../plots/test.mp4
 ```

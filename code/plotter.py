@@ -10,6 +10,7 @@ from matplotlib import cm
 from matplotlib.backends.backend_pdf import PdfPages 
 
 from utilities import dbgp
+import glob
 
 # defaults
 plt.rcParams.update({'font.size': 10})
@@ -23,6 +24,17 @@ def has_figs():
 
 
 def save_figs(filename):
+	'''
+	Saves all open figures into a pdf
+	'''
+
+	# Make sure the directory exists, otherwise create it
+	file_dir,  file_name = os.path.split(filename)
+
+	if not (os.path.isdir(file_dir)):
+		os.makedirs(file_dir)
+
+	# Open the PDF and save each of the figures 
 	fn = os.path.join( os.getcwd(), filename)
 	pp = PdfPages(fn)
 	for i in plt.get_fignums():
@@ -41,6 +53,25 @@ def make_fig():
 	return plt.subplots()
 
 
+def calc_idx_collisions(pos_x,pos_y):
+	'''
+	# Function to detect when collisions occur in a trajectory
+	# We really only need to do this once but that's a bit beyond me at the moment
+	# Calculates the indicies of captures by detecting large jumps in the array
+	'''
+
+	#print("\tChecking for collisions\n")
+	idx = np.empty(0,int)
+
+	for ii in range(0,pos_x.size-2):
+		dist_between_steps = (pos_x[ii+1]-pos_x[ii])**2 + (pos_y[ii+1]-pos_y[ii])**2
+		if (dist_between_steps > 0.1**2):
+			#print("\t\tCollision at idx: "+str(ii))
+			idx = np.append(idx,ii)
+
+	return idx
+
+# Function to plot the current timestep
 def plot_nodes(sim_result, timestep, fig=None, ax=None):
 
 	times = sim_result["times"]
@@ -50,21 +81,41 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 	reset_xlim_B = sim_result["param"]["reset_xlim_B"]
 	reset_ylim_B = sim_result["param"]["reset_ylim_B"]
 	goal_line_x = sim_result["param"]["goal_line_x"]
+
+	score_attackers = 1 - times[timestep]/20
+	score_defenders = 1 - score_attackers
+
 	colors = get_node_colors(sim_result, timestep)
 
 	if fig is None or ax is None:
 		fig,ax = plt.subplots()
 	
-	# plot nodes
+	# Loop through each agent for plotting
 	for node_idx in range(node_states.shape[1]):
-		node_state = node_states[timestep,node_idx,:,:]		
-		ax.scatter(node_state[0],node_state[1],100,color=colors[node_idx],zorder=10)
 
-	# plot trajectories 
-	for node_idx in range(node_states.shape[1]):
-		node_trajectory_x = node_states[:,node_idx,0,:]	
-		node_trajectory_y = node_states[:,node_idx,1,:]	
-		ax.plot(node_trajectory_x,node_trajectory_y,color='black',linestyle='--',alpha=0.25)	
+		# Extract trajectories
+		node_trajectory_x = sim_result["states"][:,node_idx,0,:]
+		node_trajectory_y = sim_result["states"][:,node_idx,1,:]
+
+		# Calculate and remove paths when collisions reset
+		idx = calc_idx_collisions(node_trajectory_x,node_trajectory_y)
+
+		# Extract node data
+		node_state = node_states[timestep,node_idx,:,:]	
+
+		# Plot node ("o" if normal, "x" if captured)
+		if np.any(timestep == idx-1):
+			ax.scatter(node_state[0],node_state[1],200,color=colors[node_idx],zorder=10,marker="x")
+		else : 
+			ax.scatter(node_state[0],node_state[1],100,color=colors[node_idx],zorder=10,marker="o")
+
+		# Plot trajectories
+		idx_start = np.hstack((0, idx+1))
+		idx_stop  = np.hstack((idx,node_trajectory_x.size))
+		for ii in range(0, idx_start.size):
+			plot_x = node_trajectory_x[idx_start[ii]:idx_stop[ii]]
+			plot_y = node_trajectory_y[idx_start[ii]:idx_stop[ii]]
+			ax.plot( plot_x,plot_y,color='black',linestyle='--',alpha=0.25)
 
 	# plot initialization 
 	reset_a = patches.Rectangle((reset_xlim_A[0],reset_ylim_A[0]),\
@@ -87,6 +138,17 @@ def plot_nodes(sim_result, timestep, fig=None, ax=None):
 	ax.set_xlabel('pos [m]')
 	ax.set_ylabel('pos [m]')
 	ax.set_title('State Space At Time {:.2f}'.format(times[timestep]))
+
+	# Add Zone Labels
+	textBox = dict(boxstyle='round',  facecolor='none', edgecolor='none', alpha=0.5) # Create the box
+	ax.text(np.mean(reset_xlim_A), 0.02, 'Attackers', transform=ax.transAxes, fontsize=6, color=colors[0], verticalalignment='bottom', horizontalalignment='center', bbox=textBox,zorder=3)
+	ax.text(np.mean(reset_xlim_B), 0.02, 'Defenders', transform=ax.transAxes, fontsize=6, color=colors[-1], verticalalignment='bottom', horizontalalignment='center', bbox=textBox,zorder=3)
+	ax.text(goal_line_x,0.02, 'Goal Line', transform=ax.transAxes, fontsize=10, color='green', verticalalignment='bottom', horizontalalignment='right',  bbox=textBox,zorder=3, rotation=90)
+
+	# Add Scores
+	textBox = dict(boxstyle='round', facecolor='darkgray', alpha=0.5)
+	ax.text(np.mean(reset_xlim_A), 0.95, "{:.2f}".format(score_attackers), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center',  bbox=textBox,zorder=11)
+	ax.text(np.mean(reset_xlim_B), 0.95, "{:.2f}".format(score_defenders), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center', bbox=textBox,zorder=11)
 
 	return fig,ax
 
@@ -348,6 +410,130 @@ def plot_tree_results(sim_result):
 
 	fig.tight_layout()
 
+
+def plot_animation(sim_result,args):
+	## Setup
+	# Extract data from pickle
+	times = sim_result["times"]
+	states = sim_result["states"]
+	actions = sim_result["actions"]
+	rewards = sim_result["rewards"]
+
+	num_nodes = sim_result["param"]["num_nodes"]		# Number of agents
+	team_1_idxs = sim_result["param"]["team_1_idxs"]	# Identites of attackers
+	tag_radius = sim_result["param"]["robots"][0]["tag_radius"] # Tag area of defenders
+
+	goal = sim_result["param"]["goal"] 			# Goal area
+	env_xlim = sim_result["param"]["env_xlim"]	# Environment Size (X)
+	env_ylim = sim_result["param"]["env_ylim"]	# Environment Size (Y)
+
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
+
+	colors = get_colors(sim_result["param"])
+
+	# Inputs
+	marker_size_compensation = 0.003						# Compensation of marker size to make tag radius look correct
+	trail_intensity = []
+
+	textBox0 = dict(boxstyle='round', facecolor='darkgray', alpha=0.5)
+
+	# Work out file names and directories
+	input_dir,  input_file  = os.path.split(args.file)
+	input_file, input_ext   = os.path.splitext(os.path.basename(args.file))
+
+	output_dir,  output_file = os.path.split(args.outputMP4)
+	output_file, output_ext  = os.path.splitext(os.path.basename(args.outputMP4))
+
+	if output_dir:
+		png_directory = output_dir+"/"+output_file+"_png/"
+	else:
+		png_directory = output_file+"_png/"
+
+	if not os.path.isdir(png_directory):
+		os.makedirs(png_directory)
+
+	# Output directory for the images
+	print("Generating images...")
+
+	# Plot each frame
+	for ii in range(0, times.size):
+		## Plot setup
+		fig, ax = plt.subplots()
+		fig.set_size_inches(12.80,7.20) # Output movie size will be this * 100
+
+		# Grid
+		ax.grid(True)
+		ax.set_axisbelow(True)
+		ax.set_title("t = "+"{:03.2f}".format(times[ii])+" [ s ]")
+
+		# Fix axes to game arena
+		ax.set_xlim([env_xlim[0],env_xlim[1]])
+		ax.set_ylim([env_ylim[0],env_ylim[1]])
+		ax.set_aspect('equal','box')
+
+		# Axis lables
+		ax.set_xlabel(args.file)
+
+		## Plot Elements
+		# Plot goal
+		ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
+
+		# Plot players
+		for jj in range(num_nodes):
+			# Tag circle (defenders only)
+			if not (np.any(team_1_idxs) == jj):
+				ax.add_patch(mpatches.Circle(states[ii,jj,0:2], sim_result["param"]["robots"][jj]["tag_radius"]-marker_size_compensation, \
+					color=colors[jj],alpha=0.3,fill=False,linestyle='--'))   
+			# Path                        						
+			ax.plot(   states[0:ii+1,jj,0], states[0:ii+1,jj,1], linewidth=3, color=colors[jj], zorder=1)
+			# Previous Positions Marker    
+			ax.scatter(states[0:ii+1,jj,0], states[0:ii+1,jj,1], marker='o' , color=colors[jj], zorder=1)
+			# Current Position Marker
+			ax.scatter(states[ii,jj,0]    , states[ii,jj,1],100, marker='o' , color=colors[jj], zorder=10)
+
+		# Rewards of Each Team
+		ax.text(0.10, 0.95, "Reward\n"+"{:.2f}".format(rewards[ii,0]), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center', bbox=textBox0,zorder=50)
+		ax.text(0.90, 0.95, "Reward\n"+"{:.2f}".format(rewards[ii,1]), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center', bbox=textBox0,zorder=50)
+
+		# Save png image
+		fig.savefig(png_directory+"{:03.0f}".format(ii)+".png", dpi=100)
+		
+		# Save a couple of extra frames if this is the last image
+		if ii == times.size-1:
+			for jj in range(ii,ii+10):
+				fig.savefig(png_directory+"{:03.0f}".format(jj)+".png", dpi=100)
+
+		# Close figure
+		plt.close()
+
+	# Combine images to form the movie
+	print("Creating MP4")
+	cmd = "ffmpeg -y -r 15 -i "+png_directory+"%03d.png -c:v libx264 -vf \"fps=25,format=yuv420p\" "+output_dir+"/"+output_file+".mp4"
+	os.system(cmd)
+
+
+def sanitise_filenames(filename):
+	# Puts paths and things in where required to stop things writing to /
+
+	# If the filename string is empty, then we didn't request this file
+	if not (filename):
+		return filename
+
+	# Split the file name up
+	file_dir,  file_name = os.path.split(filename)
+
+	# Fill in extra elements
+	if not (file_dir):
+		file_dir = os.getcwd()
+
+	# Make new filename
+	filename = os.path.join(file_dir, file_name)
+
+	return filename
+
+
 if __name__ == '__main__':
 	import argparse
 	import datahandler
@@ -360,14 +546,64 @@ if __name__ == '__main__':
 	# parser.add_argument("--animate", action='store_true', help="animate using meshlab")
 	args = parser.parse_args()
 
-	sim_result = datahandler.load_sim_result(args.file)
+	# Detect if input file is a directory or a pickle file
+	input_file, input_ext = os.path.splitext(os.path.basename(args.file))
+	if ("pickle" in input_ext):
+		print("Generating for a file")
 
-	if args.outputPDF:
-		plot_tree_results(sim_result)
+		# Assign argument as per normal
+		files = [args.file]
+		PDFs = [args.outputPDF]
+		MP4s = [args.outputMP4]
 
-		save_figs(args.outputPDF)
-		open_figs(args.outputPDF)
+	else:
+		# Search directory for matching files
+		print("Generating for a directory")
+		files = glob.glob(args.file+'**/*.pickle', recursive = True)
 
-	if args.outputMP4:
-		# Matt's magic
-		pass
+		PDFs = []
+		MP4s = []
+
+		# Generate save names
+		for ii in range(0,len(files)):
+			# PDF files
+			output_dir,  output_file = os.path.split(args.outputPDF)
+			output_file, output_ext  = os.path.splitext(os.path.basename(args.outputPDF))
+
+			PDFs.append(os.path.join(output_dir, "{:03.0f}".format(ii+1)+'-'+output_file+'.pdf'))
+
+			# MP4 files
+			output_dir,  output_file = os.path.split(args.outputMP4)
+			output_file, output_ext  = os.path.splitext(os.path.basename(args.outputMP4))
+
+			MP4s.append(os.path.join(output_dir, "{:03.0f}".format(ii+1)+'-'+output_file+'.mp4'))
+
+	# Loop through each of the files in files
+	for ii in range(0,len(files)):
+		print("{:3.0f}".format(ii+1),"/"+"{:3.0f}".format(len(files))+" - Generating plots for "+files[ii])
+		
+		args.file      = sanitise_filenames(files[ii])
+		args.outputPDF = sanitise_filenames(PDFs[ii])
+		args.outputMP4 = sanitise_filenames(MP4s[ii])
+
+		# Load results
+		sim_result = datahandler.load_sim_result(args.file)
+
+		if args.outputPDF:
+			plot_tree_results(sim_result)
+
+			save_figs(args.outputPDF)
+			# Only open PDF if we're looking at one file
+			if len(files) == 1:
+				open_figs(args.outputPDF)
+
+		if args.outputMP4:
+			plot_animation(sim_result,args)
+	
+	# Join the movies together if running in batch mode
+	# This piece of code will work but needs to be run from the correct directory...
+	# Also it doesn't join them up intelligently so perhaps the list.text file should be made in python
+	#for f in *.mp4 ; do echo file \'$f\' >> list.txt; done && ffmpeg -f concat -safe 0 -i list.txt -c copy swarm-AI.mp4 && rm list.txt
+
+	
+	print("\n\nDone!\n")
