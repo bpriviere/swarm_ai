@@ -482,9 +482,10 @@ def plot_animation(sim_result,args):
 
 		# Plot players
 		for jj in range(num_nodes):
-			# Tag circle
-			ax.add_patch(mpatches.Circle(states[ii,jj,0:2], sim_result["param"]["robots"][jj]["tag_radius"]-marker_size_compensation, \
-				color=colors[jj],alpha=0.3,fill=False,linestyle='--'))   
+			# Tag circle (defenders only)
+			if not (np.any(team_1_idxs) == jj):
+				ax.add_patch(mpatches.Circle(states[ii,jj,0:2], sim_result["param"]["robots"][jj]["tag_radius"]-marker_size_compensation, \
+					color=colors[jj],alpha=0.3,fill=False,linestyle='--'))   
 			# Path                        						
 			ax.plot(   states[0:ii+1,jj,0], states[0:ii+1,jj,1], linewidth=3, color=colors[jj], zorder=1)
 			# Previous Positions Marker    
