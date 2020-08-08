@@ -14,7 +14,6 @@ class Param:
 		self.controller_name 	= 'controller/glas.py'			 	# empty, glas, joint_mpc, mcts, ...
 
 		# flags
-		self.run_sim    = True
 		self.gif_on 	= False
 		self.quiet_on 	= False
 

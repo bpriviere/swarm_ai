@@ -545,8 +545,6 @@ if __name__ == '__main__':
 	# parser.add_argument("--animate", action='store_true', help="animate using meshlab")
 	args = parser.parse_args()
 
-	args.filename = "./current_results/"
-
 	# Detect if input file is a directory or a pickle file
 	input_file, input_ext = os.path.splitext(os.path.basename(args.file))
 	if ("pickle" in input_ext):

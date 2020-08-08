@@ -110,15 +110,11 @@ def save_lst_of_node_dicts_as_np(some_lst_of_node_dicts):
 
 if __name__ == '__main__':
 
-    # Load parameters
+	# Load run parameters
 	param = Param() 
 
-    # Run the simulator
-	if param.run_sim:
-		print("Running simulator")
-
-		# prep run directory
-		format_dir(param)
+	# prep run directory
+	format_dir(param)
 		
 	# run sim 
 	parallel = False
