@@ -8,6 +8,14 @@
 #include <boost/program_options.hpp>
 #include <yaml-cpp/yaml.h>
 
+typedef std::pair<float, float> Reward;
+
+Reward& operator+=(Reward& r1, const Reward& r2) {
+  r1.first += r2.first;
+  r1.second += r2.second;
+  return r1;
+}
+
 #include "monte_carlo_tree_search.hpp"
 
 typedef Eigen::Vector2f RobotAction;
@@ -157,14 +165,6 @@ std::ostream& operator<<(std::ostream& out, const GameState<NumAttackers, NumDef
   return out;
 }
 
-typedef std::pair<float, float> Reward;
-
-Reward operator+=(Reward& r1, const Reward& r2) {
-  r1.first += r2.first;
-  r1.second += r2.second;
-  return r1;
-}
-
 template <std::size_t NumAttackers, std::size_t NumDefenders>
 class Environment {
  public:
@@ -273,56 +273,23 @@ class Environment {
     // We could filter here the "valid" actions, but this is also checked in the "step" function
     actions.clear();
 
-    int turn = 0;
-    if (state.turn == GameStateT::Turn::Defenders) {
-      turn = 1;
-    }
-
-    const auto& cache = m_possibleActionsMap[turn].find(state.activeMask);
-    if (cache == m_possibleActionsMap[turn].end()) {
-      // cache miss -> compute new action set
-
-      std::vector<std::vector<RobotAction>> allActions;
-
-      // generate actions for active robots only
-      if (state.turn == GameStateT::Turn::Attackers) {
-        for (size_t i = 0; i < NumAttackers; ++i) {
-          if (state.attackers[i].status == RobotState::Status::Active) {
-            allActions.push_back(m_attackerTypes[i].possibleActions);
-          } else {
-            allActions.push_back({m_attackerTypes[i].invalidAction});
-          }
-        }
-        for (size_t i = 0; i < NumDefenders; ++i) {
-          allActions.push_back({m_defenderTypes[i].invalidAction});
-        }
-      } else {
-        for (size_t i = 0; i < NumAttackers; ++i) {
-          allActions.push_back({m_attackerTypes[i].invalidAction});
-        }
-        for (size_t i = 0; i < NumDefenders; ++i) {
-          allActions.push_back(m_defenderTypes[i].possibleActions);
-        }
+    if (state.turn == GameStateT::Turn::Attackers) {
+      const auto& cache = m_possibleActionsAttackersMap.find(state.activeMask);
+      if (cache == m_possibleActionsAttackersMap.end()) {
+        // cache miss -> compute new action set
+        actions = computeActions(state);
+        // store result in cache
+        m_possibleActionsAttackersMap[state.activeMask] = actions;
       }
-
-      // compute cartesian product
-      const auto& cartActions = cart_product(allActions);
-
-      // convert to std::vector<GameActionT>
-      actions.resize(cartActions.size());
-      for (size_t i = 0; i < actions.size(); ++i) {
-        assert(cartActions[i].size() == NumAttackers + NumDefenders);
-        for (size_t j = 0; j < NumAttackers + NumDefenders; ++j) {
-          actions[i][j] = cartActions[i][j];
-        }
+      else {
+        // cache hit -> copy to output
+        actions = cache->second;
       }
-
-      // cache result
-      m_possibleActionsMap[turn][state.activeMask] = actions;
-    }
-    else {
-      // cache hit -> copy to output
-      actions = cache->second;
+    } else {
+      if (m_possibleActionsDefender.size() == 0) {
+        m_possibleActionsDefender = computeActions(state);
+      }
+      actions = m_possibleActionsDefender;
     }
   }
 
@@ -389,6 +356,51 @@ class Environment {
   }
 
 private:
+
+  std::vector<GameActionT> computeActions(const GameStateT& state)
+  {
+    std::vector<GameActionT> actions;
+    std::vector<std::vector<RobotAction>> allActions;
+
+    // generate actions for active robots only
+    if (state.turn == GameStateT::Turn::Attackers) {
+      for (size_t i = 0; i < NumAttackers; ++i) {
+        if (state.attackers[i].status == RobotState::Status::Active) {
+          allActions.push_back(m_attackerTypes[i].possibleActions);
+        } else {
+          allActions.push_back({m_attackerTypes[i].invalidAction});
+        }
+      }
+      for (size_t i = 0; i < NumDefenders; ++i) {
+        allActions.push_back({m_defenderTypes[i].invalidAction});
+      }
+    } else {
+      for (size_t i = 0; i < NumAttackers; ++i) {
+        allActions.push_back({m_attackerTypes[i].invalidAction});
+      }
+      for (size_t i = 0; i < NumDefenders; ++i) {
+        allActions.push_back(m_defenderTypes[i].possibleActions);
+      }
+    }
+
+    // compute cartesian product
+    const auto& cartActions = cart_product(allActions);
+
+    // convert to std::vector<GameActionT>
+    actions.resize(cartActions.size());
+    for (size_t i = 0; i < actions.size(); ++i) {
+      assert(cartActions[i].size() == NumAttackers + NumDefenders);
+      for (size_t j = 0; j < NumAttackers + NumDefenders; ++j) {
+        actions[i][j] = cartActions[i][j];
+      }
+    }
+
+    return actions;
+  }
+
+
+
+private:
   const std::array<RobotType, NumAttackers>& m_attackerTypes;
   const std::array<RobotType, NumDefenders>& m_defenderTypes;
   float m_dt;
@@ -397,7 +409,8 @@ private:
   std::default_random_engine& m_generator;
 
   // Maps activeRobots -> possible actions
-  std::unordered_map<std::bitset<NumAttackers>, std::vector<GameActionT>> m_possibleActionsMap[2];
+  std::unordered_map<std::bitset<NumAttackers>, std::vector<GameActionT>> m_possibleActionsAttackersMap;
+  std::vector<GameActionT> m_possibleActionsDefender;
 };
 
 template <std::size_t NumAttackers, std::size_t NumDefenders>
@@ -416,6 +429,7 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
     std::random_device r;
     seed = r();
   }
+  std::cout << "Using seed " << seed << std::endl;
   std::default_random_engine generator(seed);
 
   GameStateT state;
