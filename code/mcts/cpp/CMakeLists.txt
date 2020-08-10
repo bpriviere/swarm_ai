@@ -24,6 +24,14 @@ target_link_libraries(swarmgame
   yaml-cpp
 )
 
+add_executable(test_glas
+  test_glas.cpp
+)
+target_link_libraries(test_glas
+  ${Boost_LIBRARIES}
+  yaml-cpp
+)
+
 add_executable(test_tictactoe
   test_tictactoe.cpp
 )
