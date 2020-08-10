@@ -1,6 +1,7 @@
 
 
 import numpy as np 
+import math
 import matplotlib.pyplot as plt 
 import matplotlib.patches as patches
 import os, subprocess
@@ -8,6 +9,12 @@ import matplotlib.patches as mpatches
 
 from matplotlib import cm	
 from matplotlib.backends.backend_pdf import PdfPages 
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+
+import matplotlib.transforms as mtransforms
+import cv2
+import imutils
+
 
 from utilities import dbgp
 import glob
@@ -411,7 +418,82 @@ def plot_tree_results(sim_result):
 	fig.tight_layout()
 
 
+def rotate_image(image, angle):
+	''' 
+	Function for rotating images for plotting
+	'''
+	# grab the dimensions of the image and then determine the
+	# center
+	(h, w) = image.shape[:2]
+	(cX, cY) = (w // 2, h // 2)
+
+	# grab the rotation matrix (applying the negative of the
+	# angle to rotate clockwise), then grab the sine and cosine
+	# (i.e., the rotation components of the matrix)
+	M = cv2.getRotationMatrix2D((cX, cY), -angle, 1.0)
+	cos = np.abs(M[0, 0])
+	sin = np.abs(M[0, 1])
+
+	# compute the new bounding dimensions of the image
+	nW = int((h * sin) + (w * cos))
+	nH = int((h * cos) + (w * sin))
+
+	# adjust the rotation matrix to take into account translation
+	M[0, 2] += (nW / 2) - cX
+	M[1, 2] += (nH / 2) - cY
+
+	# perform the actual rotation and return the image
+	return cv2.warpAffine(image, M, (nW, nH), borderValue=(255,255,255))
+
+
+def plot_image(x, y, heading, im, ax=None):
+	'''
+	Adds an image to the current plot at the given points
+	'''
+
+	ax = ax or plt.gca()
+	rotation_in_degrees = heading*57.7
+
+	# Rotate image
+	im = rotate_image(im, rotation_in_degrees)
+	
+	# Scale and offset image
+	im = OffsetImage(im, zoom=15/ax.figure.dpi)
+
+	im.image.axes = ax
+
+	ab = AnnotationBbox(im, (x,y), frameon=False, pad=0.0)
+	ax.add_artist(ab)
+	#a = 1
+	#b = 2
+	# (maybe)
+	# https://stackoverflow.com/questions/59401957/rotating-images-on-a-matplotlib-plot
+
+
+def calc_heading(x,y):
+	'''
+	Calculate the heading of the vehicle given the (x,y) co-ordinates
+	'''
+
+	# Initialise heading vector
+	heading = np.zeros((x.size,1))
+
+	# Loop through and find the headings
+	for ii in range(1,x.size):
+		heading[ii] = math.atan2(x[ii]-x[ii-1],y[ii]-y[ii-1])
+	
+	# Make the initial headings look correct
+	heading[0] = heading[2]
+	heading[1] = heading[2]
+	
+	return heading
+
+
 def plot_animation(sim_result,args):
+	'''
+	Function for plotting animations for swarm AI
+	'''
+
 	## Setup
 	# Extract data from pickle
 	times = sim_result["times"]
@@ -431,12 +513,25 @@ def plot_animation(sim_result,args):
 	team_2_color = 'orange'
 	goal_color = 'green'
 
+	im_team1 = plt.imread('./resources/teamA.png')
+	im_team2 = plt.imread('./resources/teamB.png')
+
 	colors = get_colors(sim_result["param"])
 
-	# Inputs
-	marker_size_compensation = 0.003						# Compensation of marker size to make tag radius look correct
-	trail_intensity = []
+	# Calculate the headings of each agent
+	headings = []
+	for jj in range(num_nodes):
+		agent_x = states[:,jj,0]
+		agent_y = states[:,jj,1]
 
+		if jj == 0:
+			headings = calc_heading(agent_x,agent_y)
+		else:
+			headings = np.concatenate((headings,calc_heading(agent_x,agent_y)),axis=1)
+
+	# Inputs
+
+	# Text box setup
 	textBox0 = dict(boxstyle='round', facecolor='darkgray', alpha=0.5)
 
 	# Work out file names and directories
@@ -484,18 +579,25 @@ def plot_animation(sim_result,args):
 		for jj in range(num_nodes):
 			# Tag circle (defenders only)
 			if not (np.any(team_1_idxs) == jj):
-				ax.add_patch(mpatches.Circle(states[ii,jj,0:2], sim_result["param"]["robots"][jj]["tag_radius"]-marker_size_compensation, \
+				ax.add_patch(mpatches.Circle(states[ii,jj,0:2], sim_result["param"]["robots"][jj]["tag_radius"], \
 					color=colors[jj],alpha=0.3,fill=False,linestyle='--'))   
 			# Path                        						
 			ax.plot(   states[0:ii+1,jj,0], states[0:ii+1,jj,1], linewidth=3, color=colors[jj], zorder=1)
 			# Previous Positions Marker    
 			ax.scatter(states[0:ii+1,jj,0], states[0:ii+1,jj,1], marker='o' , color=colors[jj], zorder=1)
-			# Current Position Marker
-			ax.scatter(states[ii,jj,0]    , states[ii,jj,1],100, marker='o' , color=colors[jj], zorder=10)
+			# Current Position
+			if (np.any(team_1_idxs) == jj):
+				plot_image(states[ii,jj,0], states[ii,jj,1], headings[ii,jj], im_team1)
+			else :
+				plot_image(states[ii,jj,0], states[ii,jj,1], headings[ii,jj], im_team2)
 
 		# Rewards of Each Team
 		ax.text(0.10, 0.95, "Reward\n"+"{:.2f}".format(rewards[ii,0]), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center', bbox=textBox0,zorder=50)
 		ax.text(0.90, 0.95, "Reward\n"+"{:.2f}".format(rewards[ii,1]), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center', bbox=textBox0,zorder=50)
+
+		# Debug Text
+		#ax.text(0.10, 0.05, "Heading\n"+"{:.2f}".format(headings[ii,0]*57.7), transform=ax.transAxes, fontsize=6, verticalalignment='top', horizontalalignment='center', bbox=textBox0,zorder=50)
+		#ax.text(0.90, 0.05, "Heading\n"+"{:.2f}".format(headings[ii,1]*57.7), transform=ax.transAxes, fontsize=6, verticalalignment='top', horizontalalignment='center', bbox=textBox0,zorder=50)
 
 		# Save png image
 		fig.savefig(png_directory+"{:03.0f}".format(ii)+".png", dpi=100)
@@ -601,9 +703,19 @@ if __name__ == '__main__':
 			plot_animation(sim_result,args)
 	
 	# Join the movies together if running in batch mode
-	# This piece of code will work but needs to be run from the correct directory...
-	# Also it doesn't join them up intelligently so perhaps the list.text file should be made in python
-	#for f in *.mp4 ; do echo file \'$f\' >> list.txt; done && ffmpeg -f concat -safe 0 -i list.txt -c copy swarm-AI.mp4 && rm list.txt
+	#	This piece of code will work but needs to be run from the correct directory...
+	#	Haven't worked this out yet...
+	'''
+	if (len(files) > 1):
+		print("Combining MP4s")
+		# Get a list of the movies generated
+		cmd = "for f in *.mp4 ; do echo file \'$f\' >> list.txt;"
+		os.system(cmd)
+		# Combine them ussing ffmpeg
+		cmd = "ffmpeg -f concat -safe 0 -i list.txt -c copy swarm-AI.mp4"
+		os.system(cmd)
+	'''
+	#  for f in *.mp4 ; do echo file \'$f\' >> list.txt; done && ffmpeg -f concat -safe 0 -i list.txt -c copy swarm-AI.mp4
 
 	
 	print("\n\nDone!\n")

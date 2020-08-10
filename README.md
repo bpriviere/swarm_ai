@@ -19,7 +19,7 @@ Requires python3.X (X>=6 should be ok)
 ```
 sudo apt install ffmpeg python3-pip -y
 pip3 install wheel
-pip3 install numpy gym pandas matplotlib cvxpy
+pip3 install numpy gym pandas matplotlib opencv-python cvxpy
 ```
 For CUDA support (nvidea VGA required)
 ```
@@ -100,6 +100,9 @@ code$ python3 run.py
 
 ## Visualizing result
 mp4 output requires ffmpeg to be installed.  This can be installed via apt (sudo apt install ffmpeg).  The script 'test_plotter.sh' will run these commands to make life easier
+
+### Resources
+Each team can be represented as an image (teamA.png, teamB.png).  The images are stored in `code/resources` and should be 300 x 300 pixels in size.
 
 ### Single Files
 Single files can be converted by specifying the .pickle file to be used
