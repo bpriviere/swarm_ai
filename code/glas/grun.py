@@ -25,20 +25,6 @@ import datahandler as dh
 import plotter 
 
 
-
-def format_dir(param):
-	
-	# if param.reset_demonstration_data:
-	# 	shutil
-
-	if not os.path.exists(param.demonstration_data_dir):
-		os.makedirs(param.demonstration_data_dir,exist_ok=True)
-
-
-	if not os.path.exists(param.model_dir):
-		os.makedirs(param.model_dir,exist_ok=True)
-
-
 def train(model,optimizer,loader):
 	
 	# loss_func = torch.nn.MSELoss()  # this is for regression mean squared loss
@@ -68,7 +54,7 @@ def test(model,optimizer,loader):
 	return epoch_loss/(step+1)
 
 
-def run_mcts_batch(param, instance_key): 
+def run_mcts_batch(param, instance_key, datadir): 
 
 	with tempfile.TemporaryDirectory() as tmpdirname:
 		input_file = tmpdirname + "/config.yaml" 
@@ -78,10 +64,10 @@ def run_mcts_batch(param, instance_key):
 		subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
 		data = np.loadtxt(output_file, delimiter=',', skiprows=1, dtype=np.float32)
 
-	sim_result = dh.convert_cpp_data_to_sim_result(data)
+	sim_result = dh.convert_cpp_data_to_sim_result(data,param)
 
 	print('writing instance {}... '.format(instance_key))
-	dh.write_sim_result(sim_result,instance_key)
+	dh.write_sim_result(sim_result,datadir + instance_key)
 	print('completed instance {}'.format(instance_key))
 
 
@@ -117,46 +103,33 @@ def prepare_raw_data_gen(gparam):
 	return params, instance_keys
 
 
-def run_batch(param, instance_key):
+def action_to_classification(node,action,action_list):
 
-	env = Swarm(param)
-	estimator = load_module(param.estimator_name).Estimator(param,env)
-	attacker = load_module(param.attacker_name).Attacker(param,env)
-	controller = load_module(param.controller_name).Controller(param,env)
-	reset = env.get_reset()
+	u_max = node.acceleration_limit 
 
-	print('running instance {}... '.format(instance_key))
-	try: 
-		sim_result = run_sim(param,env,reset,estimator,attacker,controller)
-	except:
-		print('sim failed')
-		return 
+	class_action = np.zeros((2))
+	
+	if action[0] > 0:
+		class_action[0] = 1 
+	elif action[0] < 0:
+		class_action[0] = -1
+	if action[1] > 0:
+		class_action[1] = 1 
+	elif action[1] < 0:
+		class_action[1] = -1
 
-	state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
-	param_fn = get_param_fn(gparam.demonstration_data_dir,instance_key)
+	not_found = True
+	for k,candidate_action in enumerate(action_list): 
+		if np.allclose(candidate_action.flatten(),class_action.flatten()):
+			not_found = False
+			break 
 
-	print('writing instance {}... '.format(instance_key))
-	dh.write_state_action_pairs(sim_result,state_action_fn)
-	dh.write_parameters(param.to_dict(),param_fn)
-	print('completed instance {}'.format(instance_key))
+	if not_found: 
+		print('action {} not found in {}!'.format(action,action_list))
+		print('u_max',u_max)
+		exit()
 
-
-def get_instance_keys(gparam):
-	instance_keys = [] 
-	for instance_key in glob.glob('{}*.json'.format(gparam.demonstration_data_dir)):
-		instance_key = instance_key.split(gparam.demonstration_data_dir)[-1]
-		instance_key = instance_key.split('.json')[0]
-		instance_key = instance_key.split('param_')[-1]	
-		instance_keys.append(instance_key)
-	return instance_keys
-
-
-def get_sa_pair_fn(demonstration_data_dir,instance):
-	return '{}raw_{}.npy'.format(demonstration_data_dir,instance)
-
-
-def get_param_fn(demonstration_data_dir,instance):
-	return '{}param_{}.json'.format(demonstration_data_dir,instance)
+	return k
 
 
 def get_batch_fn(datadir,team_name,num_a,num_b,batch_num):
@@ -164,39 +137,99 @@ def get_batch_fn(datadir,team_name,num_a,num_b,batch_num):
 	return '{}labelled_{}team_{}a_{}b_{}trial.npy'.format(datadir,team_name,num_a,num_b,batch_num)
 
 
-def load_param(param_fn):
-	param_dict = dh.read_parameters(param_fn)
-	param = Param()
-	param.from_dict(param_dict)	
-	return param 
+def get_instance_keys(gparam):
+	instance_keys = [] 
+	for instance_key in glob.glob('{}*.pickle'.format(gparam.demonstration_data_dir)):
+		instance_keys.append(instance_key)
+	return instance_keys	
 
-def action_to_classification(param,gparam,action_i,node_i):
 
-	if node_i.idx in param.team_1_idxs: 
-		u_max = param.acceleration_limit_a / np.sqrt(2)
-	elif node_i.idx in param.team_2_idxs: 
-		u_max = param.acceleration_limit_b / np.sqrt(2)
+# def format_dir(param):
+	
+# 	# if param.reset_demonstration_data:
+# 	# 	shutil
 
-	u_max = 1
+# 	if not os.path.exists(param.demonstration_data_dir):
+# 		os.makedirs(param.demonstration_data_dir,exist_ok=True)
 
-	not_found = True
-	for k,action in enumerate(gparam.actions): 
-		if np.allclose(u_max*action.flatten(),action_i.flatten()):
-			not_found = False
-			break 
 
-	if not_found: 
-		print('action {} not found in {}!'.format(action_i,gparam.actions))
-		exit()
+# 	if not os.path.exists(param.model_dir):
+# 		os.makedirs(param.model_dir,exist_ok=True)
 
-	return k
+# def run_batch(param, instance_key):
+
+# 	env = Swarm(param)
+# 	estimator = load_module(param.estimator_name).Estimator(param,env)
+# 	attacker = load_module(param.attacker_name).Attacker(param,env)
+# 	controller = load_module(param.controller_name).Controller(param,env)
+# 	reset = env.get_reset()
+
+# 	print('running instance {}... '.format(instance_key))
+# 	try: 
+# 		sim_result = run_sim(param,env,reset,estimator,attacker,controller)
+# 	except:
+# 		print('sim failed')
+# 		return 
+
+# 	state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
+# 	param_fn = get_param_fn(gparam.demonstration_data_dir,instance_key)
+
+# 	print('writing instance {}... '.format(instance_key))
+# 	dh.write_state_action_pairs(sim_result,state_action_fn)
+# 	dh.write_parameters(param.to_dict(),param_fn)
+# 	print('completed instance {}'.format(instance_key))
+
+
+# def get_instance_keys(gparam):
+# 	instance_keys = [] 
+# 	for instance_key in glob.glob('{}*.json'.format(gparam.demonstration_data_dir)):
+# 		instance_key = instance_key.split(gparam.demonstration_data_dir)[-1]
+# 		instance_key = instance_key.split('.json')[0]
+# 		instance_key = instance_key.split('param_')[-1]	
+# 		instance_keys.append(instance_key)
+# 	return instance_keys
+
+# def get_sa_pair_fn(demonstration_data_dir,instance):
+# 	return '{}raw_{}.npy'.format(demonstration_data_dir,instance)
+
+
+# def get_param_fn(demonstration_data_dir,instance):
+# 	return '{}param_{}.json'.format(demonstration_data_dir,instance)
+
+# def load_param(param_fn):
+# 	param_dict = dh.read_parameters(param_fn)
+# 	param = Param()
+# 	param.from_dict(param_dict)	
+# 	return param 
+
+# def action_to_classification(param,gparam,action_i,node_i):
+
+# 	if node_i.idx in param.team_1_idxs: 
+# 		u_max = param.acceleration_limit_a / np.sqrt(2)
+# 	elif node_i.idx in param.team_2_idxs: 
+# 		u_max = param.acceleration_limit_b / np.sqrt(2)
+
+# 	u_max = 1
+
+# 	not_found = True
+# 	for k,action in enumerate(gparam.actions): 
+# 		if np.allclose(u_max*action.flatten(),action_i.flatten()):
+# 			not_found = False
+# 			break 
+
+# 	if not_found: 
+# 		print('action {} not found in {}!'.format(action_i,gparam.actions))
+# 		exit()
+
+# 	return k
+
 
 
 if __name__ == '__main__':
 
 	gparam = Gparam()
 
-	format_dir(gparam) 
+	# format_dir(gparam) 
 
 	# run expert and write (state, action) pairs into files 
 	if gparam.make_raw_data_on:
@@ -206,12 +239,12 @@ if __name__ == '__main__':
 		if gparam.serial_on:
 			for (param, instance_key) in zip(params, instance_keys):
 				# run_batch(param, instance_key)
-				run_mcts_batch(param, instance_key)
+				run_mcts_batch(param, instance_key, gparam.demonstration_data_dir)
 		else:	
 			ncpu = cpu_count()
 			print('ncpu: ', ncpu)
 			with Pool(ncpu-1) as p:
-				p.starmap(run_mcts_batch, zip(params,instance_keys))
+				p.starmap(run_mcts_batch, zip(params,instance_keys,itertools.repeat(gparam.demonstration_data_dir)))
 				# p.starmap(run_batch, zip(params,instance_keys))
 
 
@@ -225,35 +258,33 @@ if __name__ == '__main__':
 		for instance_key in instance_keys: 
 			print('\t instance_key:',instance_key)
 
-			# filenames 
-			state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
-			param_fn = get_param_fn(gparam.demonstration_data_dir,instance_key)
+			# load instance 
+			sim_result = dh.load_sim_result(instance_key)
 
-			# parameters
-			param = load_param(param_fn) 
-
-			# state action pairs 
-			states,actions = dh.read_state_action_pairs(state_action_fn,param)
+			param = Param()
+			param.from_dict(sim_result["param"])
+			states = sim_result["states"] # nt x nrobots x nstate_per_robot
+			actions = sim_result["actions"] 
 
 			env = Swarm(param)
 			for timestep,(state,action) in enumerate(zip(states,actions)):
 
-				# first update state 
-				state_dict = env.state_vec_to_dict(state)
+				# first update nodes
 				for node in env.nodes: 
-					node.state = state_dict[node]
+					node.state = state[node.idx,:]
+					node.r_sense = param.robots[node.idx]["r_sense"]
+					node.acceleration_limit = param.robots[node.idx]["acceleration_limit"] 
 
-				observations = relative_state(env.nodes,param.r_sense,param.goal)
+				observations = relative_state(env.nodes,param.goal)
 
 				# extract observation/action pair 
 				for node_i in env.nodes: 
 
-					action_dim_per_agent = 2
-					action_idxs = action_dim_per_agent * node_i.idx + np.arange(action_dim_per_agent)
-					action_i = np.expand_dims(action[action_idxs],axis=1)
+					action_i = action[node.idx,:] # (2,)
+					action_i = np.expand_dims(action_i,axis=1) # (2,1)
 
 					if gparam.discrete_on: 
-						action_i = action_to_classification(param,gparam,action_i,node_i)
+						action_i = action_to_classification(node_i, action_i, gparam.actions)
 
 					o_a, o_b, goal = observations[node_i]
 
