@@ -26,7 +26,7 @@ class Controller(Controller):
 	def policy(self,estimate):
 		nodes = self.env.nodes
 		actions = dict() 
-		observations = relative_state(self.env.nodes, self.param.r_sense, self.param.goal, flatten=True)
+		observations = relative_state(self.env.nodes, self.param.goal, flatten=True)
 		for node in nodes:
 			
 			o_a, o_b, goal = observations[node]

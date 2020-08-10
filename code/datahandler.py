@@ -20,27 +20,27 @@ def load_sim_result(fn):
 		sim_result = pickle.load(h)
 	return sim_result
 	
-def write_state_action_pairs(sim_result,fn):
+# def write_state_action_pairs(sim_result,fn):
 
-	states = np.array(sim_result["info"]["state_vec"]) # [nt x state_dim x 1]
-	actions = sim_result["actions"] # [nt x ni x action_dim_per_agent x 1]
-	times = np.expand_dims(sim_result["times"],axis=1) # [nt x 1]
+# 	states = np.array(sim_result["info"]["state_vec"]) # [nt x state_dim x 1]
+# 	actions = sim_result["actions"] # [nt x ni x action_dim_per_agent x 1]
+# 	times = np.expand_dims(sim_result["times"],axis=1) # [nt x 1]
 
-	num_timesteps, num_agents, action_dim_per_agent, _ = actions.shape
-	_, state_dim, _ = states.shape
+# 	num_timesteps, num_agents, action_dim_per_agent, _ = actions.shape
+# 	_, state_dim, _ = states.shape
 
-	flat_actions = np.zeros((num_timesteps, num_agents*action_dim_per_agent,1))
-	for timestep,action in enumerate(actions): 
-		new_idxs = np.arange(action_dim_per_agent)
-		for node_idx, action_i in enumerate(action): 
-			flat_actions[timestep,new_idxs,:] = action_i
-			new_idxs += action_dim_per_agent
+# 	flat_actions = np.zeros((num_timesteps, num_agents*action_dim_per_agent,1))
+# 	for timestep,action in enumerate(actions): 
+# 		new_idxs = np.arange(action_dim_per_agent)
+# 		for node_idx, action_i in enumerate(action): 
+# 			flat_actions[timestep,new_idxs,:] = action_i
+# 			new_idxs += action_dim_per_agent
 
-	state_action_pairs = np.zeros((num_timesteps, state_dim + num_agents*action_dim_per_agent))
-	for timestep,(state,action) in enumerate(zip(states,flat_actions)):
-		state_action_pairs[timestep,:] = np.vstack((state,action)).flatten()
+# 	state_action_pairs = np.zeros((num_timesteps, state_dim + num_agents*action_dim_per_agent))
+# 	for timestep,(state,action) in enumerate(zip(states,flat_actions)):
+# 		state_action_pairs[timestep,:] = np.vstack((state,action)).flatten()
 
-	np.save(fn,state_action_pairs)
+# 	np.save(fn,state_action_pairs)
 
 
 def write_mcts_config_file(param, config_fn):
@@ -87,21 +87,19 @@ def convert_cpp_data_to_sim_result(data,param):
 def write_oa_pair_batch(batched_dataset,batch_fn):
 	np.save(batch_fn, batched_dataset)
 
-def write_parameters(param_dict,fn):
 
+def write_parameters(param_dict,fn):
 	with open(fn, 'w') as fp:
 		json.dump(param_dict, fp, cls=NumpyEncoder, indent=2)
 
 
 def read_parameters(fn):
-
 	with open(fn, 'r') as j:
 		param_dict = json.loads(j.read())
 	return param_dict
 
 
 def read_state_action_pairs(fn,param):
-
 	data = np.load(fn)
 	states = data[:,0:param.state_dim]
 	actions = data[:,param.state_dim:]
@@ -109,7 +107,6 @@ def read_state_action_pairs(fn,param):
 
 
 def read_observation_action_pairs(fn,datadir):
-
 	data = np.load(fn)
 
 	key = fn.split(datadir)[-1]
