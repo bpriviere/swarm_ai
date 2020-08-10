@@ -38,7 +38,7 @@ def save_figs(filename):
 	# Make sure the directory exists, otherwise create it
 	file_dir,  file_name = os.path.split(filename)
 
-	if not (os.path.isdir(file_dir)):
+	if len(file_dir) >0 and not (os.path.isdir(file_dir)):
 		os.makedirs(file_dir)
 
 	# Open the PDF and save each of the figures 
