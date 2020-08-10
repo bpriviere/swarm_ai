@@ -470,21 +470,24 @@ def plot_image(x, y, heading, im, ax=None):
 	# https://stackoverflow.com/questions/59401957/rotating-images-on-a-matplotlib-plot
 
 
-def calc_heading(x,y):
+def calc_heading(vx,vy):
 	'''
 	Calculate the heading of the vehicle given the (x,y) co-ordinates
 	'''
 
 	# Initialise heading vector
-	heading = np.zeros((x.size,1))
+	heading = np.zeros((vx.size,1))
 
 	# Loop through and find the headings
-	for ii in range(1,x.size):
-		heading[ii] = math.atan2(x[ii]-x[ii-1],y[ii]-y[ii-1])
+	for ii in range(1,vx.size):
+		heading[ii] = math.atan2(vx[ii-1],vy[ii-1])
 	
 	# Make the initial headings look correct
-	heading[0] = heading[2]
 	heading[1] = heading[2]
+	heading[0] = heading[1]
+
+	# Correct headings when a vehicle dies
+
 	
 	return heading
 
@@ -521,13 +524,13 @@ def plot_animation(sim_result,args):
 	# Calculate the headings of each agent
 	headings = []
 	for jj in range(num_nodes):
-		agent_x = states[:,jj,0]
-		agent_y = states[:,jj,1]
+		agent_vx = states[:,jj,2]
+		agent_vy = states[:,jj,3]
 
 		if jj == 0:
-			headings = calc_heading(agent_x,agent_y)
+			headings = calc_heading(agent_vx,agent_vy)
 		else:
-			headings = np.concatenate((headings,calc_heading(agent_x,agent_y)),axis=1)
+			headings = np.concatenate((headings,calc_heading(agent_vx,agent_vy)),axis=1)
 
 	# Inputs
 
