@@ -586,7 +586,7 @@ def plot_animation(sim_result,args):
 			# Previous Positions Marker    
 			ax.scatter(states[0:ii+1,jj,0], states[0:ii+1,jj,1], marker='o' , color=colors[jj], zorder=1)
 			# Current Position
-			if (np.any(team_1_idxs) == jj):
+			if (np.isin(team_1_idxs,[jj]).any()):
 				plot_image(states[ii,jj,0], states[ii,jj,1], headings[ii,jj], im_team1)
 			else :
 				plot_image(states[ii,jj,0], states[ii,jj,1], headings[ii,jj], im_team2)
