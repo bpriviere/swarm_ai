@@ -32,7 +32,7 @@ def train(model,optimizer,loader):
 	loss_func = torch.nn.CrossEntropyLoss()  
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,action) in enumerate(loader): 
-		prediction = model(o_a,o_b,goal)
+		prediction = model(o_a,o_b,goal,training=True)
 		# loss = loss_func(prediction, action) 
 		loss = loss_func(prediction, action.flatten()) 
 		optimizer.zero_grad()   
@@ -48,7 +48,7 @@ def test(model,optimizer,loader):
 	loss_func = torch.nn.CrossEntropyLoss()  
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,action) in enumerate(loader): 
-		prediction = model(o_a,o_b,goal)     
+		prediction = model(o_a,o_b,goal,training=True)     
 		loss = loss_func(prediction, action.flatten())
 		# loss = loss_func(prediction, action)
 		epoch_loss += float(loss)
@@ -214,23 +214,12 @@ if __name__ == '__main__':
 					oa_pairs_by_size[key].append((o_a, o_b, goal, action_per_robot))
 					oa_pairs_by_file[instance_key][key].append((o_a, o_b, goal, action_per_robot))
 
-		# print('oa_pairs_by_size',oa_pairs_by_size)
-		# print('oa_pairs_by_file',oa_pairs_by_file)
-		# exit()
-
 		# make dbg batches and write to file 
 		for instance_key, oa_pairs_by_size_dbg in oa_pairs_by_file.items():
 			for (team,num_a,num_b),oa_pairs in oa_pairs_by_size_dbg.items():
 				batched_dataset = [] 
 				for (o_a, o_b, goal, action) in oa_pairs:
 					data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
-					# print('o_a',o_a)
-					# print('o_b',o_b)
-					# print('goal',goal)
-					# print('action',action)
-					# print('data',data)
-					# exit()
-
 					batched_dataset.append(data)
 				batch_fn = get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,team,num_a,num_b)
 				dh.write_oa_batch(batched_dataset,batch_fn) 
@@ -260,7 +249,8 @@ if __name__ == '__main__':
 		# check state action pairs 
 		for count, instance_key in enumerate(instance_keys):
 			sim_result = dh.load_sim_result(gparam.demonstration_data_dir+instance_key+'.pickle')
-			plotter.plot_tree_results(sim_result)			
+			plotter.plot_tree_results(sim_result)
+
 			if count > num_plots:
 				break 
 
@@ -277,6 +267,7 @@ if __name__ == '__main__':
 			observations_list.append(dh.read_dbg_observation_fn(batch_fn,gparam.demonstration_data_dir))
 
 			plotter.plot_dbg_observations(sim_result,observations_list)
+			
 			if count > num_plots:
 				break 
 
@@ -290,6 +281,7 @@ if __name__ == '__main__':
 	if gparam.train_model_on: 
 
 		for training_team in gparam.training_teams:
+
 			print('training model for team {}...'.format(training_team))
 		
 			batched_files = glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,training_team))
@@ -348,6 +340,7 @@ if __name__ == '__main__':
 				best_test_loss = np.Inf
 				scheduler = ReduceLROnPlateau(optimizer, 'min')
 				for epoch in range(1,gparam.il_n_epoch+1):
+
 					train_epoch_loss = train(model,optimizer,train_loader)
 					test_epoch_loss = test(model,optimizer,test_loader)
 					scheduler.step(test_epoch_loss)
