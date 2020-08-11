@@ -4,7 +4,7 @@ import torch
 import sys
 
 sys.path.append("../")
-from measurements.relative_state import relative_state
+from measurements.relative_state import relative_state,relative_state_per_node
 from controller.controller import Controller
 from controller.joint_mpc import Controller as MPC
 from learning.emptynet import EmptyNet
@@ -24,9 +24,12 @@ class Controller(Controller):
 		self.model_B.load_state_dict(torch.load(self.param.glas_model_B))
 
 	def policy(self,estimate):
+
 		nodes = self.env.nodes
 		actions = dict() 
-		observations = relative_state(self.env.nodes, self.param.goal, flatten=True)
+
+		observations = relative_state_per_node(self.env.nodes, self.env.state_vec_to_mat(self.env.state_vec), self.param, flatten=True)
+
 		for node in nodes:
 			
 			o_a, o_b, goal = observations[node]
@@ -36,9 +39,9 @@ class Controller(Controller):
 
 			if node.idx in self.param.team_1_idxs: 
 				classification = self.model_A(o_a,o_b,goal).detach().numpy().T # 9 x 1 
-				actions[node] = self.param.acceleration_limit_a/np.sqrt(2)*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1   
+				actions[node] = node.acceleration_limit/np.sqrt(2)*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1   
 			elif node.idx in self.param.team_2_idxs: 
 				classification = self.model_B(o_a,o_b,goal).detach().numpy().T # 9 x 1 
-				actions[node] = self.param.acceleration_limit_b/np.sqrt(2)*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1  
+				actions[node] = node.acceleration_limit/np.sqrt(2)*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1  
 		
 		return actions

@@ -1,6 +1,6 @@
 
 # standard
-import os, sys, glob
+import os, sys, glob, shutil 
 import itertools
 import numpy as np 
 import torch 
@@ -10,6 +10,7 @@ from multiprocessing import cpu_count, Pool
 import concurrent.futures
 import tempfile 
 import subprocess
+from collections import defaultdict
 
 # project
 sys.path.append("../")
@@ -77,25 +78,25 @@ def prepare_raw_data_gen(gparam):
 	# cases = itertools.product(*(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst))
 	for (num_nodes_A, num_nodes_B) in zip(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst):
 
-		start = len(glob.glob('{}raw_{}a_{}b_*'.format(\
+		start = len(glob.glob('{}*{}a_{}b*.pickle'.format(\
 			gparam.demonstration_data_dir,num_nodes_A,num_nodes_B)))
 
 		for trial in range(gparam.num_trials):
 			
 			# save 
-			instance_key = '{}a_{}b_{}trial'.format( \
-				num_nodes_A,num_nodes_B,trial+start)
+			instance_key = get_instance_fn(num_nodes_A,num_nodes_B,trial+start) 
 
 			# param 
 			param = Param()
-			env = Swarm(param)
-			param.num_nodes_A = num_nodes_A 
-			param.num_nodes_B = num_nodes_B
+			param.robot_teams = {
+				'a': {'standard_robot':num_nodes_A,'evasive_robot':0},
+				'b': {'standard_robot':num_nodes_B,'evasive_robot':0}
+			}
 			param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
-			param.quiet_on = True
 			param.controller_name = gparam.expert_controller
 			param.update()
-			
+			env = Swarm(param)
+
 			# assign 
 			params.append(param)
 			instance_keys.append(instance_key)
@@ -103,9 +104,7 @@ def prepare_raw_data_gen(gparam):
 	return params, instance_keys
 
 
-def action_to_classification(node,action,action_list):
-
-	u_max = node.acceleration_limit 
+def action_to_classification(action,action_list):
 
 	class_action = np.zeros((2))
 	
@@ -131,171 +130,112 @@ def action_to_classification(node,action,action_list):
 
 	return k
 
+def load_param(some_dict):
+	param = Param()
+	param.from_dict(some_dict)
+	return param 
 
-def get_batch_fn(datadir,team_name,num_a,num_b,batch_num):
+
+def get_instance_fn(num_nodes_A,num_nodes_B,trial):
+	fn = '{}a_{}b_{}trial'.format(num_nodes_A,num_nodes_B,trial)
+	return fn 
+
+
+def get_batch_fn(datadir,team,num_a,num_b,batch_num):
 	team_name = "a" if team else "b"
 	return '{}labelled_{}team_{}a_{}b_{}trial.npy'.format(datadir,team_name,num_a,num_b,batch_num)
+
+
+def get_dbg_observation_fn(datadir,instance,team,num_a,num_b):
+	team_name = "a" if team else "b"
+	return '{}observations_from_{}_{}team_{}a_{}b.npy'.format(datadir,instance,team_name,num_a,num_b)
 
 
 def get_instance_keys(gparam):
 	instance_keys = [] 
 	for instance_key in glob.glob('{}*.pickle'.format(gparam.demonstration_data_dir)):
+		instance_key = os.path.basename(instance_key)
+		instance_key = instance_key.split('.pickle')[0]
 		instance_keys.append(instance_key)
 	return instance_keys	
-
-
-# def format_dir(param):
-	
-# 	# if param.reset_demonstration_data:
-# 	# 	shutil
-
-# 	if not os.path.exists(param.demonstration_data_dir):
-# 		os.makedirs(param.demonstration_data_dir,exist_ok=True)
-
-
-# 	if not os.path.exists(param.model_dir):
-# 		os.makedirs(param.model_dir,exist_ok=True)
-
-# def run_batch(param, instance_key):
-
-# 	env = Swarm(param)
-# 	estimator = load_module(param.estimator_name).Estimator(param,env)
-# 	attacker = load_module(param.attacker_name).Attacker(param,env)
-# 	controller = load_module(param.controller_name).Controller(param,env)
-# 	reset = env.get_reset()
-
-# 	print('running instance {}... '.format(instance_key))
-# 	try: 
-# 		sim_result = run_sim(param,env,reset,estimator,attacker,controller)
-# 	except:
-# 		print('sim failed')
-# 		return 
-
-# 	state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
-# 	param_fn = get_param_fn(gparam.demonstration_data_dir,instance_key)
-
-# 	print('writing instance {}... '.format(instance_key))
-# 	dh.write_state_action_pairs(sim_result,state_action_fn)
-# 	dh.write_parameters(param.to_dict(),param_fn)
-# 	print('completed instance {}'.format(instance_key))
-
-
-# def get_instance_keys(gparam):
-# 	instance_keys = [] 
-# 	for instance_key in glob.glob('{}*.json'.format(gparam.demonstration_data_dir)):
-# 		instance_key = instance_key.split(gparam.demonstration_data_dir)[-1]
-# 		instance_key = instance_key.split('.json')[0]
-# 		instance_key = instance_key.split('param_')[-1]	
-# 		instance_keys.append(instance_key)
-# 	return instance_keys
-
-# def get_sa_pair_fn(demonstration_data_dir,instance):
-# 	return '{}raw_{}.npy'.format(demonstration_data_dir,instance)
-
-
-# def get_param_fn(demonstration_data_dir,instance):
-# 	return '{}param_{}.json'.format(demonstration_data_dir,instance)
-
-# def load_param(param_fn):
-# 	param_dict = dh.read_parameters(param_fn)
-# 	param = Param()
-# 	param.from_dict(param_dict)	
-# 	return param 
-
-# def action_to_classification(param,gparam,action_i,node_i):
-
-# 	if node_i.idx in param.team_1_idxs: 
-# 		u_max = param.acceleration_limit_a / np.sqrt(2)
-# 	elif node_i.idx in param.team_2_idxs: 
-# 		u_max = param.acceleration_limit_b / np.sqrt(2)
-
-# 	u_max = 1
-
-# 	not_found = True
-# 	for k,action in enumerate(gparam.actions): 
-# 		if np.allclose(u_max*action.flatten(),action_i.flatten()):
-# 			not_found = False
-# 			break 
-
-# 	if not_found: 
-# 		print('action {} not found in {}!'.format(action_i,gparam.actions))
-# 		exit()
-
-# 	return k
-
 
 
 if __name__ == '__main__':
 
 	gparam = Gparam()
 
-	# format_dir(gparam) 
-
 	# run expert and write (state, action) pairs into files 
 	if gparam.make_raw_data_on:
 		print('making raw data...')
+
+		if gparam.clean_raw_data_on: 
+			print('cleaning training data...')
+			shutil.rmtree(gparam.demonstration_data_dir)
+			os.makedirs(gparam.demonstration_data_dir)
 		
 		params, instance_keys = prepare_raw_data_gen(gparam) 
 		if gparam.serial_on:
 			for (param, instance_key) in zip(params, instance_keys):
-				# run_batch(param, instance_key)
 				run_mcts_batch(param, instance_key, gparam.demonstration_data_dir)
 		else:	
 			ncpu = cpu_count()
 			print('ncpu: ', ncpu)
 			with Pool(ncpu-1) as p:
 				p.starmap(run_mcts_batch, zip(params,instance_keys,itertools.repeat(gparam.demonstration_data_dir)))
-				# p.starmap(run_batch, zip(params,instance_keys))
 
 
 	# load (state,action) files, apply measurement model, and write (observation,action) binary files
 	if gparam.make_labelled_data_on: 
 		print('make labelled data...')
 
-		oa_pairs_by_size = dict() # batched by number neighbors team_a, team_b 
+		# read instances into observation-action directory batched by number neighbors team_a, team_b 
+		oa_pairs_by_size = defaultdict(list) 
+		oa_pairs_by_file = defaultdict(lambda: defaultdict(list)) 
 		instance_keys = get_instance_keys(gparam) 
 
 		for instance_key in instance_keys: 
-			print('\t instance_key:',instance_key)
+			# print('\t instance_key:',instance_key)
 
-			# load instance 
-			sim_result = dh.load_sim_result(instance_key)
-
-			param = Param()
-			param.from_dict(sim_result["param"])
+			sim_result = dh.load_sim_result(gparam.demonstration_data_dir+instance_key+'.pickle')
+			param = load_param(sim_result["param"])
 			states = sim_result["states"] # nt x nrobots x nstate_per_robot
 			actions = sim_result["actions"] 
 
-			env = Swarm(param)
 			for timestep,(state,action) in enumerate(zip(states,actions)):
-
-				# first update nodes
-				for node in env.nodes: 
-					node.state = state[node.idx,:]
-					node.r_sense = param.robots[node.idx]["r_sense"]
-					node.acceleration_limit = param.robots[node.idx]["acceleration_limit"] 
-
-				observations = relative_state(env.nodes,param.goal)
-
-				# extract observation/action pair 
-				for node_i in env.nodes: 
-
-					action_i = action[node.idx,:] # (2,)
-					action_i = np.expand_dims(action_i,axis=1) # (2,1)
+				
+				for robot_idx in range(state.shape[0]):
+					o_a, o_b, goal = relative_state(state,param,robot_idx)
+					action_per_robot = np.expand_dims(action[robot_idx,:],axis=1) # (2,1)
 
 					if gparam.discrete_on: 
-						action_i = action_to_classification(node_i, action_i, gparam.actions)
+						action_per_robot = action_to_classification(action_per_robot, gparam.actions)
 
-					o_a, o_b, goal = observations[node_i]
+					key = (robot_idx < param.num_nodes_A,len(o_a),len(o_b))
+					oa_pairs_by_size[key].append((o_a, o_b, goal, action_per_robot))
+					oa_pairs_by_file[instance_key][key].append((o_a, o_b, goal, action_per_robot))
 
-					# append datapoint 
-					key = (node_i.team_A,len(o_a),len(o_b))
-					if key not in oa_pairs_by_size.keys():
-						oa_pairs_by_size[key] = [(o_a, o_b, goal, action_i)]
-					else:
-						oa_pairs_by_size[key].append((o_a, o_b, goal, action_i))
-			
-		# make actual batches
+		# print('oa_pairs_by_size',oa_pairs_by_size)
+		# print('oa_pairs_by_file',oa_pairs_by_file)
+		# exit()
+
+		# make dbg batches and write to file 
+		for instance_key, oa_pairs_by_size_dbg in oa_pairs_by_file.items():
+			for (team,num_a,num_b),oa_pairs in oa_pairs_by_size_dbg.items():
+				batched_dataset = [] 
+				for (o_a, o_b, goal, action) in oa_pairs:
+					data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
+					# print('o_a',o_a)
+					# print('o_b',o_b)
+					# print('goal',goal)
+					# print('action',action)
+					# print('data',data)
+					# exit()
+
+					batched_dataset.append(data)
+				batch_fn = get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,team,num_a,num_b)
+				dh.write_oa_batch(batched_dataset,batch_fn) 
+
+		# make actual batches and write to file 
 		for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
 			batch_num = 0 
 			batched_dataset = [] 
@@ -304,28 +244,47 @@ if __name__ == '__main__':
 				batched_dataset.append(data)
 				if len(batched_dataset) > gparam.il_batch_size:
 					batch_fn = get_batch_fn(gparam.demonstration_data_dir,team,num_a,num_b,batch_num)
-					dh.write_oa_pair_batch(batched_dataset,batch_fn) 
+					dh.write_oa_batch(batched_dataset,batch_fn) 
 					batch_num += 1 
 					batched_dataset = [] 
 			batch_fn = get_batch_fn(gparam.demonstration_data_dir,team,num_a,num_b,batch_num)
-			dh.write_oa_pair_batch(batched_dataset,batch_fn) 
+			dh.write_oa_batch(batched_dataset,batch_fn) 
 
 	# check data
 	if gparam.dbg_vis_on:
 		print('vis...')
 
-		count = 0 
-		instance_keys = get_instance_keys(gparam)
-		for instance_key in instance_keys:
-			state_action_fn = get_sa_pair_fn(gparam.demonstration_data_dir,instance_key)
-			param_fn = get_param_fn(gparam.demonstration_data_dir,instance_key)
-			param = load_param(param_fn) 
-			states,actions = dh.read_state_action_pairs(state_action_fn,param)
-			plotter.plot_sa_pairs(states,actions,param,instance_key)
-			count += 1 
+		num_plots = 1
+		instance_keys = get_instance_keys(gparam) 
 
-			if count > 30:
+		# check state action pairs 
+		for count, instance_key in enumerate(instance_keys):
+			sim_result = dh.load_sim_result(gparam.demonstration_data_dir+instance_key+'.pickle')
+			plotter.plot_tree_results(sim_result)			
+			if count > num_plots:
 				break 
+
+		# check observation mapping 
+		for count, instance_key in enumerate(instance_keys):
+			sim_result = dh.load_sim_result(gparam.demonstration_data_dir+instance_key+'.pickle')
+
+			observations_list = [] 
+
+			batch_fn = get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,True,0,1)
+			observations_list.append(dh.read_dbg_observation_fn(batch_fn,gparam.demonstration_data_dir))
+
+			batch_fn = get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,False,1,0)
+			observations_list.append(dh.read_dbg_observation_fn(batch_fn,gparam.demonstration_data_dir))
+
+			plotter.plot_dbg_observations(sim_result,observations_list)
+			if count > num_plots:
+				break 
+
+		# todo 
+
+		# check action classification 
+		# todo 
+
 
 	# load (observation,action) binary files, train a model, and write model to file 
 	if gparam.train_model_on: 
@@ -337,7 +296,7 @@ if __name__ == '__main__':
 			
 			n_points = 0 
 			for batched_file in batched_files:
-				o_a,o_b,goal,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
+				o_a,o_b,goal,action = dh.read_oa_batch(batched_file,gparam.demonstration_data_dir)
 				n_points += action.shape[0]
 			n_points = np.min((n_points, gparam.il_n_points))
 			print('n_points',n_points)
@@ -347,7 +306,7 @@ if __name__ == '__main__':
 			test_loader  = [] 
 			curr_points, train_dataset_size, test_dataset_size = 0,0,0
 			for batched_file in batched_files: 
-				o_a,o_b,goal,action = dh.read_observation_action_pairs(batched_file,gparam.demonstration_data_dir)
+				o_a,o_b,goal,action = dh.read_oa_batch(batched_file,gparam.demonstration_data_dir)
 				if curr_points < gparam.il_test_train_ratio * n_points: 
 					train_loader.append([
 						torch.from_numpy(o_a).float().to(gparam.device),

@@ -31,11 +31,7 @@ class Swarm(Env):
 				node.forward(actions[node])
 
 				# velocity scaling 
-				if node.idx in self.param.team_1_idxs: 
-					v_max = self.param.speed_limit_a
-				else: 
-					v_max = self.param.speed_limit_b
-
+				v_max = node.speed_limit
 				alpha = np.linalg.norm(node.state[2:]) / v_max
 				node.state[2:] = node.state[2:] / np.max((alpha,1))
 		
@@ -74,9 +70,13 @@ class Swarm(Env):
 		nodes = [] 
 		state_dim = 0 
 		control_dim = 0 
-		for idx in range(self.param.num_nodes):
+		# for idx in range(self.param.num_nodes):
+		for idx,robot in enumerate(self.param.robots):
 
 			node = dict()
+
+			for key,value in robot.items():
+				node[key] = value 
 
 			if idx < self.param.num_nodes_A:
 				node["team_A"] = True
@@ -216,6 +216,14 @@ class Swarm(Env):
 
 		return states
 
+	def state_vec_to_mat(self,state_vec):
+
+		states = np.zeros((self.param.num_nodes, 4))
+		for node in self.nodes: 
+			states[node.idx,:] = state_vec[node.global_state_idxs].flatten()
+
+		return states		
+
 
 	def get_random_position_inside(self,xlim,ylim):
 
@@ -234,8 +242,8 @@ class Swarm(Env):
 		dist_goal = np.linalg.norm(state_mat[self.param.team_1_idxs,0:2] - self.param.goal, axis=1)
 		
 		for idx in self.param.team_1_idxs:
-			captured = np.any(dist_robots[idx,self.param.team_2_idxs] < self.param.tag_radius)
-			reached_goal = dist_goal[idx] < self.param.tag_radius
+			captured = np.any(dist_robots[idx,self.param.team_2_idxs] < self.param.robots[idx]["tag_radius"])
+			reached_goal = dist_goal[idx] < self.param.robots[idx]["tag_radius"]
 			
 			if idx in self.done or captured or reached_goal: 
 				next_done.append(idx)
@@ -255,7 +263,7 @@ class Swarm(Env):
 		
 
 	def reward(self):
-		return 0 
+		return 0,0 
 
 
 # helper classes 

@@ -280,6 +280,62 @@ def make_gif(sim_result):
 	duration = 0.5 
 	imageio.mimsave(gif_name, images, duration = duration)
 
+def plot_dbg_observations(sim_result,observations):
+
+	times = sim_result["times"]
+	states = sim_result["states"]
+	actions = sim_result["actions"]
+	rewards = sim_result["rewards"]
+	team_1_idxs = sim_result["param"]["team_1_idxs"]
+	num_nodes = sim_result["param"]["num_nodes"]
+	goal = sim_result["param"]["goal"]
+	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+	env_xlim = sim_result["param"]["env_xlim"]	
+	env_ylim = sim_result["param"]["env_ylim"]	
+
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
+
+	colors = get_colors(sim_result["param"])
+
+	fig,ax = plt.subplots() 
+
+
+	# plot state 
+	ax.grid(True)
+	ax.set_aspect('equal')
+	ax.set_title('State Space')
+	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
+	for i in range(num_nodes):
+		for t in range(states.shape[0]):
+			ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
+				color=colors[i],alpha=0.2,fill=False))
+		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
+		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i])
+	ax.set_xlim([env_xlim[0],env_xlim[1]])
+	ax.set_ylim([env_ylim[0],env_ylim[1]])
+
+
+	for observation in observations:
+
+		o_as,o_bs,relative_goals,actions = observation
+
+		# plot observations on top 
+		for (o_a,o_b,relative_goal,action) in zip(o_as,o_bs,relative_goals,actions):
+
+			abs_pos = np.array([sim_result["param"]["goal"][0],sim_result["param"]["goal"][1],0,0]) - relative_goal 
+
+			if len(o_a) > 0:
+				ax.plot([abs_pos[0],abs_pos[0] + o_a[0]], [abs_pos[1],abs_pos[1] + o_a[1]],color=team_1_color,alpha=0.1)
+			if len(o_b) > 0:
+				ax.plot([abs_pos[0],abs_pos[0] + o_b[0]], [abs_pos[1],abs_pos[1] + o_b[1]],color=team_2_color,alpha=0.1)
+			
+			ax.plot([abs_pos[0],abs_pos[0] + relative_goal[0]], [abs_pos[1],abs_pos[1] + relative_goal[1]],color=goal_color,alpha=0.1)
+
+
+
+
 
 def plot_sa_pairs(states,actions,param,instance):
 

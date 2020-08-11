@@ -1,6 +1,6 @@
 
 import numpy as np 
-import itertools
+import itertools, copy
 
 class Param:
 
@@ -22,38 +22,30 @@ class Param:
 		self.sim_t0 = 0
 		self.sim_tf = 20
 		self.sim_dt = 0.25
-		
-		# robots
-		self.robots = \
-			[
-			{
-				'speed_limit': 0.125,
-				'acceleration_limit':0.2,
-				'tag_radius': 0.025,
-				'team':'a',
-				'dynamics':'double_integrator',
-				'r_comm': 1.6,
-				'r_sense': 1.6,
-			},
-			{
-				'speed_limit': 0.125,
-				'acceleration_limit':0.125,
-				'tag_radius': 0.025,
-				'team':'b',
-				'dynamics':'double_integrator',
-				'r_comm': 1.6,
-				'r_sense': 1.6,				
-			},
-			{
-				'speed_limit': 0.125,
-				'acceleration_limit':0.125,
-				'tag_radius': 0.075,
-				'team':'b',
-				'dynamics':'double_integrator',
-				'r_comm': 1.6,
-				'r_sense': 1.6,
-			}
-			]
+
+		# robot types 
+		self.standard_robot = {
+			'speed_limit': 0.125,
+			'acceleration_limit':0.125,
+			'tag_radius': 0.025,
+			'dynamics':'double_integrator',
+			'r_comm': 1.6,
+			'r_sense': 1.6,
+		}
+
+		self.evasive_robot = {
+			'speed_limit': 0.125,
+			'acceleration_limit':0.2,
+			'tag_radius': 0.025,
+			'dynamics':'double_integrator',
+			'r_comm': 1.6,
+			'r_sense': 1.6,
+		}
+
+		self.robot_teams = {
+			'a': {'standard_robot':1,'evasive_robot':0},
+			'b': {'standard_robot':1,'evasive_robot':0}
+		}
 		
 		# environment
 		l = 0.5
@@ -66,7 +58,7 @@ class Param:
 		self.goal = np.array([0.9*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 500000
+		self.tree_size = 50000
 		self.fixed_tree_depth_on = False
 		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000
@@ -119,6 +111,14 @@ class Param:
 
 
 	def update(self):
+
+		self.robots = [] 
+		for team, composition in self.robot_teams.items():
+			for robot_type, robot_number in composition.items():
+				for _ in range(robot_number):
+					robot = copy.copy(self.__dict__[robot_type])
+					robot["team"] = team 
+					self.robots.append(robot)
 
 		num_nodes_A, num_nodes_B = 0,0
 		for robot in self.robots:
