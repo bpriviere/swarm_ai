@@ -75,28 +75,23 @@ def run_mcts_batch(param, instance_key, datadir):
 def prepare_raw_data_gen(gparam):
 
 	params, instance_keys  = [], []
-	# cases = itertools.product(*(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst))
-	for (num_nodes_A, num_nodes_B) in zip(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst):
-
-		start = len(glob.glob('{}*{}a_{}b*.pickle'.format(\
-			gparam.demonstration_data_dir,num_nodes_A,num_nodes_B)))
-
+	# for (num_nodes_A, num_nodes_B) in zip(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst):
+	for robot_teams in gparam.robot_team_composition_cases:
 		for trial in range(gparam.num_trials):
 			
-			# save 
-			instance_key = get_instance_fn(num_nodes_A,num_nodes_B,trial+start) 
-
 			# param 
 			param = Param()
-			param.robot_teams = {
-				'a': {'standard_robot':num_nodes_A,'evasive_robot':0},
-				'b': {'standard_robot':num_nodes_B,'evasive_robot':0}
-			}
+			param.robot_teams = robot_teams 
 			param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
 			param.controller_name = gparam.expert_controller
 			param.update()
 			env = Swarm(param)
 
+			# save 
+			start = len(glob.glob('{}*{}a_{}b*.pickle'.format(\
+				gparam.demonstration_data_dir,param.num_nodes_A,param.num_nodes_B)))
+			instance_key = get_instance_fn(param.num_nodes_A,param.num_nodes_B,trial+start) 
+			
 			# assign 
 			params.append(param)
 			instance_keys.append(instance_key)
@@ -263,11 +258,9 @@ if __name__ == '__main__':
 
 			observations_list = [] 
 
-			batch_fn = get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,True,0,1)
-			observations_list.append(dh.read_dbg_observation_fn(batch_fn,gparam.demonstration_data_dir))
-
-			batch_fn = get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,False,1,0)
-			observations_list.append(dh.read_dbg_observation_fn(batch_fn,gparam.demonstration_data_dir))
+			batch_fns = glob.glob(get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,'*','*','*'))
+			for batch_fn in batch_fns: 
+				observations_list.append(dh.read_dbg_observation_fn(batch_fn,gparam.demonstration_data_dir))
 
 			plotter.plot_dbg_observations(sim_result,observations_list)
 			
