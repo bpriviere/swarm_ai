@@ -57,19 +57,25 @@ def test(model,optimizer,loader):
 
 def run_mcts_batch(param, instance_key, datadir): 
 
-	with tempfile.TemporaryDirectory() as tmpdirname:
-		input_file = tmpdirname + "/config.yaml" 
-		dh.write_mcts_config_file(param, input_file)
-		output_file = tmpdirname + "/output.csv"
-		print('running instance {}'.format(instance_key))
-		subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
-		data = np.loadtxt(output_file, delimiter=',', skiprows=1, dtype=np.float32)
+	try: 
 
-	sim_result = dh.convert_cpp_data_to_sim_result(data,param)
+		with tempfile.TemporaryDirectory() as tmpdirname:
+			input_file = tmpdirname + "/config.yaml" 
+			dh.write_mcts_config_file(param, input_file)
+			output_file = tmpdirname + "/output.csv"
+			print('running instance {}'.format(instance_key))
+			subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
+			data = np.loadtxt(output_file, delimiter=',', skiprows=1, dtype=np.float32)
 
-	print('writing instance {}... '.format(instance_key))
-	dh.write_sim_result(sim_result,datadir + instance_key)
-	print('completed instance {}'.format(instance_key))
+		sim_result = dh.convert_cpp_data_to_sim_result(data,param)
+
+		print('writing instance {}... '.format(instance_key))
+		dh.write_sim_result(sim_result,datadir + instance_key)
+		print('completed instance {}'.format(instance_key))
+
+	except: 
+
+		print('failed instance {}'.format(instance_key))
 
 
 def prepare_raw_data_gen(gparam):
@@ -77,6 +83,7 @@ def prepare_raw_data_gen(gparam):
 	params, instance_keys  = [], []
 	# for (num_nodes_A, num_nodes_B) in zip(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst):
 	for robot_teams in gparam.robot_team_composition_cases:
+		start = 0
 		for trial in range(gparam.num_trials):
 			
 			# param 
@@ -88,8 +95,8 @@ def prepare_raw_data_gen(gparam):
 			env = Swarm(param)
 
 			# save 
-			start = len(glob.glob('{}*{}a_{}b*.pickle'.format(\
-				gparam.demonstration_data_dir,param.num_nodes_A,param.num_nodes_B)))
+			while os.path.exists('{}{}.pickle'.format(gparam.demonstration_data_dir,get_instance_fn(param.num_nodes_A,param.num_nodes_B,start+trial))):
+				start += 1 	
 			instance_key = get_instance_fn(param.num_nodes_A,param.num_nodes_B,trial+start) 
 			
 			# assign 
@@ -175,7 +182,6 @@ if __name__ == '__main__':
 			print('ncpu: ', ncpu)
 			with Pool(ncpu-1) as p:
 				p.starmap(run_mcts_batch, zip(params,instance_keys,itertools.repeat(gparam.demonstration_data_dir)))
-
 
 	# load (state,action) files, apply measurement model, and write (observation,action) binary files
 	if gparam.make_labelled_data_on: 
