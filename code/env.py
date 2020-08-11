@@ -242,7 +242,11 @@ class Swarm(Env):
 		dist_goal = np.linalg.norm(state_mat[self.param.team_1_idxs,0:2] - self.param.goal, axis=1)
 		
 		for idx in self.param.team_1_idxs:
-			captured = np.any(dist_robots[idx,self.param.team_2_idxs] < self.param.robots[idx]["tag_radius"])
+			captured = False
+			for idx_j in self.param.team_2_idxs:
+				if dist_robots[idx,idx_j] < self.param.robots[idx_j]["tag_radius"]:
+					captured = True 
+					break 
 			reached_goal = dist_goal[idx] < self.param.robots[idx]["tag_radius"]
 			
 			if idx in self.done or captured or reached_goal: 

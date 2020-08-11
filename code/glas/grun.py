@@ -213,14 +213,14 @@ if __name__ == '__main__':
 					oa_pairs_by_file[instance_key][key].append((o_a, o_b, goal, action_per_robot))
 
 		# make dbg batches and write to file 
-		for instance_key, oa_pairs_by_size_dbg in oa_pairs_by_file.items():
-			for (team,num_a,num_b),oa_pairs in oa_pairs_by_size_dbg.items():
-				batched_dataset = [] 
-				for (o_a, o_b, goal, action) in oa_pairs:
-					data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
-					batched_dataset.append(data)
-				batch_fn = get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,team,num_a,num_b)
-				dh.write_oa_batch(batched_dataset,batch_fn) 
+		# for instance_key, oa_pairs_by_size_dbg in oa_pairs_by_file.items():
+		# 	for (team,num_a,num_b),oa_pairs in oa_pairs_by_size_dbg.items():
+		# 		batched_dataset = [] 
+		# 		for (o_a, o_b, goal, action) in oa_pairs:
+		# 			data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
+		# 			batched_dataset.append(data)
+		# 		batch_fn = get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,team,num_a,num_b)
+		# 		dh.write_oa_batch(batched_dataset,batch_fn) 
 
 		# make actual batches and write to file 
 		for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
