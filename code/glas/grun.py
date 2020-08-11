@@ -142,13 +142,11 @@ def get_instance_fn(num_nodes_A,num_nodes_B,trial):
 
 
 def get_batch_fn(datadir,team,num_a,num_b,batch_num):
-	team_name = "a" if team else "b"
-	return '{}labelled_{}team_{}a_{}b_{}trial.npy'.format(datadir,team_name,num_a,num_b,batch_num)
+	return '{}labelled_{}team_{}a_{}b_{}trial.npy'.format(datadir,team,num_a,num_b,batch_num)
 
 
 def get_dbg_observation_fn(datadir,instance,team,num_a,num_b):
-	team_name = "a" if team else "b"
-	return '{}observations_from_{}_{}team_{}a_{}b.npy'.format(datadir,instance,team_name,num_a,num_b)
+	return '{}observations_from_{}_{}team_{}a_{}b.npy'.format(datadir,instance,team,num_a,num_b)
 
 
 def get_instance_keys(gparam):
@@ -210,7 +208,12 @@ if __name__ == '__main__':
 					if gparam.discrete_on: 
 						action_per_robot = action_to_classification(action_per_robot, gparam.actions)
 
-					key = (robot_idx < param.num_nodes_A,len(o_a),len(o_b))
+					if robot_idx < param.num_nodes_A: 
+						team = "a"
+					else: 
+						team = "b" 
+
+					key = (team,len(o_a),len(o_b))
 					oa_pairs_by_size[key].append((o_a, o_b, goal, action_per_robot))
 					oa_pairs_by_file[instance_key][key].append((o_a, o_b, goal, action_per_robot))
 
@@ -284,8 +287,8 @@ if __name__ == '__main__':
 
 			print('training model for team {}...'.format(training_team))
 		
-			batched_files = glob.glob('{}**labelled_{}team**'.format(gparam.demonstration_data_dir,training_team))
-			
+			batched_files = glob.glob(get_batch_fn(gparam.demonstration_data_dir,training_team,'*','*','*'))
+
 			n_points = 0 
 			for batched_file in batched_files:
 				o_a,o_b,goal,action = dh.read_oa_batch(batched_file,gparam.demonstration_data_dir)

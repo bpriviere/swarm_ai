@@ -9,7 +9,7 @@ class Gparam:
 
 		# flags  
 		self.make_raw_data_on 		= False
-		self.make_labelled_data_on 	= False
+		self.make_labelled_data_on 	= True
 		self.train_model_on 		= True
 		self.dbg_vis_on			 	= False
 		self.discrete_on 			= True 
@@ -20,17 +20,17 @@ class Gparam:
 
 		# raw data param  
 		self.serial_on 				= False
-		self.clean_raw_data_on 		= True
+		self.clean_raw_data_on 		= False
 
 		# generate demonstration data parameters
 		self.num_nodes_A_lst = [1] # [2,4,6]
 		self.num_nodes_B_lst = [1] # [2,4,6]
-		self.num_trials = 10
+		self.num_trials = 1000
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'
 
 		# train parameters
-		self.training_teams = ["a","b"] #["b"] #["a","b"]
+		self.training_teams = ["a","b"] #,"b"] #["b"] #["a","b"]
 
 		# learning hyperparameters
 		self.device = 'cpu'
@@ -65,8 +65,8 @@ class Gparam:
 		self.il_network_activation = relu
 		self.il_train_model_fn = self.model_dir + 'il_current_{}.pt'
 		self.il_test_train_ratio = 0.8
-		self.il_n_points = 1000
-		self.il_batch_size = 20
+		self.il_n_points = 1000000
+		self.il_batch_size = 2000
 		self.il_n_epoch = 200
 		self.il_lr = 1e-3
 		self.il_wd = 0 
