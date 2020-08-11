@@ -23,13 +23,13 @@ class Controller(Controller):
 		self.model_B = DiscreteEmptyNet(gparam, device)
 		self.model_B.load_state_dict(torch.load(self.param.glas_model_B))
 
-		for p in self.model_A.psi.layers[0].parameters():
-			print(p)
+		# for p in self.model_A.psi.layers[0].parameters():
+		# 	print(p)
 
-		for p in self.model_B.psi.layers[0].parameters():
-			print(p)	
+		# for p in self.model_B.psi.layers[0].parameters():
+		# 	print(p)	
 
-		exit()
+		# exit()
 
 	def policy(self,estimate):
 
@@ -45,19 +45,22 @@ class Controller(Controller):
 			o_b = torch.from_numpy(np.expand_dims(o_b,axis=0)).float()
 			goal = torch.from_numpy(np.expand_dims(goal,axis=0)).float()
 
-			print('o_a',o_a)
-			print('o_b',o_b)
-			print('goal',goal)
+			# print('o_a',o_a)
+			# print('o_b',o_b)
+			# print('goal',goal)
 
 			if node.idx in self.param.team_1_idxs: 
 				classification = self.model_A(o_a,o_b,goal).detach().numpy().T # 9 x 1 
-				actions[node] = node.acceleration_limit/np.sqrt(2)*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1   
 			elif node.idx in self.param.team_2_idxs: 
 				classification = self.model_B(o_a,o_b,goal).detach().numpy().T # 9 x 1 
-				actions[node] = node.acceleration_limit/np.sqrt(2)*self.param.actions[np.argmax(classification)][np.newaxis].T # 2x1  
 			
-			print('classification',classification)
-			print('actions[node]',actions[node])
+			# idx = np.argmax(classification)
+			idx = np.random.choice(range(len(self.param.actions)),p=classification.flatten())
+
+			actions[node] = node.acceleration_limit/np.sqrt(2)*self.param.actions[idx][np.newaxis].T # 2x1  
+			
+			# print('classification',classification)
+			# print('actions[node]',actions[node])
 		# exit()
 		
 		return actions
