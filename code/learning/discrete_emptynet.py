@@ -1,7 +1,6 @@
 # standard package
 import gym
 import torch
-import copy 
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
@@ -22,17 +21,17 @@ class DiscreteEmptyNet(nn.Module):
 		self.param = param 
 
 		self.model_team_a = DeepSet(
-			copy.copy(param.il_phi_network_architecture),
-			copy.copy(param.il_rho_network_architecture),
-			copy.copy(param.il_network_activation),
+			param.il_phi_network_architecture,
+			param.il_rho_network_architecture,
+			param.il_network_activation,
 			device)
 
 		self.model_team_b = DeepSet(
-			copy.copy(param.il_phi_network_architecture),
-			copy.copy(param.il_rho_network_architecture),
-			copy.copy(param.il_network_activation),
+			param.il_phi_network_architecture,
+			param.il_rho_network_architecture,
+			param.il_network_activation,
 			device)
-		
+
 		self.psi = FeedForward(
 			param.il_psi_network_architecture,
 			param.il_network_activation,device)
