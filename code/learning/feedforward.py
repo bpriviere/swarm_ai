@@ -1,12 +1,12 @@
 import torch.nn as nn
 import torch
-
+import copy
 
 class FeedForward(nn.Module):
 
 	def __init__(self,layers,activation,device):
 		super(FeedForward, self).__init__()
-		self.layers = layers
+		self.layers = copy.deepcopy(layers)
 		self.activation = activation
 		self.device = torch.device(device)
 		self.in_dim = layers[0].in_features

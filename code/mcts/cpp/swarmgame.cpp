@@ -35,27 +35,7 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
 
   state.turn = GameStateT::Turn::Attackers;
   state.activeMask.set();
-  std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
-  std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
-  // std::uniform_real_distribution<float> velDist(-config["speed_limit_a"].as<float>() / sqrtf(2.0), config["speed_limit_a"].as<float>() / sqrtf(2.0));
-  for (size_t i = 0; i < NumAttackers; ++i) {
-    state.attackers[i].status = RobotState::Status::Active;
-    state.attackers[i].position << xPosDist(generator),yPosDist(generator);
-    // state.attackers[i].velocity << velDist(generator),velDist(generator);
-    state.attackers[i].velocity << 0,0;
-  }
-  xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
-  yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
-  // velDist = std::uniform_real_distribution<float>(-config["speed_limit_b"].as<float>() / sqrtf(2.0), config["speed_limit_b"].as<float>() / sqrtf(2.0));
-  for (size_t i = 0; i < NumDefenders; ++i) {
-    state.defenders[i].status = RobotState::Status::Active;
-    state.defenders[i].position << xPosDist(generator),yPosDist(generator);
-    // state.defenders[i].velocity << velDist(generator),velDist(generator);
-    state.defenders[i].velocity << 0,0;
-  }
-
-  std::cout << state << std::endl;
-
+  
   std::array<RobotType, NumAttackers> attackerTypes;
   for (size_t i = 0; i < NumAttackers; ++i) {
     const auto& node = config["robots"][i];
@@ -76,6 +56,28 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
     defenderTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
     defenderTypes[i].init();
   }
+  
+  std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
+  std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
+  for (size_t i = 0; i < NumAttackers; ++i) {
+    std::uniform_real_distribution<float> velDist(-attackerTypes[i].velocity_limit / sqrtf(2.0), attackerTypes[i].velocity_limit / sqrtf(2.0));
+    state.attackers[i].status = RobotState::Status::Active;
+    state.attackers[i].position << xPosDist(generator),yPosDist(generator);
+    state.attackers[i].velocity << velDist(generator),velDist(generator);
+    // state.attackers[i].velocity << 0,0;
+  }
+  xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
+  yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
+  for (size_t i = 0; i < NumDefenders; ++i) {
+    std::uniform_real_distribution<float> velDist(-defenderTypes[i].velocity_limit / sqrtf(2.0), defenderTypes[i].velocity_limit / sqrtf(2.0));
+    state.defenders[i].status = RobotState::Status::Active;
+    state.defenders[i].position << xPosDist(generator),yPosDist(generator);
+    state.defenders[i].velocity << velDist(generator),velDist(generator);
+    // state.defenders[i].velocity << 0,0;
+  }
+
+  std::cout << state << std::endl;
+
 
   float dt = config["sim_dt"].as<float>();
   Eigen::Vector2f goal;

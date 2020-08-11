@@ -20,16 +20,29 @@ class Gparam:
 
 		# raw data param  
 		self.serial_on 				= False
+		self.clean_raw_data_on 		= True
 
 		# generate demonstration data parameters
-		self.num_nodes_A_lst = [1] # [2,4,6]
-		self.num_nodes_B_lst = [1] # [2,4,6]
-		self.num_trials = 100
+		self.robot_team_composition_cases = [
+			{
+			'a': {'standard_robot':1,'evasive_robot':0},
+			'b': {'standard_robot':1,'evasive_robot':0}
+			},
+			# {
+			# 'a': {'standard_robot':2,'evasive_robot':0},
+			# 'b': {'standard_robot':1,'evasive_robot':0}
+			# },
+			# {
+			# 'a': {'standard_robot':1,'evasive_robot':0},
+			# 'b': {'standard_robot':2,'evasive_robot':0}
+			# }
+		]
+		self.num_trials = 10000
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'
 
 		# train parameters
-		self.training_teams = ["a","b"] #["b"] #["a","b"]
+		self.training_teams = ["a","b"] #,"b"] #["b"] #["a","b"]
 
 		# learning hyperparameters
 		self.device = 'cpu'

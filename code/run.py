@@ -81,7 +81,7 @@ def run_sim(param,env,reset,estimator,attacker,controller):
 	sim_result["states"] = save_lst_of_node_dicts_as_np(states)
 	sim_result["actions"] = save_lst_of_node_dicts_as_np(actions)
 	sim_result["observations"] = observations 
-	sim_result["rewards"] = rewards 
+	sim_result["rewards"] = np.array(rewards) 
 	sim_result["info"] = info
 	sim_result["param"] = param.to_dict() 
 
@@ -117,7 +117,7 @@ if __name__ == '__main__':
 	format_dir(param)
 		
 	# run sim 
-	parallel = False
+	parallel = True
 	if parallel: 
 		ncases = 10
 		nprocess = np.min((mp.cpu_count()-1,ncases))
