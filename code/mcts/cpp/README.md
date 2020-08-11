@@ -27,6 +27,14 @@ python3 ../plot_pdf.py
 ```
 instead of plot.py
 
+#### Testing GLAS
+
+First extract the weights and store them in `nn.yaml`, then play a game using GLAS
+```
+cpp$ python3 convertNN.py ../../../models/il_current_a.pt ../../../models/il_current_b.pt nn.yaml
+build$ ./test_glas -i ../config.yaml -n ../nn.yaml -o output.csv && python3 ../plot.py
+```
+
 ### Notes
 
 * MCTS is generic in the style of libMultiRobotPlanning, with templated State, Action, and GameLogic
