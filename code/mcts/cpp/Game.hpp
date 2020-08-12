@@ -6,6 +6,8 @@
 #include "RobotType.hpp"
 #include "GameState.hpp"
 
+#include "GLAS.hpp"
+
 typedef std::pair<float, float> Reward;
 
 Reward& operator+=(Reward& r1, const Reward& r2) {
@@ -44,13 +46,17 @@ class Game {
     float dt,
     const Eigen::Vector2f& goal,
     size_t maxDepth,
-    std::default_random_engine& generator)
+    std::default_random_engine& generator,
+    const GLAS* glas_a,
+    const GLAS* glas_b)
     : m_attackerTypes(attackerTypes)
     , m_defenderTypes(defenderTypes)
     , m_dt(dt)
     , m_goal(goal)
     , m_maxDepth(maxDepth)
     , m_generator(generator)
+    , m_glas_a(glas_a)
+    , m_glas_b(glas_b)
   {
   }
 
@@ -162,32 +168,56 @@ class Game {
 
   Reward rollout(const GameStateT& state)
   {
-    // float reward = computeReward(state);
     GameStateT s = state;
-    while (true) {
-      std::vector<GameActionT> actions;
-      getPossibleActions(s, actions);
+    if (m_glas_a && m_glas_b) {
+      // NN rollout
 
-      while (actions.size() > 0) {
-        // shuffle on demand
-        std::uniform_int_distribution<int> dist(0, actions.size() - 1);
-        int idx = dist(m_generator);
-        std::swap(actions.back(), actions.begin()[idx]);
+      while (true) {
+        const auto action = computeActionsWithGLAS(*m_glas_a,*m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator);
 
-        const auto& action = actions.back();
+        // step twice (once for each player)
         GameStateT nextState;
         bool valid = step(s, action, nextState);
+        valid &= step(nextState, action, nextState);
         if (valid) {
           s = nextState;
+          if (isTerminal(s)) {
+            break;
+          }
+        } else {
           break;
         }
-        actions.pop_back();
       }
 
-      if (actions.size() == 0) {
-        break;
+    } else {
+      // uniform sampling rollout
+
+      while (true) {
+        std::vector<GameActionT> actions;
+        getPossibleActions(s, actions);
+
+        while (actions.size() > 0) {
+          // shuffle on demand
+          std::uniform_int_distribution<int> dist(0, actions.size() - 1);
+          int idx = dist(m_generator);
+          std::swap(actions.back(), actions.begin()[idx]);
+
+          const auto& action = actions.back();
+          GameStateT nextState;
+          bool valid = step(s, action, nextState);
+          if (valid) {
+            s = nextState;
+            break;
+          }
+          actions.pop_back();
+        }
+
+        if (isTerminal(s) || actions.size() == 0) {
+          break;
+        }
       }
     }
+
     float attackersReward = s.attackersReward;
     float defendersReward = s.defendersReward;
 
@@ -201,6 +231,7 @@ class Game {
     }
 
     return Reward(attackersReward / m_maxDepth, defendersReward / m_maxDepth);
+
   }
 
 // private:
@@ -274,6 +305,8 @@ private:
   Eigen::Vector2f m_goal;
   size_t m_maxDepth;
   std::default_random_engine& m_generator;
+  const GLAS* m_glas_a;
+  const GLAS* m_glas_b;
 
   // Maps activeRobots -> possible actions
   std::unordered_map<std::bitset<NumAttackers>, std::vector<GameActionT>> m_possibleActionsAttackersMap;
