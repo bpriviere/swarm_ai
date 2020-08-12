@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt 
 import matplotlib.patches as patches
 
-data = np.loadtxt("output.csv", delimiter=',', skiprows=1)
+data = np.loadtxt("output.csv", delimiter=',', ndmin=2,skiprows=1)
 print(data.shape)
 
 

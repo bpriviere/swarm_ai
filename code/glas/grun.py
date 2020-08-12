@@ -57,26 +57,13 @@ def test(model,optimizer,loader):
 
 def run_mcts_batch(param, instance_key, datadir): 
 
-	try: 
-
-		with tempfile.TemporaryDirectory() as tmpdirname:
-			input_file = tmpdirname + "/config.yaml" 
-			dh.write_mcts_config_file(param, input_file)
-			output_file = tmpdirname + "/output.csv"
-			print('running instance {}'.format(instance_key))
-			subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
-			data = np.loadtxt(output_file, delimiter=',', skiprows=1, dtype=np.float32)
-
-		sim_result = dh.convert_cpp_data_to_sim_result(data,param)
-
-		print('writing instance {}... '.format(instance_key))
-		dh.write_sim_result(sim_result,datadir + instance_key)
-		print('completed instance {}'.format(instance_key))
-
-	except: 
-
-		print('failed instance {}'.format(instance_key))
-
+	with tempfile.TemporaryDirectory() as tmpdirname:
+		input_file = tmpdirname + "/config.yaml" 
+		dh.write_mcts_config_file(param, input_file)
+		output_file = tmpdirname + "/output.csv"
+		print('running instance {}'.format(instance_key))
+		subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
+		data = np.loadtxt(output_file, delimiter=',', skiprows=1, ndmin=2, dtype=np.float32)
 
 def prepare_raw_data_gen(gparam):
 
@@ -219,14 +206,14 @@ if __name__ == '__main__':
 					oa_pairs_by_file[instance_key][key].append((o_a, o_b, goal, action_per_robot))
 
 		# make dbg batches and write to file 
-		for instance_key, oa_pairs_by_size_dbg in oa_pairs_by_file.items():
-			for (team,num_a,num_b),oa_pairs in oa_pairs_by_size_dbg.items():
-				batched_dataset = [] 
-				for (o_a, o_b, goal, action) in oa_pairs:
-					data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
-					batched_dataset.append(data)
-				batch_fn = get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,team,num_a,num_b)
-				dh.write_oa_batch(batched_dataset,batch_fn) 
+		# for instance_key, oa_pairs_by_size_dbg in oa_pairs_by_file.items():
+		# 	for (team,num_a,num_b),oa_pairs in oa_pairs_by_size_dbg.items():
+		# 		batched_dataset = [] 
+		# 		for (o_a, o_b, goal, action) in oa_pairs:
+		# 			data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
+		# 			batched_dataset.append(data)
+		# 		batch_fn = get_dbg_observation_fn(gparam.demonstration_data_dir,instance_key,team,num_a,num_b)
+		# 		dh.write_oa_batch(batched_dataset,batch_fn) 
 
 		# make actual batches and write to file 
 		for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
