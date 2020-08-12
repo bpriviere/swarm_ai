@@ -411,7 +411,7 @@ def get_colors(param):
 	return colors
 
 
-def plot_tree_results(sim_result): 
+def plot_tree_results(sim_result,title=None): 
 
 	times = sim_result["times"]
 	states = sim_result["states"]
@@ -473,6 +473,59 @@ def plot_tree_results(sim_result):
 
 	fig.tight_layout()
 
+	if title is not None: 
+		fig.suptitle(title)
+
+def plot_exp1_results(sim_results):
+
+	plotted = []
+	for sim_result_1 in sim_results: 
+
+		if not sim_result_1 in plotted: 
+			
+			found = False 
+			for sim_result_2 in sim_results: 
+				if not sim_result_1 is sim_result_2 and sim_result_1["param"]["seed"] == sim_result_2["param"]["seed"]:
+					found = True 
+					break 
+
+			if not found:
+				exit('not found')
+
+			fig,axs = plt.subplots(nrows=1,ncols=2) 
+			for k, sim_result in enumerate([sim_result_1,sim_result_2]):
+				plotted.append(sim_result)
+
+				times = sim_result["times"]
+				states = sim_result["states"]
+				team_1_idxs = sim_result["param"]["team_1_idxs"]
+				num_nodes = sim_result["param"]["num_nodes"]
+				goal = sim_result["param"]["goal"]
+				tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+				title = sim_result["param"]["sim_results_fig_title"]	
+				env_xlim = sim_result["param"]["env_xlim"]	
+				env_ylim = sim_result["param"]["env_ylim"]	
+
+				team_1_color = 'blue'
+				team_2_color = 'orange'
+				goal_color = 'green'
+
+				colors = get_colors(sim_result["param"])
+
+				# state space
+				ax = axs[k]
+				ax.grid(True)
+				ax.set_aspect('equal')
+				ax.set_title(title)
+				ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
+				for i in range(num_nodes):
+					for t in range(states.shape[0]):
+						ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
+							color=colors[i],alpha=0.2,fill=False))
+					ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
+					ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i])
+				ax.set_xlim([env_xlim[0],env_xlim[1]])
+				ax.set_ylim([env_ylim[0],env_ylim[1]])
 
 def rotate_image(image, angle):
 	''' 

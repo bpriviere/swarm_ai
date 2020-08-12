@@ -81,8 +81,11 @@ class Param:
 
 		# path stuff
 		self.current_results_dir = '../current_results'
+
+		# model stuff 
 		self.glas_model_A = '../models/il_current_a.pt'
 		self.glas_model_B = '../models/il_current_b.pt'
+		self.combined_model_name = 'nn.yaml'
 		
 		# plotting 
 		self.plot_fn = 'plots.pdf'
