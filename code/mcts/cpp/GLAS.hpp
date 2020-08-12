@@ -279,7 +279,9 @@ std::array<RobotAction, NumAttackers + NumDefenders> computeActionsWithGLAS(
         Eigen::Vector4f relState;
         relState.segment(0,2) = state.attackers[j2].position - state.attackers[j].position;
         relState.segment(2,2) = state.attackers[j2].velocity - state.attackers[j].velocity;
-        input_a.push_back(relState);
+        if (relState.segment(0,2).squaredNorm() <= attackerTypes[j].r_senseSquared) {
+          input_a.push_back(relState);
+        }
       }
     }
     // compute input_b
@@ -288,11 +290,17 @@ std::array<RobotAction, NumAttackers + NumDefenders> computeActionsWithGLAS(
       Eigen::Vector4f relState;
       relState.segment(0,2) = state.defenders[j2].position - state.attackers[j].position;
       relState.segment(2,2) = state.defenders[j2].velocity - state.attackers[j].velocity;
-      input_b.push_back(relState);
+      if (relState.segment(0,2).squaredNorm() <= attackerTypes[j].r_senseSquared) {
+        input_b.push_back(relState);
+      }
     }
     // compute relGoal
     relGoal.segment(0,2) = goal - state.attackers[j].position;
     relGoal.segment(2,2) = -state.attackers[j].velocity;
+
+    // projecting goal to radius of sensing
+    float alpha = sqrtf(relGoal.segment(0,2).squaredNorm() / attackerTypes[j].r_senseSquared);
+    relGoal.segment(0,2) = relGoal.segment(0,2) / std::max(alpha, 1.0f);
 
     // evaluate GLAS
     auto a = glas_a.computeAction(input_a, input_b, relGoal, /*deterministic*/false);
@@ -307,7 +315,9 @@ std::array<RobotAction, NumAttackers + NumDefenders> computeActionsWithGLAS(
       Eigen::Vector4f relState;
       relState.segment(0,2) = state.attackers[j2].position - state.defenders[j].position;
       relState.segment(2,2) = state.attackers[j2].velocity - state.defenders[j].velocity;
-      input_a.push_back(relState);
+      if (relState.segment(0,2).squaredNorm() <= defenderTypes[j].r_senseSquared) {
+        input_a.push_back(relState);
+      }
     }
     // compute input_b
     input_b.clear();
@@ -316,12 +326,18 @@ std::array<RobotAction, NumAttackers + NumDefenders> computeActionsWithGLAS(
         Eigen::Vector4f relState;
         relState.segment(0,2) = state.defenders[j2].position - state.defenders[j].position;
         relState.segment(2,2) = state.defenders[j2].velocity - state.defenders[j].velocity;
-        input_b.push_back(relState);
+        if (relState.segment(0,2).squaredNorm() <= defenderTypes[j].r_senseSquared) {
+          input_b.push_back(relState);
+        }
       }
     }
     // compute relGoal
     relGoal.segment(0,2) = goal - state.defenders[j].position;
     relGoal.segment(2,2) = -state.defenders[j].velocity;
+
+    // projecting goal to radius of sensing
+    float alpha = sqrtf(relGoal.segment(0,2).squaredNorm() / defenderTypes[j].r_senseSquared);
+    relGoal.segment(0,2) = relGoal.segment(0,2) / std::max(alpha, 1.0f);
 
     // evaluate GLAS
     auto a = glas_b.computeAction(input_a, input_b, relGoal, /*deterministic*/false);

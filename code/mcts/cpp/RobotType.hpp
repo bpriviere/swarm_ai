@@ -15,6 +15,7 @@ public:
   float velocity_limit;
   float acceleration_limit;
   float tag_radiusSquared;
+  float r_senseSquared;
   std::vector<RobotAction> possibleActions;
   RobotAction invalidAction;
 

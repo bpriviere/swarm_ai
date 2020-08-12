@@ -68,6 +68,7 @@ void runGame(
     attackerTypes[i].velocity_limit = node["speed_limit"].as<float>(); // / sqrtf(2.0);
     attackerTypes[i].acceleration_limit = node["acceleration_limit"].as<float>() / sqrtf(2.0);
     attackerTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
+    attackerTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     attackerTypes[i].init();
   }
   std::array<RobotType, NumDefenders> defenderTypes;
@@ -78,6 +79,7 @@ void runGame(
     defenderTypes[i].velocity_limit = node["speed_limit"].as<float>() / sqrtf(2.0);
     defenderTypes[i].acceleration_limit = node["acceleration_limit"].as<float>() / sqrtf(2.0);
     defenderTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
+    defenderTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     defenderTypes[i].init();
   }
 
