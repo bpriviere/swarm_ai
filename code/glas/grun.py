@@ -63,7 +63,7 @@ def run_mcts_batch(param, instance_key, datadir):
 		output_file = tmpdirname + "/output.csv"
 		print('running instance {}'.format(instance_key))
 		subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
-		data = np.loadtxt(output_file, delimiter=',', skiprows=1, dtype=np.float32)
+		data = np.loadtxt(output_file, delimiter=',', skiprows=1, ndmin=2, dtype=np.float32)
 
 	sim_result = dh.convert_cpp_data_to_sim_result(data,param)
 

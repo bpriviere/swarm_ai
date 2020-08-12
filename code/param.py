@@ -122,9 +122,9 @@ class Param:
 
 		num_nodes_A, num_nodes_B = 0,0
 		for robot in self.robots:
-			if robot["team"] is 'a':
+			if robot["team"] == 'a':
 				num_nodes_A += 1
-			elif robot["team"] is 'b':
+			elif robot["team"] == 'b':
 				num_nodes_B += 1
 
 		self.num_nodes_A = num_nodes_A

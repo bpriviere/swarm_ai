@@ -72,9 +72,9 @@ public:
     m_layers.push_back({weight, bias});
   }
 
-  Eigen::MatrixXf eval(const Eigen::MatrixXf& input) const
+  Eigen::VectorXf eval(const Eigen::VectorXf& input) const
   {
-    Eigen::MatrixXf result = input;
+    Eigen::VectorXf result = input;
     for (size_t i = 0; i < m_layers.size()-1; ++i) {
       const auto& l = m_layers[i];
       result = relu(l.weight * result + l.bias);
@@ -119,9 +119,9 @@ public:
   {
   }
 
-  Eigen::MatrixXf eval(const std::vector<Eigen::Vector4f>& input) const
+  Eigen::VectorXf eval(const std::vector<Eigen::Vector4f>& input) const
   {
-    Eigen::MatrixXf X = Eigen::MatrixXf::Zero(m_rho.sizeIn(), 1);
+    Eigen::VectorXf X = Eigen::VectorXf::Zero(m_rho.sizeIn(), 1);
     for (const auto& i : input) {
       X += m_phi.eval(i);
     }
@@ -158,7 +158,7 @@ public:
   {
     Eigen::VectorXf X(m_psi.sizeIn());
     X.segment(0, m_ds_a.sizeOut()) = m_ds_a.eval(input_a);
-    X.segment(m_ds_a.sizeOut(), m_ds_b.sizeOut()) = m_ds_b.eval(input_a);
+    X.segment(m_ds_a.sizeOut(), m_ds_b.sizeOut()) = m_ds_b.eval(input_b);
     X.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), 4) = goal;
 
     auto res = m_psi.eval(X);
@@ -289,6 +289,9 @@ void runGame(
 
   state.turn = GameStateT::Turn::Attackers;
   state.activeMask.set();
+  state.depth = 0;
+  state.attackersReward = 0;
+  state.defendersReward = 0;
   std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
   std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
   // std::uniform_real_distribution<float> velDist(-config["speed_limit_a"].as<float>() / sqrtf(2.0), config["speed_limit_a"].as<float>() / sqrtf(2.0));
@@ -447,10 +450,10 @@ void runGame(
     // step forward (twice: once for each player)
 
     bool success = env.step(state, action, state);
-    std::cout << state << std::endl;
+    std::cout << state << " s: " << success << std::endl;
     success &= env.step(state, action, state);
-    std::cout << state << std::endl;
-    if (!success) {
+    std::cout << state << " s: " << success << std::endl;
+    if (!success || env.isTerminal(state)) {
       break;
     }
 
