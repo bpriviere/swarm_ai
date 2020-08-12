@@ -122,63 +122,7 @@ void runGame(
   Eigen::Vector4f relGoal;
   for(int i = 0; ; ++i) {
 
-    // evaluate glas for all team members of a
-    for (size_t j = 0; j < NumAttackers; ++j) {
-      // compute input_a
-      input_a.clear();
-      for (size_t j2 = 0; j2 < NumAttackers; ++j2) {
-        if (j != j2) {
-          Eigen::Vector4f relState;
-          relState.segment(0,2) = state.attackers[j2].position - state.attackers[j].position;
-          relState.segment(2,2) = state.attackers[j2].velocity - state.attackers[j].velocity;
-          input_a.push_back(relState);
-        }
-      }
-      // compute input_b
-      input_b.clear();
-      for (size_t j2 = 0; j2 < NumDefenders; ++j2) {
-        Eigen::Vector4f relState;
-        relState.segment(0,2) = state.defenders[j2].position - state.attackers[j].position;
-        relState.segment(2,2) = state.defenders[j2].velocity - state.attackers[j].velocity;
-        input_b.push_back(relState);
-      }
-      // compute relGoal
-      relGoal.segment(0,2) = goal - state.attackers[j].position;
-      relGoal.segment(2,2) = -state.attackers[j].velocity;
-
-      // evaluate GLAS
-      auto a = glas_a.computeAction(input_a, input_b, relGoal, /*deterministic*/true);
-      action[j] = a * attackerTypes[j].acceleration_limit;
-    }
-
-    // evaluate glas for all team members of b
-    for (size_t j = 0; j < NumDefenders; ++j) {
-      // compute input_a
-      input_a.clear();
-      for (size_t j2 = 0; j2 < NumAttackers; ++j2) {
-        Eigen::Vector4f relState;
-        relState.segment(0,2) = state.attackers[j2].position - state.defenders[j].position;
-        relState.segment(2,2) = state.attackers[j2].velocity - state.defenders[j].velocity;
-        input_a.push_back(relState);
-      }
-      // compute input_b
-      input_b.clear();
-      for (size_t j2 = 0; j2 < NumDefenders; ++j2) {
-        if (j != j2) {
-          Eigen::Vector4f relState;
-          relState.segment(0,2) = state.defenders[j2].position - state.defenders[j].position;
-          relState.segment(2,2) = state.defenders[j2].velocity - state.defenders[j].velocity;
-          input_b.push_back(relState);
-        }
-      }
-      // compute relGoal
-      relGoal.segment(0,2) = goal - state.defenders[j].position;
-      relGoal.segment(2,2) = -state.defenders[j].velocity;
-
-      // evaluate GLAS
-      auto a = glas_b.computeAction(input_a, input_b, relGoal, /*deterministic*/true);
-      action[NumAttackers + j] = a * defenderTypes[j].acceleration_limit;
-    }
+    action = computeActionsWithGLAS(glas_a, glas_b, state, goal, attackerTypes, defenderTypes, generator);
 
     // output state & action
 
@@ -192,7 +136,8 @@ void runGame(
           << state.defenders[j].velocity(0) << "," << state.defenders[j].velocity(1) << ","
           << action[j+NumAttackers](0) << "," << action[j+NumAttackers](1) << ",";
     }
-    out << state.attackersReward << "," << state.defendersReward << std::endl;
+    out << state.attackersReward / state.depth << ","
+        << state.defendersReward / state.depth << std::endl;
 
     // step forward (twice: once for each player)
 
