@@ -64,19 +64,18 @@ def run_mcts_batch(param, instance_key, datadir):
 		print('running instance {}'.format(instance_key))
 		subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
 		data = np.loadtxt(output_file, delimiter=',', skiprows=1, ndmin=2, dtype=np.float32)
-
-	sim_result = dh.convert_cpp_data_to_sim_result(data,param)
+		sim_result = dh.convert_cpp_data_to_sim_result(data,param)
 
 	print('writing instance {}... '.format(instance_key))
 	dh.write_sim_result(sim_result,datadir + instance_key)
 	print('completed instance {}'.format(instance_key))
-
 
 def prepare_raw_data_gen(gparam):
 
 	params, instance_keys  = [], []
 	# for (num_nodes_A, num_nodes_B) in zip(gparam.num_nodes_A_lst,gparam.num_nodes_B_lst):
 	for robot_teams in gparam.robot_team_composition_cases:
+		start = 0
 		for trial in range(gparam.num_trials):
 			
 			# param 
@@ -88,8 +87,8 @@ def prepare_raw_data_gen(gparam):
 			env = Swarm(param)
 
 			# save 
-			start = len(glob.glob('{}*{}a_{}b*.pickle'.format(\
-				gparam.demonstration_data_dir,param.num_nodes_A,param.num_nodes_B)))
+			while os.path.exists('{}{}.pickle'.format(gparam.demonstration_data_dir,get_instance_fn(param.num_nodes_A,param.num_nodes_B,start+trial))):
+				start += 1 	
 			instance_key = get_instance_fn(param.num_nodes_A,param.num_nodes_B,trial+start) 
 			
 			# assign 
@@ -176,7 +175,6 @@ if __name__ == '__main__':
 			with Pool(ncpu-1) as p:
 				p.starmap(run_mcts_batch, zip(params,instance_keys,itertools.repeat(gparam.demonstration_data_dir)))
 
-
 	# load (state,action) files, apply measurement model, and write (observation,action) binary files
 	if gparam.make_labelled_data_on: 
 		print('make labelled data...')
@@ -193,6 +191,9 @@ if __name__ == '__main__':
 			param = load_param(sim_result["param"])
 			states = sim_result["states"] # nt x nrobots x nstate_per_robot
 			actions = sim_result["actions"] 
+
+			for robot in param.robots:
+				robot["r_sense"] = gparam.r_sense
 
 			for timestep,(state,action) in enumerate(zip(states,actions)):
 				
@@ -241,7 +242,7 @@ if __name__ == '__main__':
 	if gparam.dbg_vis_on:
 		print('vis...')
 
-		num_plots = 1
+		num_plots = 10
 		instance_keys = get_instance_keys(gparam) 
 
 		# check state action pairs 

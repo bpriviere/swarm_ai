@@ -444,8 +444,8 @@ def plot_tree_results(sim_result):
 				color=colors[i],alpha=0.2,fill=False))
 		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
 		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i])
-	# ax.set_xlim([env_xlim[0],env_xlim[1]])
-	# ax.set_ylim([env_ylim[0],env_ylim[1]])
+	ax.set_xlim([env_xlim[0],env_xlim[1]])
+	ax.set_ylim([env_ylim[0],env_ylim[1]])
 
 	# value func
 	ax = axs[0,1] 
