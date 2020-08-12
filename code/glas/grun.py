@@ -64,6 +64,11 @@ def run_mcts_batch(param, instance_key, datadir):
 		print('running instance {}'.format(instance_key))
 		subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
 		data = np.loadtxt(output_file, delimiter=',', skiprows=1, ndmin=2, dtype=np.float32)
+		sim_result = dh.convert_cpp_data_to_sim_result(data,param)
+
+	print('writing instance {}... '.format(instance_key))
+	dh.write_sim_result(sim_result,datadir + instance_key)
+	print('completed instance {}'.format(instance_key))
 
 def prepare_raw_data_gen(gparam):
 
@@ -186,6 +191,9 @@ if __name__ == '__main__':
 			param = load_param(sim_result["param"])
 			states = sim_result["states"] # nt x nrobots x nstate_per_robot
 			actions = sim_result["actions"] 
+
+			for robot in param.robots:
+				robot["r_sense"] = gparam.r_sense
 
 			for timestep,(state,action) in enumerate(zip(states,actions)):
 				
