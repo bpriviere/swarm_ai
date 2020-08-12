@@ -181,6 +181,9 @@ class Game {
         valid &= step(nextState, action, nextState);
         if (valid) {
           s = nextState;
+          if (isTerminal(s)) {
+            break;
+          }
         } else {
           break;
         }
@@ -209,7 +212,7 @@ class Game {
           actions.pop_back();
         }
 
-        if (actions.size() == 0) {
+        if (isTerminal(s) || actions.size() == 0) {
           break;
         }
       }
