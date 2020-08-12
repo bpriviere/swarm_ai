@@ -3,6 +3,7 @@
 # standard package
 import numpy as np 
 import copy
+import os, sys
 from gym import Env
 from numpy.random import random
 from matplotlib import pyplot as plt 
@@ -66,6 +67,8 @@ class Swarm(Env):
 
 		reset = dict()
 
+		seed = int.from_bytes(os.urandom(4), sys.byteorder)		
+
 		# init positions 
 		nodes = [] 
 		state_dim = 0 
@@ -125,6 +128,7 @@ class Swarm(Env):
 		reset["state_initial"] = state_initial
 		reset["state_dim"] = state_dim
 		reset["control_dim"] = control_dim 
+		reset["seed"] = seed 
 
 		return reset 
 
@@ -134,10 +138,13 @@ class Swarm(Env):
 		# 	- 
 		# output:
 		# 	- 
+
+		np.random.seed(reset["seed"])
 		
 		self.state_vec = reset["state_initial"] 
 		self.param.state_dim = reset["state_dim"] 
 		self.param.control_dim = reset["control_dim"] 
+		self.param.seed = reset["seed"]
 		self.timestep = 0 
 		
 		self.nodes = []
