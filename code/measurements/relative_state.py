@@ -33,7 +33,7 @@ import numpy as np
 
 # 	return observations
 
-def relative_state(states,param,idx,flatten=False):
+def relative_state(states,param,idx):
 
 	n_robots, n_state_dim = states.shape
 
@@ -42,6 +42,10 @@ def relative_state(states,param,idx,flatten=False):
 	o_a = []
 	o_b = [] 
 	relative_goal = goal - states[idx,:]
+
+	# projecting goal to radius of sensing 
+	alpha = np.linalg.norm(relative_goal[0:2]) / param.robots[idx]["r_sense"]
+	relative_goal[2:] = relative_goal[2:] / np.max((alpha,1))	
 
 	for idx_j in range(n_robots): 
 		if not idx_j == idx and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]: 
@@ -52,8 +56,8 @@ def relative_state(states,param,idx,flatten=False):
 
 	return np.array(o_a),np.array(o_b),np.array(relative_goal)
 
-def relative_state_per_node(nodes,states,param,flatten=False):
+def relative_state_per_node(nodes,states,param):
 	observations = dict()
 	for node in nodes: 
-		observations[node] = relative_state(states,param,node.idx,flatten=flatten)
+		observations[node] = relative_state(states,param,node.idx)
 	return observations

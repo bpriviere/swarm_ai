@@ -28,19 +28,35 @@ class Controller(Controller):
 		nodes = self.env.nodes
 		actions = dict() 
 
-		observations = relative_state_per_node(self.env.nodes, self.env.state_vec_to_mat(self.env.state_vec), self.param, flatten=True)
+		observations = relative_state_per_node(self.env.nodes, self.env.state_vec_to_mat(self.env.state_vec), self.param) #, flatten=True)
 
 		for node in nodes:
 			
 			o_a, o_b, goal = observations[node]
-			o_a = torch.from_numpy(np.expand_dims(o_a,axis=0)).float() 
-			o_b = torch.from_numpy(np.expand_dims(o_b,axis=0)).float()
+
+			# print('o_a:',o_a)
+			# print('o_b:',o_b)
+			# print('goal:',goal)
+
+			if o_a.shape[0] == 0:
+				o_a = np.expand_dims(o_a,axis=0)
+			if o_b.shape[0] == 0:
+				o_b = np.expand_dims(o_b,axis=0)
+
+			o_a = torch.from_numpy(o_a).float() 
+			o_b = torch.from_numpy(o_b).float()
 			goal = torch.from_numpy(np.expand_dims(goal,axis=0)).float()
 
 			if node.idx in self.param.team_1_idxs: 
 				classification = self.model_A(o_a,o_b,goal).detach().numpy().T # 9 x 1 
 			elif node.idx in self.param.team_2_idxs: 
 				classification = self.model_B(o_a,o_b,goal).detach().numpy().T # 9 x 1 
+
+			# print('o_a:',o_a)
+			# print('o_b:',o_b)
+			# print('goal:',goal)
+			# print('classification:',classification)
+			# exit()
 
 			# idx = np.argmax(classification)
 			idx = np.random.choice(range(len(self.param.actions)),p=classification.flatten())
