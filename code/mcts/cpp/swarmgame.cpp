@@ -12,6 +12,8 @@
 
 #include "monte_carlo_tree_search.hpp"
 
+#include "GLAS.hpp"
+
 Eigen::Vector2f randomVector2f(
   float max_norm,
   std::default_random_engine& generator)
@@ -26,23 +28,18 @@ Eigen::Vector2f randomVector2f(
 }
 
 template <std::size_t NumAttackers, std::size_t NumDefenders>
-void runMCTS(const YAML::Node& config, const std::string& outputFile)
+void runMCTS(
+  const YAML::Node& config,
+  const std::string& outputFile,
+  std::default_random_engine& generator,
+  GLAS* glas_a,
+  GLAS* glas_b)
 {
   using EnvironmentT = Game<NumAttackers, NumDefenders>;
   using GameStateT = typename EnvironmentT::GameStateT;
   using GameActionT = typename EnvironmentT::GameActionT;
 
   size_t num_nodes = config["tree_size"].as<int>();
-
-  size_t seed;
-  if (config["seed"]) {
-    seed = config["seed"].as<size_t>();
-  } else {
-    std::random_device r;
-    seed = r();
-  }
-  std::cout << "Using seed " << seed << std::endl;
-  std::default_random_engine generator(seed);
 
   GameStateT state;
 
@@ -98,7 +95,7 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
 
   size_t max_depth = config["rollout_horizon"].as<int>();
 
-  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, max_depth, generator);
+  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b);
 
   libMultiRobotPlanning::MonteCarloTreeSearch<GameStateT, GameActionT, Reward, EnvironmentT> mcts(env, generator, num_nodes, 1.4);
 
@@ -171,10 +168,12 @@ int main(int argc, char* argv[]) {
   // Declare the supported options.
   po::options_description desc("Allowed options");
   std::string inputFile;
+  std::string inputFileNN;
   std::string outputFile;
   desc.add_options()
     ("help", "produce help message")
     ("input,i", po::value<std::string>(&inputFile)->required(),"input file (YAML)")
+    ("inputNN,n", po::value<std::string>(&inputFileNN),"input config file NN (YAML)")
     ("output,o", po::value<std::string>(&outputFile)->required(),"output file (YAML)");
 
   try {
@@ -194,20 +193,39 @@ int main(int argc, char* argv[]) {
 
   YAML::Node config = YAML::LoadFile(inputFile);
 
+  size_t seed;
+  if (config["seed"]) {
+    seed = config["seed"].as<size_t>();
+  } else {
+    std::random_device r;
+    seed = r();
+  }
+  std::cout << "Using seed " << seed << std::endl;
+  std::default_random_engine generator(seed);
+
+  GLAS* glas_a = nullptr;
+  GLAS* glas_b = nullptr;
+  if (!inputFileNN.empty()) {
+    YAML::Node cfg_nn = YAML::LoadFile(inputFileNN);
+
+    glas_a = new GLAS(cfg_nn["team_a"], generator);
+    glas_b = new GLAS(cfg_nn["team_b"], generator);
+  }
+
   int numAttackers = config["num_nodes_A"].as<int>();
   int numDefenders = config["num_nodes_B"].as<int>();
 
   if (numAttackers == 1 && numDefenders == 1) {
-    runMCTS<1,1>(config, outputFile);
+    runMCTS<1,1>(config, outputFile, generator, glas_a, glas_b);
   }
   else if (numAttackers == 2 && numDefenders == 1) {
-    runMCTS<2,1>(config, outputFile);
+    runMCTS<2,1>(config, outputFile, generator, glas_a, glas_b);
   }
   else if (numAttackers == 1 && numDefenders == 2) {
-    runMCTS<1,2>(config, outputFile);
+    runMCTS<1,2>(config, outputFile, generator, glas_a, glas_b);
   }
   else if (numAttackers == 2 && numDefenders == 2) {
-    runMCTS<2,2>(config, outputFile);
+    runMCTS<2,2>(config, outputFile, generator, glas_a, glas_b);
   } else {
     std::cerr << "Need to recompile for " << numAttackers << "," << numDefenders << std::endl;
     return 1;
