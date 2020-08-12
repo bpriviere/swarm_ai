@@ -411,7 +411,7 @@ def get_colors(param):
 	return colors
 
 
-def plot_tree_results(sim_result): 
+def plot_tree_results(sim_result,title=None): 
 
 	times = sim_result["times"]
 	states = sim_result["states"]
@@ -470,6 +470,9 @@ def plot_tree_results(sim_result):
 	for i in range(num_nodes):
 		ax.axhline(sim_result["param"]["robots"][i]["acceleration_limit"],color=colors[i],linestyle='--')
 		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=colors[i])
+
+	if title is not None: 
+		fig.suptitle(title)
 
 	fig.tight_layout()
 
