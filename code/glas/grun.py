@@ -192,9 +192,6 @@ if __name__ == '__main__':
 			states = sim_result["states"] # nt x nrobots x nstate_per_robot
 			actions = sim_result["actions"] 
 
-			for robot in param.robots:
-				robot["r_sense"] = gparam.r_sense
-
 			for timestep,(state,action) in enumerate(zip(states,actions)):
 				
 				for robot_idx in range(state.shape[0]):

@@ -20,7 +20,7 @@ class Gparam:
 
 		# raw data param  
 		self.serial_on 				= False
-		self.clean_raw_data_on 		= True
+		self.clean_raw_data_on 		= False
 
 		# generate demonstration data parameters
 		self.robot_team_composition_cases = [
@@ -79,7 +79,7 @@ class Gparam:
 		self.il_test_train_ratio = 0.8
 		self.il_n_points = 1000000
 		self.il_batch_size = 2000
-		self.il_n_epoch = 200
+		self.il_n_epoch = 500
 		self.il_lr = 1e-3
 		self.il_wd = 0 
 		self.il_log_interval = 1

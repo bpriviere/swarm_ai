@@ -75,7 +75,8 @@ def run_sim(param,env,reset,estimator,attacker,controller):
 		if env.is_terminal(): 
 			break 
 
-	states = states[0:-1]
+	# states = states[0:-1]
+	states = states[1:]
 
 	sim_result["times"] = times 
 	sim_result["states"] = save_lst_of_node_dicts_as_np(states)
