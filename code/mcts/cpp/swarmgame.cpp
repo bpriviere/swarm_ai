@@ -12,6 +12,19 @@
 
 #include "monte_carlo_tree_search.hpp"
 
+Eigen::Vector2f randomVector2f(
+  float max_norm,
+  std::default_random_engine& generator)
+{
+  std::uniform_real_distribution<float> thDist(0, 2*M_PI);
+  std::uniform_real_distribution<float> rDist(0, max_norm);
+
+  float th = thDist(generator);
+  float r = rDist(generator);
+
+  return Eigen::Vector2f(r*cos(th), r * sin(th));
+}
+
 template <std::size_t NumAttackers, std::size_t NumDefenders>
 void runMCTS(const YAML::Node& config, const std::string& outputFile)
 {
@@ -60,19 +73,17 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
   std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
   std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
   for (size_t i = 0; i < NumAttackers; ++i) {
-    std::uniform_real_distribution<float> velDist(-attackerTypes[i].velocity_limit / sqrtf(2.0), attackerTypes[i].velocity_limit / sqrtf(2.0));
     state.attackers[i].status = RobotState::Status::Active;
     state.attackers[i].position << xPosDist(generator),yPosDist(generator);
-    state.attackers[i].velocity << velDist(generator),velDist(generator);
+    state.attackers[i].velocity = randomVector2f(attackerTypes[i].velocity_limit, generator);
     // state.attackers[i].velocity << 0,0;
   }
   xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
   yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
   for (size_t i = 0; i < NumDefenders; ++i) {
-    std::uniform_real_distribution<float> velDist(-defenderTypes[i].velocity_limit / sqrtf(2.0), defenderTypes[i].velocity_limit / sqrtf(2.0));
     state.defenders[i].status = RobotState::Status::Active;
     state.defenders[i].position << xPosDist(generator),yPosDist(generator);
-    state.defenders[i].velocity << velDist(generator),velDist(generator);
+    state.defenders[i].velocity = randomVector2f(defenderTypes[i].velocity_limit, generator);
     // state.defenders[i].velocity << 0,0;
   }
 
