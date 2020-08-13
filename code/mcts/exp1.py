@@ -12,10 +12,12 @@ import subprocess
 
 import sys
 sys.path.append("../")
+sys.path.append("cpp")
 from param import Param 
 from env import Swarm
 import datahandler as dh
 import plotter 
+from convertNN import convertNN
 
 
 def format_dir(param):
@@ -62,10 +64,7 @@ def get_title(tree_size,glas_on):
 
 
 def write_combined_model_file(param):
-	cmd = "python cpp/convertNN.py {} {} {}".format(param.glas_model_A, param.glas_model_B, param.combined_model_name)
-	print(cmd)
-	subprocess.run(cmd, shell=True)
-
+	convertNN(param.glas_model_A, param.glas_model_B, param.combined_model_name)
 
 def run_sim(param):
 
