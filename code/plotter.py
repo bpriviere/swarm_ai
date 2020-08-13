@@ -486,7 +486,7 @@ def plot_exp1_results(sim_results):
 		if q == 'T':
 			qs = [sr["times"][-1] for sr in sim_results]
 		elif q == "reward":
-			qs = [sr["rewards"][1,-1] for sr in sim_results]
+			qs = [sr["rewards"][-1,0] for sr in sim_results]
 		elif q == "elapsed":
 			qs = [sr["param"]["elapsed"] for sr in sim_results]
 		return qs
@@ -499,11 +499,13 @@ def plot_exp1_results(sim_results):
 		tree_sizes.add(key[0])
 		result[key].append(sim_result)
 
+	tree_sizes = np.array(list(tree_sizes))
+	tree_sizes = np.sort(tree_sizes)
 	tree_size_cases = len(tree_sizes)
 
 	qois = ['T', 'reward', 'elapsed']
 
-	fig,axs = plt.subplots(nrows=len(qois),ncols=tree_size_cases)
+	fig,axs = plt.subplots(nrows=len(qois),ncols=tree_size_cases,sharex='col', sharey='row')
 	for i_q,q in enumerate(qois): 
 		for i_t,tree_size in enumerate(tree_sizes): 
 			qs_glas = extract_quantity(result[(tree_size,True)],q)
@@ -519,30 +521,24 @@ def plot_exp1_results(sim_results):
 				ax.set_xticklabels(['',''])
 
 			if i_q == 0: 
-				ax.set_title('Num Nodes: {}'.format(tree_size))
+				ax.set_title('Num Nodes: \n {}'.format(tree_size))
 
 			if i_t == 0: 
 				ax.set_ylabel(q)
 
+	fig.tight_layout()
 
-	# state spaces
-	plotted = []
-	for sim_result_1 in sim_results: 
+	num_trials = np.min((4,len(result[(tree_size,True)])))
+	for glas_rollout in [True, False]:
+		fig, axs = plt.subplots(nrows=num_trials,ncols=tree_size_cases,sharex='col', sharey='row')
+		if glas_rollout:
+			fig.suptitle('GLAS')
+		else:
+			fig.suptitle('Random')
 
-		if not sim_result_1 in plotted: 
-			
-			found = False 
-			for sim_result_2 in sim_results: 
-				if not sim_result_1 is sim_result_2 and sim_result_1["param"]["seed"] == sim_result_2["param"]["seed"]:
-					found = True 
-					break 
-
-			if not found:
-				exit('not found')
-
-			fig,axs = plt.subplots(nrows=1,ncols=2) 
-			for sim_result in [sim_result_1,sim_result_2]:
-				plotted.append(sim_result)
+		for i_trial in range(num_trials):
+			for i_tree,tree_size in enumerate(tree_sizes):
+				sim_result = result[(tree_size,glas_rollout)][i_trial]
 
 				times = sim_result["times"]
 				states = sim_result["states"]
@@ -550,8 +546,6 @@ def plot_exp1_results(sim_results):
 				num_nodes = sim_result["param"]["num_nodes"]
 				goal = sim_result["param"]["goal"]
 				tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
-				title = sim_result["param"]["sim_results_fig_title"]	
-				glas_rollout_on = sim_result["param"]["glas_rollout_on"]	
 				env_xlim = sim_result["param"]["env_xlim"]	
 				env_ylim = sim_result["param"]["env_ylim"]	
 
@@ -561,28 +555,31 @@ def plot_exp1_results(sim_results):
 
 				colors = get_colors(sim_result["param"])
 
-				if glas_rollout_on:
-					ax = axs[0]
-				else:
-					ax = axs[1]
+				ax = axs[i_trial,i_tree]
 
 				# state space
 				ax.grid(True)
 				ax.set_aspect('equal')
-				ax.set_title(title)
 				ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 				for i in range(num_nodes):
 					for t in range(states.shape[0]):
 						ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
 							color=colors[i],alpha=0.2,fill=False))
-					ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
-					ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i])
+					ax.plot(states[:,i,0],states[:,i,1],linewidth=1,color=colors[i])
+					ax.scatter(states[:,i,0],states[:,i,1],s=10,marker='o',color=colors[i])
 				ax.set_xlim([env_xlim[0],env_xlim[1]])
 				ax.set_ylim([env_ylim[0],env_ylim[1]])
 
-				if len(plotted) > 20:
-					return  
+				ax.set_xticklabels([""])
+				ax.set_yticklabels([""])
 
+				if i_trial == 0: 
+					ax.set_title('{}K'.format(tree_size/1000))
+
+				if i_tree == 0: 
+					ax.set_ylabel('Trial {}'.format(i_trial))
+
+		fig.tight_layout()
 
 def rotate_image(image, angle):
 	''' 

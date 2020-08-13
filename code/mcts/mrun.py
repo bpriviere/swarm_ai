@@ -33,11 +33,14 @@ def get_params(df_param):
 	initial_condition = df_param.state 
 
 	params = [] 
-	for _ in range(mp.cpu_count()-1):
-		param = Param() 
-		param.current_results_dir = '../'+param.current_results_dir
-		param.update(initial_condition)
-		params.append(param)
+	for _ in range(df_param.num_trials):
+
+		for glas_rollout in [True,False]:
+			param = Param() 
+			param.glas_rollout_on = glas_rollout
+			param.current_results_dir = '../'+param.current_results_dir
+			param.update(initial_condition)
+			params.append(param)
 	return params
 
 
@@ -48,7 +51,13 @@ def run_sim(param):
 		dh.write_mcts_config_file(param, input_file)
 		output_file = tmpdirname + "/output.csv"
 		print('running instance...')
-		subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
+
+		if param.glas_rollout_on:
+			model_file = param.combined_model_name
+			subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {} -n {}".format(input_file, output_file, model_file), shell=True)
+		else:
+			subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
+
 		data = np.loadtxt(output_file, delimiter=',', skiprows=1, dtype=np.float32)
 
 	sim_result = dh.convert_cpp_data_to_sim_result(data,param)
@@ -63,6 +72,7 @@ if __name__ == '__main__':
 
 	df_param = Param()
 	df_param.current_results_dir = '../'+df_param.current_results_dir
+	df_param.num_trials = 20
 	format_dir(df_param)
 
 	params = get_params(df_param)
