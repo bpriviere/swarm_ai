@@ -90,24 +90,24 @@ def run_sim(param):
 if __name__ == '__main__':
 
 	df_param = Param()
-	df_param.num_trials = 2
-	df_param.tree_sizes = [1000,5000,10000]
+	df_param.num_trials = 10
+	df_param.tree_sizes = [1000,5000,10000,100000]
 	df_param.current_results_dir = '../' + df_param.current_results_dir	
-	df_param.glas_model_A = '../' + df_param.glas_model_A
-	df_param.glas_model_B = '../' + df_param.glas_model_B
-	format_dir(df_param)
-	write_combined_model_file(df_param)
-	params = get_experiment_params(df_param)
+	# df_param.glas_model_A = '../' + df_param.glas_model_A
+	# df_param.glas_model_B = '../' + df_param.glas_model_B
+	# format_dir(df_param)
+	# write_combined_model_file(df_param)
+	# params = get_experiment_params(df_param)
 
-	parallel = True
-	if parallel: 
-		pool = mp.Pool(mp.cpu_count()-1)
-		for _ in pool.imap_unordered(run_sim, params):
-			pass 
-	else: 
-		for param in params: 
-			run_sim(param)
-			break 
+	# parallel = True
+	# if parallel: 
+	# 	pool = mp.Pool(mp.cpu_count()-1)
+	# 	for _ in pool.imap_unordered(run_sim, params):
+	# 		pass 
+	# else: 
+	# 	for param in params: 
+	# 		run_sim(param)
+	# 		break 
 
 	sim_results = [] 
 	for sim_result_dir in glob.glob(df_param.current_results_dir + '/*'):

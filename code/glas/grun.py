@@ -78,11 +78,14 @@ def prepare_raw_data_gen(gparam):
 		start = 0
 		for trial in range(gparam.num_trials):
 			
+			# seed 
+			seed = int.from_bytes(os.urandom(4), sys.byteorder)
+			np.random.seed(seed)
+
 			# param 
 			param = Param()
 			param.robot_teams = robot_teams 
-			param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
-			param.controller_name = gparam.expert_controller
+			param.seed = seed
 			param.update()
 			env = Swarm(param)
 

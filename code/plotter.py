@@ -478,6 +478,8 @@ def plot_tree_results(sim_result,title=None):
 
 def plot_exp1_results(sim_results):
 
+	sorted(sim_results, key = lambda i: i["param"]["tree_size"]) 
+
 	plotted = []
 	for sim_result_1 in sim_results: 
 
@@ -493,7 +495,7 @@ def plot_exp1_results(sim_results):
 				exit('not found')
 
 			fig,axs = plt.subplots(nrows=1,ncols=2) 
-			for k, sim_result in enumerate([sim_result_1,sim_result_2]):
+			for sim_result in [sim_result_1,sim_result_2]:
 				plotted.append(sim_result)
 
 				times = sim_result["times"]
@@ -503,6 +505,7 @@ def plot_exp1_results(sim_results):
 				goal = sim_result["param"]["goal"]
 				tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
 				title = sim_result["param"]["sim_results_fig_title"]	
+				glas_rollout_on = sim_result["param"]["glas_rollout_on"]	
 				env_xlim = sim_result["param"]["env_xlim"]	
 				env_ylim = sim_result["param"]["env_ylim"]	
 
@@ -512,8 +515,12 @@ def plot_exp1_results(sim_results):
 
 				colors = get_colors(sim_result["param"])
 
+				if glas_rollout_on:
+					ax = axs[0]
+				else:
+					ax = axs[1]
+
 				# state space
-				ax = axs[k]
 				ax.grid(True)
 				ax.set_aspect('equal')
 				ax.set_title(title)
