@@ -20,7 +20,7 @@ class Gparam:
 
 		# raw data param  
 		self.serial_on 				= False
-		self.clean_raw_data_on 		= True
+		self.clean_raw_data_on 		= False
 
 		# generate demonstration data parameters
 		self.robot_team_composition_cases = [
@@ -37,7 +37,7 @@ class Gparam:
 			'b': {'standard_robot':2,'evasive_robot':0}
 			}
 		]
-		self.num_trials = 2000
+		self.num_trials = 10000
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'
 
