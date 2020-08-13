@@ -2,6 +2,7 @@
 # standard
 import os, sys, glob, shutil 
 import itertools
+import random # for vis samples of training data  
 import numpy as np 
 import torch 
 import time 
@@ -244,10 +245,13 @@ if __name__ == '__main__':
 		num_plots = 10
 		instance_keys = get_instance_keys(gparam) 
 
+		# collect random sample 
+		random.shuffle(instance_keys)
+
 		# check state action pairs 
 		for count, instance_key in enumerate(instance_keys):
 			sim_result = dh.load_sim_result(gparam.demonstration_data_dir+instance_key+'.pickle')
-			plotter.plot_tree_results(sim_result)
+			plotter.plot_tree_results(sim_result,title=instance_key)
 
 			if count > num_plots:
 				break 
