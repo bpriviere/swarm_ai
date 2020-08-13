@@ -14,19 +14,6 @@
 
 #include "GLAS.hpp"
 
-Eigen::Vector2f randomVector2f(
-  float max_norm,
-  std::default_random_engine& generator)
-{
-  std::uniform_real_distribution<float> thDist(0, 2*M_PI);
-  std::uniform_real_distribution<float> rDist(0, max_norm);
-
-  float th = thDist(generator);
-  float r = rDist(generator);
-
-  return Eigen::Vector2f(r*cos(th), r * sin(th));
-}
-
 template <std::size_t NumAttackers, std::size_t NumDefenders>
 void runMCTS(
   const YAML::Node& config,
@@ -56,6 +43,11 @@ void runMCTS(
     attackerTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
     attackerTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     attackerTypes[i].init();
+
+    state.attackers[i].status = RobotState::Status::Active;
+    state.attackers[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
+    state.attackers[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
+
   }
   std::array<RobotType, NumDefenders> defenderTypes;
   for (size_t i = 0; i < NumDefenders; ++i) {
@@ -67,27 +59,12 @@ void runMCTS(
     defenderTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
     defenderTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     defenderTypes[i].init();
-  }
-  
-  std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
-  std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
-  for (size_t i = 0; i < NumAttackers; ++i) {
-    state.attackers[i].status = RobotState::Status::Active;
-    state.attackers[i].position << xPosDist(generator),yPosDist(generator);
-    state.attackers[i].velocity = randomVector2f(attackerTypes[i].velocity_limit, generator);
-    // state.attackers[i].velocity << 0,0;
-  }
-  xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
-  yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
-  for (size_t i = 0; i < NumDefenders; ++i) {
+
     state.defenders[i].status = RobotState::Status::Active;
-    state.defenders[i].position << xPosDist(generator),yPosDist(generator);
-    state.defenders[i].velocity = randomVector2f(defenderTypes[i].velocity_limit, generator);
-    // state.defenders[i].velocity << 0,0;
+    state.defenders[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
+    state.defenders[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
   }
-
   std::cout << state << std::endl;
-
 
   float dt = config["sim_dt"].as<float>();
   Eigen::Vector2f goal;
