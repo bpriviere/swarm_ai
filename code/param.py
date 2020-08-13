@@ -56,14 +56,14 @@ class Param:
 		l = 1.0 
 		self.env_xlim = [0,l]
 		self.env_ylim = [0,l]
-		self.reset_xlim_A = [0.1*l,0.2*l]
+		self.reset_xlim_A = [0.1*l,0.9*l]
 		self.reset_ylim_A = [0.1*l,0.9*l]
-		self.reset_xlim_B = [0.8*l,0.9*l]
+		self.reset_xlim_B = [0.1*l,0.9*l]
 		self.reset_ylim_B = [0.1*l,0.9*l]
 		self.goal = np.array([0.75*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 5000
+		self.tree_size = 10000
 		self.fixed_tree_depth_on = False
 		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000
