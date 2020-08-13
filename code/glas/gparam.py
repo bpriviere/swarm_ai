@@ -11,7 +11,7 @@ class Gparam:
 		self.make_raw_data_on 		= True
 		self.make_labelled_data_on 	= True
 		self.train_model_on 		= True
-		self.dbg_vis_on			 	= True
+		self.dbg_vis_on			 	= False
 		self.discrete_on 			= True 
 
 		# expert 
@@ -20,7 +20,7 @@ class Gparam:
 
 		# raw data param  
 		self.serial_on 				= False
-		self.clean_raw_data_on 		= False
+		self.clean_raw_data_on 		= True
 
 		# generate demonstration data parameters
 		self.robot_team_composition_cases = [
@@ -28,16 +28,16 @@ class Gparam:
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
-			# {
-			# 'a': {'standard_robot':2,'evasive_robot':0},
-			# 'b': {'standard_robot':1,'evasive_robot':0}
-			# },
-			# {
-			# 'a': {'standard_robot':1,'evasive_robot':0},
-			# 'b': {'standard_robot':2,'evasive_robot':0}
-			# }
+			{
+			'a': {'standard_robot':2,'evasive_robot':0},
+			'b': {'standard_robot':1,'evasive_robot':0}
+			},
+			{
+			'a': {'standard_robot':1,'evasive_robot':0},
+			'b': {'standard_robot':2,'evasive_robot':0}
+			}
 		]
-		self.num_trials = 10
+		self.num_trials = 2000
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'
 
@@ -47,7 +47,7 @@ class Gparam:
 		# learning hyperparameters
 		self.device = 'cpu'
 
-		n,m,h,l,p = 4,2,32,8,8 # state dim, action dim, hidden layer, output phi, output rho
+		n,m,h,l,p = 4,2,16,8,8 # state dim, action dim, hidden layer, output phi, output rho
 		self.il_phi_network_architecture = nn.ModuleList([
 			nn.Linear(n,h),
 			nn.Linear(h,h),
@@ -78,7 +78,7 @@ class Gparam:
 		self.il_train_model_fn = self.model_dir + 'il_current_{}.pt'
 		self.il_test_train_ratio = 0.8
 		self.il_n_points = 1000000
-		self.il_batch_size = 20
+		self.il_batch_size = 2000
 		self.il_n_epoch = 500
 		self.il_lr = 1e-3
 		self.il_wd = 0 
