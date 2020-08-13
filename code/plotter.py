@@ -10,6 +10,7 @@ import matplotlib.patches as mpatches
 from matplotlib import cm	
 from matplotlib.backends.backend_pdf import PdfPages 
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from collections import defaultdict
 
 import matplotlib.transforms as mtransforms
 import cv2
@@ -481,8 +482,50 @@ def plot_tree_results(sim_result,title=None):
 
 def plot_exp1_results(sim_results):
 
-	sorted(sim_results, key = lambda i: i["param"]["tree_size"]) 
+	def extract_quantity(sim_results,q):
+		if q == 'T':
+			qs = [sr["times"][-1] for sr in sim_results]
+		elif q == "reward":
+			qs = [sr["rewards"][1,-1] for sr in sim_results]
+		elif q == "elapsed":
+			qs = [sr["param"]["elapsed"] for sr in sim_results]
+		return qs
 
+	# group by tree size and rollout policy 
+	result = defaultdict(list)
+	tree_sizes = set()
+	for sim_result in sim_results:
+		key = (sim_result["param"]["tree_size"],sim_result["param"]["glas_rollout_on"])
+		tree_sizes.add(key[0])
+		result[key].append(sim_result)
+
+	tree_size_cases = len(tree_sizes)
+
+	qois = ['T', 'reward', 'elapsed']
+
+	fig,axs = plt.subplots(nrows=len(qois),ncols=tree_size_cases)
+	for i_q,q in enumerate(qois): 
+		for i_t,tree_size in enumerate(tree_sizes): 
+			qs_glas = extract_quantity(result[(tree_size,True)],q)
+			qs_random = extract_quantity(result[(tree_size,False)],q)
+
+			ax = axs[i_q,i_t] 
+			ax.boxplot([qs_glas,qs_random])
+			ax.grid(True)
+
+			if i_q == len(qois)-1:
+				ax.set_xticklabels(['glas','random'])
+			else:
+				ax.set_xticklabels(['',''])
+
+			if i_q == 0: 
+				ax.set_title('Num Nodes: {}'.format(tree_size))
+
+			if i_t == 0: 
+				ax.set_ylabel(q)
+
+
+	# state spaces
 	plotted = []
 	for sim_result_1 in sim_results: 
 
@@ -536,6 +579,10 @@ def plot_exp1_results(sim_results):
 					ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i])
 				ax.set_xlim([env_xlim[0],env_xlim[1]])
 				ax.set_ylim([env_ylim[0],env_ylim[1]])
+
+				if len(plotted) > 20:
+					return  
+
 
 def rotate_image(image, angle):
 	''' 

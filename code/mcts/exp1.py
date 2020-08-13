@@ -27,14 +27,13 @@ def format_dir(param):
 	# make current results dir 
 	os.makedirs(param.current_results_dir,exist_ok=True)
 
+
 def get_params(df_param):
 	params = [] 
 	for tree_size in df_param.tree_sizes:
 		for trial in range(df_param.num_trials):
 			
 			seed = int.from_bytes(os.urandom(4), sys.byteorder)
-			df_param.seed = seed 
-			df_param.update()
 
 			for i in range(2): 
 				param = Param()
@@ -42,6 +41,7 @@ def get_params(df_param):
 				param.seed = seed
 				param.tree_size = tree_size
 				param.update(df_param.state)
+
 				if i == 0: 
 					param.glas_rollout_on = True
 				else:
@@ -49,8 +49,9 @@ def get_params(df_param):
 
 				param.sim_results_fig_title = get_title(tree_size,param.glas_rollout_on) 
 				params.append(param)
-				
+
 	return params 
+
 
 def get_title(tree_size,glas_on):
 	if glas_on: 
@@ -74,12 +75,16 @@ def run_sim(param):
 		output_file = tmpdirname + "/output.csv"
 		print('running instance...')
 
+		start = timer.time()
+
 		if param.glas_rollout_on:
 			model_file = param.combined_model_name
 			subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {} -n {}".format(input_file, output_file, model_file), shell=True)
 		else:
 			subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
 
+		elapsed = timer.time() - start
+		param.elapsed = elapsed
 		data = np.loadtxt(output_file, delimiter=',', skiprows=1, ndmin=2, dtype=np.float32)
 
 	sim_result = dh.convert_cpp_data_to_sim_result(data,param)
@@ -90,14 +95,16 @@ def run_sim(param):
 	dh.write_sim_result(sim_result,save_fn)
 	print('completed instance {}'.format(save_fn))
 
+
 if __name__ == '__main__':
 
 	df_param = Param()
-	df_param.num_trials = 2
-	df_param.tree_sizes = [1000,5000]
+	df_param.num_trials = 10
+	df_param.tree_sizes = [1000,5000,10000,50000]
 	df_param.current_results_dir = '../' + df_param.current_results_dir	
 	df_param.glas_model_A = '../' + df_param.glas_model_A
 	df_param.glas_model_B = '../' + df_param.glas_model_B
+
 	format_dir(df_param)
 	write_combined_model_file(df_param)
 	params = get_params(df_param)
