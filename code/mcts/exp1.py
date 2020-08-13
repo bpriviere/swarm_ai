@@ -27,17 +27,21 @@ def format_dir(param):
 	# make current results dir 
 	os.makedirs(param.current_results_dir,exist_ok=True)
 
-def get_experiment_params(df_param):
+def get_params(df_param):
 	params = [] 
-	for trial in range(df_param.num_trials):
-		for tree_size in df_param.tree_sizes:
+	for tree_size in df_param.tree_sizes:
+		for trial in range(df_param.num_trials):
+			
 			seed = int.from_bytes(os.urandom(4), sys.byteorder)
+			df_param.seed = seed 
+			df_param.update()
+
 			for i in range(2): 
 				param = Param()
 				param.current_results_dir = '../' + param.current_results_dir
 				param.seed = seed
 				param.tree_size = tree_size
-				param.update()
+				param.update(df_param.state)
 				if i == 0: 
 					param.glas_rollout_on = True
 				else:
@@ -45,6 +49,7 @@ def get_experiment_params(df_param):
 
 				param.sim_results_fig_title = get_title(tree_size,param.glas_rollout_on) 
 				params.append(param)
+				
 	return params 
 
 def get_title(tree_size,glas_on):
@@ -88,14 +93,14 @@ def run_sim(param):
 if __name__ == '__main__':
 
 	df_param = Param()
-	df_param.num_trials = 10
-	df_param.tree_sizes = [1000,5000,10000,100000]
+	df_param.num_trials = 2
+	df_param.tree_sizes = [1000,5000]
 	df_param.current_results_dir = '../' + df_param.current_results_dir	
 	df_param.glas_model_A = '../' + df_param.glas_model_A
 	df_param.glas_model_B = '../' + df_param.glas_model_B
 	format_dir(df_param)
 	write_combined_model_file(df_param)
-	params = get_experiment_params(df_param)
+	params = get_params(df_param)
 
 	parallel = True
 	if parallel: 

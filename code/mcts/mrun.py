@@ -28,6 +28,18 @@ def format_dir(param):
 	os.makedirs(param.current_results_dir,exist_ok=True)
 
 
+def get_params(df_param):
+
+	initial_condition = df_param.state 
+
+	params = [] 
+	for _ in range(mp.cpu_count()-1):
+		param = Param() 
+		param.current_results_dir = '../'+param.current_results_dir
+		param.update(initial_condition)
+		params.append(param)
+	return params
+
 
 def run_sim(param):
 
@@ -49,23 +61,25 @@ def run_sim(param):
 
 if __name__ == '__main__':
 
-	param = Param()
-	param.current_results_dir = '../'+param.current_results_dir
-	format_dir(param)
+	df_param = Param()
+	df_param.current_results_dir = '../'+df_param.current_results_dir
+	format_dir(df_param)
+
+	params = get_params(df_param)
 
 	parallel = True
 	if parallel: 
-		ncases = 10
-		nprocess = np.min((mp.cpu_count()-1,ncases))
-		pool = mp.Pool(nprocess)
-		for _ in pool.imap_unordered(run_sim, [param for _ in range(nprocess)]):
+		pool = mp.Pool(mp.cpu_count()-1)
+		for _ in pool.imap_unordered(run_sim, params):
 		# for _ in pool.imap_unordered(run_sim, [param for _ in range(ncases)]):
 			pass 
 	else: 
-		run_sim(param)
+		for param in params: 
+			run_sim(param)
+			break 
 
 	sim_results = [] 
-	for sim_result_dir in glob.glob(param.current_results_dir + '/*'):
+	for sim_result_dir in glob.glob(df_param.current_results_dir + '/*'):
 		sim_results.append(dh.load_sim_result(sim_result_dir))
 
 	for sim_result in sim_results:

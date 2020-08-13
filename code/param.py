@@ -1,6 +1,9 @@
 
 import numpy as np 
 import itertools, copy
+import random
+import os,sys
+from math import cos, sin 
 
 class Param:
 
@@ -12,6 +15,8 @@ class Param:
 		self.estimator_name 	= 'estimator/kalman.py'	 			# empty,(kalman),exact...
 		self.attacker_name 		= 'attacker/empty.py' 				# empty, ...
 		self.controller_name 	= 'controller/glas.py'			 	# empty, glas, joint_mpc, mcts, ...
+
+		self.seed = int.from_bytes(os.urandom(4), sys.byteorder)
 
 		# flags
 		self.gif_on 	= False
@@ -42,7 +47,7 @@ class Param:
 			'r_sense': 0.4,
 		}
 
-		self.robot_teams = {
+		self.robot_team_composition = {
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 		}
@@ -58,7 +63,7 @@ class Param:
 		self.goal = np.array([0.75*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 100000
+		self.tree_size = 5000
 		self.fixed_tree_depth_on = False
 		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000
@@ -101,7 +106,6 @@ class Param:
 			'node_team_B',
 		]
 
-		self.make_robot_teams()
 		self.update()
 
 
@@ -113,30 +117,53 @@ class Param:
 		for key,value in some_dict.items():
 			setattr(self,key,value)
 
+	def make_initial_condition(self):
+
+		random.seed(self.seed)
+
+		self.state = [] 
+		for robot in self.robots: 
+
+			if robot["team"] == "a":
+				xlim = self.reset_xlim_A
+				ylim = self.reset_ylim_A
+			elif robot["team"] == "b":
+				xlim = self.reset_xlim_B
+				ylim = self.reset_ylim_B
+
+			position = self.get_random_position_inside(xlim,ylim)
+			velocity = self.get_random_velocity_inside(robot["speed_limit"])
+			self.state.append([position[0],position[1],velocity[0],velocity[1]])
+
+
+	def assign_initial_condition(self):
+
+		for robot, x0 in zip(self.robots,self.state): 
+			robot["x0"] = x0
+
+
 	def make_robot_teams(self):
 
 		# make robot teams 
 		self.robots = [] 
-		for team, composition in self.robot_teams.items():
-
-			if team == "a":
-				xlim = self.param.reset_xlim_A
-				ylim = self.param.reset_ylim_A
-			elif team == "b":
-				xlim = self.param.reset_xlim_B
-				ylim = self.param.reset_ylim_B
-
+		for team, composition in self.robot_team_composition.items():
 			for robot_type, robot_number in composition.items():
 				for _ in range(robot_number):
-					position = self.get_random_position_inside(xlim,ylim)
-					velocity = self.get_random_velocity_inside(robot_type["speed_limit"])
 					robot = copy.copy(self.__dict__[robot_type])
 					robot["team"] = team 
-					robot["x0"] = [position[0],position[1],velocity[0],velocity[1]]
 					self.robots.append(robot)		
 
 
-	def update(self):
+	def update(self,initial_condition=None):
+
+		self.make_robot_teams()
+
+		if initial_condition is None:
+			self.make_initial_condition()
+		else: 
+			self.state = initial_condition
+
+		self.assign_initial_condition()		
 
 		num_nodes_A, num_nodes_B = 0,0
 		for robot in self.robots:
@@ -167,14 +194,14 @@ class Param:
 
 	def get_random_position_inside(self,xlim,ylim):
 
-		x = np.random.random()*(xlim[1] - xlim[0]) + xlim[0]
-		y = np.random.random()*(ylim[1] - ylim[0]) + ylim[0]
+		x = random.random()*(xlim[1] - xlim[0]) + xlim[0]
+		y = random.random()*(ylim[1] - ylim[0]) + ylim[0]
 		
 		return x,y 				
 
 	def get_random_velocity_inside(self,speed_lim):
 
-		th = np.random.random()*2*np.pi 
-		r  = np.random.random()*speed_lim
+		th = random.random()*2*np.pi 
+		r  = random.random()*speed_lim
 
-		return r*np.cos(th), r*np.sin(th)	
+		return r*cos(th), r*sin(th)	

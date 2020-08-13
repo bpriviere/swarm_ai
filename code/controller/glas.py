@@ -30,7 +30,7 @@ class Controller(Controller):
 			nodes = self.env.nodes
 			actions = dict() 
 
-			observations = relative_state_per_node(self.env.nodes, self.env.state_vec_to_mat(self.env.state_vec), self.param, flatten=True)
+			observations = relative_state_per_node(self.env.nodes, self.env.state_vec_to_mat(self.env.state_vec), self.param)
 			for node in nodes:
 				
 				o_a, o_b, goal = observations[node]
