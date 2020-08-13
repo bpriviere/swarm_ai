@@ -11,6 +11,14 @@ def load(file):
 		output_dict[name] = tensor.numpy().tolist()
 	return output_dict
 
+def convertNN(input_a, input_b, output):
+	output_dict = dict()
+	output_dict["team_a"] = load(input_a)
+	output_dict["team_b"] = load(input_b)
+
+	with open(output, 'w') as f:
+		yaml.dump(output_dict, f)
+
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser()
@@ -19,9 +27,4 @@ if __name__ == '__main__':
 	parser.add_argument("output", help="yaml file for the weights")
 	args = parser.parse_args()
 
-	output_dict = dict()
-	output_dict["team_a"] = load(args.input_a)
-	output_dict["team_b"] = load(args.input_b)
-
-	with open(args.output, 'w') as f:
-		yaml.dump(output_dict, f)
+	convertNN(args.input_a, args.input_b, args.output)
