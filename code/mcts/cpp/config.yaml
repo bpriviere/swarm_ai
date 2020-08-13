@@ -1,29 +1,31 @@
 sim_dt: 0.25
 env_xlim: [0, 0.5]
 env_ylim: [0, 0.5]
-tree_size: 100000
+tree_size: 1000
 rollout_horizon: 1000
 c_param: 1.4
-goal: [0.45, 0.375]
+goal: [0.25, 0.25]
 num_nodes_A: 1 # number of attackers
 num_nodes_B: 1 # number of defenders
 robots:
-- acceleration_limit: 0.25
-  speed_limit: 0.125
-  tag_radius: 0.025
 - acceleration_limit: 0.125
   speed_limit: 0.125
   tag_radius: 0.025
+  r_sense: 1.0
+- acceleration_limit: 0.125
+  speed_limit: 0.125
+  tag_radius: 0.025
+  r_sense: 1.0
 reset_xlim_A:
 - 0.05
-- 0.05
-reset_xlim_B:
 - 0.45
+reset_xlim_B:
+- 0.05
 - 0.45
 reset_ylim_A:
-- 0.25
-- 0.25
+- 0.05
+- 0.45
 reset_ylim_B:
-- 0.25
-- 0.25
-# seed: 1
+- 0.05
+- 0.45
+# seed: 10

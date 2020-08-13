@@ -12,24 +12,34 @@
 
 #include "monte_carlo_tree_search.hpp"
 
+#include "GLAS.hpp"
+
+Eigen::Vector2f randomVector2f(
+  float max_norm,
+  std::default_random_engine& generator)
+{
+  std::uniform_real_distribution<float> thDist(0, 2*M_PI);
+  std::uniform_real_distribution<float> rDist(0, max_norm);
+
+  float th = thDist(generator);
+  float r = rDist(generator);
+
+  return Eigen::Vector2f(r*cos(th), r * sin(th));
+}
+
 template <std::size_t NumAttackers, std::size_t NumDefenders>
-void runMCTS(const YAML::Node& config, const std::string& outputFile)
+void runMCTS(
+  const YAML::Node& config,
+  const std::string& outputFile,
+  std::default_random_engine& generator,
+  GLAS* glas_a,
+  GLAS* glas_b)
 {
   using EnvironmentT = Game<NumAttackers, NumDefenders>;
   using GameStateT = typename EnvironmentT::GameStateT;
   using GameActionT = typename EnvironmentT::GameActionT;
 
   size_t num_nodes = config["tree_size"].as<int>();
-
-  size_t seed;
-  if (config["seed"]) {
-    seed = config["seed"].as<size_t>();
-  } else {
-    std::random_device r;
-    seed = r();
-  }
-  std::cout << "Using seed " << seed << std::endl;
-  std::default_random_engine generator(seed);
 
   GameStateT state;
 
@@ -44,6 +54,7 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
     attackerTypes[i].velocity_limit = node["speed_limit"].as<float>(); // / sqrtf(2.0);
     attackerTypes[i].acceleration_limit = node["acceleration_limit"].as<float>() / sqrtf(2.0);
     attackerTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
+    attackerTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     attackerTypes[i].init();
   }
   std::array<RobotType, NumDefenders> defenderTypes;
@@ -54,25 +65,24 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
     defenderTypes[i].velocity_limit = node["speed_limit"].as<float>() / sqrtf(2.0);
     defenderTypes[i].acceleration_limit = node["acceleration_limit"].as<float>() / sqrtf(2.0);
     defenderTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
+    defenderTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     defenderTypes[i].init();
   }
   
   std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
   std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
   for (size_t i = 0; i < NumAttackers; ++i) {
-    std::uniform_real_distribution<float> velDist(-attackerTypes[i].velocity_limit / sqrtf(2.0), attackerTypes[i].velocity_limit / sqrtf(2.0));
     state.attackers[i].status = RobotState::Status::Active;
     state.attackers[i].position << xPosDist(generator),yPosDist(generator);
-    state.attackers[i].velocity << velDist(generator),velDist(generator);
+    state.attackers[i].velocity = randomVector2f(attackerTypes[i].velocity_limit, generator);
     // state.attackers[i].velocity << 0,0;
   }
   xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
   yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
   for (size_t i = 0; i < NumDefenders; ++i) {
-    std::uniform_real_distribution<float> velDist(-defenderTypes[i].velocity_limit / sqrtf(2.0), defenderTypes[i].velocity_limit / sqrtf(2.0));
     state.defenders[i].status = RobotState::Status::Active;
     state.defenders[i].position << xPosDist(generator),yPosDist(generator);
-    state.defenders[i].velocity << velDist(generator),velDist(generator);
+    state.defenders[i].velocity = randomVector2f(defenderTypes[i].velocity_limit, generator);
     // state.defenders[i].velocity << 0,0;
   }
 
@@ -85,7 +95,7 @@ void runMCTS(const YAML::Node& config, const std::string& outputFile)
 
   size_t max_depth = config["rollout_horizon"].as<int>();
 
-  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, max_depth, generator);
+  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b);
 
   libMultiRobotPlanning::MonteCarloTreeSearch<GameStateT, GameActionT, Reward, EnvironmentT> mcts(env, generator, num_nodes, 1.4);
 
@@ -158,10 +168,12 @@ int main(int argc, char* argv[]) {
   // Declare the supported options.
   po::options_description desc("Allowed options");
   std::string inputFile;
+  std::string inputFileNN;
   std::string outputFile;
   desc.add_options()
     ("help", "produce help message")
     ("input,i", po::value<std::string>(&inputFile)->required(),"input file (YAML)")
+    ("inputNN,n", po::value<std::string>(&inputFileNN),"input config file NN (YAML)")
     ("output,o", po::value<std::string>(&outputFile)->required(),"output file (YAML)");
 
   try {
@@ -181,20 +193,39 @@ int main(int argc, char* argv[]) {
 
   YAML::Node config = YAML::LoadFile(inputFile);
 
+  size_t seed;
+  if (config["seed"]) {
+    seed = config["seed"].as<size_t>();
+  } else {
+    std::random_device r;
+    seed = r();
+  }
+  std::cout << "Using seed " << seed << std::endl;
+  std::default_random_engine generator(seed);
+
+  GLAS* glas_a = nullptr;
+  GLAS* glas_b = nullptr;
+  if (!inputFileNN.empty()) {
+    YAML::Node cfg_nn = YAML::LoadFile(inputFileNN);
+
+    glas_a = new GLAS(cfg_nn["team_a"], generator);
+    glas_b = new GLAS(cfg_nn["team_b"], generator);
+  }
+
   int numAttackers = config["num_nodes_A"].as<int>();
   int numDefenders = config["num_nodes_B"].as<int>();
 
   if (numAttackers == 1 && numDefenders == 1) {
-    runMCTS<1,1>(config, outputFile);
+    runMCTS<1,1>(config, outputFile, generator, glas_a, glas_b);
   }
   else if (numAttackers == 2 && numDefenders == 1) {
-    runMCTS<2,1>(config, outputFile);
+    runMCTS<2,1>(config, outputFile, generator, glas_a, glas_b);
   }
   else if (numAttackers == 1 && numDefenders == 2) {
-    runMCTS<1,2>(config, outputFile);
+    runMCTS<1,2>(config, outputFile, generator, glas_a, glas_b);
   }
   else if (numAttackers == 2 && numDefenders == 2) {
-    runMCTS<2,2>(config, outputFile);
+    runMCTS<2,2>(config, outputFile, generator, glas_a, glas_b);
   } else {
     std::cerr << "Need to recompile for " << numAttackers << "," << numDefenders << std::endl;
     return 1;

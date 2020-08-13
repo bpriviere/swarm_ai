@@ -27,31 +27,38 @@ def format_dir(param):
 	# make current results dir 
 	os.makedirs(param.current_results_dir,exist_ok=True)
 
-
-def get_experiment_params(param):
-
+def get_experiment_params(df_param):
 	params = [] 
+	for trial in range(df_param.num_trials):
+		for tree_size in df_param.tree_sizes:
+			seed = int.from_bytes(os.urandom(4), sys.byteorder)
+			for i in range(2): 
+				param = Param()
+				param.current_results_dir = '../' + param.current_results_dir
+				param.seed = seed
+				param.tree_size = tree_size
+				param.update()
+				if i == 0: 
+					param.glas_rollout_on = True
+				else:
+					param.glas_rollout_on = False
 
-	for tree_size in param.tree_sizes:
-
-		seed = int.from_bytes(os.urandom(4), sys.byteorder)
-
-		for i in range(2): 
-		
-			param = Param()
-			param.seed = seed
-			param.tree_size = tree_size
-			param.update()
-
-			if i == 0: 
-				param.glas_rollout_on = True
-			else 
-				param.glas_rollout_on = False
-
-			param.sim_results_fig_title = get_title(tree_size,param.glas_rollout_on) 
-			params.append(param)
-
+				param.sim_results_fig_title = get_title(tree_size,param.glas_rollout_on) 
+				params.append(param)
 	return params 
+
+def get_title(tree_size,glas_on):
+	if glas_on: 
+		policy = 'GLAS'
+	else:
+		policy = 'Random'
+	return 'Num Nodes: {}, \n Rollout: {} '.format(tree_size, policy)
+
+
+def write_combined_model_file(param):
+	cmd = "python cpp/convertNN.py {} {} {}".format(param.glas_model_A, param.glas_model_B, param.combined_model_name)
+	print(cmd)
+	subprocess.run(cmd, shell=True)
 
 
 def run_sim(param):
@@ -63,7 +70,7 @@ def run_sim(param):
 		print('running instance...')
 
 		if param.glas_rollout_on:
-			model_file = param.path_to_combined_model
+			model_file = param.combined_model_name
 			subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {} -n {}".format(input_file, output_file, model_file), shell=True)
 		else:
 			subprocess.run("../mcts/cpp/buildRelease/swarmgame -i {} -o {}".format(input_file, output_file), shell=True)
@@ -81,32 +88,29 @@ def run_sim(param):
 if __name__ == '__main__':
 
 	df_param = Param()
-	df_param.current_results_dir = '../'+df_param.current_results_dir
-	df_param.tree_sizes = [1000,5000,10000,50000]
+	df_param.num_trials = 10
+	df_param.tree_sizes = [1000,5000,10000,100000]
+	df_param.current_results_dir = '../' + df_param.current_results_dir	
+	df_param.glas_model_A = '../' + df_param.glas_model_A
+	df_param.glas_model_B = '../' + df_param.glas_model_B
 	format_dir(df_param)
-
+	write_combined_model_file(df_param)
 	params = get_experiment_params(df_param)
-
-	# convert models 
-	
 
 	parallel = True
 	if parallel: 
-		ncases = len(params)
-		nprocess = np.min((mp.cpu_count()-1,ncases))
-		pool = mp.Pool(nprocess)
-		for _ in pool.imap_unordered(run_sim, [param for _ in range(ncases)]):
+		pool = mp.Pool(mp.cpu_count()-1)
+		for _ in pool.imap_unordered(run_sim, params):
 			pass 
 	else: 
-		run_sim(param)
+		for param in params: 
+			run_sim(param)
+			break 
 
 	sim_results = [] 
-	for sim_result_dir in glob.glob(param.current_results_dir + '/*'):
+	for sim_result_dir in glob.glob(df_param.current_results_dir + '/*'):
 		sim_results.append(dh.load_sim_result(sim_result_dir))
 
-	for sim_result in sim_results:
-		plotter.plot_tree_results(sim_result, title=sim_result["sim_results_fig_title"])
-
+	plotter.plot_exp1_results(sim_results)
 	plotter.save_figs("plots.pdf")
 	plotter.open_figs("plots.pdf")
-	

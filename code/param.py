@@ -81,8 +81,11 @@ class Param:
 
 		# path stuff
 		self.current_results_dir = '../current_results'
+
+		# model stuff 
 		self.glas_model_A = '../models/il_current_a.pt'
 		self.glas_model_B = '../models/il_current_b.pt'
+		self.combined_model_name = 'nn.yaml'
 		
 		# plotting 
 		self.plot_fn = 'plots.pdf'
@@ -98,6 +101,7 @@ class Param:
 			'node_team_B',
 		]
 
+		self.make_robot_teams()
 		self.update()
 
 
@@ -109,16 +113,30 @@ class Param:
 		for key,value in some_dict.items():
 			setattr(self,key,value)
 
+	def make_robot_teams(self):
 
-	def update(self):
-
+		# make robot teams 
 		self.robots = [] 
 		for team, composition in self.robot_teams.items():
+
+			if team == "a":
+				xlim = self.param.reset_xlim_A
+				ylim = self.param.reset_ylim_A
+			elif team == "b":
+				xlim = self.param.reset_xlim_B
+				ylim = self.param.reset_ylim_B
+
 			for robot_type, robot_number in composition.items():
 				for _ in range(robot_number):
+					position = self.get_random_position_inside(xlim,ylim)
+					velocity = self.get_random_velocity_inside(robot_type["speed_limit"])
 					robot = copy.copy(self.__dict__[robot_type])
 					robot["team"] = team 
-					self.robots.append(robot)
+					robot["x0"] = [position[0],position[1],velocity[0],velocity[1]]
+					self.robots.append(robot)		
+
+
+	def update(self):
 
 		num_nodes_A, num_nodes_B = 0,0
 		for robot in self.robots:
@@ -129,11 +147,7 @@ class Param:
 
 		self.num_nodes_A = num_nodes_A
 		self.num_nodes_B = num_nodes_B
-
-
 		self.num_nodes = self.num_nodes_A + self.num_nodes_B
-		self.sim_times = np.arange(self.sim_t0,self.sim_tf,self.sim_dt)
-		self.sim_nt = len(self.sim_times)
 
 		self.team_1_idxs = []
 		self.team_2_idxs = []
@@ -143,4 +157,24 @@ class Param:
 			else:
 				self.team_2_idxs.append(i) 
 
+		# times 
+		self.sim_times = np.arange(self.sim_t0,self.sim_tf,self.sim_dt)
+		self.sim_nt = len(self.sim_times)
+
+		# actions 
 		self.actions = np.asarray(list(itertools.product(*[[-1,0,1],[-1,0,1]])))
+
+
+	def get_random_position_inside(self,xlim,ylim):
+
+		x = np.random.random()*(xlim[1] - xlim[0]) + xlim[0]
+		y = np.random.random()*(ylim[1] - ylim[0]) + ylim[0]
+		
+		return x,y 				
+
+	def get_random_velocity_inside(self,speed_lim):
+
+		th = np.random.random()*2*np.pi 
+		r  = np.random.random()*speed_lim
+
+		return r*np.cos(th), r*np.sin(th)	
