@@ -34,15 +34,14 @@ std::vector<std::vector<T>> cart_product(const std::vector<std::vector<T>>& v)
 }
 
 
-template <std::size_t NumAttackers, std::size_t NumDefenders>
 class Game {
  public:
-  typedef GameState<NumAttackers, NumDefenders> GameStateT;
-  typedef std::array<RobotAction, NumAttackers + NumDefenders> GameActionT;
+  typedef GameState GameStateT;
+  typedef std::vector<RobotAction> GameActionT;
 
   Game(
-    const std::array<RobotType, NumAttackers>& attackerTypes,
-    const std::array<RobotType, NumDefenders>& defenderTypes,
+    const std::vector<RobotType>& attackerTypes,
+    const std::vector<RobotType>& defenderTypes,
     float dt,
     const Eigen::Vector2f& goal,
     size_t maxDepth,
@@ -65,6 +64,9 @@ class Game {
     if (state.depth >= m_maxDepth) {
       return false;
     }
+
+    size_t NumAttackers = state.attackers.size();
+    size_t NumDefenders = state.defenders.size();
 
     // copy current state
     nextState = state;
@@ -97,7 +99,7 @@ class Game {
         if (distToGoalSquared <= m_attackerTypes[i].tag_radiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
           nextState.attackers[i].status = RobotState::Status::ReachedGoal;
-          nextState.activeMask.reset(i);
+          nextState.activeMask &= ~(1 << i); // reset bit i
         }
 
         for (size_t j = 0; j < NumDefenders; ++j) {
@@ -105,7 +107,7 @@ class Game {
             float distToDefenderSquared = (nextState.attackers[i].position - nextState.defenders[j].position).squaredNorm();
             if (distToDefenderSquared <= m_defenderTypes[j].tag_radiusSquared) {
               nextState.attackers[i].status = RobotState::Status::Captured;
-              nextState.activeMask.reset(i);
+              nextState.activeMask &= ~(1 << i); // reset bit i
             }
           }
         }
@@ -124,7 +126,7 @@ class Game {
 
   bool isTerminal(const GameStateT& state)
   {
-    return state.activeMask.none();
+    return state.activeMask == 0;
     // for (const auto& attacker : state.attackers) {
     //   if (attacker.status == RobotState::Status::Active) {
     //     return false;
@@ -249,7 +251,7 @@ class Game {
       }
     }
 
-    return cumulativeReward / NumAttackers;
+    return cumulativeReward / state.attackers.size();
   }
 
 private:
@@ -282,6 +284,9 @@ private:
     std::vector<GameActionT> actions;
     std::vector<std::vector<RobotAction>> allActions;
 
+    size_t NumAttackers = state.attackers.size();
+    size_t NumDefenders = state.defenders.size();
+
     // generate actions for active robots only
     if (state.turn == GameStateT::Turn::Attackers) {
       for (size_t i = 0; i < NumAttackers; ++i) {
@@ -310,6 +315,7 @@ private:
     actions.resize(cartActions.size());
     for (size_t i = 0; i < actions.size(); ++i) {
       assert(cartActions[i].size() == NumAttackers + NumDefenders);
+      actions[i].resize(cartActions[i].size());
       for (size_t j = 0; j < NumAttackers + NumDefenders; ++j) {
         actions[i][j] = cartActions[i][j];
       }
@@ -321,8 +327,8 @@ private:
 
 
 private:
-  const std::array<RobotType, NumAttackers>& m_attackerTypes;
-  const std::array<RobotType, NumDefenders>& m_defenderTypes;
+  const std::vector<RobotType>& m_attackerTypes;
+  const std::vector<RobotType>& m_defenderTypes;
   float m_dt;
   Eigen::Vector2f m_goal;
   size_t m_maxDepth;
@@ -331,6 +337,6 @@ private:
   const GLAS* m_glas_b;
 
   // Maps activeRobots -> possible actions
-  std::unordered_map<std::bitset<NumAttackers>, std::vector<GameActionT>> m_possibleActionsAttackersMap;
+  std::unordered_map<uint32_t, std::vector<GameActionT>> m_possibleActionsAttackersMap;
   std::vector<GameActionT> m_possibleActionsDefender;
 };

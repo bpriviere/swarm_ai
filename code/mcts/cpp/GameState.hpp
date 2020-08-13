@@ -2,7 +2,6 @@
 
 #include "RobotState.hpp"
 
-template <std::size_t NumAttackers, std::size_t NumDefenders>
 class GameState
 {
 public:
@@ -13,24 +12,25 @@ public:
   };
 
   Turn turn;
-  std::array<RobotState, NumAttackers> attackers;
+  std::vector<RobotState> attackers;
   float attackersReward;
-  std::array<RobotState, NumDefenders> defenders;
+  std::vector<RobotState> defenders;
   float defendersReward;
 
   size_t depth;
-  std::bitset<NumAttackers> activeMask;
+  // WARNING: this assumes we have less than 32 attackers
+  uint32_t activeMask;
 
-  friend std::ostream& operator<<(std::ostream& out, const GameState<NumAttackers, NumDefenders>& s)
+  friend std::ostream& operator<<(std::ostream& out, const GameState& s)
   {
     Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");
 
     out << "GameState(turn=";
     switch(s.turn) {
-      case GameState<NumAttackers, NumDefenders>::Turn::Attackers:
+      case GameState::Turn::Attackers:
         out << "Attackers";
         break;
-      case GameState<NumAttackers, NumDefenders>::Turn::Defenders:
+      case GameState::Turn::Defenders:
         out << "Defenders";
         break;
     }

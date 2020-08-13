@@ -49,7 +49,7 @@ build$ ./test_glas -i ../config.yaml -n ../nn.yaml -o output.csv && python3 ../p
 
 * MCTS is generic in the style of libMultiRobotPlanning, with templated State, Action, and GameLogic
 * By default, ties are not broken randomly, as in the Python version
-* The GameState is templated by #Attackers/#Defenders. This might be annoying for python bindings as we need to know at compile time what variant to run. This design choice was made to have improved static allocation.
+* The GameState is templated no longer templated by #Attackers/#Defenders to allow Python bindings. The performance loss is minimal, since the runtime is dominated by rollouts, not by copy operations.
 
 ### Todo
 

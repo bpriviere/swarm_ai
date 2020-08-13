@@ -12,13 +12,12 @@
 #include "Game.hpp"
 #include "GLAS.hpp"
 
-template <std::size_t NumAttackers, std::size_t NumDefenders>
 void runGame(
   const YAML::Node& config,
   const YAML::Node& cfg_nn,
   const std::string& outputFile)
 {
-  using EnvironmentT = Game<NumAttackers, NumDefenders>;
+  using EnvironmentT = Game;
   using GameStateT = typename EnvironmentT::GameStateT;
   using GameActionT = typename EnvironmentT::GameActionT;
 
@@ -32,15 +31,20 @@ void runGame(
   std::cout << "Using seed " << seed << std::endl;
   std::default_random_engine generator(seed);
 
+  int NumAttackers = config["num_nodes_A"].as<int>();
+  int NumDefenders = config["num_nodes_B"].as<int>();
+
   GameStateT state;
+  state.attackers.resize(NumAttackers);
+  state.defenders.resize(NumDefenders);
 
   state.turn = GameStateT::Turn::Attackers;
-  state.activeMask.set();
+  state.activeMask = 0;
   state.depth = 0;
   state.attackersReward = 0;
   state.defendersReward = 0;
 
-  std::array<RobotType, NumAttackers> attackerTypes;
+  std::vector<RobotType> attackerTypes(NumAttackers);
   for (size_t i = 0; i < NumAttackers; ++i) {
     const auto& node = config["robots"][i];
     attackerTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -52,11 +56,13 @@ void runGame(
     attackerTypes[i].init();
 
     state.attackers[i].status = RobotState::Status::Active;
+    assert(i<32);
+    state.activeMask |= (1<<i);
     state.attackers[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
     state.attackers[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
 
   }
-  std::array<RobotType, NumDefenders> defenderTypes;
+  std::vector<RobotType> defenderTypes(NumDefenders);
   for (size_t i = 0; i < NumDefenders; ++i) {
     const auto& node = config["robots"][i+NumAttackers];
     defenderTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -177,24 +183,7 @@ int main(int argc, char* argv[]) {
   YAML::Node config = YAML::LoadFile(inputFile);
   YAML::Node cfg_nn = YAML::LoadFile(inputFileNN);
 
-  int numAttackers = config["num_nodes_A"].as<int>();
-  int numDefenders = config["num_nodes_B"].as<int>();
-
-  if (numAttackers == 1 && numDefenders == 1) {
-    runGame<1,1>(config, cfg_nn, outputFile);
-  }
-  else if (numAttackers == 2 && numDefenders == 1) {
-    runGame<2,1>(config, cfg_nn, outputFile);
-  }
-  else if (numAttackers == 1 && numDefenders == 2) {
-    runGame<1,2>(config, cfg_nn, outputFile);
-  }
-  else if (numAttackers == 2 && numDefenders == 2) {
-    runGame<2,2>(config, cfg_nn, outputFile);
-  } else {
-    std::cerr << "Need to recompile for " << numAttackers << "," << numDefenders << std::endl;
-    return 1;
-  }
+  runGame(config, cfg_nn, outputFile);
 
   return 0;
 }

@@ -14,7 +14,6 @@
 
 #include "GLAS.hpp"
 
-template <std::size_t NumAttackers, std::size_t NumDefenders>
 void runMCTS(
   const YAML::Node& config,
   const std::string& outputFile,
@@ -22,18 +21,23 @@ void runMCTS(
   GLAS* glas_a,
   GLAS* glas_b)
 {
-  using EnvironmentT = Game<NumAttackers, NumDefenders>;
+  using EnvironmentT = Game;
   using GameStateT = typename EnvironmentT::GameStateT;
   using GameActionT = typename EnvironmentT::GameActionT;
+
+  int NumAttackers = config["num_nodes_A"].as<int>();
+  int NumDefenders = config["num_nodes_B"].as<int>();
 
   size_t num_nodes = config["tree_size"].as<int>();
 
   GameStateT state;
+  state.attackers.resize(NumAttackers);
+  state.defenders.resize(NumDefenders);
 
   state.turn = GameStateT::Turn::Attackers;
-  state.activeMask.set();
+  state.activeMask = 0;
   
-  std::array<RobotType, NumAttackers> attackerTypes;
+  std::vector<RobotType> attackerTypes(NumAttackers);
   for (size_t i = 0; i < NumAttackers; ++i) {
     const auto& node = config["robots"][i];
     attackerTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -45,11 +49,13 @@ void runMCTS(
     attackerTypes[i].init();
 
     state.attackers[i].status = RobotState::Status::Active;
+    assert(i<32);
+    state.activeMask |= (1<<i);
     state.attackers[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
     state.attackers[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
 
   }
-  std::array<RobotType, NumDefenders> defenderTypes;
+  std::vector<RobotType> defenderTypes(NumDefenders);
   for (size_t i = 0; i < NumDefenders; ++i) {
     const auto& node = config["robots"][i+NumAttackers];
     defenderTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -189,24 +195,7 @@ int main(int argc, char* argv[]) {
     glas_b = new GLAS(cfg_nn["team_b"], generator);
   }
 
-  int numAttackers = config["num_nodes_A"].as<int>();
-  int numDefenders = config["num_nodes_B"].as<int>();
-
-  if (numAttackers == 1 && numDefenders == 1) {
-    runMCTS<1,1>(config, outputFile, generator, glas_a, glas_b);
-  }
-  else if (numAttackers == 2 && numDefenders == 1) {
-    runMCTS<2,1>(config, outputFile, generator, glas_a, glas_b);
-  }
-  else if (numAttackers == 1 && numDefenders == 2) {
-    runMCTS<1,2>(config, outputFile, generator, glas_a, glas_b);
-  }
-  else if (numAttackers == 2 && numDefenders == 2) {
-    runMCTS<2,2>(config, outputFile, generator, glas_a, glas_b);
-  } else {
-    std::cerr << "Need to recompile for " << numAttackers << "," << numDefenders << std::endl;
-    return 1;
-  }
+  runMCTS(config, outputFile, generator, glas_a, glas_b);
 
   return 0;
 }

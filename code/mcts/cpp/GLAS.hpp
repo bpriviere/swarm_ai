@@ -255,17 +255,19 @@ private:
 };
 
 
-template <std::size_t NumAttackers, std::size_t NumDefenders>
-std::array<RobotAction, NumAttackers + NumDefenders> computeActionsWithGLAS(
+std::vector<RobotAction> computeActionsWithGLAS(
   const GLAS& glas_a,
   const GLAS& glas_b,
-  const GameState<NumAttackers, NumDefenders>& state,
+  const GameState& state,
   const Eigen::Vector2f& goal,
-  const std::array<RobotType, NumAttackers>& attackerTypes,
-  const std::array<RobotType, NumDefenders>& defenderTypes,
+  const std::vector<RobotType>& attackerTypes,
+  const std::vector<RobotType>& defenderTypes,
   std::default_random_engine& generator)
 {
-  std::array<RobotAction, NumAttackers + NumDefenders> action;
+  size_t NumAttackers = state.attackers.size();
+  size_t NumDefenders = state.defenders.size();
+
+  std::vector<RobotAction> action(NumAttackers + NumDefenders);
   std::vector<Eigen::Vector4f> input_a;
   std::vector<Eigen::Vector4f> input_b;
   Eigen::Vector4f relGoal;
