@@ -39,26 +39,6 @@ void runGame(
   state.depth = 0;
   state.attackersReward = 0;
   state.defendersReward = 0;
-  std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
-  std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
-  // std::uniform_real_distribution<float> velDist(-config["speed_limit_a"].as<float>() / sqrtf(2.0), config["speed_limit_a"].as<float>() / sqrtf(2.0));
-  for (size_t i = 0; i < NumAttackers; ++i) {
-    state.attackers[i].status = RobotState::Status::Active;
-    state.attackers[i].position << xPosDist(generator),yPosDist(generator);
-    // state.attackers[i].velocity << velDist(generator),velDist(generator);
-    state.attackers[i].velocity << 0,0;
-  }
-  xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
-  yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
-  // velDist = std::uniform_real_distribution<float>(-config["speed_limit_b"].as<float>() / sqrtf(2.0), config["speed_limit_b"].as<float>() / sqrtf(2.0));
-  for (size_t i = 0; i < NumDefenders; ++i) {
-    state.defenders[i].status = RobotState::Status::Active;
-    state.defenders[i].position << xPosDist(generator),yPosDist(generator);
-    // state.defenders[i].velocity << velDist(generator),velDist(generator);
-    state.defenders[i].velocity << 0,0;
-  }
-
-  std::cout << state << std::endl;
 
   std::array<RobotType, NumAttackers> attackerTypes;
   for (size_t i = 0; i < NumAttackers; ++i) {
@@ -70,6 +50,11 @@ void runGame(
     attackerTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
     attackerTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     attackerTypes[i].init();
+
+    state.attackers[i].status = RobotState::Status::Active;
+    state.attackers[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
+    state.attackers[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
+
   }
   std::array<RobotType, NumDefenders> defenderTypes;
   for (size_t i = 0; i < NumDefenders; ++i) {
@@ -81,7 +66,12 @@ void runGame(
     defenderTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
     defenderTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     defenderTypes[i].init();
+
+    state.defenders[i].status = RobotState::Status::Active;
+    state.defenders[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
+    state.defenders[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
   }
+  std::cout << state << std::endl;
 
   float dt = config["sim_dt"].as<float>();
   Eigen::Vector2f goal;
