@@ -144,31 +144,13 @@ class Game {
   void getPossibleActions(const GameStateT& state, std::vector<GameActionT>& actions)
   {
     // We could filter here the "valid" actions, but this is also checked in the "step" function
-    actions.clear();
-
-    if (state.turn == GameStateT::Turn::Attackers) {
-      const auto& cache = m_possibleActionsAttackersMap.find(state.activeMask);
-      if (cache == m_possibleActionsAttackersMap.end()) {
-        // cache miss -> compute new action set
-        actions = computeActions(state);
-        // store result in cache
-        m_possibleActionsAttackersMap[state.activeMask] = actions;
-      }
-      else {
-        // cache hit -> copy to output
-        actions = cache->second;
-      }
-    } else {
-      if (m_possibleActionsDefender.size() == 0) {
-        m_possibleActionsDefender = computeActions(state);
-      }
-      actions = m_possibleActionsDefender;
-    }
+    actions = getPossibleActions(state);
   }
 
   Reward rollout(const GameStateT& state)
   {
     GameStateT s = state;
+    GameStateT nextState;
     if (m_glas_a && m_glas_b) {
       // NN rollout
 
@@ -176,7 +158,6 @@ class Game {
         const auto action = computeActionsWithGLAS(*m_glas_a,*m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator);
 
         // step twice (once for each player)
-        GameStateT nextState;
         bool valid = step(s, action, nextState);
         valid &= step(nextState, action, nextState);
         if (valid) {
@@ -193,29 +174,47 @@ class Game {
       // uniform sampling rollout
 
       while (true) {
-        std::vector<GameActionT> actions;
-        getPossibleActions(s, actions);
+        const auto& actions = getPossibleActions(s);
 
-        while (actions.size() > 0) {
-          // shuffle on demand
-          std::uniform_int_distribution<int> dist(0, actions.size() - 1);
-          int idx = dist(m_generator);
-          std::swap(actions.back(), actions.begin()[idx]);
+        std::uniform_int_distribution<int> dist(0, actions.size() - 1);
+        int idx = dist(m_generator);
+        const auto& action = actions[idx];
 
-          const auto& action = actions.back();
-          GameStateT nextState;
-          bool valid = step(s, action, nextState);
-          if (valid) {
-            s = nextState;
+        bool valid = step(s, action, nextState);
+        if (valid) {
+          s = nextState;
+          if (isTerminal(s)) {
             break;
           }
-          actions.pop_back();
-        }
-
-        if (isTerminal(s) || actions.size() == 0) {
+        } else {
           break;
         }
       }
+
+      // while (true) {
+      //   std::vector<GameActionT> actions;
+      //   getPossibleActions(s, actions);
+
+      //   while (actions.size() > 0) {
+      //     // shuffle on demand
+      //     std::uniform_int_distribution<int> dist(0, actions.size() - 1);
+      //     int idx = dist(m_generator);
+      //     std::swap(actions.back(), actions.begin()[idx]);
+
+      //     const auto& action = actions.back();
+      //     GameStateT nextState;
+      //     bool valid = step(s, action, nextState);
+      //     if (valid) {
+      //       s = nextState;
+      //       break;
+      //     }
+      //     actions.pop_back();
+      //   }
+
+      //   if (isTerminal(s) || actions.size() == 0) {
+      //     break;
+      //   }
+      // }
     }
 
     float attackersReward = s.attackersReward;
@@ -254,6 +253,29 @@ class Game {
   }
 
 private:
+
+  const std::vector<GameActionT>& getPossibleActions(const GameStateT& state)
+  {
+    // We could filter here the "valid" actions, but this is also checked in the "step" function
+    if (state.turn == GameStateT::Turn::Attackers) {
+      const auto& cache = m_possibleActionsAttackersMap.find(state.activeMask);
+      if (cache == m_possibleActionsAttackersMap.end()) {
+        // cache miss -> compute new action set
+        m_possibleActionsAttackersMap[state.activeMask] = computeActions(state);
+        return m_possibleActionsAttackersMap[state.activeMask];
+      }
+      else {
+        // cache hit
+        return cache->second;
+      }
+    } else {
+      if (m_possibleActionsDefender.size() == 0) {
+        m_possibleActionsDefender = computeActions(state);
+      }
+      return m_possibleActionsDefender;
+    }
+  }
+
 
   std::vector<GameActionT> computeActions(const GameStateT& state)
   {
