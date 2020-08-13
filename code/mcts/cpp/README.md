@@ -63,8 +63,15 @@ build$ ./test_glas -i ../config.yaml -n ../nn.yaml -o output.csv && python3 ../p
 mkdir buildProfile
 cd buildProfile
 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+make
 perf record --call-graph dwarf ./swarmgame -i ../config.yaml -o output.csv
 ~/sw/hotspot-v1.2.0-x86_64.AppImage perf.data
 ```
 
 Where hotspot is from https://www.kdab.com/hotspot-gui-linux-perf-profiler/
+
+## CLANG
+
+```
+CC=clang CXX=clang++ cmake
+```
