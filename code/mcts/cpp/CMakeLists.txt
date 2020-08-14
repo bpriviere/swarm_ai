@@ -35,3 +35,14 @@ target_link_libraries(test_glas
 add_executable(test_tictactoe
   test_tictactoe.cpp
 )
+
+# Python bindings
+
+add_subdirectory(pybind11)
+
+pybind11_add_module(mctscpp
+  python_bindings.cpp
+)
+target_link_libraries(mctscpp PRIVATE
+  yaml-cpp
+)

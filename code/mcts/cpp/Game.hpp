@@ -327,8 +327,8 @@ private:
 
 
 private:
-  const std::vector<RobotType>& m_attackerTypes;
-  const std::vector<RobotType>& m_defenderTypes;
+  std::vector<RobotType> m_attackerTypes;
+  std::vector<RobotType> m_defenderTypes;
   float m_dt;
   Eigen::Vector2f m_goal;
   size_t m_maxDepth;

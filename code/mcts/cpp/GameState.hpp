@@ -11,6 +11,28 @@ public:
     Defenders = 1,
   };
 
+  GameState() = default;
+
+  GameState(
+    const Turn& turn,
+    const std::vector<RobotState>& attackers,
+    const std::vector<RobotState>& defenders)
+    : turn(turn)
+    , attackers(attackers)
+    , attackersReward(0)
+    , defenders(defenders)
+    , defendersReward(0)
+    , depth(0)
+    , activeMask(0)
+  {
+    // update activeMask
+    for (size_t i = 0; i < attackers.size(); ++i) {
+      if (attackers[i].status == RobotState::Status::Active) {
+        activeMask |= (1<<i);
+      }
+    }
+  }
+
   Turn turn;
   std::vector<RobotState> attackers;
   float attackersReward;
