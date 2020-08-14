@@ -35,7 +35,7 @@ class Param:
 			'tag_radius': 0.025,
 			'dynamics':'double_integrator',
 			'r_comm': 0.4,
-			'r_sense': 0.4,
+			'r_sense': 1.0,
 		}
 
 		self.evasive_robot = {
@@ -44,7 +44,7 @@ class Param:
 			'tag_radius': 0.025,
 			'dynamics':'double_integrator',
 			'r_comm': 0.4,
-			'r_sense': 0.4,
+			'r_sense': 1.0,
 		}
 
 		self.robot_team_composition = {
@@ -53,7 +53,7 @@ class Param:
 		}
 		
 		# environment
-		l = 1.0 
+		l = 0.5 
 		self.env_xlim = [0,l]
 		self.env_ylim = [0,l]
 		self.reset_xlim_A = [0.1*l,0.9*l]
@@ -63,7 +63,7 @@ class Param:
 		self.goal = np.array([0.75*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 10000
+		self.tree_size = 100000
 		self.fixed_tree_depth_on = False
 		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000
