@@ -32,17 +32,6 @@ std::default_random_engine createRandomGenerator(size_t seed)
   return std::default_random_engine(seed);
 }
 
-std::tuple<GLAS, GLAS> createGLAS(
-  const std::string& inputFileNN,
-  std::default_random_engine& generator)
-{
-  YAML::Node cfg_nn = YAML::LoadFile(inputFileNN);
-
-  GLAS glas_a(cfg_nn["team_a"], generator);
-  GLAS glas_b(cfg_nn["team_b"], generator);
-
-  return std::make_tuple<>(glas_a, glas_b);
-}
 
 Game::GameActionT search(
   Game& game,
@@ -64,8 +53,8 @@ PYBIND11_MODULE(mctscpp, m) {
 
   // helper functions
   m.def("createRandomGenerator", &createRandomGenerator);
-  m.def("createGLAS", &createGLAS);
   m.def("search", &search);
+  m.def("computeActionsWithGLAS", &computeActionsWithGLAS);
 
   // helper classes
   py::class_<std::default_random_engine> (m, "default_random_engine");
@@ -118,8 +107,33 @@ PYBIND11_MODULE(mctscpp, m) {
     .def_readwrite("tag_radiusSquared", &RobotType::tag_radiusSquared)
     .def_readwrite("r_senseSquared", &RobotType::r_senseSquared);
 
+  // FeedForwardNN
+  py::class_<FeedForwardNN> (m, "FeedForwardNN")
+    .def("addLayer", &FeedForwardNN::addLayer)
+    .def("eval", &FeedForwardNN::eval)
+    .def_property_readonly("sizeIn", &FeedForwardNN::sizeIn)
+    .def_property_readonly("sizeOut", &FeedForwardNN::sizeOut);
+
+  // DeepSetNN
+  py::class_<DeepSetNN> (m, "DeepSetNN")
+    .def("eval", &DeepSetNN::eval)
+    .def_property_readonly("sizeOut", &DeepSetNN::sizeOut)
+    .def_property_readonly("phi", &DeepSetNN::phi)
+    .def_property_readonly("rho", &DeepSetNN::rho);
+
+  // DiscreteEmptyNet
+  py::class_<DiscreteEmptyNet> (m, "DiscreteEmptyNet")
+    .def("eval", &DiscreteEmptyNet::eval)
+    .def_property_readonly("deepSetA", &DiscreteEmptyNet::deepSetA)
+    .def_property_readonly("deepSetB", &DiscreteEmptyNet::deepSetB)
+    .def_property_readonly("psi", &DiscreteEmptyNet::psi);
+
+
   // GLAS
-  py::class_<GLAS> (m, "GLAS");
+  py::class_<GLAS> (m, "GLAS")
+    .def(py::init<std::default_random_engine&>())
+    .def("computeAction", &GLAS::computeAction)
+    .def_property_readonly("discreteEmptyNet", &GLAS::discreteEmptyNet);
 
   // Game
   py::class_<Game> (m, "Game")

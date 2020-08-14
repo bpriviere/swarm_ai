@@ -59,6 +59,7 @@ public:
 
   Eigen::VectorXf eval(const Eigen::VectorXf& input) const
   {
+    assert(m_layers.size() > 0);
     Eigen::VectorXf result = input;
     for (size_t i = 0; i < m_layers.size()-1; ++i) {
       const auto& l = m_layers[i];
@@ -71,11 +72,13 @@ public:
 
   size_t sizeIn() const
   {
+    assert(m_layers.size() > 0);
     return m_layers[0].weight.cols();
   }
 
   size_t sizeOut() const
   {
+    assert(m_layers.size() > 0);
     return m_layers.back().bias.size();
   }
 
@@ -189,19 +192,11 @@ private:
 class GLAS
 {
 public:
-  GLAS(
-    const YAML::Node& node,
-    std::default_random_engine& gen)
+  GLAS(std::default_random_engine& gen)
     : m_glas()
     , m_actions()
     , m_gen(gen)
   {
-    m_glas.deepSetA().phi().load(node, "model_team_a.phi");
-    m_glas.deepSetA().rho().load(node, "model_team_a.rho");
-    m_glas.deepSetB().phi().load(node, "model_team_b.phi");
-    m_glas.deepSetB().rho().load(node, "model_team_b.rho");
-    m_glas.psi().load(node, "psi");
-
     m_actions.resize(9);
     m_actions[0] << -1, -1;
     m_actions[1] << -1,  0;
@@ -212,6 +207,18 @@ public:
     m_actions[6] <<  1, -1;
     m_actions[7] <<  1,  0;
     m_actions[8] <<  1,  1;
+  }
+
+  GLAS(
+    const YAML::Node& node,
+    std::default_random_engine& gen)
+    : GLAS(gen)
+  {
+    m_glas.deepSetA().phi().load(node, "model_team_a.phi");
+    m_glas.deepSetA().rho().load(node, "model_team_a.rho");
+    m_glas.deepSetB().phi().load(node, "model_team_b.phi");
+    m_glas.deepSetB().rho().load(node, "model_team_b.rho");
+    m_glas.psi().load(node, "psi");
   }
 
   const Eigen::Vector2f& computeAction(
@@ -232,22 +239,9 @@ public:
     return m_actions[idx];
   }
 
-private:
-  FeedForwardNN load(const YAML::Node& node, const std::string& name)
+  DiscreteEmptyNet& discreteEmptyNet()
   {
-    FeedForwardNN nn;
-    for (size_t l = 0; ; ++l) {
-      std::string key1 = name + ".layers." + std::to_string(l) + ".weight";
-      std::string key2 = name + ".layers." + std::to_string(l) + ".bias";
-      if (node[key1] && node[key2]) {
-        nn.addLayer(
-          node[key1].as<Eigen::MatrixXf>(),
-          node[key2].as<Eigen::MatrixXf>());
-      } else {
-        break;
-      }
-    }
-    return nn;
+    return m_glas;
   }
 
 private:

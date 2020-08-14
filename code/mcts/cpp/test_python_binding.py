@@ -1,8 +1,39 @@
 import numpy as np
+import matplotlib.pyplot as plt
+import torch
 
 from buildRelease import mctscpp
 
+def loadFeedForwardNNWeights(ff, state_dict, name):
+	l = 0
+	while True:
+		key1 = "{}.layers.{}.weight".format(name, l)
+		key2 = "{}.layers.{}.bias".format(name, l)
+		if key1 in state_dict and key2 in state_dict:
+			ff.addLayer(state_dict[key1].numpy(), state_dict[key2].numpy())
+		else:
+			if l == 0:
+				print("WARNING: No weights found for {}".format(name))
+			break
+		l += 1
+
+def createGLAS(file, generator):
+	state_dict = torch.load(file)
+
+	glas = mctscpp.GLAS(generator)
+	den = glas.discreteEmptyNet
+	loadFeedForwardNNWeights(den.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(den.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(den.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(den.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(den.psi, state_dict, "psi")
+
+	return glas
+
 if __name__ == '__main__':
+	seed = 10
+	mode = "MCTS_GLAS" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
+	num_nodes = 1000
 
 	# test RobotState
 	rs = mctscpp.RobotState([0,1],[2,3])
@@ -27,11 +58,11 @@ if __name__ == '__main__':
 	# rt.tag_radiusSquared = 0.025**2
 	# rt.r_senseSquared = 1.0**2
 
-	# # test GLAS
-	generator = mctscpp.createRandomGenerator(1)
-	useGLAS = False
-	if useGLAS:
-		glas_a, glas_b = mctscpp.createGLAS("nn.yaml", generator)
+	# test GLAS
+	generator = mctscpp.createRandomGenerator(seed)
+	if "GLAS" in mode:
+		glas_a = createGLAS("../../../models/il_current_a.pt", generator)
+		glas_b = createGLAS("../../../models/il_current_b.pt", generator)
 	else:
 		glas_a = glas_b = None
 
@@ -48,24 +79,54 @@ if __name__ == '__main__':
 	success = g.step(gs, [[0,2],[0,1]], next_state)
 	print(success, next_state)
 
-	# Test MCTS search
-	num_nodes = 1000
+	# Test Game Rollout
 
+	result = []
 	while True:
 		gs.attackersReward = 0;
 		gs.defendersReward = 0;
 		gs.depth = 0;
-		print(gs)
-		action = mctscpp.search(g, gs, generator, num_nodes)
-		print(action)
-		if len(action) > 0:
-			success = g.step(gs, action, next_state)
-			if success:
-				gs = next_state
-				if g.isTerminal(gs):
-					print(gs)
-					break
+		# print(gs)
+		result.append([
+			[rs.position.copy() for rs in gs.attackers],
+			[rs.position.copy() for rs in gs.defenders]])
+		if "MCTS" in mode:
+			action = mctscpp.search(g, gs, generator, num_nodes)
+			if len(action) > 0:
+				success = g.step(gs, action, gs)
 			else:
+				break
+		elif mode == "GLAS":
+			action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, goal, attackerTypes, defenderTypes, generator)
+			# step twice (once per team)
+			success = g.step(gs, action, gs)
+			if success:
+				success = g.step(gs, action, gs)
+		else:
+			print("UNKNOWN MODE")
+			exit()
+		if success:
+			if g.isTerminal(gs):
+				print(gs)
+				result.append([
+					[rs.position.copy() for rs in gs.attackers],
+					[rs.position.copy() for rs in gs.defenders]])
 				break
 		else:
 			break
+
+	print(result[0])
+	# exit()
+	result = np.array(result)
+	# print(result[:,1,0,0])
+
+	fig, ax = plt.subplots()
+	ax.axis('equal')
+	for i in range(result.shape[2]):
+		ax.plot(result[:,0,i,0], result[:,0,i,1], label="attacker {}".format(i))
+	for i in range(result.shape[2]):
+		ax.plot(result[:,1,i,0], result[:,1,i,1], label="defender {}".format(i))
+
+	ax.legend()
+	plt.show()
+
