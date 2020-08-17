@@ -52,10 +52,6 @@ struct convert<Eigen::MatrixXf> {
 class FeedForwardNN
 {
 public:
-  FeedForwardNN()
-  {
-  }
-
   void addLayer(const Eigen::MatrixXf& weight, const Eigen::MatrixXf& bias)
   {
     m_layers.push_back({weight, bias});
@@ -63,6 +59,7 @@ public:
 
   Eigen::VectorXf eval(const Eigen::VectorXf& input) const
   {
+    assert(m_layers.size() > 0);
     Eigen::VectorXf result = input;
     for (size_t i = 0; i < m_layers.size()-1; ++i) {
       const auto& l = m_layers[i];
@@ -75,12 +72,29 @@ public:
 
   size_t sizeIn() const
   {
+    assert(m_layers.size() > 0);
     return m_layers[0].weight.cols();
   }
 
   size_t sizeOut() const
   {
+    assert(m_layers.size() > 0);
     return m_layers.back().bias.size();
+  }
+
+  void load(const YAML::Node& node, const std::string& name)
+  {
+    for (size_t l = 0; ; ++l) {
+      std::string key1 = name + ".layers." + std::to_string(l) + ".weight";
+      std::string key2 = name + ".layers." + std::to_string(l) + ".bias";
+      if (node[key1] && node[key2]) {
+        addLayer(
+          node[key1].as<Eigen::MatrixXf>(),
+          node[key2].as<Eigen::MatrixXf>());
+      } else {
+        break;
+      }
+    }
   }
 
 private:
@@ -100,14 +114,6 @@ private:
 class DeepSetNN
 {
 public:
-  DeepSetNN(
-    const FeedForwardNN& phi,
-    const FeedForwardNN& rho)
-    : m_phi(phi)
-    , m_rho(rho)
-  {
-  }
-
   Eigen::VectorXf eval(const std::vector<Eigen::Vector4f>& input) const
   {
     Eigen::VectorXf X = Eigen::VectorXf::Zero(m_rho.sizeIn(), 1);
@@ -122,24 +128,24 @@ public:
     return m_rho.sizeOut();
   }
 
+  FeedForwardNN& phi()
+  {
+    return m_phi;
+  }
+
+  FeedForwardNN& rho()
+  {
+    return m_rho;
+  }
+
 private:
-  const FeedForwardNN& m_phi;
-  const FeedForwardNN& m_rho;
+  FeedForwardNN m_phi;
+  FeedForwardNN m_rho;
 };
 
 class DiscreteEmptyNet
 {
 public:
-  DiscreteEmptyNet(
-    const DeepSetNN& ds_a,
-    const DeepSetNN& ds_b,
-    const FeedForwardNN& psi)
-    : m_ds_a(ds_a)
-    , m_ds_b(ds_b)
-    , m_psi(psi)
-  {
-  }
-
   Eigen::VectorXf eval(
     const std::vector<Eigen::Vector4f>& input_a,
     const std::vector<Eigen::Vector4f>& input_b,
@@ -154,6 +160,21 @@ public:
     return softmax(res);
   }
 
+  DeepSetNN& deepSetA()
+  {
+    return m_ds_a;
+  }
+
+  DeepSetNN& deepSetB()
+  {
+    return m_ds_b;
+  }
+
+  FeedForwardNN& psi()
+  {
+    return m_psi;
+  }
+
 private:
   Eigen::MatrixXf softmax(const Eigen::MatrixXf& m) const
   {
@@ -163,34 +184,19 @@ private:
 
 
 private:
-  const DeepSetNN& m_ds_a;
-  const DeepSetNN& m_ds_b;
-  const FeedForwardNN& m_psi;
+  DeepSetNN m_ds_a;
+  DeepSetNN m_ds_b;
+  FeedForwardNN m_psi;
 };
 
 class GLAS
 {
 public:
-  GLAS(
-    const YAML::Node& node,
-    std::default_random_engine& gen)
-    : m_phi_a()
-    , m_rho_a()
-    , m_ds_a(m_phi_a, m_rho_a)
-    , m_phi_b()
-    , m_rho_b()
-    , m_ds_b(m_phi_b, m_rho_b)
-    , m_psi()
-    , m_glas(m_ds_a, m_ds_b, m_psi)
+  GLAS(std::default_random_engine& gen)
+    : m_glas()
     , m_actions()
     , m_gen(gen)
   {
-    m_phi_a = load(node, "model_team_a.phi");
-    m_rho_a = load(node, "model_team_a.rho");
-    m_phi_b = load(node, "model_team_b.phi");
-    m_rho_b = load(node, "model_team_b.rho");
-    m_psi = load(node, "psi");
-
     m_actions.resize(9);
     m_actions[0] << -1, -1;
     m_actions[1] << -1,  0;
@@ -201,6 +207,18 @@ public:
     m_actions[6] <<  1, -1;
     m_actions[7] <<  1,  0;
     m_actions[8] <<  1,  1;
+  }
+
+  GLAS(
+    const YAML::Node& node,
+    std::default_random_engine& gen)
+    : GLAS(gen)
+  {
+    m_glas.deepSetA().phi().load(node, "model_team_a.phi");
+    m_glas.deepSetA().rho().load(node, "model_team_a.rho");
+    m_glas.deepSetB().phi().load(node, "model_team_b.phi");
+    m_glas.deepSetB().rho().load(node, "model_team_b.rho");
+    m_glas.psi().load(node, "psi");
   }
 
   const Eigen::Vector2f& computeAction(
@@ -221,32 +239,12 @@ public:
     return m_actions[idx];
   }
 
-private:
-  FeedForwardNN load(const YAML::Node& node, const std::string& name)
+  DiscreteEmptyNet& discreteEmptyNet()
   {
-    FeedForwardNN nn;
-    for (size_t l = 0; ; ++l) {
-      std::string key1 = name + ".layers." + std::to_string(l) + ".weight";
-      std::string key2 = name + ".layers." + std::to_string(l) + ".bias";
-      if (node[key1] && node[key2]) {
-        nn.addLayer(
-          node[key1].as<Eigen::MatrixXf>(),
-          node[key2].as<Eigen::MatrixXf>());
-      } else {
-        break;
-      }
-    }
-    return nn;
+    return m_glas;
   }
 
 private:
-  FeedForwardNN m_phi_a;
-  FeedForwardNN m_rho_a;
-  DeepSetNN m_ds_a;
-  FeedForwardNN m_phi_b;
-  FeedForwardNN m_rho_b;
-  DeepSetNN m_ds_b;
-  FeedForwardNN m_psi;
   DiscreteEmptyNet m_glas;
 
   std::vector<Eigen::Vector2f> m_actions;
@@ -255,17 +253,19 @@ private:
 };
 
 
-template <std::size_t NumAttackers, std::size_t NumDefenders>
-std::array<RobotAction, NumAttackers + NumDefenders> computeActionsWithGLAS(
+std::vector<RobotAction> computeActionsWithGLAS(
   const GLAS& glas_a,
   const GLAS& glas_b,
-  const GameState<NumAttackers, NumDefenders>& state,
+  const GameState& state,
   const Eigen::Vector2f& goal,
-  const std::array<RobotType, NumAttackers>& attackerTypes,
-  const std::array<RobotType, NumDefenders>& defenderTypes,
+  const std::vector<RobotType>& attackerTypes,
+  const std::vector<RobotType>& defenderTypes,
   std::default_random_engine& generator)
 {
-  std::array<RobotAction, NumAttackers + NumDefenders> action;
+  size_t NumAttackers = state.attackers.size();
+  size_t NumDefenders = state.defenders.size();
+
+  std::vector<RobotAction> action(NumAttackers + NumDefenders);
   std::vector<Eigen::Vector4f> input_a;
   std::vector<Eigen::Vector4f> input_b;
   Eigen::Vector4f relGoal;

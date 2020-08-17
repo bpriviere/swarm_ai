@@ -6,6 +6,12 @@
 sudo apt install libboost-all-dev libyaml-cpp-dev
 ```
 
+This relies on pybind11, which is a submodule, so don't forget to
+
+```
+submodule update
+```
+
 ### Build
 
 ```
@@ -45,11 +51,19 @@ cpp$ python3 convertNN.py ../../../models/il_current_a.pt ../../../models/il_cur
 build$ ./test_glas -i ../config.yaml -n ../nn.yaml -o output.csv && python3 ../plot.py
 ```
 
+#### Testing Python Bindings
+
+This uses the bindings in `buildRelease` and has some examples on how to use the bindings.
+
+```
+python3 regression_test.py
+```
+
 ### Notes
 
 * MCTS is generic in the style of libMultiRobotPlanning, with templated State, Action, and GameLogic
 * By default, ties are not broken randomly, as in the Python version
-* The GameState is templated by #Attackers/#Defenders. This might be annoying for python bindings as we need to know at compile time what variant to run. This design choice was made to have improved static allocation.
+* The GameState is templated no longer templated by #Attackers/#Defenders to allow Python bindings. The performance loss is minimal, since the runtime is dominated by rollouts, not by copy operations.
 
 ### Todo
 
@@ -63,8 +77,15 @@ build$ ./test_glas -i ../config.yaml -n ../nn.yaml -o output.csv && python3 ../p
 mkdir buildProfile
 cd buildProfile
 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
+make
 perf record --call-graph dwarf ./swarmgame -i ../config.yaml -o output.csv
 ~/sw/hotspot-v1.2.0-x86_64.AppImage perf.data
 ```
 
 Where hotspot is from https://www.kdab.com/hotspot-gui-linux-perf-profiler/
+
+## CLANG
+
+```
+CC=clang CXX=clang++ cmake
+```

@@ -34,15 +34,14 @@ std::vector<std::vector<T>> cart_product(const std::vector<std::vector<T>>& v)
 }
 
 
-template <std::size_t NumAttackers, std::size_t NumDefenders>
 class Game {
  public:
-  typedef GameState<NumAttackers, NumDefenders> GameStateT;
-  typedef std::array<RobotAction, NumAttackers + NumDefenders> GameActionT;
+  typedef GameState GameStateT;
+  typedef std::vector<RobotAction> GameActionT;
 
   Game(
-    const std::array<RobotType, NumAttackers>& attackerTypes,
-    const std::array<RobotType, NumDefenders>& defenderTypes,
+    const std::vector<RobotType>& attackerTypes,
+    const std::vector<RobotType>& defenderTypes,
     float dt,
     const Eigen::Vector2f& goal,
     size_t maxDepth,
@@ -65,6 +64,9 @@ class Game {
     if (state.depth >= m_maxDepth) {
       return false;
     }
+
+    size_t NumAttackers = state.attackers.size();
+    size_t NumDefenders = state.defenders.size();
 
     // copy current state
     nextState = state;
@@ -97,7 +99,7 @@ class Game {
         if (distToGoalSquared <= m_attackerTypes[i].tag_radiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
           nextState.attackers[i].status = RobotState::Status::ReachedGoal;
-          nextState.activeMask.reset(i);
+          nextState.activeMask &= ~(1 << i); // reset bit i
         }
 
         for (size_t j = 0; j < NumDefenders; ++j) {
@@ -105,7 +107,7 @@ class Game {
             float distToDefenderSquared = (nextState.attackers[i].position - nextState.defenders[j].position).squaredNorm();
             if (distToDefenderSquared <= m_defenderTypes[j].tag_radiusSquared) {
               nextState.attackers[i].status = RobotState::Status::Captured;
-              nextState.activeMask.reset(i);
+              nextState.activeMask &= ~(1 << i); // reset bit i
             }
           }
         }
@@ -124,7 +126,7 @@ class Game {
 
   bool isTerminal(const GameStateT& state)
   {
-    return state.activeMask.none();
+    return state.activeMask == 0;
     // for (const auto& attacker : state.attackers) {
     //   if (attacker.status == RobotState::Status::Active) {
     //     return false;
@@ -144,31 +146,13 @@ class Game {
   void getPossibleActions(const GameStateT& state, std::vector<GameActionT>& actions)
   {
     // We could filter here the "valid" actions, but this is also checked in the "step" function
-    actions.clear();
-
-    if (state.turn == GameStateT::Turn::Attackers) {
-      const auto& cache = m_possibleActionsAttackersMap.find(state.activeMask);
-      if (cache == m_possibleActionsAttackersMap.end()) {
-        // cache miss -> compute new action set
-        actions = computeActions(state);
-        // store result in cache
-        m_possibleActionsAttackersMap[state.activeMask] = actions;
-      }
-      else {
-        // cache hit -> copy to output
-        actions = cache->second;
-      }
-    } else {
-      if (m_possibleActionsDefender.size() == 0) {
-        m_possibleActionsDefender = computeActions(state);
-      }
-      actions = m_possibleActionsDefender;
-    }
+    actions = getPossibleActions(state);
   }
 
   Reward rollout(const GameStateT& state)
   {
     GameStateT s = state;
+    GameStateT nextState;
     if (m_glas_a && m_glas_b) {
       // NN rollout
 
@@ -176,7 +160,6 @@ class Game {
         const auto action = computeActionsWithGLAS(*m_glas_a,*m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator);
 
         // step twice (once for each player)
-        GameStateT nextState;
         bool valid = step(s, action, nextState);
         valid &= step(nextState, action, nextState);
         if (valid) {
@@ -193,29 +176,47 @@ class Game {
       // uniform sampling rollout
 
       while (true) {
-        std::vector<GameActionT> actions;
-        getPossibleActions(s, actions);
+        const auto& actions = getPossibleActions(s);
 
-        while (actions.size() > 0) {
-          // shuffle on demand
-          std::uniform_int_distribution<int> dist(0, actions.size() - 1);
-          int idx = dist(m_generator);
-          std::swap(actions.back(), actions.begin()[idx]);
+        std::uniform_int_distribution<int> dist(0, actions.size() - 1);
+        int idx = dist(m_generator);
+        const auto& action = actions[idx];
 
-          const auto& action = actions.back();
-          GameStateT nextState;
-          bool valid = step(s, action, nextState);
-          if (valid) {
-            s = nextState;
+        bool valid = step(s, action, nextState);
+        if (valid) {
+          s = nextState;
+          if (isTerminal(s)) {
             break;
           }
-          actions.pop_back();
-        }
-
-        if (isTerminal(s) || actions.size() == 0) {
+        } else {
           break;
         }
       }
+
+      // while (true) {
+      //   std::vector<GameActionT> actions;
+      //   getPossibleActions(s, actions);
+
+      //   while (actions.size() > 0) {
+      //     // shuffle on demand
+      //     std::uniform_int_distribution<int> dist(0, actions.size() - 1);
+      //     int idx = dist(m_generator);
+      //     std::swap(actions.back(), actions.begin()[idx]);
+
+      //     const auto& action = actions.back();
+      //     GameStateT nextState;
+      //     bool valid = step(s, action, nextState);
+      //     if (valid) {
+      //       s = nextState;
+      //       break;
+      //     }
+      //     actions.pop_back();
+      //   }
+
+      //   if (isTerminal(s) || actions.size() == 0) {
+      //     break;
+      //   }
+      // }
     }
 
     float attackersReward = s.attackersReward;
@@ -250,15 +251,41 @@ class Game {
       }
     }
 
-    return cumulativeReward / NumAttackers;
+    return cumulativeReward / state.attackers.size();
   }
 
 private:
+
+  const std::vector<GameActionT>& getPossibleActions(const GameStateT& state)
+  {
+    // We could filter here the "valid" actions, but this is also checked in the "step" function
+    if (state.turn == GameStateT::Turn::Attackers) {
+      const auto& cache = m_possibleActionsAttackersMap.find(state.activeMask);
+      if (cache == m_possibleActionsAttackersMap.end()) {
+        // cache miss -> compute new action set
+        m_possibleActionsAttackersMap[state.activeMask] = computeActions(state);
+        return m_possibleActionsAttackersMap[state.activeMask];
+      }
+      else {
+        // cache hit
+        return cache->second;
+      }
+    } else {
+      if (m_possibleActionsDefender.size() == 0) {
+        m_possibleActionsDefender = computeActions(state);
+      }
+      return m_possibleActionsDefender;
+    }
+  }
+
 
   std::vector<GameActionT> computeActions(const GameStateT& state)
   {
     std::vector<GameActionT> actions;
     std::vector<std::vector<RobotAction>> allActions;
+
+    size_t NumAttackers = state.attackers.size();
+    size_t NumDefenders = state.defenders.size();
 
     // generate actions for active robots only
     if (state.turn == GameStateT::Turn::Attackers) {
@@ -288,6 +315,7 @@ private:
     actions.resize(cartActions.size());
     for (size_t i = 0; i < actions.size(); ++i) {
       assert(cartActions[i].size() == NumAttackers + NumDefenders);
+      actions[i].resize(cartActions[i].size());
       for (size_t j = 0; j < NumAttackers + NumDefenders; ++j) {
         actions[i][j] = cartActions[i][j];
       }
@@ -299,8 +327,8 @@ private:
 
 
 private:
-  const std::array<RobotType, NumAttackers>& m_attackerTypes;
-  const std::array<RobotType, NumDefenders>& m_defenderTypes;
+  std::vector<RobotType> m_attackerTypes;
+  std::vector<RobotType> m_defenderTypes;
   float m_dt;
   Eigen::Vector2f m_goal;
   size_t m_maxDepth;
@@ -309,6 +337,6 @@ private:
   const GLAS* m_glas_b;
 
   // Maps activeRobots -> possible actions
-  std::unordered_map<std::bitset<NumAttackers>, std::vector<GameActionT>> m_possibleActionsAttackersMap;
+  std::unordered_map<uint32_t, std::vector<GameActionT>> m_possibleActionsAttackersMap;
   std::vector<GameActionT> m_possibleActionsDefender;
 };

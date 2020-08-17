@@ -10,6 +10,27 @@ typedef Eigen::Vector2f RobotAction;
 class RobotType
 {
 public:
+
+  RobotType() = default;
+
+  RobotType(
+    const Eigen::Vector2f& p_min,
+    const Eigen::Vector2f& p_max,
+    float v_max,
+    float a_max,
+    float tag_radius,
+    float r_sense)
+    : p_min(p_min)
+    , p_max(p_max)
+    , velocity_limit(v_max)
+    , acceleration_limit(a_max)
+    , tag_radiusSquared(tag_radius*tag_radius)
+    , r_senseSquared(r_sense*r_sense)
+  {
+    init();
+  }
+
+
   Eigen::Vector2f p_min;
   Eigen::Vector2f p_max;
   float velocity_limit;
@@ -48,6 +69,6 @@ public:
     possibleActions[7] << acceleration_limit, 0;
     possibleActions[8] << acceleration_limit, acceleration_limit;
 
-    // invalidAction << nanf("") , nanf("");
+    invalidAction << nanf("") , nanf("");
   }
 };
