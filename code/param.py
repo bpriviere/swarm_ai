@@ -63,7 +63,7 @@ class Param:
 		self.goal = np.array([0.75*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 100000
+		self.tree_size = 5000
 		self.fixed_tree_depth_on = False
 		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000

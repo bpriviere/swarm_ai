@@ -480,161 +480,207 @@ def plot_tree_results(sim_result,title=None):
 	if title is not None: 
 		fig.suptitle(title)
 
-def plot_exp1_results(sim_results):
+def plot_exp1_results(all_sim_results):
 
-	def extract_quantity(sim_results,q):
-		if q == 'T':
-			qs = [sr["times"][-1] for sr in sim_results]
-		elif q == "reward":
-			qs = [sr["rewards"][-1,0] for sr in sim_results]
-		elif q == "elapsed":
-			qs = [sr["param"]["elapsed"] for sr in sim_results]
-		return qs
+	# box plot stuff (redo/check)
 
-	# group by tree size and rollout policy 
-	result = defaultdict(list)
+	# def extract_quantity(sim_results,q):
+	# 	if q == 'T':
+	# 		qs = [sr["times"][-1] for sr in sim_results]
+	# 	elif q == "reward":
+	# 		qs = [sr["rewards"][-1,0] for sr in sim_results]
+	# 	elif q == "elapsed":
+	# 		qs = [sr["param"]["elapsed"] for sr in sim_results]
+	# 	return qs
+	# fig,axs = plt.subplots(nrows=len(qois),ncols=tree_size_cases,sharex='col', sharey='row')
+	# qois = ['T', 'reward', 'elapsed']
+	# for i_q,q in enumerate(qois): 
+	# 	for i_t,tree_size in enumerate(tree_sizes): 
+	# 		qs_glas = extract_quantity(result[(tree_size,True,case)],q)
+	# 		qs_random = extract_quantity(result[(tree_size,False,case)],q)
+
+	# 		ax = axs[i_q,i_t] 
+	# 		ax.boxplot([qs_glas,qs_random])
+	# 		ax.grid(True)
+
+	# 		if i_q == len(qois)-1:
+	# 			ax.set_xticklabels(['glas','random'])
+	# 		else:
+	# 			ax.set_xticklabels(['',''])
+
+	# 		if i_q == 0: 
+	# 			ax.set_title('Num Nodes: \n {}'.format(tree_size))
+
+	# 		if i_t == 0: 
+	# 			ax.set_ylabel(q)
+
+	# fig.tight_layout()
+
+
+	# group by tree size, rollout policy and case number 
+	results = defaultdict(list)
 	tree_sizes = set()
-	for sim_result in sim_results:
-		key = (sim_result["param"]["tree_size"],sim_result["param"]["glas_rollout_on"])
-		tree_sizes.add(key[0])
-		result[key].append(sim_result)
+	cases = set()
+	for sim_result in all_sim_results:
 
+		tree_size = sim_result["param"]["tree_size"]
+		policy = sim_result["param"]["glas_rollout_on"]
+		case = sim_result["param"]["case"]
+
+		tree_sizes.add(tree_size)
+		cases.add(case)
+
+		key = (tree_size,policy,case)
+		results[key].append(sim_result)
+		
 	tree_sizes = np.array(list(tree_sizes))
 	tree_sizes = np.sort(tree_sizes)
-	tree_size_cases = len(tree_sizes)
 
-	qois = ['T', 'reward', 'elapsed']
+	num_trials = np.min((10,sim_result["param"]["num_trials"]))
+	num_trials_per_fig = 4 
 
-	fig,axs = plt.subplots(nrows=len(qois),ncols=tree_size_cases,sharex='col', sharey='row')
-	for i_q,q in enumerate(qois): 
-		for i_t,tree_size in enumerate(tree_sizes): 
-			qs_glas = extract_quantity(result[(tree_size,True)],q)
-			qs_random = extract_quantity(result[(tree_size,False)],q)
+	for case in cases: 
 
-			ax = axs[i_q,i_t] 
-			ax.boxplot([qs_glas,qs_random])
-			ax.grid(True)
+		for glas_rollout_on in sim_result["param"]["glas_rollout_on_cases"]:
 
-			if i_q == len(qois)-1:
-				ax.set_xticklabels(['glas','random'])
-			else:
-				ax.set_xticklabels(['',''])
+			policy = 'GLAS' if glas_rollout_on else 'Random'
+			suptitle = 'Rollout: {}, Case: {}'.format(policy,case)
 
-			if i_q == 0: 
-				ax.set_title('Num Nodes: \n {}'.format(tree_size))
+			for i_trial in range(num_trials):
 
-			if i_t == 0: 
-				ax.set_ylabel(q)
+				if i_trial % num_trials_per_fig == 0:
+					fig, axs = plt.subplots(nrows=np.min((num_trials_per_fig,num_trials - i_trial)),ncols=tree_sizes.shape[0],sharex='col', sharey='row')
+					fig.suptitle(suptitle)
+				
+				for i_tree,tree_size in enumerate(tree_sizes):
+			
+					key = (tree_size,glas_rollout_on,case)
+					sim_result = results[key][i_trial]
 
-	fig.tight_layout()
+					times = sim_result["times"]
+					states = sim_result["states"]
+					team_1_idxs = sim_result["param"]["team_1_idxs"]
+					num_nodes = sim_result["param"]["num_nodes"]
+					goal = sim_result["param"]["goal"]
+					tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+					env_xlim = sim_result["param"]["env_xlim"]	
+					env_ylim = sim_result["param"]["env_ylim"]	
 
-	num_trials = np.min((4,len(result[(tree_size,True)])))
-	for glas_rollout in [True, False]:
-		fig, axs = plt.subplots(nrows=num_trials,ncols=tree_size_cases,sharex='col', sharey='row')
-		if glas_rollout:
-			fig.suptitle('GLAS')
-		else:
-			fig.suptitle('Random')
+					team_1_color = 'blue'
+					team_2_color = 'orange'
+					goal_color = 'green'
 
-		for i_trial in range(num_trials):
-			for i_tree,tree_size in enumerate(tree_sizes):
-				sim_result = result[(tree_size,glas_rollout)][i_trial]
+					colors = get_colors(sim_result["param"])
 
-				times = sim_result["times"]
-				states = sim_result["states"]
-				team_1_idxs = sim_result["param"]["team_1_idxs"]
-				num_nodes = sim_result["param"]["num_nodes"]
-				goal = sim_result["param"]["goal"]
-				tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
-				env_xlim = sim_result["param"]["env_xlim"]	
-				env_ylim = sim_result["param"]["env_ylim"]	
+					ax = axs[i_trial % num_trials_per_fig,i_tree]
 
-				team_1_color = 'blue'
-				team_2_color = 'orange'
-				goal_color = 'green'
+					# state space
+					ax.grid(True)
+					ax.set_aspect('equal')
+					ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
+					for i in range(num_nodes):
+						for t in range(states.shape[0]):
+							ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
+								color=colors[i],alpha=0.2,fill=False))
+						ax.plot(states[:,i,0],states[:,i,1],linewidth=1,color=colors[i])
+						ax.scatter(states[:,i,0],states[:,i,1],s=10,marker='o',color=colors[i])
+					ax.set_xlim([env_xlim[0],env_xlim[1]])
+					ax.set_ylim([env_ylim[0],env_ylim[1]])
 
-				colors = get_colors(sim_result["param"])
+					ax.set_xticklabels([""])
+					ax.set_yticklabels([""])
 
-				ax = axs[i_trial,i_tree]
+					if i_trial % num_trials_per_fig == 0: 
+						ax.set_title('{}K'.format(tree_size/1000))
 
-				# state space
-				ax.grid(True)
-				ax.set_aspect('equal')
-				ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
-				for i in range(num_nodes):
-					for t in range(states.shape[0]):
-						ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
-							color=colors[i],alpha=0.2,fill=False))
-					ax.plot(states[:,i,0],states[:,i,1],linewidth=1,color=colors[i])
-					ax.scatter(states[:,i,0],states[:,i,1],s=10,marker='o',color=colors[i])
-				ax.set_xlim([env_xlim[0],env_xlim[1]])
-				ax.set_ylim([env_ylim[0],env_ylim[1]])
+					if i_tree == 0: 
+						ax.set_ylabel('Trial {}'.format(i_trial))
 
-				ax.set_xticklabels([""])
-				ax.set_yticklabels([""])
-
-				if i_trial == 0: 
-					ax.set_title('{}K'.format(tree_size/1000))
-
-				if i_tree == 0: 
-					ax.set_ylabel('Trial {}'.format(i_trial))
-
-		fig.tight_layout()
+			fig.tight_layout()
 
 def plot_convergence(all_sim_results):
 
 	def extract_reward(sim_result,longest_rollout):
 		nt = np.shape(sim_result["rewards"])[0]
-		reward = (np.sum(sim_result["rewards"][:,0]) + np.sum(sim_result["rewards"][-1,0])*(longest_rollout-nt))/longest_rollout
+		reward = (np.sum(sim_result["rewards"][:,0]) + sim_result["rewards"][-1,0]*(longest_rollout-nt))/longest_rollout
 		return reward 
 
-	# group by tree size and rollout policy 
+	# group by tree size, rollout policy and case number 
 	results = defaultdict(list)
-	longest_rollout = 0 
+	longest_rollout = defaultdict(int)
 	tree_sizes = set()
+	cases = set()
 	for sim_result in all_sim_results:
-		key = (sim_result["param"]["tree_size"],sim_result["param"]["glas_rollout_on"])
-		tree_sizes.add(key[0])
+
+		tree_size = sim_result["param"]["tree_size"]
+		policy = sim_result["param"]["glas_rollout_on"]
+		case = sim_result["param"]["case"]
+
+		tree_sizes.add(tree_size)
+		cases.add(case)
+
+		key = (tree_size,policy,case)
 		results[key].append(sim_result)
-		if longest_rollout < sim_result["times"].shape[0]:
-			longest_rollout = sim_result["times"].shape[0]
+		
+		if longest_rollout[case] < sim_result["times"].shape[0]:
+			longest_rollout[case] = sim_result["times"].shape[0]
 
 	tree_sizes = np.array(list(tree_sizes))
 	tree_sizes = np.sort(tree_sizes)
+	cases = np.array(list(cases))
+	cases = np.sort(cases)	
 
-	to_plots = defaultdict(list)
-	for key,sim_results in results.items():
+	for case in cases: 
 
-		reward_stats = [] 
-		for sim_result in sim_results: 
-			reward_stats.append(extract_reward(sim_result,longest_rollout))
+		to_plots = defaultdict(list)
+		for key,sim_results in results.items():
 
-		tree_size = key[0]
-		policy = key[1]
-		reward_stats = np.array(reward_stats)
-		reward_mean = np.mean(reward_stats)
-		reward_std = np.std(reward_stats)
+			if key[2] == case: 
 
-		to_plots[policy].append((tree_size,reward_mean,reward_std))
+				reward_stats = [] 
+				for sim_result in sim_results: 
+					reward_stats.append(extract_reward(sim_result,longest_rollout[case]))
 
-	fig,ax = plt.subplots()
+				tree_size = key[0]
+				policy = key[1]
+				case = key[2]
+				reward_stats = np.array(reward_stats)
+				reward_mean = np.mean(reward_stats)
+				reward_std = np.std(reward_stats)
 
-	for glas_on,to_plot in to_plots.items():
+				to_plots[policy,case].append((tree_size,reward_mean,reward_std))
 
-		if glas_on: 
-			label = 'GLAS'
-			color = 'blue'
-		else:
-			label = 'Random'
-			color = 'orange'
+				print('key',key)
+				print('reward_stats',reward_stats)
+				print('reward_mean',reward_mean)
+				print('reward_std',reward_std)
+				print('')
 
-		to_plot = np.array(to_plot)
-		to_plot = np.sort(to_plot,axis=0)
-
+		fig,ax = plt.subplots()
+		ax.set_title('Case {}'.format(str(case)))
+		ax.set_xscale('log')
+		ax.grid(True)
 		ax.set_ylim([0,1])
-		ax.set_xticks(to_plot[:,0])
-		ax.plot(to_plot[:,0],to_plot[:,1],marker='o',label=label,color=color)
-		ax.fill_between(to_plot[:,0], to_plot[:,1]-to_plot[:,2], to_plot[:,1]+to_plot[:,2],color=color,alpha=0.5)
+		ax.set_ylabel('Reward')
+		ax.set_xlabel('Tree Size (K)')
+
+		for (glas_on,case),to_plot in to_plots.items():
+
+			if glas_on: 
+				label = 'GLAS'
+				color = 'blue'
+			else:
+				label = 'Random'
+				color = 'orange'
+
+			to_plot = np.array(to_plot)
+			to_plot = to_plot[to_plot[:,0].argsort()]
+
+			ax.plot(to_plot[:,0],to_plot[:,1],marker='o',label=label,color=color)
+			ax.fill_between(to_plot[:,0], to_plot[:,1]-to_plot[:,2], to_plot[:,1]+to_plot[:,2],color=color,alpha=0.5)
+			ax.set_xticks(to_plot[:,0])
+			ax.set_xticklabels(to_plot[:,0]/1000)
+
 		ax.legend()
 
 

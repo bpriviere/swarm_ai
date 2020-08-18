@@ -32,25 +32,36 @@ def format_dir(param):
 
 def get_params(df_param):
 	params = [] 
-	for tree_size in df_param.tree_sizes:
-		for trial in range(df_param.num_trials):
+
+	count = 0 
+	for case in range(df_param.num_cases): 
+
+		df_param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
+		df_param.make_initial_condition()
+		initial_condition = df_param.state
+		
+		for tree_size in df_param.tree_sizes:
+		
+			for trial in range(df_param.num_trials):
 			
-			seed = int.from_bytes(os.urandom(4), sys.byteorder)
-
-			for i in range(2): 
-				param = Param()
-				param.current_results_dir = '../' + param.current_results_dir
-				param.seed = seed
-				param.tree_size = tree_size
-				param.update(df_param.state)
-
-				if i == 0: 
-					param.glas_rollout_on = True
-				else:
-					param.glas_rollout_on = False
-
-				param.sim_results_fig_title = get_title(tree_size,param.glas_rollout_on) 
-				params.append(param)
+				for glas_rollout_on in df_param.glas_rollout_on_cases: 
+				# for glas_rollout_on in [True,False]: 
+					param = Param()
+					param.current_results_dir = '../' + param.current_results_dir
+					param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
+					param.tree_size = tree_size
+					param.tree_sizes = df_param.tree_sizes 
+					param.trial = trial 
+					param.num_trials = df_param.num_trials
+					param.case = case
+					param.num_cases = df_param.num_cases
+					param.glas_rollout_on = glas_rollout_on
+					param.glas_rollout_on_cases = df_param.glas_rollout_on_cases
+					param.count = count 
+					param.update(initial_condition)
+					
+					params.append(param)
+					count += 1 
 
 	return params 
 
@@ -88,8 +99,7 @@ def run_sim(param):
 
 	sim_result = dh.convert_cpp_data_to_sim_result(data,param)
 
-	case = len(glob.glob(param.current_results_dir + '/*'))
-	save_fn = param.current_results_dir + '/sim_result_{}'.format(case)
+	save_fn = param.current_results_dir + '/sim_result_{}'.format(param.count)
 	print('writing instance {}... '.format(save_fn))
 	dh.write_sim_result(sim_result,save_fn)
 	print('completed instance {}'.format(save_fn))
@@ -97,32 +107,39 @@ def run_sim(param):
 
 if __name__ == '__main__':
 
+	run_on = True
+	parallel_on = True
+
 	df_param = Param()
-	df_param.num_trials = 10
-	df_param.tree_sizes = [1000,5000,10000,50000,100000]
+	df_param.num_trials = 50 
+	df_param.glas_rollout_on_cases = [False] # [True,False] 
+	df_param.num_cases = 5
+	df_param.tree_sizes = [1000,5000,10000,50000,100000,200000,500000] 
 	df_param.current_results_dir = '../' + df_param.current_results_dir	
 	df_param.glas_model_A = '../' + df_param.glas_model_A
 	df_param.glas_model_B = '../' + df_param.glas_model_B
 
-	format_dir(df_param)
-	write_combined_model_file(df_param)
-	params = get_params(df_param)
+	if run_on:
 
-	parallel = True
-	if parallel: 
-		pool = mp.Pool(mp.cpu_count()-1)
-		for _ in pool.imap_unordered(run_sim, params):
-			pass 
-	else: 
-		for param in params: 
-			run_sim(param)
-			break 
+		format_dir(df_param)
+		write_combined_model_file(df_param)
+		params = get_params(df_param)
+
+		if parallel_on: 
+			pool = mp.Pool(mp.cpu_count()-1)
+			for _ in pool.imap_unordered(run_sim, params):
+				pass 
+		else: 
+			for param in params: 
+				run_sim(param)
+				break 
 
 	sim_results = [] 
 	for sim_result_dir in glob.glob(df_param.current_results_dir + '/*'):
 		sim_results.append(dh.load_sim_result(sim_result_dir))
 
-	# plotter.plot_exp1_results(sim_results)
 	plotter.plot_convergence(sim_results)
+	plotter.plot_exp1_results(sim_results)
+	
 	plotter.save_figs("plots.pdf")
 	plotter.open_figs("plots.pdf")
