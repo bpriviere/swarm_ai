@@ -108,6 +108,19 @@ class MonteCarloTreeSearch {
     return m_nodes[0].number_of_visits;
   }
 
+  std::vector<std::pair<Action, float>> valuePerAction() const {
+    assert(m_nodes.size() >= 1);
+    std::vector<std::pair<Action, float>> result;
+
+    for (Node* c : m_nodes[0].children) {
+      // float value = m_env.rewardToFloat(m_nodes[0].state, c->reward) / (float)c->number_of_visits;
+      float value = c->number_of_visits / (float)m_nodes[0].number_of_visits;
+      result.emplace_back(std::make_pair(c->action_to_node, value));
+    }
+    return result;
+  }
+
+
  private:
   struct Node {
     Node()

@@ -16,6 +16,13 @@ Reward& operator+=(Reward& r1, const Reward& r2) {
   return r1;
 }
 
+Reward operator/(const Reward r, size_t scale) {
+  Reward result;
+  result.first = r.first / scale;
+  result.second = r.second / scale;
+  return result;
+}
+
 template <class T>
 std::vector<std::vector<T>> cart_product(const std::vector<std::vector<T>>& v)
 {
