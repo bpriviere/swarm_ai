@@ -161,7 +161,8 @@ PYBIND11_MODULE(mctscpp, m) {
       size_t,
       std::default_random_engine&,
       const GLAS*,
-      const GLAS*>())
+      const GLAS*,
+      float>())
     .def("step", &Game::step)
     .def("isTerminal", &Game::isTerminal);
 }

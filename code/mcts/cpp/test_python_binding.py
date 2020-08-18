@@ -35,7 +35,7 @@ def createGLAS(file, generator):
 if __name__ == '__main__':
 	seed = 10
 	mode = "MCTS_GLAS" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
-	num_nodes = 1000
+	num_nodes = 10000
 
 	# test RobotState
 	rs = mctscpp.RobotState([0,1],[2,3])
@@ -74,7 +74,8 @@ if __name__ == '__main__':
 	dt = 0.25
 	goal = [0.25,0.25]
 	max_depth = 1000
-	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b)
+	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS
+	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b, rollout_beta)
 	print(g)
 
 	next_state = mctscpp.GameState()
