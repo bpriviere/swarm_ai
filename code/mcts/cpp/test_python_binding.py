@@ -1,6 +1,8 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import torch
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 
 from buildRelease import mctscpp
 
@@ -33,7 +35,7 @@ def createGLAS(file, generator):
 if __name__ == '__main__':
 	seed = 10
 	mode = "MCTS_GLAS" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
-	num_nodes = 1000
+	num_nodes = 10000
 
 	# test RobotState
 	rs = mctscpp.RobotState([0,1],[2,3])
@@ -72,7 +74,8 @@ if __name__ == '__main__':
 	dt = 0.25
 	goal = [0.25,0.25]
 	max_depth = 1000
-	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b)
+	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS
+	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b, rollout_beta)
 	print(g)
 
 	next_state = mctscpp.GameState()
@@ -80,6 +83,8 @@ if __name__ == '__main__':
 	print(success, next_state)
 
 	# Test Game Rollout
+	fig, ax = plt.subplots()
+	ax.add_patch(mpatches.Circle(goal, 0.025,alpha=0.5))
 
 	result = []
 	while True:
@@ -91,9 +96,30 @@ if __name__ == '__main__':
 			[rs.position.copy() for rs in gs.attackers],
 			[rs.position.copy() for rs in gs.defenders]])
 		if "MCTS" in mode:
-			action = mctscpp.search(g, gs, generator, num_nodes)
-			if len(action) > 0:
-				success = g.step(gs, action, gs)
+			mctsresult = mctscpp.search(g, gs, generator, num_nodes)
+			if mctsresult.success:
+				print(mctsresult.expectedReward)
+				# print(mctsresult.valuePerAction)
+
+				if gs.turn == mctscpp.GameState.Turn.Attackers:
+					actionIdx = 0
+					robots = gs.attackers
+				else:
+					actionIdx = 1
+					robots = gs.defenders
+				for robot in robots:
+					x = robot.position[0]
+					y = robot.position[1]
+					for action, value in mctsresult.valuePerAction:
+						dx = action[actionIdx][0]
+						dy = action[actionIdx][1]
+						p = value
+						color = None
+						if (action[actionIdx] == mctsresult.bestAction[actionIdx]).all():
+							color = 'red'
+						ax.arrow(x, y, dx * 0.01, dy*0.01, width=p*0.001, color=color)
+
+				success = g.step(gs, mctsresult.bestAction, gs)
 			else:
 				break
 		elif mode == "GLAS":
@@ -120,7 +146,7 @@ if __name__ == '__main__':
 	result = np.array(result)
 	# print(result[:,1,0,0])
 
-	fig, ax = plt.subplots()
+	
 	ax.axis('equal')
 	for i in range(result.shape[2]):
 		ax.plot(result[:,0,i,0], result[:,0,i,1], label="attacker {}".format(i))

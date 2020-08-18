@@ -16,6 +16,13 @@ Reward& operator+=(Reward& r1, const Reward& r2) {
   return r1;
 }
 
+Reward operator/(const Reward r, size_t scale) {
+  Reward result;
+  result.first = r.first / scale;
+  result.second = r.second / scale;
+  return result;
+}
+
 template <class T>
 std::vector<std::vector<T>> cart_product(const std::vector<std::vector<T>>& v)
 {
@@ -47,7 +54,8 @@ class Game {
     size_t maxDepth,
     std::default_random_engine& generator,
     const GLAS* glas_a,
-    const GLAS* glas_b)
+    const GLAS* glas_b,
+    float rollout_beta)
     : m_attackerTypes(attackerTypes)
     , m_defenderTypes(defenderTypes)
     , m_dt(dt)
@@ -56,6 +64,7 @@ class Game {
     , m_generator(generator)
     , m_glas_a(glas_a)
     , m_glas_b(glas_b)
+    , m_rollout_beta(rollout_beta)
   {
   }
 
@@ -156,12 +165,38 @@ class Game {
     if (m_glas_a && m_glas_b) {
       // NN rollout
 
-      while (true) {
-        const auto action = computeActionsWithGLAS(*m_glas_a,*m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator);
+      std::uniform_real_distribution<float> dist(0.0,1.0);
+      bool valid = true;
 
-        // step twice (once for each player)
-        bool valid = step(s, action, nextState);
-        valid &= step(nextState, action, nextState);
+      while (true) {
+        float p = dist(m_generator);
+        if (p < m_rollout_beta) {
+
+          const auto action = computeActionsWithGLAS(*m_glas_a,*m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator);
+
+          // step twice (once for each player)
+          valid &= step(s, action, nextState);
+          valid &= step(nextState, action, nextState);
+        } else {
+          // compute and step for player1
+          const auto& actions1 = getPossibleActions(s);
+
+          std::uniform_int_distribution<int> dist1(0, actions1.size() - 1);
+          int idx1 = dist1(m_generator);
+          const auto& action1 = actions1[idx1];
+
+          valid &= step(s, action1, nextState);
+
+          // compute and step for player2
+          const auto& actions2 = getPossibleActions(nextState);
+
+          std::uniform_int_distribution<int> dist2(0, actions2.size() - 1);
+          int idx2 = dist2(m_generator);
+          const auto& action2 = actions2[idx2];
+
+          valid &= step(nextState, action2, nextState);
+        }
+
         if (valid) {
           s = nextState;
           if (isTerminal(s)) {
@@ -335,6 +370,7 @@ private:
   std::default_random_engine& m_generator;
   const GLAS* m_glas_a;
   const GLAS* m_glas_b;
+  float m_rollout_beta;
 
   // Maps activeRobots -> possible actions
   std::unordered_map<uint32_t, std::vector<GameActionT>> m_possibleActionsAttackersMap;
