@@ -35,7 +35,8 @@ def get_params(df_param):
 	params = [] 
 	for _ in range(df_param.num_trials):
 
-		for glas_rollout in [True,False]:
+		# for glas_rollout in [True,False]:
+		for glas_rollout in [False]:
 			param = Param() 
 			param.glas_rollout_on = glas_rollout
 			param.current_results_dir = '../'+param.current_results_dir
@@ -72,28 +73,35 @@ if __name__ == '__main__':
 
 	df_param = Param()
 	df_param.current_results_dir = '../'+df_param.current_results_dir
-	df_param.num_trials = 20
-	format_dir(df_param)
+	df_param.num_trials = 10
 
-	params = get_params(df_param)
+	run_on = True
+	parallel_on = True 
+	if run_on: 
 
-	parallel = True
-	if parallel: 
-		pool = mp.Pool(mp.cpu_count()-1)
-		for _ in pool.imap_unordered(run_sim, params):
-		# for _ in pool.imap_unordered(run_sim, [param for _ in range(ncases)]):
-			pass 
-	else: 
-		for param in params: 
-			run_sim(param)
-			break 
+		format_dir(df_param)
+
+		params = get_params(df_param)
+
+		if parallel_on: 
+			pool = mp.Pool(mp.cpu_count()-1)
+			for _ in pool.imap_unordered(run_sim, params):
+			# for _ in pool.imap_unordered(run_sim, [param for _ in range(ncases)]):
+				pass 
+		else: 
+			for param in params: 
+				run_sim(param)
+				break 
 
 	sim_results = [] 
 	for sim_result_dir in glob.glob(df_param.current_results_dir + '/*'):
 		sim_results.append(dh.load_sim_result(sim_result_dir))
 
-	for sim_result in sim_results:
-		plotter.plot_tree_results(sim_result)
+	plotter.plot_convergence(sim_results)
 
-	plotter.save_figs("plots.pdf")
-	plotter.open_figs("plots.pdf")
+	# for sim_result in sim_results:
+	# 	plotter.plot_tree_results(sim_result)
+
+	if plotter.has_figs():
+		plotter.save_figs("plots.pdf")
+		plotter.open_figs("plots.pdf")

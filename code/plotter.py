@@ -581,6 +581,63 @@ def plot_exp1_results(sim_results):
 
 		fig.tight_layout()
 
+def plot_convergence(all_sim_results):
+
+	def extract_reward(sim_result,longest_rollout):
+		nt = np.shape(sim_result["rewards"])[0]
+		reward = (np.sum(sim_result["rewards"][:,0]) + np.sum(sim_result["rewards"][-1,0])*(longest_rollout-nt))/longest_rollout
+		return reward 
+
+	# group by tree size and rollout policy 
+	results = defaultdict(list)
+	longest_rollout = 0 
+	tree_sizes = set()
+	for sim_result in all_sim_results:
+		key = (sim_result["param"]["tree_size"],sim_result["param"]["glas_rollout_on"])
+		tree_sizes.add(key[0])
+		results[key].append(sim_result)
+		if longest_rollout < sim_result["times"].shape[0]:
+			longest_rollout = sim_result["times"].shape[0]
+
+	tree_sizes = np.array(list(tree_sizes))
+	tree_sizes = np.sort(tree_sizes)
+
+	to_plots = defaultdict(list)
+	for key,sim_results in results.items():
+
+		reward_stats = [] 
+		for sim_result in sim_results: 
+			reward_stats.append(extract_reward(sim_result,longest_rollout))
+
+		tree_size = key[0]
+		policy = key[1]
+		reward_stats = np.array(reward_stats)
+		reward_mean = np.mean(reward_stats)
+		reward_std = np.std(reward_stats)
+
+		to_plots[policy].append((tree_size,reward_mean,reward_std))
+
+	fig,ax = plt.subplots()
+
+	for glas_on,to_plot in to_plots.items():
+
+		if glas_on: 
+			label = 'GLAS'
+			color = 'blue'
+		else:
+			label = 'Random'
+			color = 'orange'
+
+		to_plot = np.array(to_plot)
+		to_plot = np.sort(to_plot,axis=0)
+
+		ax.set_ylim([0,1])
+		ax.set_xticks(to_plot[:,0])
+		ax.plot(to_plot[:,0],to_plot[:,1],marker='o',label=label,color=color)
+		ax.fill_between(to_plot[:,0], to_plot[:,1]-to_plot[:,2], to_plot[:,1]+to_plot[:,2],color=color,alpha=0.5)
+		ax.legend()
+
+
 def rotate_image(image, angle):
 	''' 
 	Function for rotating images for plotting

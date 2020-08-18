@@ -99,7 +99,7 @@ if __name__ == '__main__':
 
 	df_param = Param()
 	df_param.num_trials = 10
-	df_param.tree_sizes = [1000,5000,10000,50000]
+	df_param.tree_sizes = [1000,5000,10000,50000,100000]
 	df_param.current_results_dir = '../' + df_param.current_results_dir	
 	df_param.glas_model_A = '../' + df_param.glas_model_A
 	df_param.glas_model_B = '../' + df_param.glas_model_B
@@ -122,6 +122,7 @@ if __name__ == '__main__':
 	for sim_result_dir in glob.glob(df_param.current_results_dir + '/*'):
 		sim_results.append(dh.load_sim_result(sim_result_dir))
 
-	plotter.plot_exp1_results(sim_results)
+	# plotter.plot_exp1_results(sim_results)
+	plotter.plot_convergence(sim_results)
 	plotter.save_figs("plots.pdf")
 	plotter.open_figs("plots.pdf")
