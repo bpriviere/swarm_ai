@@ -32,24 +32,34 @@ std::default_random_engine createRandomGenerator(size_t seed)
   return std::default_random_engine(seed);
 }
 
+class MCTSResult
+{
+public:
+  bool success;
+  Game::GameActionT bestAction;
+  Reward expectedReward;
+  std::vector<std::pair<Game::GameActionT, float>> valuePerAction;
+};
 
-Game::GameActionT search(
+MCTSResult search(
   Game& game,
   const GameState& startState,
   std::default_random_engine& generator,
   size_t num_nodes)
 {
+  MCTSResult result;
   libMultiRobotPlanning::MonteCarloTreeSearch<GameState, Game::GameActionT, Reward, Game> mcts(game, generator, num_nodes, 1.4);
-  Game::GameActionT result;
-  bool success = mcts.search(startState, result);
-  if (!success) {
-    result.clear();
+  result.success = mcts.search(startState, result.bestAction);
+  if (result.success) {
+    result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
+    result.valuePerAction = mcts.valuePerAction();
   }
   return result;
 }
 
 
 PYBIND11_MODULE(mctscpp, m) {
+
 
   // helper functions
   m.def("createRandomGenerator", &createRandomGenerator);
@@ -58,6 +68,12 @@ PYBIND11_MODULE(mctscpp, m) {
 
   // helper classes
   py::class_<std::default_random_engine> (m, "default_random_engine");
+
+  py::class_<MCTSResult> (m, "MCTSResult")
+    .def_readonly("success", &MCTSResult::success)
+    .def_readonly("bestAction", &MCTSResult::bestAction)
+    .def_readonly("expectedReward", &MCTSResult::expectedReward)
+    .def_readonly("valuePerAction", &MCTSResult::valuePerAction);
 
   // RobotState
   py::class_<RobotState> robotState(m, "RobotState");
@@ -145,7 +161,8 @@ PYBIND11_MODULE(mctscpp, m) {
       size_t,
       std::default_random_engine&,
       const GLAS*,
-      const GLAS*>())
+      const GLAS*,
+      float>())
     .def("step", &Game::step)
     .def("isTerminal", &Game::isTerminal);
 }
