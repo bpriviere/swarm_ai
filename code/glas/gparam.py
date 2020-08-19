@@ -9,13 +9,13 @@ class Gparam:
 
 		# flags  
 		self.make_raw_data_on 		= True
-		self.make_labelled_data_on 	= False
-		self.train_model_on 		= False
+		self.make_labelled_data_on 	= True
+		self.train_model_on 		= True
 		self.dbg_vis_on			 	= False
 
 		self.learning_module = 'learning/discrete_emptynet.py'
 
-		self.serial_on 				= True # set true only for dbging 
+		self.serial_on 				= False # set true only for dbging 
 		self.clean_raw_data_on 		= True
 		self.clean_labelled_data_on = True
 
@@ -25,25 +25,25 @@ class Gparam:
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
-			{
-			'a': {'standard_robot':2,'evasive_robot':0},
-			'b': {'standard_robot':1,'evasive_robot':0}
-			},
-			{
-			'a': {'standard_robot':1,'evasive_robot':0},
-			'b': {'standard_robot':2,'evasive_robot':0}
-			}
+			# {
+			# 'a': {'standard_robot':2,'evasive_robot':0},
+			# 'b': {'standard_robot':1,'evasive_robot':0}
+			# },
+			# {
+			# 'a': {'standard_robot':1,'evasive_robot':0},
+			# 'b': {'standard_robot':2,'evasive_robot':0}
+			# }
 		]
-		self.num_trials = 10 
-		self.num_points_per_file = 100
+		self.num_trials = 10
+		self.num_points_per_file = 10000
 		self.mode = "MCTS_RANDOM" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
-		self.num_nodes = 10000 # in mcts tree 
+		self.tree_size = 10000 # 
 		self.rollout_beta = 0.0 
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'
 
 		# train parameters
-		self.training_teams = ["a","b"] #,"b"] #["b"] #["a","b"]
+		self.training_teams = ["a","b"] #["b"] #["a","b"]
 
 		# learning hyperparameters
 		self.device = 'cpu'
@@ -68,8 +68,8 @@ class Gparam:
 		self.il_train_model_fn = self.model_dir + 'il_current_{}.pt'
 		self.il_test_train_ratio = 0.8
 		self.il_n_points = 1000000
-		self.il_batch_size = 2000
-		self.il_n_epoch = 500
+		self.il_batch_size = 1000
+		self.il_n_epoch = 100
 		self.il_lr = 1e-3
 		self.il_wd = 0 
 		self.il_log_interval = 1
