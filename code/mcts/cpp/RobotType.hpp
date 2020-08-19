@@ -71,4 +71,19 @@ public:
 
     invalidAction << nanf("") , nanf("");
   }
+
+  friend std::ostream& operator<<(std::ostream& out, const RobotType& rt)
+  {
+    Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");
+
+    out << "RobotType(p_min=" << rt.p_min.format(fmt)
+        << ",p_max=" << rt.p_max.format(fmt)
+        << ",v_max=" << rt.velocity_limit
+        << ",a_max=" << rt.acceleration_limit
+        << ",tag_radius=" << sqrt(rt.tag_radiusSquared)
+        << ",r_sense=" << sqrt(rt.r_senseSquared)
+        << ")";
+    return out;
+  }
+
 };
