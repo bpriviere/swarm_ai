@@ -64,7 +64,7 @@ class Controller(Controller):
 				elif node.idx in self.param.team_2_idxs: 
 					classification = self.model_B(o_a,o_b,goal).detach().numpy().T # 9 x 1 
 
-				# idx = np.argmax(classification)
-				idx = np.random.choice(range(len(self.param.actions)),p=classification.flatten())
+				idx = np.argmax(classification)
+				# idx = np.random.choice(range(len(self.param.actions)),p=classification.flatten())
 				actions[node] = node.acceleration_limit/np.sqrt(2)*self.param.actions[idx][np.newaxis].T # 2x1   
 			return actions

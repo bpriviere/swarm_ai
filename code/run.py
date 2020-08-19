@@ -3,7 +3,7 @@
 # standard packages
 import numpy as np 
 import time as time_pkg
-import os 
+import os , sys
 import glob
 import time 
 import shutil
@@ -37,12 +37,26 @@ def sim(param):
 
 	sim_result = run_sim(param,env,reset,estimator,attacker,controller)
 
-	time.sleep(1)
-
 	# write sim results
-	case = len(glob.glob(param.current_results_dir + '/*'))
-	results_fn = param.current_results_dir + '/sim_result_{}'.format(case)
+	results_fn = param.current_results_dir + '/sim_result_{}'.format(param.trial)
 	datahandler.write_sim_result(sim_result,results_fn)
+
+
+def prepare_run(df_param):
+	
+	params = [] 
+
+	for trial in range(df_param.num_trials):
+		
+		param = Param()
+		param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
+		param.trial = trial
+		# param.update(df_param.state)
+		param.update()
+		params.append(param)
+
+	return params 
+
 
 
 def run_sim(param,env,reset,estimator,attacker,controller):
@@ -112,27 +126,26 @@ def save_lst_of_node_dicts_as_np(some_lst_of_node_dicts):
 if __name__ == '__main__':
 
 	# Load run parameters
-	param = Param() 
+	df_param = Param() 
 
 	# prep run directory
-	format_dir(param)
+	format_dir(df_param)
+
+	# 
+	params = prepare_run(df_param)
 		
 	# run sim 
-	parallel = True
-	if parallel: 
-		ncases = 10
-		nprocess = np.min((mp.cpu_count()-1,ncases))
-		pool = mp.Pool(nprocess)
-		for _ in pool.imap_unordered(sim, [param for _ in range(nprocess)]):
-		# for _ in pool.imap_unordered(run_sim, [param for _ in range(ncases)]):
+	if df_param.parallel_on: 
+		pool = mp.Pool(np.min((mp.cpu_count()-1,df_param.num_trials)))
+		for _ in pool.imap_unordered(sim, params):
 			pass 
 	else: 
-		sim(param)
+		sim(params[0])
 
 	# load sim results 
 	print('loading sim results...')
 	sim_results = [] # lst of dicts
-	for sim_result_dir in glob.glob(param.current_results_dir + '/*'):
+	for sim_result_dir in glob.glob(df_param.current_results_dir + '/*'):
 		sim_results.append(datahandler.load_sim_result(sim_result_dir))
 
 	# plotting 
@@ -140,9 +153,9 @@ if __name__ == '__main__':
 	for sim_result in sim_results:
 		plotter.plot_tree_results(sim_result)
 
-		if param.gif_on: 
+		if df_param.gif_on: 
 			plotter.make_gif(sim_result)
 
 	print('saving and opening figs...')
-	plotter.save_figs(param.plot_fn)
-	plotter.open_figs(param.plot_fn)
+	plotter.save_figs(df_param.plot_fn)
+	plotter.open_figs(df_param.plot_fn)

@@ -19,11 +19,12 @@ class Param:
 		self.seed = int.from_bytes(os.urandom(4), sys.byteorder)
 
 		# flags
-		self.gif_on 	= False
-		self.quiet_on 	= False
+		self.gif_on 	 = False
+		self.quiet_on 	 = False
+		self.parallel_on = True
 
 		# sim param 
-		self.n_trials = 1
+		self.num_trials = 10
 		self.sim_t0 = 0
 		self.sim_tf = 20
 		self.sim_dt = 0.25
