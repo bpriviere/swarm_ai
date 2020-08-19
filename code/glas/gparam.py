@@ -9,18 +9,15 @@ class Gparam:
 
 		# flags  
 		self.make_raw_data_on 		= True
-		self.make_labelled_data_on 	= True
-		self.train_model_on 		= True
+		self.make_labelled_data_on 	= False
+		self.train_model_on 		= False
 		self.dbg_vis_on			 	= False
-		self.discrete_on 			= True 
 
-		# expert 
-		self.expert_controller = 'controller/mcts.py'
 		self.learning_module = 'learning/discrete_emptynet.py'
 
-		# raw data param  
-		self.serial_on 				= False
+		self.serial_on 				= True # set true only for dbging 
 		self.clean_raw_data_on 		= True
+		self.clean_labelled_data_on = True
 
 		# generate demonstration data parameters
 		self.robot_team_composition_cases = [
@@ -37,7 +34,11 @@ class Gparam:
 			'b': {'standard_robot':2,'evasive_robot':0}
 			}
 		]
-		self.num_trials = 20000
+		self.num_trials = 10 
+		self.num_points_per_file = 100
+		self.mode = "MCTS_RANDOM" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
+		self.num_nodes = 10000 # in mcts tree 
+		self.rollout_beta = 0.0 
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'
 
@@ -58,21 +59,10 @@ class Gparam:
 			nn.Linear(h,h),
 			nn.Linear(h,p)])
 
-		#  - continuous
-		# self.il_psi_network_architecture = nn.ModuleList([
-		# 	nn.Linear(2*p,h), # because two deepsets 
-		# 	nn.Linear(h,h),
-		# 	nn.Linear(h,m)])
-
 		self.il_psi_network_architecture = nn.ModuleList([
 			nn.Linear(2*p+n,h), # because two deepsets 
 			nn.Linear(h,h),
 			nn.Linear(h,9)])
-
-		# self.il_decoder_network_architecture = nn.ModuleList([
-		# 	nn.Linear(h,h), # because two deepsets 
-		# 	nn.Linear(h,h),
-		# 	nn.Linear(h,m)])		
 
 		self.il_network_activation = relu
 		self.il_train_model_fn = self.model_dir + 'il_current_{}.pt'
