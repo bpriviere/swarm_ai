@@ -80,6 +80,34 @@ def robot_composition_to_cpp_types(param,team):
 	return types
 
 
+def loadFeedForwardNNWeights(ff, state_dict, name):
+	l = 0
+	while True:
+		key1 = "{}.layers.{}.weight".format(name, l)
+		key2 = "{}.layers.{}.bias".format(name, l)
+		if key1 in state_dict and key2 in state_dict:
+			ff.addLayer(state_dict[key1].numpy(), state_dict[key2].numpy())
+		else:
+			if l == 0:
+				print("WARNING: No weights found for {}".format(name))
+			break
+		l += 1
+
+
+def createGLAS(file, generator):
+	state_dict = torch.load(file)
+
+	glas = mctscpp.GLAS(generator)
+	den = glas.discreteEmptyNet
+	loadFeedForwardNNWeights(den.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(den.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(den.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(den.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(den.psi, state_dict, "psi")
+
+	return glas
+
+
 def config_to_game(param,generator):
 	
 	attackerTypes = robot_composition_to_cpp_types(param,"a") 
@@ -143,50 +171,6 @@ def uniform_sample(param):
 	return states
 
 
-# def value_to_dist(param,valuePerAction):
-
-# 	if param.training_team == "a":
-# 		num_robots = param.num_nodes_A
-# 		robot_idxs = param.team_1_idxs
-# 	elif param.training_team == "b":
-# 		num_robots = param.num_nodes_B
-# 		robot_idxs = param.team_2_idxs
-
-# 	dist = np.zeros(param.actions.shape[0])
-
-# 	# print('valuePerAction',valuePerAction)
-# 	# print('np.array(valuePerAction)',np.array(valuePerAction))
-# 	# print('np.array(valuePerAction).shape',np.array(valuePerAction).shape)
-
-# 	for action,value in valuePerAction:
-
-# 		action = np.array(action)
-# 		action = action[robot_idxs] 
-# 		action = action.flatten()
-
-# 		action_class = np.zeros(action.shape)
-
-# 		for idx in range(num_robots):
-
-# 			if action[idx*2] > 0:
-# 				action_class[idx*2] = 1 
-# 			elif action[idx*2] < 0:
-# 				action_class[idx*2] = -1
-# 			if action[idx*2+1] > 0:
-# 				action_class[idx*2+1] = 1 
-# 			elif action[idx*2+1] < 0:
-# 				action_class[idx*2+1] = -1
-
-# 		dist[np.all(param.actions == action_class,axis=1)] = value
-
-# 		print('action',action)
-# 		print('dist',dist)
-# 		print('value',value)
-# 		exit()
-
-# 	return dist
-
-
 def value_to_dist(param,valuePerAction):
 
 	if param.training_team == "a":
@@ -233,6 +217,7 @@ def value_to_dist(param,valuePerAction):
 	return dist
 
 
+
 def collect_uniform_demonstrations(param): 
 
 	print('running instance {}'.format(param.dataset_fn))
@@ -260,6 +245,12 @@ def collect_uniform_demonstrations(param):
 
 	sim_result["states"] = np.array(sim_result["states"])
 	sim_result["actions"] = np.array(sim_result["actions"])
+
+	# print('sim_result["states"]',sim_result["states"])
+	# print('sim_result["actions"]',sim_result["actions"])
+	# print('sim_result["actions"].shape',sim_result["actions"].shape)
+	# print('sim_result["param"]["mode"]',sim_result["param"]["mode"])
+	# exit()
 
 	dh.write_sim_result(sim_result,param.dataset_fn)
 
@@ -367,6 +358,13 @@ def get_batch_fn(datadir,team,num_a,num_b,batch_num):
 
 
 def clean_files_containing_str_from_dir(string,directory):
+
+	if not os.path.exists(directory):
+		print('no directory exists: ', directory)
+		exit()
+
+	print('cleaning files with str: {} in dir {}'.format(string,directory))
+
 	files = glob.glob(directory + '**{}**'.format(string))
 	for f in files: 
 		os.remove(f)
@@ -495,6 +493,8 @@ if __name__ == '__main__':
 			plotter.plot_loss(losses,training_team)
 
 	if gparam.dbg_vis_on: 
+		# todo 
+		exit('todo')
 
 		num_files = 10 
 		num_points_per_file = 10 
@@ -512,10 +512,6 @@ if __name__ == '__main__':
 		# batched_files = glob.glob(get_batch_fn(gparam.demonstration_data_dir,training_team,'*','*','*'))
 		# plotter.plot_oa_pair() 
 
-
-
-
-		# todo 
 		# todo 
 
 
