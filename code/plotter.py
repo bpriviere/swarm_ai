@@ -505,41 +505,6 @@ def plot_tree_results(sim_result,title=None):
 
 def plot_exp1_results(all_sim_results):
 
-	# box plot stuff (redo/check)
-
-	# def extract_quantity(sim_results,q):
-	# 	if q == 'T':
-	# 		qs = [sr["times"][-1] for sr in sim_results]
-	# 	elif q == "reward":
-	# 		qs = [sr["rewards"][-1,0] for sr in sim_results]
-	# 	elif q == "elapsed":
-	# 		qs = [sr["param"]["elapsed"] for sr in sim_results]
-	# 	return qs
-	# fig,axs = plt.subplots(nrows=len(qois),ncols=tree_size_cases,sharex='col', sharey='row')
-	# qois = ['T', 'reward', 'elapsed']
-	# for i_q,q in enumerate(qois): 
-	# 	for i_t,tree_size in enumerate(tree_sizes): 
-	# 		qs_glas = extract_quantity(result[(tree_size,True,case)],q)
-	# 		qs_random = extract_quantity(result[(tree_size,False,case)],q)
-
-	# 		ax = axs[i_q,i_t] 
-	# 		ax.boxplot([qs_glas,qs_random])
-	# 		ax.grid(True)
-
-	# 		if i_q == len(qois)-1:
-	# 			ax.set_xticklabels(['glas','random'])
-	# 		else:
-	# 			ax.set_xticklabels(['',''])
-
-	# 		if i_q == 0: 
-	# 			ax.set_title('Num Nodes: \n {}'.format(tree_size))
-
-	# 		if i_t == 0: 
-	# 			ax.set_ylabel(q)
-
-	# fig.tight_layout()
-
-
 	# group by tree size, rollout policy and case number 
 	results = defaultdict(list)
 	tree_sizes = set()
@@ -620,6 +585,92 @@ def plot_exp1_results(all_sim_results):
 						ax.set_ylabel('Trial {}'.format(i_trial))
 
 			fig.tight_layout()
+
+
+def plot_exp2_results(all_sim_results):
+
+	training_teams = all_sim_results[0]["param"]["training_teams"]
+	modes = all_sim_results[0]["param"]["modes"]
+	tree_sizes = all_sim_results[0]["param"]["tree_sizes"]
+	num_points = all_sim_results[0]["param"]["num_points_per_file"]
+	team_comps = all_sim_results[0]["param"]["robot_team_compositions"]
+
+	# put into easy-to-use dict! 
+	results = dict()
+
+	for sim_result in all_sim_results:
+
+		team_comp = sim_result["param"]["robot_team_composition"]
+		mode = sim_result["param"]["mode"]
+		tree_size = sim_result["param"]["tree_size"]
+		training_team = sim_result["param"]["training_team"]
+
+		# key = (tree_size,training_team,mode)
+		key = (tree_size,mode)
+		results[key] = sim_result
+
+	# make figs! 
+	for team_comp in team_comps: 
+		for training_team in training_teams: 
+			
+			num_nodes_A, num_nodes_B = 0,0
+			for robot_type, robot_number in team_comp["a"].items():
+				num_nodes_A += robot_number 
+			for robot_Type, robot_number in team_comp["b"].items():
+				num_nodes_B += robot_number 
+
+			if training_team == "a":
+				robot_idxs = np.arange(num_nodes_A)
+			elif training_team == "b":
+				robot_idxs = np.arange(num_nodes_B) + num_nodes_A 
+
+			for robot_idx in robot_idxs: 
+
+				for i_trial in range(num_points):
+					
+					fig, axs = plt.subplots(nrows=1,ncols=len(modes))
+					fig.suptitle('Trial {}'.format(i_trial))
+
+					for i_mode, mode in enumerate(modes): 
+
+						im = np.nan*np.ones((len(tree_sizes),9))
+
+						for i_tree, tree_size in enumerate(tree_sizes): 
+
+							# key = (tree_size,training_team,mode)
+							key = (tree_size,mode)
+
+							if len(modes) > 1:
+								ax = axs[i_mode]
+							else:
+								ax = axs 
+
+							# results[key]["actions"] in num_points x nagents x action_dim 
+
+							# temp, todo: handle multiple agent case 
+							if results[key]["actions"].shape[0] == num_points:
+
+								im[i_tree,:] = results[key]["actions"][i_trial,robot_idxs,:] 
+								# imobj = ax.imshow(im.T,vmin=0,vmax=1,cmap=cm.coolwarm)
+								imobj = ax.imshow(im.T,cmap=cm.coolwarm)
+
+								ax.set_xticks([])
+								ax.set_yticks([])
+
+						if i_mode == 0:
+							ax.set_ylabel('Action Distribution')
+
+						if i_mode == len(modes)-1 :
+							fig.subplots_adjust(right=0.8)
+							cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+							fig.colorbar(imobj, cax=cbar_ax)
+
+						ax.set_title(mode)
+						ax.set_xticks(np.arange(len(tree_sizes)))
+						ax.set_xticklabels(np.array(tree_sizes)/1000,rotation=45)
+						# ax.set_xlabel('Tree Size [K]')
+
+
 
 def plot_convergence(all_sim_results):
 

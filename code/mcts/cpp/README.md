@@ -9,7 +9,8 @@ sudo apt install libboost-all-dev libyaml-cpp-dev
 This relies on pybind11, which is a submodule, so don't forget to
 
 ```
-submodule update
+git submodule init 
+git submodule update
 ```
 
 ### Build
@@ -22,6 +23,11 @@ make
 ```
 
 * Use `buildDebug`, `CMAKE_BUILD_TYPE=Debug`, and QtCreator or Clion to debug
+
+* if you use anaconda, you must link the python version to cmake:
+```
+cmake -DPYTHON_EXECUTABLE=path/to/python -DCMAKE_BUILD_TYPE=Release ..
+```
 
 ### Run
 
