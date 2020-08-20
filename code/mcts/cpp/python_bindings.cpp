@@ -121,7 +121,8 @@ PYBIND11_MODULE(mctscpp, m) {
     .def_readwrite("velocity_limit", &RobotType::velocity_limit)
     .def_readonly("acceleration_limit", &RobotType::acceleration_limit)
     .def_readwrite("tag_radiusSquared", &RobotType::tag_radiusSquared)
-    .def_readwrite("r_senseSquared", &RobotType::r_senseSquared);
+    .def_readwrite("r_senseSquared", &RobotType::r_senseSquared)
+    .def("__repr__", &toString<RobotType>);
 
   // FeedForwardNN
   py::class_<FeedForwardNN> (m, "FeedForwardNN")

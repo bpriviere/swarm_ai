@@ -70,6 +70,9 @@ class Game {
 
   bool step(const GameStateT& state, const GameActionT& action, GameStateT& nextState)
   {
+    assert(state.attackers.size() == m_attackerTypes.size());
+    assert(state.defenders.size() == m_defenderTypes.size());
+
     if (state.depth >= m_maxDepth) {
       return false;
     }
