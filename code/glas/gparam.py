@@ -16,8 +16,8 @@ class Gparam:
 		self.learning_module = 'learning/discrete_emptynet.py'
 
 		self.serial_on 				= False # set true only for dbging 
-		self.clean_raw_data_on 		= True
-		self.clean_labelled_data_on = True
+		self.clean_raw_data_on 		= False
+		self.clean_labelled_data_on = False	
 
 		# generate demonstration data parameters
 		self.robot_team_composition_cases = [
@@ -34,10 +34,10 @@ class Gparam:
 			# 'b': {'standard_robot':2,'evasive_robot':0}
 			# }
 		]
-		self.num_trials = 10
+		self.num_trials = 8
 		self.num_points_per_file = 10000
 		self.mode = "MCTS_RANDOM" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
-		self.tree_size = 10000 # 
+		self.tree_size = 20000 # 
 		self.rollout_beta = 0.0 
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'

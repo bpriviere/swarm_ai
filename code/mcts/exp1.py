@@ -111,10 +111,10 @@ if __name__ == '__main__':
 	parallel_on = True
 
 	df_param = Param()
-	df_param.num_trials = 50 
-	df_param.glas_rollout_on_cases = [False] # [True,False] 
+	df_param.num_trials = 25
+	df_param.glas_rollout_on_cases = [True,False] 
 	df_param.num_cases = 5
-	df_param.tree_sizes = [1000,5000,10000,50000,100000,200000,500000] 
+	df_param.tree_sizes = [1000,5000,10000,50000,100000,200000] 
 	df_param.current_results_dir = '../' + df_param.current_results_dir	
 	df_param.glas_model_A = '../' + df_param.glas_model_A
 	df_param.glas_model_B = '../' + df_param.glas_model_B

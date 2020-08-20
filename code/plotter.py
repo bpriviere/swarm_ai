@@ -335,6 +335,29 @@ def plot_dbg_observations(sim_result,observations):
 			ax.plot([abs_pos[0],abs_pos[0] + relative_goal[0]], [abs_pos[1],abs_pos[1] + relative_goal[1]],color=goal_color,alpha=0.1)
 
 
+def plot_sa_pair(state,action,sim_result):
+
+	team_1_idxs = sim_result["param"]["team_1_idxs"]
+	team_2_idxs = sim_result["param"]["team_2_idxs"]
+	action_list = sim_result["param"]["actions"]
+
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
+
+	fig,ax = plt.subplots() 
+
+	for robot_idx, (state_per_robot, action_per_robot) in enumerate(zip(state,action)):
+
+		if robot_idx in team_1_idxs:
+			color = team_1_color
+		elif robot_idx in team_2_idxs:
+			color = team_2_color
+
+		ax.plot(state_per_robot[0],state_per_robot[1],marker='o',color=color)
+
+		print(action.shape)
+		exit()
 
 
 

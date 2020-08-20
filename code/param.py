@@ -120,8 +120,6 @@ class Param:
 
 	def make_initial_condition(self):
 
-		random.seed(self.seed)
-
 		self.state = [] 
 		for robot in self.robots: 
 
@@ -156,6 +154,8 @@ class Param:
 
 
 	def update(self,initial_condition=None):
+
+		random.seed(self.seed)		
 
 		self.make_robot_teams()
 

@@ -496,7 +496,28 @@ if __name__ == '__main__':
 			plotter.plot_loss(losses,training_team)
 
 	if gparam.dbg_vis_on: 
-		plotter.plot_sa_pair()
+
+		num_files = 10 
+		num_points_per_file = 10 
+
+		sim_result_fns = glob.glob('{}**raw**'.format(gparam.demonstration_data_dir))
+		sampled_fns = random.sample(sim_result_fns,num_files)
+
+		for sim_result in sampled_fns:
+			sim_result = dh.load_sim_result(sim_result)
+			state_action_pairs = list(zip(sim_result["states"],sim_result["actions"]))
+			sampled_sa_pairs = random.sample(state_action_pairs,num_points_per_file)
+			for (state,action) in sampled_sa_pairs:
+				plotter.plot_sa_pair(state,action,sim_result)
+
+		# batched_files = glob.glob(get_batch_fn(gparam.demonstration_data_dir,training_team,'*','*','*'))
+		# plotter.plot_oa_pair() 
+
+
+
+
+		# todo 
+		# todo 
 
 
 
