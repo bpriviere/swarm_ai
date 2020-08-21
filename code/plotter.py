@@ -604,32 +604,58 @@ def plot_exp2_results(all_sim_results):
 		mode = sim_result["param"]["mode"]
 		tree_size = sim_result["param"]["tree_size"]
 		training_team = sim_result["param"]["training_team"]
+		trial = sim_result["param"]["trial"]
 
-		# key = (tree_size,training_team,mode)
-		key = (tree_size,mode)
+		num_nodes_A, num_nodes_B = 0,0
+		for robot_type, robot_number in team_comp["a"].items():
+			num_nodes_A += robot_number 
+		for robot_Type, robot_number in team_comp["b"].items():
+			num_nodes_B += robot_number 
+
+
+		key = (num_nodes_A,num_nodes_B,tree_size,training_team,mode,trial)
+		# key = (tree_size,mode)
 		results[key] = sim_result
 
 	# make figs! 
 	for team_comp in team_comps: 
-		for training_team in training_teams: 
-			
-			num_nodes_A, num_nodes_B = 0,0
-			for robot_type, robot_number in team_comp["a"].items():
-				num_nodes_A += robot_number 
-			for robot_Type, robot_number in team_comp["b"].items():
-				num_nodes_B += robot_number 
 
-			if training_team == "a":
-				robot_idxs = np.arange(num_nodes_A)
-			elif training_team == "b":
-				robot_idxs = np.arange(num_nodes_B) + num_nodes_A 
+		num_nodes_A, num_nodes_B = 0,0
+		for robot_type, robot_number in team_comp["a"].items():
+			num_nodes_A += robot_number 
+		for robot_Type, robot_number in team_comp["b"].items():
+			num_nodes_B += robot_number 
 
-			for robot_idx in robot_idxs: 
+		for i_trial in range(num_points):
 
-				for i_trial in range(num_points):
-					
+			# plot initial condition
+			fig,ax = plt.subplots()
+			key = (num_nodes_A,num_nodes_B,tree_sizes[0],training_team,modes[0],i_trial)
+			fig.suptitle('Trial {}'.format(results[key]["param"]["curr_ic"]))
+			colors = get_colors(results[key]["param"])
+			ax.scatter(results[key]["param"]["goal"][0],results[key]["param"]["goal"][1],color='green',marker='o',label='goal')
+			for robot_idx in range(results[key]["param"]["num_nodes"]):
+				ax.scatter(results[key]["states"][0,robot_idx,0],results[key]["states"][0,robot_idx,1],marker='o',color=colors[robot_idx],label=str(robot_idx))
+				ax.arrow(results[key]["states"][0,robot_idx,0], results[key]["states"][0,robot_idx,1], \
+					results[key]["states"][0,robot_idx,2], results[key]["states"][0,robot_idx,3], color=colors[robot_idx])
+			ax.set_xlim([results[key]["param"]["env_xlim"][0],results[key]["param"]["env_xlim"][1]])
+			ax.set_ylim([results[key]["param"]["env_ylim"][0],results[key]["param"]["env_ylim"][1]])
+			ax.grid(True)
+			ax.set_aspect('equal')
+			ax.legend(loc='upper left')
+
+			for training_team in training_teams: 
+				
+				if training_team == "a":
+					robot_idxs = np.arange(num_nodes_A)
+				elif training_team == "b":
+					robot_idxs = np.arange(num_nodes_B) + num_nodes_A 
+
+				for robot_idx in robot_idxs: 
+	
+					# plot policy distribution
 					fig, axs = plt.subplots(nrows=1,ncols=len(modes))
-					fig.suptitle('Trial {}'.format(i_trial))
+					fig.suptitle('Trial {} Robot {}'.format(results[key]["param"]["curr_ic"],robot_idx))
 
 					for i_mode, mode in enumerate(modes): 
 
@@ -637,8 +663,8 @@ def plot_exp2_results(all_sim_results):
 
 						for i_tree, tree_size in enumerate(tree_sizes): 
 
-							# key = (tree_size,training_team,mode)
-							key = (tree_size,mode)
+							key = (num_nodes_A,num_nodes_B,tree_size,training_team,mode,i_trial)
+							# key = (tree_size,mode)
 
 							if len(modes) > 1:
 								ax = axs[i_mode]
@@ -646,19 +672,19 @@ def plot_exp2_results(all_sim_results):
 								ax = axs 
 
 							# results[key]["actions"] in num_points x nagents x action_dim 
-
-							# temp, todo: handle multiple agent case 
 							if results[key]["actions"].shape[0] == num_points:
 
-								im[i_tree,:] = results[key]["actions"][i_trial,robot_idxs,:] 
-								# imobj = ax.imshow(im.T,vmin=0,vmax=1,cmap=cm.coolwarm)
-								imobj = ax.imshow(im.T,cmap=cm.coolwarm)
+								im[i_tree,:] = results[key]["actions"][i_trial,robot_idx,:] 
+								imobj = ax.imshow(im.T,vmin=0,vmax=1,cmap=cm.coolwarm)
+								# imobj = ax.imshow(im.T,cmap=cm.coolwarm)
 
 								ax.set_xticks([])
 								ax.set_yticks([])
 
 						if i_mode == 0:
 							ax.set_ylabel('Action Distribution')
+							ax.set_yticks(np.arange(len(results[key]["param"]["actions"]))) # throws future warning 
+							ax.set_yticklabels(results[key]["param"]["actions"])
 
 						if i_mode == len(modes)-1 :
 							fig.subplots_adjust(right=0.8)
@@ -667,7 +693,7 @@ def plot_exp2_results(all_sim_results):
 
 						ax.set_title(mode)
 						ax.set_xticks(np.arange(len(tree_sizes)))
-						ax.set_xticklabels(np.array(tree_sizes)/1000,rotation=45)
+						ax.set_xticklabels(np.array(tree_sizes,dtype=int)/1000,rotation=45)
 						# ax.set_xlabel('Tree Size [K]')
 
 
