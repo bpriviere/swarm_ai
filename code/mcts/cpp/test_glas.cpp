@@ -123,7 +123,7 @@ void runGame(
   Eigen::Vector4f relGoal;
   for(int i = 0; ; ++i) {
 
-    action = computeActionsWithGLAS(glas_a, glas_b, state, goal, attackerTypes, defenderTypes, generator);
+    action = computeActionsWithGLAS(glas_a, glas_b, state, goal, attackerTypes, defenderTypes, generator, true);
 
     // output state & action
 

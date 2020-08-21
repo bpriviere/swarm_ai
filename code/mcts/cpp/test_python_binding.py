@@ -123,7 +123,8 @@ if __name__ == '__main__':
 			else:
 				break
 		elif mode == "GLAS":
-			action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, goal, attackerTypes, defenderTypes, generator)
+			deterministic = True
+			action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, goal, attackerTypes, defenderTypes, generator, deterministic)
 			# step twice (once per team)
 			success = g.step(gs, action, gs)
 			if success:
