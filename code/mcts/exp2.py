@@ -110,7 +110,7 @@ def evaluate_stochastic_policy(param):
 
 	dh.write_sim_result(sim_result,param.dataset_fn)
 
-	# print('completed instance {} with {} dp'.format(param.dataset_fn,sim_result["states"].shape[0]))
+	print('completed instance {}/{}'.format(param.count,param.total))
 
 
 def get_params(df_param):
@@ -122,13 +122,16 @@ def get_params(df_param):
 	# case = (team_comp, tree_size, training_team, mode)
 	# sim_result["action"] in [9 x num_points_per_file]
 
+	curr_ic = -1
 	count = 0 
+	total = df_param.num_trials * len(df_param.robot_team_composition_cases) * len(df_param.tree_sizes) * len(df_param.training_teams) * len(df_param.modes)
 	for trial in range(df_param.num_trials):
 
-		df_param.make_initial_condition()
-		initial_condition = df_param.state
-
 		for robot_team_composition in df_param.robot_team_composition_cases:
+
+			df_param.robot_team_composition = robot_team_composition
+			df_param.update()
+			curr_ic += 1 
 
 			for tree_size in df_param.tree_sizes: 
 
@@ -151,11 +154,15 @@ def get_params(df_param):
 						param.robot_team_composition = robot_team_composition 
 						param.mode = mode 
 						param.tree_size = tree_size
+						param.trial = trial
 						param.training_team = training_team
 						param.dataset_fn = "{}/sim_result_{}".format(df_param.data_dir,count)
+						param.count = count 
+						param.total = total
+						param.curr_ic = curr_ic
 						count += 1 
 
-						param.update(initial_condition) 
+						param.update(df_param.state) 
 						params.append(param)
 
 	return params
@@ -167,7 +174,7 @@ if __name__ == '__main__':
 
 	df_param = Param()
 	df_param.num_trials = 1 # 5
-	df_param.rollout_beta = 0.0
+	df_param.rollout_beta = 0.
 	df_param.current_results_dir = '../' + df_param.current_results_dir	
 	df_param.glas_model_A = '../' + df_param.glas_model_A
 	df_param.glas_model_B = '../' + df_param.glas_model_B
@@ -178,10 +185,18 @@ if __name__ == '__main__':
 		'a': {'standard_robot':1,'evasive_robot':0},
 		'b': {'standard_robot':1,'evasive_robot':0}
 		},
+		# {
+		# 'a': {'standard_robot':2,'evasive_robot':0},
+		# 'b': {'standard_robot':1,'evasive_robot':0}
+		# },
+		# {
+		# 'a': {'standard_robot':1,'evasive_robot':0},
+		# 'b': {'standard_robot':2,'evasive_robot':0}
+		# },				
 	]
-	df_param.training_teams = ["a"] #["a","b"]
+	df_param.training_teams = ["a","b"]
 	df_param.modes = ["GLAS", "MCTS_RANDOM", "MCTS_GLAS"]
-	df_param.tree_sizes = [1000,5000,10000,50000,100000,500000,1000000] 
+	df_param.tree_sizes = [1000,5000,10000,50000,100000,500000] 
 
 	if run_on:
 
