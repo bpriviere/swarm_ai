@@ -66,7 +66,7 @@ if __name__ == '__main__':
 		glas_a = createGLAS("../../../models/il_current_a.pt", generator)
 		glas_b = createGLAS("../../../models/il_current_b.pt", generator)
 	else:
-		glas_a = glas_b = None
+		glas_a = glas_b = mctscpp.GLAS(generator) # dummy GLAS object
 
 	# test Game
 	attackerTypes = [rt]

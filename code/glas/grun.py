@@ -123,7 +123,7 @@ def config_to_game(param,generator):
 		glas_a = createGLAS(param.glas_model_A, generator)
 		glas_b = createGLAS(param.glas_model_B, generator)
 	else:
-		glas_a = glas_b = None
+		glas_a = glas_b = mctscpp.GLAS(generator)
 
 	rollout_beta = param.rollout_beta 
 
