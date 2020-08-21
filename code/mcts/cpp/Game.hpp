@@ -175,7 +175,7 @@ class Game {
         float p = dist(m_generator);
         if (p < m_rollout_beta) {
 
-          const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator);
+          const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator, false);
 
           // step twice (once for each player)
           valid &= step(s, action, nextState);

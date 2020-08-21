@@ -78,7 +78,12 @@ void runMCTS(
 
   size_t max_depth = config["rollout_horizon"].as<int>();
 
-  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b, 1.0);
+  float rollout_beta = 1.0;
+  if (config["rollout_beta"]) {
+    rollout_beta = config["rollout_beta"].as<float>();
+  }
+
+  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b, rollout_beta);
 
   libMultiRobotPlanning::MonteCarloTreeSearch<GameStateT, GameActionT, Reward, EnvironmentT> mcts(env, generator, num_nodes, 1.4);
 
@@ -132,7 +137,7 @@ void runMCTS(
     }
     env.step(state, action, state);
     float f = env.computeReward(state);
-    std::cout << state << "reward: " << f << std::endl;
+    // std::cout << state << "reward: " << f << std::endl;
     // Reward r;
     // assert(r.first == 0);
     // assert(r.second == 0);

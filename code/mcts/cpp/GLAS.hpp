@@ -267,7 +267,8 @@ std::vector<RobotAction> computeActionsWithGLAS(
   const Eigen::Vector2f& goal,
   const std::vector<RobotType>& attackerTypes,
   const std::vector<RobotType>& defenderTypes,
-  std::default_random_engine& generator)
+  std::default_random_engine& generator,
+  bool deterministic)
 {
   size_t NumAttackers = state.attackers.size();
   size_t NumDefenders = state.defenders.size();
@@ -310,7 +311,7 @@ std::vector<RobotAction> computeActionsWithGLAS(
     relGoal.segment(0,2) = relGoal.segment(0,2) / std::max(alpha, 1.0f);
 
     // evaluate GLAS
-    auto a = glas_a.computeAction(input_a, input_b, relGoal, /*deterministic*/false);
+    auto a = glas_a.computeAction(input_a, input_b, relGoal, deterministic);
     action[j] = a * attackerTypes[j].acceleration_limit;
   }
 
@@ -347,7 +348,7 @@ std::vector<RobotAction> computeActionsWithGLAS(
     relGoal.segment(0,2) = relGoal.segment(0,2) / std::max(alpha, 1.0f);
 
     // evaluate GLAS
-    auto a = glas_b.computeAction(input_a, input_b, relGoal, /*deterministic*/false);
+    auto a = glas_b.computeAction(input_a, input_b, relGoal, deterministic);
     action[NumAttackers + j] = a * defenderTypes[j].acceleration_limit;
   }
 
