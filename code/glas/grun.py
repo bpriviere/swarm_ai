@@ -181,23 +181,15 @@ def value_to_dist(param,valuePerAction):
 		robot_idxs = param.team_2_idxs
 
 	dist = np.zeros((param.num_nodes,9))
-
-	# print('valuePerAction',valuePerAction)
-	# print('np.array(valuePerAction)',np.array(valuePerAction))
-	# print('np.array(valuePerAction).shape',np.array(valuePerAction).shape)
-
-	# make a dict with key = (robot_idx,class_action) and value = list of values 
-
 	values = defaultdict(list) 
 	for value_action,value in valuePerAction:
 
 		value_action = np.array(value_action)
 		value_action = value_action.flatten()
 
-		class_action = np.zeros(2)
-
 		for robot_idx in robot_idxs:
 
+			class_action = np.zeros(2)
 			if value_action[robot_idx*2] > 0: 
 				class_action[0] = 1 
 			elif value_action[robot_idx*2] < 0: 
@@ -245,12 +237,6 @@ def collect_uniform_demonstrations(param):
 
 	sim_result["states"] = np.array(sim_result["states"])
 	sim_result["actions"] = np.array(sim_result["actions"])
-
-	# print('sim_result["states"]',sim_result["states"])
-	# print('sim_result["actions"]',sim_result["actions"])
-	# print('sim_result["actions"].shape',sim_result["actions"].shape)
-	# print('sim_result["param"]["mode"]',sim_result["param"]["mode"])
-	# exit()
 
 	dh.write_sim_result(sim_result,param.dataset_fn)
 

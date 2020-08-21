@@ -102,9 +102,12 @@ def evaluate_stochastic_policy(param):
 				action = value_to_dist(param,valuePerAction) # dim?? 
 
 				sim_result["states"].append(state) 
-				sim_result["actions"].append(action) 
+				sim_result["actions"].append(action)
 
-		
+			else:
+				print(game_state)
+				print('failed!')
+
 		sim_result["states"] = np.array(sim_result["states"])
 		sim_result["actions"] = np.array(sim_result["actions"])
 
@@ -150,6 +153,7 @@ def get_params(df_param):
 						param.modes = df_param.modes 
 						param.tree_sizes = df_param.tree_sizes 
 						param.training_teams = df_param.training_teams
+						param.num_trials = df_param.num_trials
 
 						param.robot_team_composition = robot_team_composition 
 						param.mode = mode 
@@ -173,29 +177,29 @@ if __name__ == '__main__':
 	parallel_on = False
 
 	df_param = Param()
-	df_param.num_trials = 1 # 5
-	df_param.rollout_beta = 0.
+	df_param.num_trials = 2 # 5
+	df_param.rollout_beta = 0.75
 	df_param.current_results_dir = '../' + df_param.current_results_dir	
 	df_param.glas_model_A = '../' + df_param.glas_model_A
 	df_param.glas_model_B = '../' + df_param.glas_model_B
 	df_param.data_dir = '../../current_results/'
 	
 	df_param.robot_team_composition_cases = [
-		{
-		'a': {'standard_robot':1,'evasive_robot':0},
-		'b': {'standard_robot':1,'evasive_robot':0}
-		},
 		# {
-		# 'a': {'standard_robot':2,'evasive_robot':0},
+		# 'a': {'standard_robot':1,'evasive_robot':0},
 		# 'b': {'standard_robot':1,'evasive_robot':0}
 		# },
+		{
+		'a': {'standard_robot':2,'evasive_robot':0},
+		'b': {'standard_robot':1,'evasive_robot':0}
+		},
 		# {
 		# 'a': {'standard_robot':1,'evasive_robot':0},
 		# 'b': {'standard_robot':2,'evasive_robot':0}
 		# },				
 	]
-	df_param.training_teams = ["a","b"]
-	df_param.modes = ["GLAS", "MCTS_RANDOM", "MCTS_GLAS"]
+	df_param.training_teams = ["a"] # ["a","b"]
+	df_param.modes = ["MCTS_RANDOM", "MCTS_GLAS"]
 	df_param.tree_sizes = [1000,5000,10000,50000,100000,500000] 
 
 	if run_on:
