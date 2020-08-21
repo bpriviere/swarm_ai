@@ -592,7 +592,7 @@ def plot_exp2_results(all_sim_results):
 	training_teams = all_sim_results[0]["param"]["training_teams"]
 	modes = all_sim_results[0]["param"]["modes"]
 	tree_sizes = all_sim_results[0]["param"]["tree_sizes"]
-	num_points = all_sim_results[0]["param"]["num_points_per_file"]
+	num_trials = all_sim_results[0]["param"]["num_trials"]
 	team_comps = all_sim_results[0]["param"]["robot_team_compositions"]
 
 	# put into easy-to-use dict! 
@@ -626,7 +626,7 @@ def plot_exp2_results(all_sim_results):
 		for robot_Type, robot_number in team_comp["b"].items():
 			num_nodes_B += robot_number 
 
-		for i_trial in range(num_points):
+		for i_trial in range(num_trials):
 
 			# plot initial condition
 			fig,ax = plt.subplots()
@@ -672,14 +672,13 @@ def plot_exp2_results(all_sim_results):
 								ax = axs 
 
 							# results[key]["actions"] in num_points x nagents x action_dim 
-							if results[key]["actions"].shape[0] == num_points:
 
-								im[i_tree,:] = results[key]["actions"][i_trial,robot_idx,:] 
-								imobj = ax.imshow(im.T,vmin=0,vmax=1,cmap=cm.coolwarm)
-								# imobj = ax.imshow(im.T,cmap=cm.coolwarm)
+							im[i_tree,:] = results[key]["actions"][0,robot_idx,:] 
+							imobj = ax.imshow(im.T,vmin=0,vmax=1,cmap=cm.coolwarm)
+							# imobj = ax.imshow(im.T,cmap=cm.coolwarm)
 
-								ax.set_xticks([])
-								ax.set_yticks([])
+							ax.set_xticks([])
+							ax.set_yticks([])
 
 						if i_mode == 0:
 							ax.set_ylabel('Action Distribution')
