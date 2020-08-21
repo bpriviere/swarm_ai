@@ -83,11 +83,14 @@ void runGame(
   Eigen::Vector2f goal;
   goal << config["goal"][0].as<float>(),config["goal"][1].as<float>();
 
-  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, 1e6, generator, nullptr, nullptr, 0.0);
-
   // load GLAS
-  GLAS glas_a(cfg_nn["team_a"], generator);
-  GLAS glas_b(cfg_nn["team_b"], generator);
+  GLAS glas_a(generator);
+  glas_a.load(cfg_nn["team_a"]);
+  GLAS glas_b(generator);
+  glas_b.load(cfg_nn["team_b"]);
+
+  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, 1e6, generator, glas_a, glas_b, 0.0);
+
 
   // std::vector<Eigen::Vector4f> input_a(1);
   // input_a[0] << 0,0,0,0;

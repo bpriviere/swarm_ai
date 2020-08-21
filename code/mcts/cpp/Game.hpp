@@ -53,8 +53,8 @@ class Game {
     const Eigen::Vector2f& goal,
     size_t maxDepth,
     std::default_random_engine& generator,
-    const GLAS* glas_a,
-    const GLAS* glas_b,
+    const GLAS& glas_a,
+    const GLAS& glas_b,
     float rollout_beta)
     : m_attackerTypes(attackerTypes)
     , m_defenderTypes(defenderTypes)
@@ -165,7 +165,7 @@ class Game {
   {
     GameStateT s = state;
     GameStateT nextState;
-    if (m_glas_a && m_glas_b) {
+    if (m_glas_a.valid() && m_glas_b.valid()) {
       // NN rollout
 
       std::uniform_real_distribution<float> dist(0.0,1.0);
@@ -175,7 +175,7 @@ class Game {
         float p = dist(m_generator);
         if (p < m_rollout_beta) {
 
-          const auto action = computeActionsWithGLAS(*m_glas_a,*m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator);
+          const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator);
 
           // step twice (once for each player)
           valid &= step(s, action, nextState);
@@ -371,8 +371,8 @@ private:
   Eigen::Vector2f m_goal;
   size_t m_maxDepth;
   std::default_random_engine& m_generator;
-  const GLAS* m_glas_a;
-  const GLAS* m_glas_b;
+  GLAS m_glas_a;
+  GLAS m_glas_b;
   float m_rollout_beta;
 
   // Maps activeRobots -> possible actions

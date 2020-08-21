@@ -97,6 +97,11 @@ public:
     }
   }
 
+  bool valid() const
+  {
+    return m_layers.size() > 0;
+  }
+
 private:
   Eigen::MatrixXf relu(const Eigen::MatrixXf& m) const
   {
@@ -209,10 +214,7 @@ public:
     m_actions[8] <<  1,  1;
   }
 
-  GLAS(
-    const YAML::Node& node,
-    std::default_random_engine& gen)
-    : GLAS(gen)
+  void load(const YAML::Node& node)
   {
     m_glas.deepSetA().phi().load(node, "model_team_a.phi");
     m_glas.deepSetA().rho().load(node, "model_team_a.rho");
@@ -242,6 +244,11 @@ public:
   DiscreteEmptyNet& discreteEmptyNet()
   {
     return m_glas;
+  }
+
+  bool valid()
+  {
+    return m_glas.psi().valid();
   }
 
 private:
