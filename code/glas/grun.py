@@ -12,6 +12,7 @@ import concurrent.futures
 import tempfile 
 import subprocess
 from collections import defaultdict
+import argparse
 
 # project
 sys.path.append("../")
@@ -394,8 +395,57 @@ def make_loaders(batched_files,n_points):
 	return train_loader,test_loader, train_dataset_size, test_dataset_size
 
 
+def train_model(gparam,batched_files,training_team):
+
+	n_points = get_dataset_size(gparam,batched_files)
+	train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders(batched_files,n_points)
+
+	print('train dataset size: ', train_dataset_size)
+	print('test dataset size: ', test_dataset_size)
+
+	model = DiscreteEmptyNet(gparam,gparam.device)
+	optimizer = torch.optim.Adam(model.parameters(), lr=gparam.il_lr, weight_decay=gparam.il_wd)
+	
+	# train 
+	losses = []
+	il_train_model_fn = gparam.il_train_model_fn.format(training_team)
+	with open(il_train_model_fn + ".csv", 'w') as log_file:
+		log_file.write("time,epoch,train_loss,test_loss\n")
+		start_time = time.time()
+		best_test_loss = np.Inf
+		scheduler = ReduceLROnPlateau(optimizer, 'min')
+		for epoch in range(1,gparam.il_n_epoch+1):
+			train_epoch_loss = train(model,optimizer,train_loader)
+			test_epoch_loss = test(model,optimizer,test_loader)
+			scheduler.step(test_epoch_loss)
+			losses.append((train_epoch_loss,test_epoch_loss))
+			if epoch%gparam.il_log_interval==0:
+				print('epoch: ', epoch)
+				print('   Train Epoch Loss: ', train_epoch_loss)
+				print('   Test Epoch Loss: ', test_epoch_loss)
+				if test_epoch_loss < best_test_loss:
+					best_test_loss = test_epoch_loss
+					print('      saving @ best test loss:', best_test_loss)
+					torch.save(model.state_dict(), il_train_model_fn)
+					model.to(gparam.device)
+			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
+	plotter.plot_loss(losses,training_team)
+
+
+def get_team_from_batch_fn(batch_fn):
+	batch_fn = os.path.basename(batch_fn)
+	batch_fn = batch_fn.split("train")
+	team = batch_fn[0][-1]
+	return team 
+
 if __name__ == '__main__':
 
+	# parse 
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-file", default=None, required=False)
+	args = parser.parse_args()
+
+	# default stuff 
 	gparam = Gparam()
 
 	# run expert and write (state, action) pairs into files 
@@ -414,7 +464,8 @@ if __name__ == '__main__':
 		else:
 			ncpu = cpu_count()
 			print('ncpu: ', ncpu)
-			with Pool(ncpu-1) as p:
+			# with Pool(ncpu-1) as p:
+			with Pool(ncpu) as p:
 				# todo 
 				# p.starmap(collect_uniform_demonstrations, params)
 				p.map(collect_uniform_demonstrations, params)
@@ -440,67 +491,71 @@ if __name__ == '__main__':
 	# load (observation,action) binary files, train a model, and write model to file 
 	if gparam.train_model_on: 
 		for training_team in gparam.training_teams:
-
 			print('training model for team {}...'.format(training_team))
-		
 			batched_files = glob.glob(get_batch_fn(gparam.demonstration_data_dir,training_team,'*','*','*'))
-			n_points = get_dataset_size(gparam,batched_files)
-			train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders(batched_files,n_points)
+			train_model(gparam,batched_files,training_team)
 
-			print('train dataset size: ', train_dataset_size)
-			print('test dataset size: ', test_dataset_size)
-
-			model = DiscreteEmptyNet(gparam,gparam.device)
-			optimizer = torch.optim.Adam(model.parameters(), lr=gparam.il_lr, weight_decay=gparam.il_wd)
-			
-			# train 
-			losses = []
-			il_train_model_fn = gparam.il_train_model_fn.format(training_team)
-			with open(il_train_model_fn + ".csv", 'w') as log_file:
-				log_file.write("time,epoch,train_loss,test_loss\n")
-				start_time = time.time()
-				best_test_loss = np.Inf
-				scheduler = ReduceLROnPlateau(optimizer, 'min')
-				for epoch in range(1,gparam.il_n_epoch+1):
-					train_epoch_loss = train(model,optimizer,train_loader)
-					test_epoch_loss = test(model,optimizer,test_loader)
-					scheduler.step(test_epoch_loss)
-					losses.append((train_epoch_loss,test_epoch_loss))
-					if epoch%gparam.il_log_interval==0:
-						print('epoch: ', epoch)
-						print('   Train Epoch Loss: ', train_epoch_loss)
-						print('   Test Epoch Loss: ', test_epoch_loss)
-						if test_epoch_loss < best_test_loss:
-							best_test_loss = test_epoch_loss
-							print('      saving @ best test loss:', best_test_loss)
-							torch.save(model.state_dict(), il_train_model_fn)
-							model.to(gparam.device)
-					log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
-			plotter.plot_loss(losses,training_team)
-
+	# visualize training data 
 	if gparam.dbg_vis_on: 
-		# todo 
-		exit('todo')
 
-		num_files = 10 
-		num_points_per_file = 10 
+		num_points_per_file = 9 
 
-		sim_result_fns = glob.glob('{}**raw**'.format(gparam.demonstration_data_dir))
-		sampled_fns = random.sample(sim_result_fns,num_files)
+		if not args.file is None: 
 
-		for sim_result in sampled_fns:
-			sim_result = dh.load_sim_result(sim_result)
-			state_action_pairs = list(zip(sim_result["states"],sim_result["actions"]))
-			sampled_sa_pairs = random.sample(state_action_pairs,num_points_per_file)
-			for (state,action) in sampled_sa_pairs:
-				plotter.plot_sa_pair(state,action,sim_result)
+			fn = args.file 
 
-		# batched_files = glob.glob(get_batch_fn(gparam.demonstration_data_dir,training_team,'*','*','*'))
-		# plotter.plot_oa_pair() 
+			if not os.path.exists(fn):
+				exit('fn {} does not exist'.format(fn))
 
-		# todo 
+			if "raw" in fn:
+				sim_result = dh.load_sim_result(fn)
+				state_action_pairs = list(zip(sim_result["states"],sim_result["actions"]))
+				sampled_sa_pairs = random.sample(state_action_pairs,num_points_per_file)
+				plotter.plot_sa_pairs(sampled_sa_pairs,sim_result)
+
+			elif "labelled" in fn:
+				param = Param()
+				rsense = param.standard_robot["r_sense"]
+				abs_goal = param.goal 
+				action_list = param.actions
+				training_team = get_team_from_batch_fn(fn)
+
+				o_a,o_b,goal,actions = dh.read_oa_batch(fn,gparam.demonstration_data_dir)
+				oa_pairs = list(zip(o_a,o_b,goal,actions))
+				sampled_oa_pairs = random.sample(oa_pairs,num_points_per_file)
+				plotter.plot_oa_pairs(sampled_oa_pairs,abs_goal,training_team,rsense,action_list)
+
+		else: 
+				
+			num_files = 1
+
+			for training_team in gparam.training_teams: 
+
+				# plot state action pairs 
+				sim_result_fns = glob.glob('{}**raw**{}train**'.format(gparam.demonstration_data_dir,training_team))
+				sampled_raw_fns = random.sample(sim_result_fns,num_files)
+
+				for sim_result_fn in sampled_raw_fns:
+					sim_result = dh.load_sim_result(sim_result_fn)
+					state_action_pairs = list(zip(sim_result["states"],sim_result["actions"]))
+					sampled_sa_pairs = random.sample(state_action_pairs,num_points_per_file)
+					plotter.plot_sa_pairs(sampled_sa_pairs,sim_result)
 
 
+				# plot observation action pairs 
+				batch_fns = glob.glob(get_batch_fn(gparam.demonstration_data_dir,training_team,'*','*','*'))
+				sampled_batch_fns = random.sample(batch_fns,num_files)
+
+				param = Param()
+				rsense = param.standard_robot["r_sense"]
+				abs_goal = param.goal 
+				action_list = param.actions
+
+				for batch_fn in sampled_batch_fns:
+					o_a,o_b,goal,actions = dh.read_oa_batch(batch_fn,gparam.demonstration_data_dir)
+					oa_pairs = list(zip(o_a,o_b,goal,actions))
+					sampled_oa_pairs = random.sample(oa_pairs,num_points_per_file)
+					plotter.plot_oa_pairs(sampled_oa_pairs,abs_goal,training_team,rsense,action_list)
 
 	if plotter.has_figs():
 		plotter.save_figs('plots.pdf')

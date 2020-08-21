@@ -335,66 +335,87 @@ def plot_dbg_observations(sim_result,observations):
 			ax.plot([abs_pos[0],abs_pos[0] + relative_goal[0]], [abs_pos[1],abs_pos[1] + relative_goal[1]],color=goal_color,alpha=0.1)
 
 
-def plot_sa_pair(state,action,sim_result):
+def plot_sa_pairs(sampled_sa_pairs,sim_result):
 
 	team_1_idxs = sim_result["param"]["team_1_idxs"]
 	team_2_idxs = sim_result["param"]["team_2_idxs"]
 	action_list = sim_result["param"]["actions"]
+	env_xlim = sim_result["param"]["env_xlim"]
+	env_ylim = sim_result["param"]["env_ylim"]
+	tag_radius = sim_result["param"]["standard_robot"]["tag_radius"]
+	goal = sim_result["param"]["goal"]
 
 	team_1_color = 'blue'
 	team_2_color = 'orange'
+	action_color = 'black'
+	best_action_color = 'red'
 	goal_color = 'green'
 
-	fig,ax = plt.subplots() 
+	fig,axs = plt.subplots(nrows=3,ncols=3) 
 
-	for robot_idx, (state_per_robot, action_per_robot) in enumerate(zip(state,action)):
+	for i_ax, (states,actions) in enumerate(sampled_sa_pairs):
 
-		if robot_idx in team_1_idxs:
-			color = team_1_color
-		elif robot_idx in team_2_idxs:
-			color = team_2_color
+		ax = axs[ int(np.floor(i_ax/3)), np.remainder(i_ax,3)]
+		ax.set_xlim(env_xlim)
+		ax.set_ylim(env_ylim)
+		ax.grid(True)
+		ax.set_aspect('equal')
+		ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 
-		ax.plot(state_per_robot[0],state_per_robot[1],marker='o',color=color)
+		for robot_idx, (state_per_robot, action_per_robot) in enumerate(zip(states,actions)):
 
-		print(action.shape)
-		exit()
+			if robot_idx in team_1_idxs:
+				color = team_1_color
+			elif robot_idx in team_2_idxs:
+				color = team_2_color
+
+			ax.plot(state_per_robot[0],state_per_robot[1],marker='o',color=color)
+			ax.arrow(state_per_robot[0],state_per_robot[1],state_per_robot[2],state_per_robot[3],color=color)
+
+			for direction, p in zip(action_list,action_per_robot):
+				if p == np.max(action_per_robot):
+					color = best_action_color
+				else: 
+					color = action_color
+				ax.arrow(state_per_robot[0],state_per_robot[1],direction[0]*p,direction[1]*p,color=color)
 
 
-
-def plot_sa_pairs(states,actions,param,instance):
-
-	states = np.asarray(states) # nt x state_dim 
-	actions = np.asarray(actions) # nt x action dim 
-
-	fig,ax = plt.subplots()
+def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list):
 
 	team_1_color = 'blue'
 	team_2_color = 'orange'
+	action_color = 'black'
+	best_action_color = 'red'
 	goal_color = 'green'
 
-	ax.add_patch(mpatches.Circle(param.goal, param.tag_radius, color=goal_color,alpha=0.5))
+	if team == "a":
+		self_color = team_1_color
+	elif team == "b":
+		self_color = team_2_color
 
-	for node_idx in range(param.num_nodes):
+	fig,axs = plt.subplots(nrows=3,ncols=3) 
 
-		pos_x_idx = 4*node_idx + 0 
-		pos_y_idx = 4*node_idx + 1 
-		action_idx = 2*node_idx + np.arange(2)
+	for i_ax, (o_a,o_b,goal,actions) in enumerate(sampled_oa_pairs):
 
-		if node_idx in param.team_1_idxs:
-			color = team_1_color
-		elif node_idx in param.team_2_idxs:
-			color = team_2_color
+		ax = axs[int(np.floor(i_ax/3)), np.remainder(i_ax,3)]
+		ax.set_aspect('equal')
+		ax.add_patch(mpatches.Circle((0,0), rsense, color='black',alpha=0.1))
+		ax.scatter(0,0,color=self_color)
+		ax.scatter(goal[0],goal[1],color=goal_color)
 
-		ax.plot(states[:,pos_x_idx],states[:,pos_y_idx],linewidth=3,color=color)
-		ax.scatter(states[:,pos_x_idx],states[:,pos_y_idx],color=color)
+		num_a = int(o_a.shape[0]/4)
+		num_b = int(o_b.shape[0]/4)
+		for robot_idx in range(num_a):
+			ax.scatter(o_a[robot_idx*4],o_a[robot_idx*4+1],color=team_1_color)
+		for robot_idx in range(num_b):
+			ax.scatter(o_b[robot_idx*4],o_b[robot_idx*4+1],color=team_2_color)
+		for direction, p in zip(action_list,actions):
+			if p == np.max(actions):
+				color = best_action_color
+			else: 
+				color = action_color
+			ax.arrow(0,0,direction[0]*p,direction[1]*p,color=color)
 
-	ax.set_xlim(param.env_xlim)
-	ax.set_ylim(param.env_ylim)
-	ax.grid(True)
-	ax.set_aspect('equal')
-	ax.set_xlabel('pos [m]')
-	ax.set_ylabel('pos [m]')
-	ax.set_title('instance {}'.format(instance))
 
 
 def plot_loss(losses,team):
@@ -675,8 +696,8 @@ def plot_exp2_results(all_sim_results):
 							# results[key]["actions"] in num_points x nagents x action_dim 
 
 							im[i_tree,:] = results[key]["actions"][0,robot_idx,:] 
-							# imobj = ax.imshow(im.T,vmin=0,vmax=1,cmap=cm.coolwarm)
-							imobj = ax.imshow(im.T,cmap=cm.coolwarm)
+							imobj = ax.imshow(im.T,vmin=0,vmax=0.5,cmap=cm.coolwarm)
+							# imobj = ax.imshow(im.T,cmap=cm.coolwarm)
 
 							ax.set_xticks([])
 							ax.set_yticks([])
@@ -689,7 +710,7 @@ def plot_exp2_results(all_sim_results):
 						if i_mode == len(modes)-1 :
 							fig.subplots_adjust(right=0.8)
 							cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-							fig.colorbar(imobj, cax=cbar_ax)
+							fig.colorbar(imobj, cax=cbar_ax) 
 
 						ax.set_title(mode)
 						ax.set_xticks(np.arange(len(tree_sizes)))
