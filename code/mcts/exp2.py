@@ -174,7 +174,7 @@ def get_params(df_param):
 if __name__ == '__main__':
 
 	run_on = True
-	parallel_on = False
+	parallel_on = True
 
 	df_param = Param()
 	df_param.num_trials = 2 # 5
@@ -209,8 +209,8 @@ if __name__ == '__main__':
 		params = get_params(df_param)
 
 		if parallel_on: 
-			pool = mp.Pool(mp.cpu_count()-1)
-			for _ in pool.imap_unordered(run_sim, params):
+			pool = mp.Pool(min(len(params), mp.cpu_count()-1))
+			for _ in pool.imap_unordered(evaluate_stochastic_policy, params):
 				pass 
 		else: 
 			for param in params: 
