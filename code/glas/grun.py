@@ -438,6 +438,12 @@ def get_team_from_batch_fn(batch_fn):
 	team = batch_fn[0][-1]
 	return team 
 
+def get_team_from_raw_fn(raw_fn):
+	batch_fn = os.path.basename(batch_fn)
+	batch_fn = batch_fn.split("train")
+	team = batch_fn[0][-1]
+	return team 	
+
 if __name__ == '__main__':
 
 	# parse 
@@ -511,7 +517,8 @@ if __name__ == '__main__':
 				sim_result = dh.load_sim_result(fn)
 				state_action_pairs = list(zip(sim_result["states"],sim_result["actions"]))
 				sampled_sa_pairs = random.sample(state_action_pairs,num_points_per_file)
-				plotter.plot_sa_pairs(sampled_sa_pairs,sim_result)
+				training_team = get_team_from_raw_fn(fn)
+				plotter.plot_sa_pairs(sampled_sa_pairs,sim_result,training_team)
 
 			elif "labelled" in fn:
 				param = Param()
@@ -539,7 +546,7 @@ if __name__ == '__main__':
 					sim_result = dh.load_sim_result(sim_result_fn)
 					state_action_pairs = list(zip(sim_result["states"],sim_result["actions"]))
 					sampled_sa_pairs = random.sample(state_action_pairs,num_points_per_file)
-					plotter.plot_sa_pairs(sampled_sa_pairs,sim_result)
+					plotter.plot_sa_pairs(sampled_sa_pairs,sim_result,training_team)
 
 
 				# plot observation action pairs 

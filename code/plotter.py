@@ -335,7 +335,7 @@ def plot_dbg_observations(sim_result,observations):
 			ax.plot([abs_pos[0],abs_pos[0] + relative_goal[0]], [abs_pos[1],abs_pos[1] + relative_goal[1]],color=goal_color,alpha=0.1)
 
 
-def plot_sa_pairs(sampled_sa_pairs,sim_result):
+def plot_sa_pairs(sampled_sa_pairs,sim_result,team):
 
 	team_1_idxs = sim_result["param"]["team_1_idxs"]
 	team_2_idxs = sim_result["param"]["team_2_idxs"]
@@ -351,6 +351,11 @@ def plot_sa_pairs(sampled_sa_pairs,sim_result):
 	best_action_color = 'red'
 	goal_color = 'green'
 
+	if team == "a":
+		idxs = team_1_idxs
+	else:
+		idxs = team_2_idxs
+
 	fig,axs = plt.subplots(nrows=3,ncols=3) 
 
 	for i_ax, (states,actions) in enumerate(sampled_sa_pairs):
@@ -358,8 +363,10 @@ def plot_sa_pairs(sampled_sa_pairs,sim_result):
 		ax = axs[ int(np.floor(i_ax/3)), np.remainder(i_ax,3)]
 		ax.set_xlim(env_xlim)
 		ax.set_ylim(env_ylim)
-		ax.grid(True)
+		ax.set_xticks([])
+		ax.set_yticks([])
 		ax.set_aspect('equal')
+
 		ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 
 		for robot_idx, (state_per_robot, action_per_robot) in enumerate(zip(states,actions)):
@@ -369,15 +376,22 @@ def plot_sa_pairs(sampled_sa_pairs,sim_result):
 			elif robot_idx in team_2_idxs:
 				color = team_2_color
 
-			ax.plot(state_per_robot[0],state_per_robot[1],marker='o',color=color)
-			ax.arrow(state_per_robot[0],state_per_robot[1],state_per_robot[2],state_per_robot[3],color=color)
+			ax.scatter(state_per_robot[0],state_per_robot[1],marker='o',color=color)
+			ax.arrow(state_per_robot[0],state_per_robot[1],state_per_robot[2],state_per_robot[3],color=color,alpha=0.5)
 
-			for direction, p in zip(action_list,action_per_robot):
-				if p == np.max(action_per_robot):
-					color = best_action_color
-				else: 
-					color = action_color
-				ax.arrow(state_per_robot[0],state_per_robot[1],direction[0]*p,direction[1]*p,color=color)
+			if robot_idx in idxs: 
+
+				for direction, p in zip(action_list,action_per_robot):
+					if p == np.max(action_per_robot):
+						color = best_action_color
+					else: 
+						color = action_color
+
+					dist = np.linalg.norm(direction,2)
+					if dist > 0:
+						ax.arrow(state_per_robot[0],state_per_robot[1],direction[0]*p/dist,direction[1]*p/dist,color=color,alpha=0.5)
+					elif dist == 0:
+						ax.arrow(state_per_robot[0],state_per_robot[1],0,1e-3,color=color,alpha=0.5)
 
 
 def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list):
@@ -399,22 +413,32 @@ def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list):
 
 		ax = axs[int(np.floor(i_ax/3)), np.remainder(i_ax,3)]
 		ax.set_aspect('equal')
-		ax.add_patch(mpatches.Circle((0,0), rsense, color='black',alpha=0.1))
+		ax.set_xticks([])
+		ax.set_yticks([])
+
 		ax.scatter(0,0,color=self_color)
 		ax.scatter(goal[0],goal[1],color=goal_color)
+		ax.add_patch(mpatches.Circle((0,0), rsense, color='black',alpha=0.1))
 
 		num_a = int(o_a.shape[0]/4)
 		num_b = int(o_b.shape[0]/4)
 		for robot_idx in range(num_a):
 			ax.scatter(o_a[robot_idx*4],o_a[robot_idx*4+1],color=team_1_color)
+			ax.arrow(o_a[robot_idx*4],o_a[robot_idx*4+1],o_a[robot_idx*4+2],o_a[robot_idx*4+3],color=team_1_color,alpha=0.5)
 		for robot_idx in range(num_b):
 			ax.scatter(o_b[robot_idx*4],o_b[robot_idx*4+1],color=team_2_color)
+			ax.arrow(o_b[robot_idx*4],o_b[robot_idx*4+1],o_b[robot_idx*4+2],o_b[robot_idx*4+3],color=team_2_color,alpha=0.5)
 		for direction, p in zip(action_list,actions):
 			if p == np.max(actions):
 				color = best_action_color
 			else: 
 				color = action_color
-			ax.arrow(0,0,direction[0]*p,direction[1]*p,color=color)
+
+			dist = np.linalg.norm(direction,2)
+			if dist > 0:
+				ax.arrow(0,0,direction[0]*p/dist,direction[1]*p/dist,color=color,alpha=0.5)
+			elif dist == 0:
+				ax.arrow(0,0,0,1e-3,color=color,alpha=0.5)
 
 
 

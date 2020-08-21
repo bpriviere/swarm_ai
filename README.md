@@ -90,6 +90,11 @@ code$ python3 run.py
 code/glas$ python3 grun.py
 ```
 
+For vis of training data, from `~/glas/`:
+```
+python grun.py -file ../../data/demonstration/labelled_atrain_0a_1b_0trial.npy
+```
+
 #### Evaluation
 
 Set `controller_name` to `controller/glas.py` in `param.py`.
