@@ -3,6 +3,8 @@
 import os,sys,glob,shutil
 import numpy as np 
 from collections import defaultdict
+from itertools import repeat 
+from multiprocessing import cpu_count, Pool 
 from grun import uniform_sample, config_to_game, state_to_game_state, createGLAS
 from grun import value_to_dist, make_labelled_data, write_labelled_data, train_model, robot_composition_to_cpp_types
 from gparam import Gparam
@@ -50,15 +52,14 @@ def rollout(param):
 	while len(results) < param.num_points_per_file: 
 
 		state = uniform_sample(param,1)[0]
-		action = [[0,0],[0,0]]
 		gs = state_to_game_state(param,state)
 		while True:
 			gs.attackersReward = 0;
 			gs.defendersReward = 0;
 			gs.depth = 0;
 
-			results.append(game_state_to_cpp_result(gs,action))
 			action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, goal, attackerTypes, defenderTypes, generator, deterministic)
+			results.append(game_state_to_cpp_result(gs,action))
 
 			# step twice (once per team)
 			success = g.step(gs, action, gs)
@@ -106,7 +107,8 @@ def make_dataset(states,params):
 		ncpu = cpu_count()
 		print('ncpu: ', ncpu)
 		with Pool(ncpu-1) as p:
-			p.starmap(evaluate_expert, params, states)
+			# p.starmap(evaluate_expert, states, params)
+			p.starmap(evaluate_expert, list(zip(states, params)))
 
 	# labelled dataset 
 	print('make labelled data...')
@@ -186,12 +188,13 @@ def prepare_raw_data_gen(gparam,training_team,iter_i):
 			# 0 means pure random, 1.0 means pure GLAS
 			if gparam.mode == "DAgger" or gparam.mode == "IL":
 				param.rollout_beta = 0.0
+				param.mode = "MCTS_RANDOM"
 			elif gparam.mode == "ExIt" or gparam.mode == "Mice":
 				param.rollout_beta = gparam.rollout_beta
+				param.mode = "MCTS_GLAS"
 			else: 
 				exit('gparam.mode not recognized')
 
-			param.mode = gparam.mode 
 			param.training_team = training_team
 			param.iter_i = iter_i 
 			param.glas_model_A = get_model_fn("a",iter_i-1)

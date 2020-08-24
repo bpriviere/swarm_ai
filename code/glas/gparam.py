@@ -15,8 +15,8 @@ class Gparam:
 
 		self.learning_module = 'learning/discrete_emptynet.py'
 
-		self.serial_on 				= True # set true only for dbging 
-		self.clean_raw_data_on 		= False
+		self.serial_on 				= False # set true only for dbging 
+		self.clean_raw_data_on 		= True
 		self.clean_labelled_data_on = False	
 
 		# generate demonstration data parameters
@@ -25,19 +25,19 @@ class Gparam:
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
-			# {
-			# 'a': {'standard_robot':2,'evasive_robot':0},
-			# 'b': {'standard_robot':1,'evasive_robot':0}
-			# },
-			# {
-			# 'a': {'standard_robot':1,'evasive_robot':0},
-			# 'b': {'standard_robot':2,'evasive_robot':0}
-			# }
+			{
+			'a': {'standard_robot':2,'evasive_robot':0},
+			'b': {'standard_robot':1,'evasive_robot':0}
+			},
+			{
+			'a': {'standard_robot':1,'evasive_robot':0},
+			'b': {'standard_robot':2,'evasive_robot':0}
+			}
 		]
-		self.num_trials = 1
-		self.num_points_per_file = 100
+		self.num_trials = 10
+		self.num_points_per_file = 10000
 		self.mode = "MCTS_RANDOM" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
-		self.tree_size = 20000 # 
+		self.tree_size = 100000 # 
 		self.rollout_beta = 0.5 
 		self.demonstration_data_dir = '../../data/demonstration/'
 		self.model_dir = '../../models/'
@@ -68,8 +68,8 @@ class Gparam:
 		self.il_train_model_fn = self.model_dir + 'il_current_{}.pt'
 		self.il_test_train_ratio = 0.8
 		self.il_n_points = 1000000
-		self.il_batch_size = 10
-		self.il_n_epoch = 100
+		self.il_batch_size = 2000
+		self.il_n_epoch = 30
 		self.il_lr = 1e-3
 		self.il_wd = 0 
 		self.il_log_interval = 1
