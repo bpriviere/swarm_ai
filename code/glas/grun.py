@@ -120,7 +120,6 @@ def config_to_game(param,generator):
 	generator = generator
 
 	if "GLAS" in param.mode:
-		# todo 
 		glas_a = createGLAS(param.glas_model_A, generator)
 		glas_b = createGLAS(param.glas_model_B, generator)
 	else:
@@ -164,9 +163,9 @@ def state_to_game_state(param,state):
 	return game_state 
 
 
-def uniform_sample(param):
+def uniform_sample(param,n):
 	states = [] 
-	for _ in range(param.num_points_per_file):
+	for _ in range(n):
 		param.make_initial_condition() 
 		states.append(param.state)
 	return states
@@ -218,7 +217,7 @@ def collect_uniform_demonstrations(param):
 	# init 
 	generator = mctscpp.createRandomGenerator(param.seed)
 	game = config_to_game(param,generator) 
-	states = uniform_sample(param)
+	states = uniform_sample(param,param.num_points_per_file)
 
 	sim_result = {
 		'states' : [],
