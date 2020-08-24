@@ -360,13 +360,16 @@ def clean_files_containing_str_from_dir(string,directory):
 def get_dataset_size(gparam,batched_files):
 	n_points = 0 
 	for batched_file in batched_files:
+		print('batched_file',batched_file)
+		# exit()
+
 		o_a,o_b,goal,action = dh.read_oa_batch(batched_file,gparam.demonstration_data_dir)
 		n_points += action.shape[0]
 	n_points = np.min((n_points, gparam.il_n_points))
 	return n_points
 
 
-def make_loaders(batched_files,n_points):
+def make_loaders(gparam,batched_files,n_points):
 
 	train_loader = [] # lst of batches 
 	test_loader = [] 
@@ -395,10 +398,10 @@ def make_loaders(batched_files,n_points):
 	return train_loader,test_loader, train_dataset_size, test_dataset_size
 
 
-def train_model(gparam,batched_files,training_team):
+def train_model(gparam,batched_files,training_team,model_fn):
 
 	n_points = get_dataset_size(gparam,batched_files)
-	train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders(batched_files,n_points)
+	train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders(gparam,batched_files,n_points)
 
 	print('train dataset size: ', train_dataset_size)
 	print('test dataset size: ', test_dataset_size)
@@ -408,8 +411,7 @@ def train_model(gparam,batched_files,training_team):
 	
 	# train 
 	losses = []
-	il_train_model_fn = gparam.il_train_model_fn.format(training_team)
-	with open(il_train_model_fn + ".csv", 'w') as log_file:
+	with open(model_fn + ".csv", 'w') as log_file:
 		log_file.write("time,epoch,train_loss,test_loss\n")
 		start_time = time.time()
 		best_test_loss = np.Inf
@@ -426,7 +428,7 @@ def train_model(gparam,batched_files,training_team):
 				if test_epoch_loss < best_test_loss:
 					best_test_loss = test_epoch_loss
 					print('      saving @ best test loss:', best_test_loss)
-					torch.save(model.state_dict(), il_train_model_fn)
+					torch.save(model.state_dict(), model_fn)
 					model.to(gparam.device)
 			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
 	plotter.plot_loss(losses,training_team)
@@ -499,7 +501,7 @@ if __name__ == '__main__':
 		for training_team in gparam.training_teams:
 			print('training model for team {}...'.format(training_team))
 			batched_files = glob.glob(get_batch_fn(gparam.demonstration_data_dir,training_team,'*','*','*'))
-			train_model(gparam,batched_files,training_team)
+			train_model(gparam,batched_files,training_team,gparam.il_train_model_fn.format(training_team))
 
 	# visualize training data 
 	if gparam.dbg_vis_on: 
