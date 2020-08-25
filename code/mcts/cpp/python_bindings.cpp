@@ -7,9 +7,9 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include "RobotState.hpp"
+#include "robots/RobotState.hpp"
 #include "GameState.hpp"
-#include "RobotType.hpp"
+#include "robots/RobotType.hpp"
 
 #include <yaml-cpp/yaml.h>
 #include "GLAS.hpp"

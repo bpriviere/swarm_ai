@@ -2,8 +2,8 @@
 
 #include <random>
 
-#include "RobotState.hpp"
-#include "RobotType.hpp"
+#include "robots/RobotState.hpp"
+#include "robots/RobotType.hpp"
 #include "GameState.hpp"
 
 #include "GLAS.hpp"
