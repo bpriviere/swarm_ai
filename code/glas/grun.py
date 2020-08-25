@@ -61,21 +61,25 @@ def test(model,optimizer,loader):
 	return epoch_loss/(step+1)
 
 
+def create_robot_type_cpp(param, robot_type, team):
+	if team == "a":
+		p_min = [param.reset_xlim_A[0], param.reset_ylim_A[0]]
+		p_max = [param.reset_xlim_A[1], param.reset_ylim_A[1]]
+	elif team == "b":
+		p_min = [param.reset_xlim_B[0], param.reset_ylim_B[0]]
+		p_max = [param.reset_xlim_B[1], param.reset_ylim_B[1]]
+
+	velocity_limit = param.__dict__[robot_type]["speed_limit"]
+	acceleration_limit = param.__dict__[robot_type]["acceleration_limit"]
+	tag_radius = param.__dict__[robot_type]["tag_radius"]
+	r_sense = param.__dict__[robot_type]["r_sense"]
+	rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense)
+	return rt
+
 def robot_composition_to_cpp_types(param,team):
 	types = [] 
 	for robot_type, num in param.robot_team_composition[team].items():
-		if team == "a":
-			p_min = [param.reset_xlim_A[0], param.reset_ylim_A[0]]
-			p_max = [param.reset_xlim_A[1], param.reset_ylim_A[1]]
-		elif team == "b":
-			p_min = [param.reset_xlim_B[0], param.reset_ylim_B[0]]
-			p_max = [param.reset_xlim_B[1], param.reset_ylim_B[1]]
-
-		velocity_limit = param.__dict__[robot_type]["speed_limit"]
-		acceleration_limit = param.__dict__[robot_type]["acceleration_limit"]
-		tag_radius = param.__dict__[robot_type]["tag_radius"]
-		r_sense = param.__dict__[robot_type]["r_sense"]
-		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense)
+		rt = create_robot_type_cpp(param, robot_type, team)
 		for _ in range(num):
 			types.append(rt)
 	return types

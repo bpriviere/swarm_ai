@@ -511,7 +511,7 @@ def plot_tree_results(sim_result,title=None):
 		for t in range(states.shape[0]):
 			ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
 				color=colors[i],alpha=0.2,fill=False))
-			ax.arrow(states[t,i,0,0],states[t,i,1,0],states[t,i,2,0],states[t,i,3,0],color=colors[i])
+			ax.arrow(states[t,i,0],states[t,i,1],states[t,i,2],states[t,i,3],color=colors[i])
 		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
 		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i],alpha=0.75)
 	ax.set_xlim([env_xlim[0],env_xlim[1]])
