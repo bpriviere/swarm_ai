@@ -14,39 +14,30 @@
 
 #include "GLAS.hpp"
 
-Eigen::Vector2f randomVector2f(
-  float max_norm,
-  std::default_random_engine& generator)
-{
-  std::uniform_real_distribution<float> thDist(0, 2*M_PI);
-  std::uniform_real_distribution<float> rDist(0, max_norm);
-
-  float th = thDist(generator);
-  float r = rDist(generator);
-
-  return Eigen::Vector2f(r*cos(th), r * sin(th));
-}
-
-template <std::size_t NumAttackers, std::size_t NumDefenders>
 void runMCTS(
   const YAML::Node& config,
   const std::string& outputFile,
   std::default_random_engine& generator,
-  GLAS* glas_a,
-  GLAS* glas_b)
+  const GLAS& glas_a,
+  const GLAS& glas_b)
 {
-  using EnvironmentT = Game<NumAttackers, NumDefenders>;
+  using EnvironmentT = Game;
   using GameStateT = typename EnvironmentT::GameStateT;
   using GameActionT = typename EnvironmentT::GameActionT;
+
+  int NumAttackers = config["num_nodes_A"].as<int>();
+  int NumDefenders = config["num_nodes_B"].as<int>();
 
   size_t num_nodes = config["tree_size"].as<int>();
 
   GameStateT state;
+  state.attackers.resize(NumAttackers);
+  state.defenders.resize(NumDefenders);
 
   state.turn = GameStateT::Turn::Attackers;
-  state.activeMask.set();
+  state.activeMask = 0;
   
-  std::array<RobotType, NumAttackers> attackerTypes;
+  std::vector<RobotType> attackerTypes(NumAttackers);
   for (size_t i = 0; i < NumAttackers; ++i) {
     const auto& node = config["robots"][i];
     attackerTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -56,8 +47,15 @@ void runMCTS(
     attackerTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
     attackerTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     attackerTypes[i].init();
+
+    state.attackers[i].status = RobotState::Status::Active;
+    assert(i<32);
+    state.activeMask |= (1<<i);
+    state.attackers[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
+    state.attackers[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
+
   }
-  std::array<RobotType, NumDefenders> defenderTypes;
+  std::vector<RobotType> defenderTypes(NumDefenders);
   for (size_t i = 0; i < NumDefenders; ++i) {
     const auto& node = config["robots"][i+NumAttackers];
     defenderTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -67,27 +65,12 @@ void runMCTS(
     defenderTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
     defenderTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     defenderTypes[i].init();
-  }
-  
-  std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
-  std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
-  for (size_t i = 0; i < NumAttackers; ++i) {
-    state.attackers[i].status = RobotState::Status::Active;
-    state.attackers[i].position << xPosDist(generator),yPosDist(generator);
-    state.attackers[i].velocity = randomVector2f(attackerTypes[i].velocity_limit, generator);
-    // state.attackers[i].velocity << 0,0;
-  }
-  xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
-  yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
-  for (size_t i = 0; i < NumDefenders; ++i) {
+
     state.defenders[i].status = RobotState::Status::Active;
-    state.defenders[i].position << xPosDist(generator),yPosDist(generator);
-    state.defenders[i].velocity = randomVector2f(defenderTypes[i].velocity_limit, generator);
-    // state.defenders[i].velocity << 0,0;
+    state.defenders[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
+    state.defenders[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
   }
-
   std::cout << state << std::endl;
-
 
   float dt = config["sim_dt"].as<float>();
   Eigen::Vector2f goal;
@@ -95,7 +78,12 @@ void runMCTS(
 
   size_t max_depth = config["rollout_horizon"].as<int>();
 
-  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b);
+  float rollout_beta = 1.0;
+  if (config["rollout_beta"]) {
+    rollout_beta = config["rollout_beta"].as<float>();
+  }
+
+  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b, rollout_beta);
 
   libMultiRobotPlanning::MonteCarloTreeSearch<GameStateT, GameActionT, Reward, EnvironmentT> mcts(env, generator, num_nodes, 1.4);
 
@@ -149,7 +137,7 @@ void runMCTS(
     }
     env.step(state, action, state);
     float f = env.computeReward(state);
-    std::cout << state << "reward: " << f << std::endl;
+    // std::cout << state << "reward: " << f << std::endl;
     // Reward r;
     // assert(r.first == 0);
     // assert(r.second == 0);
@@ -203,33 +191,16 @@ int main(int argc, char* argv[]) {
   std::cout << "Using seed " << seed << std::endl;
   std::default_random_engine generator(seed);
 
-  GLAS* glas_a = nullptr;
-  GLAS* glas_b = nullptr;
+  GLAS glas_a(generator);
+  GLAS glas_b(generator);
   if (!inputFileNN.empty()) {
     YAML::Node cfg_nn = YAML::LoadFile(inputFileNN);
 
-    glas_a = new GLAS(cfg_nn["team_a"], generator);
-    glas_b = new GLAS(cfg_nn["team_b"], generator);
+    glas_a.load(cfg_nn["team_a"]);
+    glas_b.load(cfg_nn["team_b"]);
   }
 
-  int numAttackers = config["num_nodes_A"].as<int>();
-  int numDefenders = config["num_nodes_B"].as<int>();
-
-  if (numAttackers == 1 && numDefenders == 1) {
-    runMCTS<1,1>(config, outputFile, generator, glas_a, glas_b);
-  }
-  else if (numAttackers == 2 && numDefenders == 1) {
-    runMCTS<2,1>(config, outputFile, generator, glas_a, glas_b);
-  }
-  else if (numAttackers == 1 && numDefenders == 2) {
-    runMCTS<1,2>(config, outputFile, generator, glas_a, glas_b);
-  }
-  else if (numAttackers == 2 && numDefenders == 2) {
-    runMCTS<2,2>(config, outputFile, generator, glas_a, glas_b);
-  } else {
-    std::cerr << "Need to recompile for " << numAttackers << "," << numDefenders << std::endl;
-    return 1;
-  }
+  runMCTS(config, outputFile, generator, glas_a, glas_b);
 
   return 0;
 }

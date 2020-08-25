@@ -1,6 +1,9 @@
 
 import numpy as np 
 import itertools, copy
+import random
+import os,sys
+from math import cos, sin 
 
 class Param:
 
@@ -13,12 +16,15 @@ class Param:
 		self.attacker_name 		= 'attacker/empty.py' 				# empty, ...
 		self.controller_name 	= 'controller/glas.py'			 	# empty, glas, joint_mpc, mcts, ...
 
+		self.seed = int.from_bytes(os.urandom(4), sys.byteorder)
+
 		# flags
-		self.gif_on 	= False
-		self.quiet_on 	= False
+		self.gif_on 	 = False
+		self.quiet_on 	 = False
+		self.parallel_on = True
 
 		# sim param 
-		self.n_trials = 1
+		self.num_trials = 10
 		self.sim_t0 = 0
 		self.sim_tf = 20
 		self.sim_dt = 0.25
@@ -29,8 +35,8 @@ class Param:
 			'acceleration_limit':0.125,
 			'tag_radius': 0.025,
 			'dynamics':'double_integrator',
-			'r_comm': 1.6,
-			'r_sense': 1.6,
+			'r_comm': 0.4,
+			'r_sense': 1.0,
 		}
 
 		self.evasive_robot = {
@@ -38,27 +44,27 @@ class Param:
 			'acceleration_limit':0.2,
 			'tag_radius': 0.025,
 			'dynamics':'double_integrator',
-			'r_comm': 1.6,
-			'r_sense': 1.6,
+			'r_comm': 0.4,
+			'r_sense': 1.0,
 		}
 
-		self.robot_teams = {
+		self.robot_team_composition = {
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 		}
 		
 		# environment
-		l = 0.5
+		l = 0.5 
 		self.env_xlim = [0,l]
 		self.env_ylim = [0,l]
 		self.reset_xlim_A = [0.1*l,0.9*l]
 		self.reset_ylim_A = [0.1*l,0.9*l]
 		self.reset_xlim_B = [0.1*l,0.9*l]
 		self.reset_ylim_B = [0.1*l,0.9*l]
-		self.goal = np.array([0.5*l,0.5*l])
+		self.goal = np.array([0.75*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 50000
+		self.tree_size = 5000
 		self.fixed_tree_depth_on = False
 		self.fixed_tree_depth = 100
 		self.rollout_horizon = 1000
@@ -112,16 +118,53 @@ class Param:
 		for key,value in some_dict.items():
 			setattr(self,key,value)
 
+	def make_initial_condition(self):
 
-	def update(self):
+		self.state = [] 
+		for robot in self.robots: 
 
+			if robot["team"] == "a":
+				xlim = self.reset_xlim_A
+				ylim = self.reset_ylim_A
+			elif robot["team"] == "b":
+				xlim = self.reset_xlim_B
+				ylim = self.reset_ylim_B
+
+			position = self.get_random_position_inside(xlim,ylim)
+			velocity = self.get_random_velocity_inside(robot["speed_limit"])
+			self.state.append([position[0],position[1],velocity[0],velocity[1]])
+
+
+	def assign_initial_condition(self):
+
+		for robot, x0 in zip(self.robots,self.state): 
+			robot["x0"] = x0
+
+
+	def make_robot_teams(self):
+
+		# make robot teams 
 		self.robots = [] 
-		for team, composition in self.robot_teams.items():
+		for team, composition in self.robot_team_composition.items():
 			for robot_type, robot_number in composition.items():
 				for _ in range(robot_number):
 					robot = copy.copy(self.__dict__[robot_type])
 					robot["team"] = team 
-					self.robots.append(robot)
+					self.robots.append(robot)		
+
+
+	def update(self,initial_condition=None):
+
+		random.seed(self.seed)		
+
+		self.make_robot_teams()
+
+		if initial_condition is None:
+			self.make_initial_condition()
+		else: 
+			self.state = initial_condition
+
+		self.assign_initial_condition()		
 
 		num_nodes_A, num_nodes_B = 0,0
 		for robot in self.robots:
@@ -132,11 +175,7 @@ class Param:
 
 		self.num_nodes_A = num_nodes_A
 		self.num_nodes_B = num_nodes_B
-
-
 		self.num_nodes = self.num_nodes_A + self.num_nodes_B
-		self.sim_times = np.arange(self.sim_t0,self.sim_tf,self.sim_dt)
-		self.sim_nt = len(self.sim_times)
 
 		self.team_1_idxs = []
 		self.team_2_idxs = []
@@ -146,4 +185,24 @@ class Param:
 			else:
 				self.team_2_idxs.append(i) 
 
+		# times 
+		self.sim_times = np.arange(self.sim_t0,self.sim_tf,self.sim_dt)
+		self.sim_nt = len(self.sim_times)
+
+		# actions 
 		self.actions = np.asarray(list(itertools.product(*[[-1,0,1],[-1,0,1]])))
+
+
+	def get_random_position_inside(self,xlim,ylim):
+
+		x = random.random()*(xlim[1] - xlim[0]) + xlim[0]
+		y = random.random()*(ylim[1] - ylim[0]) + ylim[0]
+		
+		return x,y 				
+
+	def get_random_velocity_inside(self,speed_lim):
+
+		th = random.random()*2*np.pi 
+		r  = random.random()*speed_lim
+
+		return r*cos(th), r*sin(th)	

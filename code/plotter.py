@@ -10,6 +10,7 @@ import matplotlib.patches as mpatches
 from matplotlib import cm	
 from matplotlib.backends.backend_pdf import PdfPages 
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+from collections import defaultdict
 
 import matplotlib.transforms as mtransforms
 import cv2
@@ -334,43 +335,111 @@ def plot_dbg_observations(sim_result,observations):
 			ax.plot([abs_pos[0],abs_pos[0] + relative_goal[0]], [abs_pos[1],abs_pos[1] + relative_goal[1]],color=goal_color,alpha=0.1)
 
 
+def plot_sa_pairs(sampled_sa_pairs,sim_result,team):
 
-
-
-def plot_sa_pairs(states,actions,param,instance):
-
-	states = np.asarray(states) # nt x state_dim 
-	actions = np.asarray(actions) # nt x action dim 
-
-	fig,ax = plt.subplots()
+	team_1_idxs = sim_result["param"]["team_1_idxs"]
+	team_2_idxs = sim_result["param"]["team_2_idxs"]
+	action_list = sim_result["param"]["actions"]
+	env_xlim = sim_result["param"]["env_xlim"]
+	env_ylim = sim_result["param"]["env_ylim"]
+	tag_radius = sim_result["param"]["standard_robot"]["tag_radius"]
+	goal = sim_result["param"]["goal"]
 
 	team_1_color = 'blue'
 	team_2_color = 'orange'
+	action_color = 'black'
+	best_action_color = 'red'
 	goal_color = 'green'
 
-	ax.add_patch(mpatches.Circle(param.goal, param.tag_radius, color=goal_color,alpha=0.5))
+	if team == "a":
+		idxs = team_1_idxs
+	else:
+		idxs = team_2_idxs
 
-	for node_idx in range(param.num_nodes):
+	fig,axs = plt.subplots(nrows=3,ncols=3) 
 
-		pos_x_idx = 4*node_idx + 0 
-		pos_y_idx = 4*node_idx + 1 
-		action_idx = 2*node_idx + np.arange(2)
+	for i_ax, (states,actions) in enumerate(sampled_sa_pairs):
 
-		if node_idx in param.team_1_idxs:
-			color = team_1_color
-		elif node_idx in param.team_2_idxs:
-			color = team_2_color
+		ax = axs[ int(np.floor(i_ax/3)), np.remainder(i_ax,3)]
+		ax.set_xlim(env_xlim)
+		ax.set_ylim(env_ylim)
+		ax.set_xticks([])
+		ax.set_yticks([])
+		ax.set_aspect('equal')
 
-		ax.plot(states[:,pos_x_idx],states[:,pos_y_idx],linewidth=3,color=color)
-		ax.scatter(states[:,pos_x_idx],states[:,pos_y_idx],color=color)
+		ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 
-	ax.set_xlim(param.env_xlim)
-	ax.set_ylim(param.env_ylim)
-	ax.grid(True)
-	ax.set_aspect('equal')
-	ax.set_xlabel('pos [m]')
-	ax.set_ylabel('pos [m]')
-	ax.set_title('instance {}'.format(instance))
+		for robot_idx, (state_per_robot, action_per_robot) in enumerate(zip(states,actions)):
+
+			if robot_idx in team_1_idxs:
+				color = team_1_color
+			elif robot_idx in team_2_idxs:
+				color = team_2_color
+
+			ax.scatter(state_per_robot[0],state_per_robot[1],marker='o',color=color)
+			ax.arrow(state_per_robot[0],state_per_robot[1],state_per_robot[2],state_per_robot[3],color=color,alpha=0.5)
+
+			if robot_idx in idxs: 
+
+				for direction, p in zip(action_list,action_per_robot):
+					if p == np.max(action_per_robot):
+						color = best_action_color
+					else: 
+						color = action_color
+
+					dist = np.linalg.norm(direction,2)
+					if dist > 0:
+						ax.arrow(state_per_robot[0],state_per_robot[1],direction[0]*p/dist,direction[1]*p/dist,color=color,alpha=0.5)
+					elif dist == 0:
+						ax.arrow(state_per_robot[0],state_per_robot[1],0,1e-3,color=color,alpha=0.5)
+
+
+def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list):
+
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	action_color = 'black'
+	best_action_color = 'red'
+	goal_color = 'green'
+
+	if team == "a":
+		self_color = team_1_color
+	elif team == "b":
+		self_color = team_2_color
+
+	fig,axs = plt.subplots(nrows=3,ncols=3) 
+
+	for i_ax, (o_a,o_b,goal,actions) in enumerate(sampled_oa_pairs):
+
+		ax = axs[int(np.floor(i_ax/3)), np.remainder(i_ax,3)]
+		ax.set_aspect('equal')
+		ax.set_xticks([])
+		ax.set_yticks([])
+
+		ax.scatter(0,0,color=self_color)
+		ax.scatter(goal[0],goal[1],color=goal_color)
+		ax.add_patch(mpatches.Circle((0,0), rsense, color='black',alpha=0.1))
+
+		num_a = int(o_a.shape[0]/4)
+		num_b = int(o_b.shape[0]/4)
+		for robot_idx in range(num_a):
+			ax.scatter(o_a[robot_idx*4],o_a[robot_idx*4+1],color=team_1_color)
+			ax.arrow(o_a[robot_idx*4],o_a[robot_idx*4+1],o_a[robot_idx*4+2],o_a[robot_idx*4+3],color=team_1_color,alpha=0.5)
+		for robot_idx in range(num_b):
+			ax.scatter(o_b[robot_idx*4],o_b[robot_idx*4+1],color=team_2_color)
+			ax.arrow(o_b[robot_idx*4],o_b[robot_idx*4+1],o_b[robot_idx*4+2],o_b[robot_idx*4+3],color=team_2_color,alpha=0.5)
+		for direction, p in zip(action_list,actions):
+			if p == np.max(actions):
+				color = best_action_color
+			else: 
+				color = action_color
+
+			dist = np.linalg.norm(direction,2)
+			if dist > 0:
+				ax.arrow(0,0,direction[0]*p/dist,direction[1]*p/dist,color=color,alpha=0.5)
+			elif dist == 0:
+				ax.arrow(0,0,0,1e-3,color=color,alpha=0.5)
+
 
 
 def plot_loss(losses,team):
@@ -442,8 +511,9 @@ def plot_tree_results(sim_result,title=None):
 		for t in range(states.shape[0]):
 			ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
 				color=colors[i],alpha=0.2,fill=False))
+			ax.arrow(states[t,i,0],states[t,i,1],states[t,i,2],states[t,i,3],color=colors[i])
 		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
-		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i])
+		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i],alpha=0.75)
 	ax.set_xlim([env_xlim[0],env_xlim[1]])
 	ax.set_ylim([env_ylim[0],env_ylim[1]])
 
@@ -471,61 +541,293 @@ def plot_tree_results(sim_result,title=None):
 		ax.axhline(sim_result["param"]["robots"][i]["acceleration_limit"],color=colors[i],linestyle='--')
 		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=colors[i])
 
+	if title is not None: 
+		fig.suptitle(title)
+
 	fig.tight_layout()
 
 	if title is not None: 
 		fig.suptitle(title)
 
-def plot_exp1_results(sim_results):
+def plot_exp1_results(all_sim_results):
 
-	plotted = []
-	for sim_result_1 in sim_results: 
+	# group by tree size, rollout policy and case number 
+	results = defaultdict(list)
+	tree_sizes = set()
+	cases = set()
+	for sim_result in all_sim_results:
 
-		if not sim_result_1 in plotted: 
+		tree_size = sim_result["param"]["tree_size"]
+		policy = sim_result["param"]["glas_rollout_on"]
+		case = sim_result["param"]["case"]
+
+		tree_sizes.add(tree_size)
+		cases.add(case)
+
+		key = (tree_size,policy,case)
+		results[key].append(sim_result)
+		
+	tree_sizes = np.array(list(tree_sizes))
+	tree_sizes = np.sort(tree_sizes)
+
+	num_trials = np.min((10,sim_result["param"]["num_trials"]))
+	num_trials_per_fig = 4 
+
+	for case in cases: 
+
+		for glas_rollout_on in sim_result["param"]["glas_rollout_on_cases"]:
+
+			policy = 'GLAS' if glas_rollout_on else 'Random'
+			suptitle = 'Rollout: {}, Case: {}'.format(policy,case)
+
+			for i_trial in range(num_trials):
+
+				if i_trial % num_trials_per_fig == 0:
+					fig, axs = plt.subplots(nrows=np.min((num_trials_per_fig,num_trials - i_trial)),ncols=tree_sizes.shape[0],sharex='col', sharey='row')
+					fig.suptitle(suptitle)
+				
+				for i_tree,tree_size in enumerate(tree_sizes):
 			
-			found = False 
-			for sim_result_2 in sim_results: 
-				if not sim_result_1 is sim_result_2 and sim_result_1["param"]["seed"] == sim_result_2["param"]["seed"]:
-					found = True 
-					break 
+					key = (tree_size,glas_rollout_on,case)
+					sim_result = results[key][i_trial]
 
-			if not found:
-				exit('not found')
+					times = sim_result["times"]
+					states = sim_result["states"]
+					team_1_idxs = sim_result["param"]["team_1_idxs"]
+					num_nodes = sim_result["param"]["num_nodes"]
+					goal = sim_result["param"]["goal"]
+					tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+					env_xlim = sim_result["param"]["env_xlim"]	
+					env_ylim = sim_result["param"]["env_ylim"]	
 
-			fig,axs = plt.subplots(nrows=1,ncols=2) 
-			for k, sim_result in enumerate([sim_result_1,sim_result_2]):
-				plotted.append(sim_result)
+					team_1_color = 'blue'
+					team_2_color = 'orange'
+					goal_color = 'green'
 
-				times = sim_result["times"]
-				states = sim_result["states"]
-				team_1_idxs = sim_result["param"]["team_1_idxs"]
-				num_nodes = sim_result["param"]["num_nodes"]
-				goal = sim_result["param"]["goal"]
-				tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
-				title = sim_result["param"]["sim_results_fig_title"]	
-				env_xlim = sim_result["param"]["env_xlim"]	
-				env_ylim = sim_result["param"]["env_ylim"]	
+					colors = get_colors(sim_result["param"])
 
-				team_1_color = 'blue'
-				team_2_color = 'orange'
-				goal_color = 'green'
+					ax = axs[i_trial % num_trials_per_fig,i_tree]
 
-				colors = get_colors(sim_result["param"])
+					# state space
+					ax.grid(True)
+					ax.set_aspect('equal')
+					ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
+					for i in range(num_nodes):
+						for t in range(states.shape[0]):
+							ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
+								color=colors[i],alpha=0.2,fill=False))
+						ax.plot(states[:,i,0],states[:,i,1],linewidth=1,color=colors[i])
+						ax.scatter(states[:,i,0],states[:,i,1],s=10,marker='o',color=colors[i])
+					ax.set_xlim([env_xlim[0],env_xlim[1]])
+					ax.set_ylim([env_ylim[0],env_ylim[1]])
 
-				# state space
-				ax = axs[k]
-				ax.grid(True)
-				ax.set_aspect('equal')
-				ax.set_title(title)
-				ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
-				for i in range(num_nodes):
-					for t in range(states.shape[0]):
-						ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
-							color=colors[i],alpha=0.2,fill=False))
-					ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
-					ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i])
-				ax.set_xlim([env_xlim[0],env_xlim[1]])
-				ax.set_ylim([env_ylim[0],env_ylim[1]])
+					ax.set_xticklabels([""])
+					ax.set_yticklabels([""])
+
+					if i_trial % num_trials_per_fig == 0: 
+						ax.set_title('{}K'.format(tree_size/1000))
+
+					if i_tree == 0: 
+						ax.set_ylabel('Trial {}'.format(i_trial))
+
+			fig.tight_layout()
+
+
+def plot_exp2_results(all_sim_results):
+
+	training_teams = all_sim_results[0]["param"]["training_teams"]
+	modes = all_sim_results[0]["param"]["modes"]
+	tree_sizes = all_sim_results[0]["param"]["tree_sizes"]
+	num_trials = all_sim_results[0]["param"]["num_trials"]
+	team_comps = all_sim_results[0]["param"]["robot_team_compositions"]
+
+	# put into easy-to-use dict! 
+	results = dict()
+
+	for sim_result in all_sim_results:
+
+		team_comp = sim_result["param"]["robot_team_composition"]
+		mode = sim_result["param"]["mode"]
+		tree_size = sim_result["param"]["tree_size"]
+		training_team = sim_result["param"]["training_team"]
+		trial = sim_result["param"]["trial"]
+
+		num_nodes_A, num_nodes_B = 0,0
+		for robot_type, robot_number in team_comp["a"].items():
+			num_nodes_A += robot_number 
+		for robot_Type, robot_number in team_comp["b"].items():
+			num_nodes_B += robot_number 
+
+
+		key = (num_nodes_A,num_nodes_B,tree_size,training_team,mode,trial)
+		# key = (tree_size,mode)
+		results[key] = sim_result
+
+	# make figs! 
+	for team_comp in team_comps: 
+
+		num_nodes_A, num_nodes_B = 0,0
+		for robot_type, robot_number in team_comp["a"].items():
+			num_nodes_A += robot_number 
+		for robot_Type, robot_number in team_comp["b"].items():
+			num_nodes_B += robot_number 
+
+		for i_trial in range(num_trials):
+
+			# plot initial condition
+			fig,ax = plt.subplots()
+			key = (num_nodes_A,num_nodes_B,tree_sizes[0],training_team,modes[0],i_trial)
+			fig.suptitle('Trial {}'.format(results[key]["param"]["curr_ic"]))
+			colors = get_colors(results[key]["param"])
+			ax.scatter(results[key]["param"]["goal"][0],results[key]["param"]["goal"][1],color='green',marker='o',label='goal')
+			for robot_idx in range(results[key]["param"]["num_nodes"]):
+				ax.scatter(results[key]["states"][0,robot_idx,0],results[key]["states"][0,robot_idx,1],marker='o',color=colors[robot_idx],label=str(robot_idx))
+				ax.arrow(results[key]["states"][0,robot_idx,0], results[key]["states"][0,robot_idx,1], \
+					results[key]["states"][0,robot_idx,2], results[key]["states"][0,robot_idx,3], color=colors[robot_idx])
+			ax.set_xlim([results[key]["param"]["env_xlim"][0],results[key]["param"]["env_xlim"][1]])
+			ax.set_ylim([results[key]["param"]["env_ylim"][0],results[key]["param"]["env_ylim"][1]])
+			ax.grid(True)
+			ax.set_aspect('equal')
+			ax.legend(loc='upper left')
+
+			for training_team in training_teams: 
+				
+				if training_team == "a":
+					robot_idxs = np.arange(num_nodes_A)
+				elif training_team == "b":
+					robot_idxs = np.arange(num_nodes_B) + num_nodes_A 
+
+				for robot_idx in robot_idxs: 
+	
+					# plot policy distribution
+					fig, axs = plt.subplots(nrows=1,ncols=len(modes))
+					fig.suptitle('Trial {} Robot {}'.format(results[key]["param"]["curr_ic"],robot_idx))
+
+					for i_mode, mode in enumerate(modes): 
+
+						im = np.nan*np.ones((len(tree_sizes),9))
+
+						for i_tree, tree_size in enumerate(tree_sizes): 
+
+							key = (num_nodes_A,num_nodes_B,tree_size,training_team,mode,i_trial)
+							# key = (tree_size,mode)
+
+							if len(modes) > 1:
+								ax = axs[i_mode]
+							else:
+								ax = axs 
+
+							# results[key]["actions"] in num_points x nagents x action_dim 
+
+							im[i_tree,:] = results[key]["actions"][0,robot_idx,:] 
+							imobj = ax.imshow(im.T,vmin=0,vmax=0.5,cmap=cm.coolwarm)
+							# imobj = ax.imshow(im.T,cmap=cm.coolwarm)
+
+							ax.set_xticks([])
+							ax.set_yticks([])
+
+						if i_mode == 0:
+							ax.set_ylabel('Action Distribution')
+							ax.set_yticks(np.arange(len(results[key]["param"]["actions"]))) # throws future warning 
+							ax.set_yticklabels(results[key]["param"]["actions"])
+
+						if i_mode == len(modes)-1 :
+							fig.subplots_adjust(right=0.8)
+							cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+							fig.colorbar(imobj, cax=cbar_ax) 
+
+						ax.set_title(mode)
+						ax.set_xticks(np.arange(len(tree_sizes)))
+						ax.set_xticklabels(np.array(tree_sizes,dtype=int)/1000,rotation=45)
+						# ax.set_xlabel('Tree Size [K]')
+
+
+
+def plot_convergence(all_sim_results):
+
+	def extract_reward(sim_result,longest_rollout):
+		nt = np.shape(sim_result["rewards"])[0]
+		reward = (np.sum(sim_result["rewards"][:,0]) + sim_result["rewards"][-1,0]*(longest_rollout-nt))/longest_rollout
+		return reward 
+
+	# group by tree size, rollout policy and case number 
+	results = defaultdict(list)
+	longest_rollout = defaultdict(int)
+	tree_sizes = set()
+	cases = set()
+	for sim_result in all_sim_results:
+
+		tree_size = sim_result["param"]["tree_size"]
+		policy = sim_result["param"]["glas_rollout_on"]
+		case = sim_result["param"]["case"]
+
+		tree_sizes.add(tree_size)
+		cases.add(case)
+
+		key = (tree_size,policy,case)
+		results[key].append(sim_result)
+		
+		if longest_rollout[case] < sim_result["times"].shape[0]:
+			longest_rollout[case] = sim_result["times"].shape[0]
+
+	tree_sizes = np.array(list(tree_sizes))
+	tree_sizes = np.sort(tree_sizes)
+	cases = np.array(list(cases))
+	cases = np.sort(cases)	
+
+	for case in cases: 
+
+		to_plots = defaultdict(list)
+		for key,sim_results in results.items():
+
+			if key[2] == case: 
+
+				reward_stats = [] 
+				for sim_result in sim_results: 
+					reward_stats.append(extract_reward(sim_result,longest_rollout[case]))
+
+				tree_size = key[0]
+				policy = key[1]
+				case = key[2]
+				reward_stats = np.array(reward_stats)
+				reward_mean = np.mean(reward_stats)
+				reward_std = np.std(reward_stats)
+
+				to_plots[policy,case].append((tree_size,reward_mean,reward_std))
+
+				print('key',key)
+				print('reward_stats',reward_stats)
+				print('reward_mean',reward_mean)
+				print('reward_std',reward_std)
+				print('')
+
+		fig,ax = plt.subplots()
+		ax.set_title('Case {}'.format(str(case)))
+		ax.set_xscale('log')
+		ax.grid(True)
+		ax.set_ylim([0,1])
+		ax.set_ylabel('Reward')
+		ax.set_xlabel('Tree Size (K)')
+
+		for (glas_on,case),to_plot in to_plots.items():
+
+			if glas_on: 
+				label = 'GLAS'
+				color = 'blue'
+			else:
+				label = 'Random'
+				color = 'orange'
+
+			to_plot = np.array(to_plot)
+			to_plot = to_plot[to_plot[:,0].argsort()]
+
+			ax.plot(to_plot[:,0],to_plot[:,1],marker='o',label=label,color=color)
+			ax.fill_between(to_plot[:,0], to_plot[:,1]-to_plot[:,2], to_plot[:,1]+to_plot[:,2],color=color,alpha=0.5)
+			ax.set_xticks(to_plot[:,0])
+			ax.set_xticklabels(to_plot[:,0]/1000)
+
+		ax.legend()
+
 
 def rotate_image(image, angle):
 	''' 

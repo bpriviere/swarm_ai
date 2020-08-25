@@ -12,6 +12,16 @@ public:
     ReachedGoal = 2,
   };
 
+  RobotState() = default;
+
+  RobotState(
+    const Eigen::Vector2f& p,
+    const Eigen::Vector2f& v)
+    : position(p)
+    , velocity(v)
+    , status(Status::Active)
+  {}
+
   Eigen::Vector2f position; // m
   Eigen::Vector2f velocity; // m/s
   Status status;

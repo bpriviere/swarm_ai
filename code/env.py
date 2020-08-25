@@ -79,26 +79,18 @@ class Swarm(Env):
 			node = dict()
 
 			for key,value in robot.items():
-				node[key] = value 
+				if key == "x0":
+					node["state"] = np.asarray(value)[:,np.newaxis] 
+				else:
+					node[key] = value 
 
-			if idx < self.param.num_nodes_A:
-				node["team_A"] = True
+			if node["team"] == "a":
+				node["team_A"] = True 
 				node["team_B"] = False
-				xlim = self.param.reset_xlim_A
-				ylim = self.param.reset_ylim_A
 			else: 
 				node["team_A"] = False
 				node["team_B"] = True
-				xlim = self.param.reset_xlim_B
-				ylim = self.param.reset_ylim_B
 
-			position = self.get_random_position_inside(xlim,ylim)
-			velocity = self.get_random_velocity_inside(node["speed_limit"])
-			node["state"] = np.array([
-				[position[0]],
-				[position[1]],
-				[velocity[0]],
-				[velocity[1]]])
 			node["idx"] = idx
 			node["global_state_idxs"] = state_dim + np.arange(4)
 			node["global_control_idxs"] = control_dim + np.arange(2)

@@ -67,7 +67,8 @@ def write_oa_batch(batched_dataset,batch_fn):
 def read_oa_batch(fn,datadir):
 	data = np.load(fn)
 
-	key = fn.split(datadir)[-1]
+	# key = fn.split(datadir)[-1]
+	key = os.path.basename(fn)
 	key = key.split('_')
 	num_a = int(key[2].split('a')[0])
 	num_b = int(key[3].split('b')[0])

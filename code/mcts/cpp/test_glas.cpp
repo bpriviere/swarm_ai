@@ -12,13 +12,12 @@
 #include "Game.hpp"
 #include "GLAS.hpp"
 
-template <std::size_t NumAttackers, std::size_t NumDefenders>
 void runGame(
   const YAML::Node& config,
   const YAML::Node& cfg_nn,
   const std::string& outputFile)
 {
-  using EnvironmentT = Game<NumAttackers, NumDefenders>;
+  using EnvironmentT = Game;
   using GameStateT = typename EnvironmentT::GameStateT;
   using GameActionT = typename EnvironmentT::GameActionT;
 
@@ -32,35 +31,20 @@ void runGame(
   std::cout << "Using seed " << seed << std::endl;
   std::default_random_engine generator(seed);
 
+  int NumAttackers = config["num_nodes_A"].as<int>();
+  int NumDefenders = config["num_nodes_B"].as<int>();
+
   GameStateT state;
+  state.attackers.resize(NumAttackers);
+  state.defenders.resize(NumDefenders);
 
   state.turn = GameStateT::Turn::Attackers;
-  state.activeMask.set();
+  state.activeMask = 0;
   state.depth = 0;
   state.attackersReward = 0;
   state.defendersReward = 0;
-  std::uniform_real_distribution<float> xPosDist(config["reset_xlim_A"][0].as<float>(),config["reset_xlim_A"][1].as<float>());
-  std::uniform_real_distribution<float> yPosDist(config["reset_ylim_A"][0].as<float>(),config["reset_ylim_A"][1].as<float>());
-  // std::uniform_real_distribution<float> velDist(-config["speed_limit_a"].as<float>() / sqrtf(2.0), config["speed_limit_a"].as<float>() / sqrtf(2.0));
-  for (size_t i = 0; i < NumAttackers; ++i) {
-    state.attackers[i].status = RobotState::Status::Active;
-    state.attackers[i].position << xPosDist(generator),yPosDist(generator);
-    // state.attackers[i].velocity << velDist(generator),velDist(generator);
-    state.attackers[i].velocity << 0,0;
-  }
-  xPosDist = std::uniform_real_distribution<float>(config["reset_xlim_B"][0].as<float>(),config["reset_xlim_B"][1].as<float>());
-  yPosDist = std::uniform_real_distribution<float>(config["reset_ylim_B"][0].as<float>(),config["reset_ylim_B"][1].as<float>());
-  // velDist = std::uniform_real_distribution<float>(-config["speed_limit_b"].as<float>() / sqrtf(2.0), config["speed_limit_b"].as<float>() / sqrtf(2.0));
-  for (size_t i = 0; i < NumDefenders; ++i) {
-    state.defenders[i].status = RobotState::Status::Active;
-    state.defenders[i].position << xPosDist(generator),yPosDist(generator);
-    // state.defenders[i].velocity << velDist(generator),velDist(generator);
-    state.defenders[i].velocity << 0,0;
-  }
 
-  std::cout << state << std::endl;
-
-  std::array<RobotType, NumAttackers> attackerTypes;
+  std::vector<RobotType> attackerTypes(NumAttackers);
   for (size_t i = 0; i < NumAttackers; ++i) {
     const auto& node = config["robots"][i];
     attackerTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -70,8 +54,15 @@ void runGame(
     attackerTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
     attackerTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     attackerTypes[i].init();
+
+    state.attackers[i].status = RobotState::Status::Active;
+    assert(i<32);
+    state.activeMask |= (1<<i);
+    state.attackers[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
+    state.attackers[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
+
   }
-  std::array<RobotType, NumDefenders> defenderTypes;
+  std::vector<RobotType> defenderTypes(NumDefenders);
   for (size_t i = 0; i < NumDefenders; ++i) {
     const auto& node = config["robots"][i+NumAttackers];
     defenderTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -81,17 +72,25 @@ void runGame(
     defenderTypes[i].tag_radiusSquared = powf(node["tag_radius"].as<float>(), 2);
     defenderTypes[i].r_senseSquared = powf(node["r_sense"].as<float>(), 2);
     defenderTypes[i].init();
+
+    state.defenders[i].status = RobotState::Status::Active;
+    state.defenders[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
+    state.defenders[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
   }
+  std::cout << state << std::endl;
 
   float dt = config["sim_dt"].as<float>();
   Eigen::Vector2f goal;
   goal << config["goal"][0].as<float>(),config["goal"][1].as<float>();
 
-  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, 1e6, generator, nullptr, nullptr);
-
   // load GLAS
-  GLAS glas_a(cfg_nn["team_a"], generator);
-  GLAS glas_b(cfg_nn["team_b"], generator);
+  GLAS glas_a(generator);
+  glas_a.load(cfg_nn["team_a"]);
+  GLAS glas_b(generator);
+  glas_b.load(cfg_nn["team_b"]);
+
+  EnvironmentT env(attackerTypes, defenderTypes, dt, goal, 1e6, generator, glas_a, glas_b, 0.0);
+
 
   // std::vector<Eigen::Vector4f> input_a(1);
   // input_a[0] << 0,0,0,0;
@@ -124,7 +123,7 @@ void runGame(
   Eigen::Vector4f relGoal;
   for(int i = 0; ; ++i) {
 
-    action = computeActionsWithGLAS(glas_a, glas_b, state, goal, attackerTypes, defenderTypes, generator);
+    action = computeActionsWithGLAS(glas_a, glas_b, state, goal, attackerTypes, defenderTypes, generator, true);
 
     // output state & action
 
@@ -187,24 +186,7 @@ int main(int argc, char* argv[]) {
   YAML::Node config = YAML::LoadFile(inputFile);
   YAML::Node cfg_nn = YAML::LoadFile(inputFileNN);
 
-  int numAttackers = config["num_nodes_A"].as<int>();
-  int numDefenders = config["num_nodes_B"].as<int>();
-
-  if (numAttackers == 1 && numDefenders == 1) {
-    runGame<1,1>(config, cfg_nn, outputFile);
-  }
-  else if (numAttackers == 2 && numDefenders == 1) {
-    runGame<2,1>(config, cfg_nn, outputFile);
-  }
-  else if (numAttackers == 1 && numDefenders == 2) {
-    runGame<1,2>(config, cfg_nn, outputFile);
-  }
-  else if (numAttackers == 2 && numDefenders == 2) {
-    runGame<2,2>(config, cfg_nn, outputFile);
-  } else {
-    std::cerr << "Need to recompile for " << numAttackers << "," << numDefenders << std::endl;
-    return 1;
-  }
+  runGame(config, cfg_nn, outputFile);
 
   return 0;
 }
