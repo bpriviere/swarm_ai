@@ -9,20 +9,38 @@ public:
   RobotStateDoubleIntegrator2D() = default;
 
   RobotStateDoubleIntegrator2D(
-    const Eigen::Vector2f& p,
-    const Eigen::Vector2f& v)
-    : RobotState(p)
-    , velocity(v)
-  {}
+    const Eigen::Vector4f& s)
+    : RobotState()
+    , state(s)
+  {
+    status = Status::Active;
+  }
 
-  Eigen::Vector2f velocity; // m/s
+  // x, y, vx, vy
+  Eigen::Vector4f state;
+
+  const auto position() const {
+    return state.segment<2>(0);
+  }
+
+  auto position() {
+    return state.segment<2>(0);
+  }
+
+  const auto velocity() const {
+    return state.segment<2>(2);
+  }
+
+  auto velocity() {
+    return state.segment<2>(2);
+  }
 
   friend std::ostream& operator<<(std::ostream& out, const RobotStateDoubleIntegrator2D& s)
   {
     Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");
 
-    out << "RobotStateDI2D(p=" << s.position.format(fmt)
-        << ",v=" << s.velocity.format(fmt)
+    out << "RobotState(p=" << s.position().format(fmt)
+        << ",v=" << s.velocity().format(fmt)
         << "," << s.status << ")";
     return out;
   }
@@ -61,18 +79,18 @@ public:
     float dt,
     RobotStateDoubleIntegrator2D& result) const
   {
-    result.position = state.position + state.velocity * dt;
-    Eigen::Vector2f velocity = state.velocity + action * dt;
+    result.position() = state.position() + state.velocity() * dt;
+    Eigen::Vector2f velocity = state.velocity() + action * dt;
 
     float alpha = velocity.norm() / velocity_limit;
-    result.velocity = velocity / std::max(alpha, 1.0f);
+    result.velocity() = velocity / std::max(alpha, 1.0f);
     // result.velocity = clip(velocity, -velocity_limit, velocity_limit);
     // result.velocity = velocity.cwiseMin(velocity_limit).cwiseMax(-velocity_limit);
   }
 
   bool isStateValid(const RobotStateDoubleIntegrator2D& state) const
   {
-    return (state.position.array() >= p_min.array()).all() && (state.position.array() <= p_max.array()).all();
+    return (state.position().array() >= p_min.array()).all() && (state.position().array() <= p_max.array()).all();
   }
 
   void init()

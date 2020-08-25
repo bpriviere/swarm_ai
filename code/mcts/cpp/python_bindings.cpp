@@ -92,9 +92,10 @@ PYBIND11_MODULE(mctscpp, m) {
     .value("ReachedGoal", RobotState::Status::ReachedGoal);
 
   robotState.def(py::init())
-    .def(py::init<const Eigen::Vector2f&, const Eigen::Vector2f&>())
-    .def_readwrite("position", &RobotStateT::position)
-    .def_readwrite("velocity", &RobotStateT::velocity)
+    .def(py::init<const Eigen::Vector4f&>())
+    // .def_property_readonly("position", &RobotStateT::position)
+    // .def_property_readonly("velocity", &RobotStateT::velocity)
+    .def_readwrite("state", &RobotStateT::state)
     .def_readwrite("status", &RobotStateT::status)
     .def("__repr__", &toString<RobotStateT>);
 

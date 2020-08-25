@@ -285,9 +285,7 @@ std::vector<typename Robot::Action> computeActionsWithGLAS(
     input_a.clear();
     for (size_t j2 = 0; j2 < NumAttackers; ++j2) {
       if (j != j2) {
-        Eigen::Vector4f relState;
-        relState.segment(0,2) = state.attackers[j2].position - state.attackers[j].position;
-        relState.segment(2,2) = state.attackers[j2].velocity - state.attackers[j].velocity;
+        Eigen::Vector4f relState = state.attackers[j2].state - state.attackers[j].state;
         if (relState.segment(0,2).squaredNorm() <= attackerTypes[j].r_senseSquared) {
           input_a.push_back(relState);
         }
@@ -296,16 +294,14 @@ std::vector<typename Robot::Action> computeActionsWithGLAS(
     // compute input_b
     input_b.clear();
     for (size_t j2 = 0; j2 < NumDefenders; ++j2) {
-      Eigen::Vector4f relState;
-      relState.segment(0,2) = state.defenders[j2].position - state.attackers[j].position;
-      relState.segment(2,2) = state.defenders[j2].velocity - state.attackers[j].velocity;
+      Eigen::Vector4f relState = state.defenders[j2].state - state.attackers[j].state;
       if (relState.segment(0,2).squaredNorm() <= attackerTypes[j].r_senseSquared) {
         input_b.push_back(relState);
       }
     }
     // compute relGoal
-    relGoal.segment(0,2) = goal - state.attackers[j].position;
-    relGoal.segment(2,2) = -state.attackers[j].velocity;
+    relGoal.segment(0,2) = goal - state.attackers[j].position();
+    relGoal.segment(2,2) = -state.attackers[j].velocity();
 
     // projecting goal to radius of sensing
     float alpha = sqrtf(relGoal.segment(0,2).squaredNorm() / attackerTypes[j].r_senseSquared);
@@ -321,9 +317,7 @@ std::vector<typename Robot::Action> computeActionsWithGLAS(
     // compute input_a
     input_a.clear();
     for (size_t j2 = 0; j2 < NumAttackers; ++j2) {
-      Eigen::Vector4f relState;
-      relState.segment(0,2) = state.attackers[j2].position - state.defenders[j].position;
-      relState.segment(2,2) = state.attackers[j2].velocity - state.defenders[j].velocity;
+      Eigen::Vector4f relState = state.attackers[j2].state - state.defenders[j].state;
       if (relState.segment(0,2).squaredNorm() <= defenderTypes[j].r_senseSquared) {
         input_a.push_back(relState);
       }
@@ -332,17 +326,15 @@ std::vector<typename Robot::Action> computeActionsWithGLAS(
     input_b.clear();
     for (size_t j2 = 0; j2 < NumDefenders; ++j2) {
       if (j != j2) {
-        Eigen::Vector4f relState;
-        relState.segment(0,2) = state.defenders[j2].position - state.defenders[j].position;
-        relState.segment(2,2) = state.defenders[j2].velocity - state.defenders[j].velocity;
+        Eigen::Vector4f relState = state.defenders[j2].state - state.defenders[j].state;
         if (relState.segment(0,2).squaredNorm() <= defenderTypes[j].r_senseSquared) {
           input_b.push_back(relState);
         }
       }
     }
     // compute relGoal
-    relGoal.segment(0,2) = goal - state.defenders[j].position;
-    relGoal.segment(2,2) = -state.defenders[j].velocity;
+    relGoal.segment(0,2) = goal - state.defenders[j].position();
+    relGoal.segment(2,2) = -state.defenders[j].velocity();
 
     // projecting goal to radius of sensing
     float alpha = sqrtf(relGoal.segment(0,2).squaredNorm() / defenderTypes[j].r_senseSquared);

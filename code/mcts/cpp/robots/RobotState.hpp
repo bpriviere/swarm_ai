@@ -14,14 +14,7 @@ public:
 
   RobotState() = default;
 
-  RobotState(
-    const Eigen::Vector2f& p)
-    : status(Status::Active)
-    , position(p)
-  {}
-
   Status status;
-  Eigen::Vector2f position; // m
 
   friend std::ostream& operator<<(std::ostream& out, const RobotState::Status& s)
   {

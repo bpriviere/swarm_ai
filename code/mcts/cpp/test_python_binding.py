@@ -34,20 +34,16 @@ def createGLAS(file, generator):
 
 if __name__ == '__main__':
 	seed = 10
-	mode = "MCTS_GLAS" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
+	mode = "MCTS_RANDOM" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
 	num_nodes = 10000
 
 	# test RobotState
-	rs = mctscpp.RobotState([0,1],[2,3])
-	print(rs)
-	rs.position=[0.5,1.5]
-	rs.velocity=np.array([2.5,3.5])
-	rs.status = mctscpp.RobotState.Status.ReachedGoal
+	rs = mctscpp.RobotState([0,1,2,3])
 	print(rs)
 
 	# test GameState
-	attackers = [mctscpp.RobotState([0.05,0.25],[0,0])]
-	defenders = [mctscpp.RobotState([0.3,0.25],[0,0])]
+	attackers = [mctscpp.RobotState([0.05,0.25,0,0])]
+	defenders = [mctscpp.RobotState([0.3,0.25,0,0])]
 	gs = mctscpp.GameState(mctscpp.GameState.Turn.Attackers,attackers,defenders)
 	print(gs)
 
@@ -93,8 +89,8 @@ if __name__ == '__main__':
 		gs.depth = 0;
 		# print(gs)
 		result.append([
-			[rs.position.copy() for rs in gs.attackers],
-			[rs.position.copy() for rs in gs.defenders]])
+			[rs.state[0:2].copy() for rs in gs.attackers],
+			[rs.state[0:2].copy() for rs in gs.defenders]])
 		if "MCTS" in mode:
 			mctsresult = mctscpp.search(g, gs, generator, num_nodes)
 			if mctsresult.success:
@@ -108,8 +104,8 @@ if __name__ == '__main__':
 					actionIdx = 1
 					robots = gs.defenders
 				for robot in robots:
-					x = robot.position[0]
-					y = robot.position[1]
+					x = robot.state[0]
+					y = robot.state[1]
 					for action, value in mctsresult.valuePerAction:
 						dx = action[actionIdx][0]
 						dy = action[actionIdx][1]
@@ -136,8 +132,8 @@ if __name__ == '__main__':
 			if g.isTerminal(gs):
 				print(gs)
 				result.append([
-					[rs.position.copy() for rs in gs.attackers],
-					[rs.position.copy() for rs in gs.defenders]])
+					[rs.state[0:2].copy() for rs in gs.attackers],
+					[rs.state[0:2].copy() for rs in gs.defenders]])
 				break
 		else:
 			break

@@ -112,7 +112,7 @@ class Game {
     // Update status
     for (size_t i = 0; i < NumAttackers; ++i) {
       if (nextState.attackers[i].status == RobotStateT::Status::Active) {
-        float distToGoalSquared = (nextState.attackers[i].position - m_goal).squaredNorm();
+        float distToGoalSquared = (nextState.attackers[i].position() - m_goal).squaredNorm();
         if (distToGoalSquared <= m_attackerTypes[i].tag_radiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
           nextState.attackers[i].status = RobotStateT::Status::ReachedGoal;
@@ -121,7 +121,7 @@ class Game {
 
         for (size_t j = 0; j < NumDefenders; ++j) {
           if (nextState.defenders[j].status == RobotStateT::Status::Active) {
-            float distToDefenderSquared = (nextState.attackers[i].position - nextState.defenders[j].position).squaredNorm();
+            float distToDefenderSquared = (nextState.attackers[i].position() - nextState.defenders[j].position()).squaredNorm();
             if (distToDefenderSquared <= m_defenderTypes[j].tag_radiusSquared) {
               nextState.attackers[i].status = RobotStateT::Status::Captured;
               nextState.activeMask &= ~(1 << i); // reset bit i

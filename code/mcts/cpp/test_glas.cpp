@@ -66,8 +66,8 @@ void runGame(
     state.attackers[i].status = RobotState::Status::Active;
     assert(i<32);
     state.activeMask |= (1<<i);
-    state.attackers[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
-    state.attackers[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
+    state.attackers[i].state << node["x0"][0].as<float>(),node["x0"][1].as<float>()
+                              , node["x0"][2].as<float>(),node["x0"][3].as<float>();
 
   }
   std::vector<RobotTypeT> defenderTypes(NumDefenders);
@@ -82,8 +82,8 @@ void runGame(
     defenderTypes[i].init();
 
     state.defenders[i].status = RobotState::Status::Active;
-    state.defenders[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
-    state.defenders[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
+    state.defenders[i].state << node["x0"][0].as<float>(),node["x0"][1].as<float>()
+                              , node["x0"][2].as<float>(),node["x0"][3].as<float>();
   }
   std::cout << state << std::endl;
 
@@ -136,13 +136,13 @@ void runGame(
     // output state & action
 
     for (size_t j = 0; j < NumAttackers; ++j) {
-      out << state.attackers[j].position(0) << "," << state.attackers[j].position(1) << ","
-          << state.attackers[j].velocity(0) << "," << state.attackers[j].velocity(1) << ","
+      out << state.attackers[j].state(0) << "," << state.attackers[j].state(1) << ","
+          << state.attackers[j].state(2) << "," << state.attackers[j].state(3) << ","
           << action[j](0) << "," << action[j](1) << ",";
     }
     for (size_t j = 0; j < NumDefenders; ++j) {
-      out << state.defenders[j].position(0) << "," << state.defenders[j].position(1) << ","
-          << state.defenders[j].velocity(0) << "," << state.defenders[j].velocity(1) << ","
+      out << state.defenders[j].state(0) << "," << state.defenders[j].state(1) << ","
+          << state.defenders[j].state(2) << "," << state.defenders[j].state(3) << ","
           << action[j+NumAttackers](0) << "," << action[j+NumAttackers](1) << ",";
     }
     out << state.attackersReward / state.depth << ","
