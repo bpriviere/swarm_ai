@@ -7,9 +7,11 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include "robots/RobotState.hpp"
+#include "robots/DoubleIntegrator2D.hpp"
+
+// #include "robots/RobotState.hpp"
 #include "GameState.hpp"
-#include "robots/RobotType.hpp"
+// #include "robots/RobotType.hpp"
 
 #include <yaml-cpp/yaml.h>
 #include "GLAS.hpp"
@@ -18,6 +20,12 @@
 #include "monte_carlo_tree_search.hpp"
 
 namespace py = pybind11;
+
+typedef DoubleIntegrator2D RobotT;
+typedef RobotT::State RobotStateT;
+typedef RobotT::Type RobotTypeT;
+typedef GameState<RobotT> GameStateT;
+typedef Game<RobotT> GameT;
 
 template<class T>
 std::string toString(const T& x) 
@@ -36,19 +44,19 @@ class MCTSResult
 {
 public:
   bool success;
-  Game::GameActionT bestAction;
+  GameT::GameActionT bestAction;
   Reward expectedReward;
-  std::vector<std::pair<Game::GameActionT, float>> valuePerAction;
+  std::vector<std::pair<GameT::GameActionT, float>> valuePerAction;
 };
 
 MCTSResult search(
-  Game& game,
-  const GameState& startState,
+  GameT& game,
+  const GameT::GameStateT& startState,
   std::default_random_engine& generator,
   size_t num_nodes)
 {
   MCTSResult result;
-  libMultiRobotPlanning::MonteCarloTreeSearch<GameState, Game::GameActionT, Reward, Game> mcts(game, generator, num_nodes, 1.4);
+  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(game, generator, num_nodes, 1.4);
   result.success = mcts.search(startState, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
@@ -64,7 +72,7 @@ PYBIND11_MODULE(mctscpp, m) {
   // helper functions
   m.def("createRandomGenerator", &createRandomGenerator);
   m.def("search", &search);
-  m.def("computeActionsWithGLAS", &computeActionsWithGLAS);
+  m.def("computeActionsWithGLAS", &computeActionsWithGLAS<RobotT>);
 
   // helper classes
   py::class_<std::default_random_engine> (m, "default_random_engine");
@@ -76,7 +84,7 @@ PYBIND11_MODULE(mctscpp, m) {
     .def_readonly("valuePerAction", &MCTSResult::valuePerAction);
 
   // RobotState
-  py::class_<RobotState> robotState(m, "RobotState");
+  py::class_<RobotT::State> robotState(m, "RobotState");
 
   py::enum_<RobotState::Status>(robotState, "Status")
     .value("Active", RobotState::Status::Active)
@@ -85,44 +93,44 @@ PYBIND11_MODULE(mctscpp, m) {
 
   robotState.def(py::init())
     .def(py::init<const Eigen::Vector2f&, const Eigen::Vector2f&>())
-    .def_readwrite("position", &RobotState::position)
-    .def_readwrite("velocity", &RobotState::velocity)
-    .def_readwrite("status", &RobotState::status)
-    .def("__repr__", &toString<RobotState>);
+    .def_readwrite("position", &RobotStateT::position)
+    .def_readwrite("velocity", &RobotStateT::velocity)
+    .def_readwrite("status", &RobotStateT::status)
+    .def("__repr__", &toString<RobotStateT>);
 
   // GameState
-  py::class_<GameState> gameState(m, "GameState");
+  py::class_<GameStateT> gameState(m, "GameState");
 
-  py::enum_<GameState::Turn>(gameState, "Turn")
-    .value("Attackers", GameState::Turn::Attackers)
-    .value("Defenders", GameState::Turn::Defenders);
+  py::enum_<GameStateT::Turn>(gameState, "Turn")
+    .value("Attackers", GameStateT::Turn::Attackers)
+    .value("Defenders", GameStateT::Turn::Defenders);
 
   gameState.def(py::init())
     .def(py::init<
-      GameState::Turn&,
-      const std::vector<RobotState>&,
-      const std::vector<RobotState>&>())
-    .def_readwrite("turn", &GameState::turn)
-    .def_readwrite("attackers", &GameState::attackers)
-    .def_readwrite("attackersReward", &GameState::attackersReward)
-    .def_readwrite("defenders", &GameState::defenders)
-    .def_readwrite("defendersReward", &GameState::defendersReward)
-    .def_readwrite("depth", &GameState::depth)
-    .def("__repr__", &toString<GameState>);
+      GameStateT::Turn&,
+      const std::vector<RobotStateT>&,
+      const std::vector<RobotStateT>&>())
+    .def_readwrite("turn", &GameStateT::turn)
+    .def_readwrite("attackers", &GameStateT::attackers)
+    .def_readwrite("attackersReward", &GameStateT::attackersReward)
+    .def_readwrite("defenders", &GameStateT::defenders)
+    .def_readwrite("defendersReward", &GameStateT::defendersReward)
+    .def_readwrite("depth", &GameStateT::depth)
+    .def("__repr__", &toString<GameStateT>);
 
   // RobotType
-  py::class_<RobotType> (m, "RobotType")
+  py::class_<RobotTypeT> (m, "RobotType")
     .def(py::init<
       const Eigen::Vector2f&,
       const Eigen::Vector2f&,
       float, float, float, float>())
-    .def_readwrite("p_min", &RobotType::p_min)
-    .def_readwrite("p_max", &RobotType::p_max)
-    .def_readwrite("velocity_limit", &RobotType::velocity_limit)
-    .def_readonly("acceleration_limit", &RobotType::acceleration_limit)
-    .def_readwrite("tag_radiusSquared", &RobotType::tag_radiusSquared)
-    .def_readwrite("r_senseSquared", &RobotType::r_senseSquared)
-    .def("__repr__", &toString<RobotType>);
+    .def_readwrite("p_min", &RobotTypeT::p_min)
+    .def_readwrite("p_max", &RobotTypeT::p_max)
+    .def_readwrite("velocity_limit", &RobotTypeT::velocity_limit)
+    .def_readonly("acceleration_limit", &RobotTypeT::acceleration_limit)
+    .def_readwrite("tag_radiusSquared", &RobotTypeT::tag_radiusSquared)
+    .def_readwrite("r_senseSquared", &RobotTypeT::r_senseSquared)
+    .def("__repr__", &toString<RobotTypeT>);
 
   // FeedForwardNN
   py::class_<FeedForwardNN> (m, "FeedForwardNN")
@@ -153,10 +161,10 @@ PYBIND11_MODULE(mctscpp, m) {
     .def_property_readonly("discreteEmptyNet", &GLAS::discreteEmptyNet);
 
   // Game
-  py::class_<Game> (m, "Game")
+  py::class_<GameT> (m, "Game")
     .def(py::init<
-      const std::vector<RobotType>&,
-      const std::vector<RobotType>&,
+      const std::vector<RobotTypeT>&,
+      const std::vector<RobotTypeT>&,
       float,
       const Eigen::Vector2f&,
       size_t,
@@ -164,8 +172,8 @@ PYBIND11_MODULE(mctscpp, m) {
       const GLAS&,
       const GLAS&,
       float>())
-    .def("step", &Game::step)
-    .def("isTerminal", &Game::isTerminal);
+    .def("step", &GameT::step)
+    .def("isTerminal", &GameT::isTerminal);
 }
 
 // PYBIND11_MODULE(mctscpp, m) {

@@ -9,15 +9,23 @@
 #include <boost/program_options.hpp>
 #include <yaml-cpp/yaml.h>
 
+#include "robots/DoubleIntegrator2D.hpp"
+
 #include "Game.hpp"
 #include "GLAS.hpp"
+
+typedef DoubleIntegrator2D RobotT;
+// typedef RobotT::State RobotStateT;
+typedef RobotT::Type RobotTypeT;
+// typedef GameState<RobotT> GameStateT;
+typedef Game<RobotT> GameT;
 
 void runGame(
   const YAML::Node& config,
   const YAML::Node& cfg_nn,
   const std::string& outputFile)
 {
-  using EnvironmentT = Game;
+  using EnvironmentT = GameT;
   using GameStateT = typename EnvironmentT::GameStateT;
   using GameActionT = typename EnvironmentT::GameActionT;
 
@@ -44,7 +52,7 @@ void runGame(
   state.attackersReward = 0;
   state.defendersReward = 0;
 
-  std::vector<RobotType> attackerTypes(NumAttackers);
+  std::vector<RobotTypeT> attackerTypes(NumAttackers);
   for (size_t i = 0; i < NumAttackers; ++i) {
     const auto& node = config["robots"][i];
     attackerTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -62,7 +70,7 @@ void runGame(
     state.attackers[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
 
   }
-  std::vector<RobotType> defenderTypes(NumDefenders);
+  std::vector<RobotTypeT> defenderTypes(NumDefenders);
   for (size_t i = 0; i < NumDefenders; ++i) {
     const auto& node = config["robots"][i+NumAttackers];
     defenderTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();

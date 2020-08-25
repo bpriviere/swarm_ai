@@ -2,8 +2,8 @@
 
 #include <random>
 
-#include "robots/RobotState.hpp"
-#include "robots/RobotType.hpp"
+// #include "robots/RobotState.hpp"
+// #include "robots/RobotType.hpp"
 #include "GameState.hpp"
 
 #include "GLAS.hpp"
@@ -41,14 +41,19 @@ std::vector<std::vector<T>> cart_product(const std::vector<std::vector<T>>& v)
 }
 
 
+template<class Robot>
 class Game {
  public:
-  typedef GameState GameStateT;
-  typedef std::vector<RobotAction> GameActionT;
+  typedef typename Robot::Type RobotTypeT;
+  typedef typename Robot::Action RobotActionT;
+  typedef typename Robot::State RobotStateT;
+
+  typedef GameState<Robot> GameStateT;
+  typedef std::vector<RobotActionT> GameActionT;
 
   Game(
-    const std::vector<RobotType>& attackerTypes,
-    const std::vector<RobotType>& defenderTypes,
+    const std::vector<RobotTypeT>& attackerTypes,
+    const std::vector<RobotTypeT>& defenderTypes,
     float dt,
     const Eigen::Vector2f& goal,
     size_t maxDepth,
@@ -85,7 +90,7 @@ class Game {
     // update active robots
     if (state.turn == GameStateT::Turn::Attackers) {
       for (size_t i = 0; i < NumAttackers; ++i) {
-        if (nextState.attackers[i].status == RobotState::Status::Active) {
+        if (nextState.attackers[i].status == RobotStateT::Status::Active) {
           m_attackerTypes[i].step(nextState.attackers[i], action[i], m_dt, nextState.attackers[i]);
           if (!m_attackerTypes[i].isStateValid(nextState.attackers[i])) {
             return false;
@@ -95,7 +100,7 @@ class Game {
       nextState.turn = GameStateT::Turn::Defenders;
     } else {
       for (size_t i = 0; i < NumDefenders; ++i) {
-        if (nextState.defenders[i].status == RobotState::Status::Active) {
+        if (nextState.defenders[i].status == RobotStateT::Status::Active) {
           m_defenderTypes[i].step(nextState.defenders[i], action[NumAttackers + i], m_dt, nextState.defenders[i]);
           if (!m_defenderTypes[i].isStateValid(nextState.defenders[i])) {
             return false;
@@ -106,19 +111,19 @@ class Game {
     }
     // Update status
     for (size_t i = 0; i < NumAttackers; ++i) {
-      if (nextState.attackers[i].status == RobotState::Status::Active) {
+      if (nextState.attackers[i].status == RobotStateT::Status::Active) {
         float distToGoalSquared = (nextState.attackers[i].position - m_goal).squaredNorm();
         if (distToGoalSquared <= m_attackerTypes[i].tag_radiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
-          nextState.attackers[i].status = RobotState::Status::ReachedGoal;
+          nextState.attackers[i].status = RobotStateT::Status::ReachedGoal;
           nextState.activeMask &= ~(1 << i); // reset bit i
         }
 
         for (size_t j = 0; j < NumDefenders; ++j) {
-          if (nextState.defenders[j].status == RobotState::Status::Active) {
+          if (nextState.defenders[j].status == RobotStateT::Status::Active) {
             float distToDefenderSquared = (nextState.attackers[i].position - nextState.defenders[j].position).squaredNorm();
             if (distToDefenderSquared <= m_defenderTypes[j].tag_radiusSquared) {
-              nextState.attackers[i].status = RobotState::Status::Captured;
+              nextState.attackers[i].status = RobotStateT::Status::Captured;
               nextState.activeMask &= ~(1 << i); // reset bit i
             }
           }
@@ -279,10 +284,10 @@ class Game {
     float cumulativeReward = 0.0;
     for (const auto& attacker : state.attackers) {
       switch(attacker.status) {
-        case RobotState::Status::Active:
+        case RobotStateT::Status::Active:
           cumulativeReward += 0.5;
           break;
-        case RobotState::Status::ReachedGoal:
+        case RobotStateT::Status::ReachedGoal:
           cumulativeReward += 1.0;
           break;
         // 0 in the remaining case (robot has been tagged)
@@ -320,7 +325,7 @@ private:
   std::vector<GameActionT> computeActions(const GameStateT& state)
   {
     std::vector<GameActionT> actions;
-    std::vector<std::vector<RobotAction>> allActions;
+    std::vector<std::vector<RobotActionT>> allActions;
 
     size_t NumAttackers = state.attackers.size();
     size_t NumDefenders = state.defenders.size();
@@ -328,7 +333,7 @@ private:
     // generate actions for active robots only
     if (state.turn == GameStateT::Turn::Attackers) {
       for (size_t i = 0; i < NumAttackers; ++i) {
-        if (state.attackers[i].status == RobotState::Status::Active) {
+        if (state.attackers[i].status == RobotStateT::Status::Active) {
           allActions.push_back(m_attackerTypes[i].possibleActions);
         } else {
           allActions.push_back({m_attackerTypes[i].invalidAction});
@@ -365,8 +370,8 @@ private:
 
 
 private:
-  std::vector<RobotType> m_attackerTypes;
-  std::vector<RobotType> m_defenderTypes;
+  std::vector<RobotTypeT> m_attackerTypes;
+  std::vector<RobotTypeT> m_defenderTypes;
   float m_dt;
   Eigen::Vector2f m_goal;
   size_t m_maxDepth;
