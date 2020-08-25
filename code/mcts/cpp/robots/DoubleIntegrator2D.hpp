@@ -131,4 +131,7 @@ public:
   typedef RobotStateDoubleIntegrator2D State;
   typedef RobotActionDoubleIntegrator2D Action;
   typedef RobotTypeDoubleIntegrator2D Type;
+
+  static const size_t StateDim = 4;
+  static const size_t ActionDim = 2;
 };

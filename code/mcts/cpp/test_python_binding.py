@@ -68,7 +68,7 @@ if __name__ == '__main__':
 	attackerTypes = [rt]
 	defenderTypes = [rt]
 	dt = 0.25
-	goal = [0.25,0.25]
+	goal = [0.25,0.25,0,0]
 	max_depth = 1000
 	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b, rollout_beta)

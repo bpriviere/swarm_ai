@@ -167,7 +167,7 @@ PYBIND11_MODULE(mctscpp, m) {
       const std::vector<RobotTypeT>&,
       const std::vector<RobotTypeT>&,
       float,
-      const Eigen::Vector2f&,
+      const Eigen::Vector4f&,
       size_t,
       std::default_random_engine&,
       const GLAS&,

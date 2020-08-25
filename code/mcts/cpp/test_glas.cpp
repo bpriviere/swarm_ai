@@ -88,8 +88,8 @@ void runGame(
   std::cout << state << std::endl;
 
   float dt = config["sim_dt"].as<float>();
-  Eigen::Vector2f goal;
-  goal << config["goal"][0].as<float>(),config["goal"][1].as<float>();
+  Eigen::Vector4f goal;
+  goal << config["goal"][0].as<float>(),config["goal"][1].as<float>(), 0, 0;
 
   // load GLAS
   GLAS glas_a(generator);
