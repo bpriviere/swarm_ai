@@ -116,10 +116,11 @@ private:
   std::vector<Layer> m_layers;
 };
 
+template<int InputDim>
 class DeepSetNN
 {
 public:
-  Eigen::VectorXf eval(const std::vector<Eigen::Vector4f>& input) const
+  Eigen::VectorXf eval(const std::vector<Eigen::Matrix<float,InputDim,1>>& input) const
   {
     Eigen::VectorXf X = Eigen::VectorXf::Zero(m_rho.sizeIn(), 1);
     for (const auto& i : input) {
@@ -148,13 +149,16 @@ private:
   FeedForwardNN m_rho;
 };
 
+template<int StateDim>
 class DiscreteEmptyNet
 {
 public:
+  typedef Eigen::Matrix<float, StateDim, 1> StateVector;
+
   Eigen::VectorXf eval(
-    const std::vector<Eigen::Vector4f>& input_a,
-    const std::vector<Eigen::Vector4f>& input_b,
-    const Eigen::Vector4f& goal) const
+    const std::vector<StateVector>& input_a,
+    const std::vector<StateVector>& input_b,
+    const StateVector& goal) const
   {
     Eigen::VectorXf X(m_psi.sizeIn());
     X.segment(0, m_ds_a.sizeOut()) = m_ds_a.eval(input_a);
@@ -165,12 +169,12 @@ public:
     return softmax(res);
   }
 
-  DeepSetNN& deepSetA()
+  DeepSetNN<StateDim>& deepSetA()
   {
     return m_ds_a;
   }
 
-  DeepSetNN& deepSetB()
+  DeepSetNN<StateDim>& deepSetB()
   {
     return m_ds_b;
   }
@@ -189,14 +193,17 @@ private:
 
 
 private:
-  DeepSetNN m_ds_a;
-  DeepSetNN m_ds_b;
+  DeepSetNN<StateDim> m_ds_a;
+  DeepSetNN<StateDim> m_ds_b;
   FeedForwardNN m_psi;
 };
 
+template<int StateDim>
 class GLAS
 {
 public:
+  typedef Eigen::Matrix<float, StateDim, 1> StateVector;
+
   GLAS(std::default_random_engine& gen)
     : m_glas()
     , m_actions()
@@ -224,9 +231,9 @@ public:
   }
 
   const Eigen::Vector2f& computeAction(
-    const std::vector<Eigen::Vector4f>& input_a,
-    const std::vector<Eigen::Vector4f>& input_b,
-    const Eigen::Vector4f& goal,
+    const std::vector<StateVector>& input_a,
+    const std::vector<StateVector>& input_b,
+    const StateVector& goal,
     bool deterministic) const
   {
     auto output = m_glas.eval(input_a, input_b, goal);
@@ -241,7 +248,7 @@ public:
     return m_actions[idx];
   }
 
-  DiscreteEmptyNet& discreteEmptyNet()
+  DiscreteEmptyNet<StateDim>& discreteEmptyNet()
   {
     return m_glas;
   }
@@ -252,7 +259,7 @@ public:
   }
 
 private:
-  DiscreteEmptyNet m_glas;
+  DiscreteEmptyNet<StateDim> m_glas;
 
   std::vector<Eigen::Vector2f> m_actions;
 
@@ -260,23 +267,26 @@ private:
 };
 
 
-std::vector<RobotAction> computeActionsWithGLAS(
-  const GLAS& glas_a,
-  const GLAS& glas_b,
-  const GameState& state,
-  const Eigen::Vector2f& goal,
-  const std::vector<RobotType>& attackerTypes,
-  const std::vector<RobotType>& defenderTypes,
+template<class Robot>
+std::vector<typename Robot::Action> computeActionsWithGLAS(
+  const GLAS<Robot::StateDim>& glas_a,
+  const GLAS<Robot::StateDim>& glas_b,
+  const GameState<Robot>& state,
+  const Eigen::Matrix<float, Robot::StateDim, 1>& goal,
+  const std::vector<typename Robot::Type>& attackerTypes,
+  const std::vector<typename Robot::Type>& defenderTypes,
   std::default_random_engine& generator,
   bool deterministic)
 {
+  typedef Eigen::Matrix<float, Robot::StateDim, 1> StateVector;
+
   size_t NumAttackers = state.attackers.size();
   size_t NumDefenders = state.defenders.size();
 
-  std::vector<RobotAction> action(NumAttackers + NumDefenders);
-  std::vector<Eigen::Vector4f> input_a;
-  std::vector<Eigen::Vector4f> input_b;
-  Eigen::Vector4f relGoal;
+  std::vector<typename Robot::Action> action(NumAttackers + NumDefenders);
+  std::vector<StateVector> input_a;
+  std::vector<StateVector> input_b;
+  StateVector relGoal;
 
   // evaluate glas for all team members of a
   for (size_t j = 0; j < NumAttackers; ++j) {
@@ -284,10 +294,8 @@ std::vector<RobotAction> computeActionsWithGLAS(
     input_a.clear();
     for (size_t j2 = 0; j2 < NumAttackers; ++j2) {
       if (j != j2) {
-        Eigen::Vector4f relState;
-        relState.segment(0,2) = state.attackers[j2].position - state.attackers[j].position;
-        relState.segment(2,2) = state.attackers[j2].velocity - state.attackers[j].velocity;
-        if (relState.segment(0,2).squaredNorm() <= attackerTypes[j].r_senseSquared) {
+        auto relState = state.attackers[j2].state - state.attackers[j].state;
+        if (relState.template head<2>().squaredNorm() <= attackerTypes[j].r_senseSquared) {
           input_a.push_back(relState);
         }
       }
@@ -295,24 +303,21 @@ std::vector<RobotAction> computeActionsWithGLAS(
     // compute input_b
     input_b.clear();
     for (size_t j2 = 0; j2 < NumDefenders; ++j2) {
-      Eigen::Vector4f relState;
-      relState.segment(0,2) = state.defenders[j2].position - state.attackers[j].position;
-      relState.segment(2,2) = state.defenders[j2].velocity - state.attackers[j].velocity;
-      if (relState.segment(0,2).squaredNorm() <= attackerTypes[j].r_senseSquared) {
+      auto relState = state.defenders[j2].state - state.attackers[j].state;
+      if (relState.template head<2>().squaredNorm() <= attackerTypes[j].r_senseSquared) {
         input_b.push_back(relState);
       }
     }
     // compute relGoal
-    relGoal.segment(0,2) = goal - state.attackers[j].position;
-    relGoal.segment(2,2) = -state.attackers[j].velocity;
+    relGoal = goal - state.attackers[j].state;
 
     // projecting goal to radius of sensing
-    float alpha = sqrtf(relGoal.segment(0,2).squaredNorm() / attackerTypes[j].r_senseSquared);
-    relGoal.segment(0,2) = relGoal.segment(0,2) / std::max(alpha, 1.0f);
+    float alpha = sqrtf(relGoal.template head<2>().squaredNorm() / attackerTypes[j].r_senseSquared);
+    relGoal.template head<2>() = relGoal.template head<2>() / std::max(alpha, 1.0f);
 
     // evaluate GLAS
     auto a = glas_a.computeAction(input_a, input_b, relGoal, deterministic);
-    action[j] = a * attackerTypes[j].acceleration_limit;
+    action[j] = a * attackerTypes[j].actionLimit();
   }
 
   // evaluate glas for all team members of b
@@ -320,9 +325,7 @@ std::vector<RobotAction> computeActionsWithGLAS(
     // compute input_a
     input_a.clear();
     for (size_t j2 = 0; j2 < NumAttackers; ++j2) {
-      Eigen::Vector4f relState;
-      relState.segment(0,2) = state.attackers[j2].position - state.defenders[j].position;
-      relState.segment(2,2) = state.attackers[j2].velocity - state.defenders[j].velocity;
+      auto relState = state.attackers[j2].state - state.defenders[j].state;
       if (relState.segment(0,2).squaredNorm() <= defenderTypes[j].r_senseSquared) {
         input_a.push_back(relState);
       }
@@ -331,17 +334,14 @@ std::vector<RobotAction> computeActionsWithGLAS(
     input_b.clear();
     for (size_t j2 = 0; j2 < NumDefenders; ++j2) {
       if (j != j2) {
-        Eigen::Vector4f relState;
-        relState.segment(0,2) = state.defenders[j2].position - state.defenders[j].position;
-        relState.segment(2,2) = state.defenders[j2].velocity - state.defenders[j].velocity;
+        auto relState = state.defenders[j2].state - state.defenders[j].state;
         if (relState.segment(0,2).squaredNorm() <= defenderTypes[j].r_senseSquared) {
           input_b.push_back(relState);
         }
       }
     }
     // compute relGoal
-    relGoal.segment(0,2) = goal - state.defenders[j].position;
-    relGoal.segment(2,2) = -state.defenders[j].velocity;
+    relGoal = goal - state.defenders[j].state;
 
     // projecting goal to radius of sensing
     float alpha = sqrtf(relGoal.segment(0,2).squaredNorm() / defenderTypes[j].r_senseSquared);
@@ -349,7 +349,7 @@ std::vector<RobotAction> computeActionsWithGLAS(
 
     // evaluate GLAS
     auto a = glas_b.computeAction(input_a, input_b, relGoal, deterministic);
-    action[NumAttackers + j] = a * defenderTypes[j].acceleration_limit;
+    action[NumAttackers + j] = a * defenderTypes[j].actionLimit();
   }
 
   return action;

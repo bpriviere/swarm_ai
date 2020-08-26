@@ -1,10 +1,12 @@
 #pragma once
 
-#include "RobotState.hpp"
-
+template<class Robot>
 class GameState
 {
 public:
+  typedef typename Robot::Type RobotTypeT;
+  typedef typename Robot::State RobotStateT;
+
   enum class Turn
   {
     Attackers = 0,
@@ -15,8 +17,8 @@ public:
 
   GameState(
     const Turn& turn,
-    const std::vector<RobotState>& attackers,
-    const std::vector<RobotState>& defenders)
+    const std::vector<RobotStateT>& attackers,
+    const std::vector<RobotStateT>& defenders)
     : turn(turn)
     , attackers(attackers)
     , attackersReward(0)
@@ -27,16 +29,16 @@ public:
   {
     // update activeMask
     for (size_t i = 0; i < attackers.size(); ++i) {
-      if (attackers[i].status == RobotState::Status::Active) {
+      if (attackers[i].status == RobotStateT::Status::Active) {
         activeMask |= (1<<i);
       }
     }
   }
 
   Turn turn;
-  std::vector<RobotState> attackers;
+  std::vector<RobotStateT> attackers;
   float attackersReward;
-  std::vector<RobotState> defenders;
+  std::vector<RobotStateT> defenders;
   float defendersReward;
 
   size_t depth;

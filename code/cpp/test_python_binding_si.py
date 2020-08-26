@@ -4,7 +4,7 @@ import torch
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from buildRelease import mctscpp
+from buildRelease import mctscppsi as mctscpp
 
 def loadFeedForwardNNWeights(ff, state_dict, name):
 	l = 0
@@ -38,17 +38,17 @@ if __name__ == '__main__':
 	num_nodes = 10000
 
 	# test RobotState
-	rs = mctscpp.RobotState([0,1,2,3])
+	rs = mctscpp.RobotState([0,1])
 	print(rs)
 
 	# test GameState
-	attackers = [mctscpp.RobotState([0.05,0.25,0,0])]
-	defenders = [mctscpp.RobotState([0.3,0.25,0,0])]
+	attackers = [mctscpp.RobotState([0.05,0.25])]
+	defenders = [mctscpp.RobotState([0.3,0.25])]
 	gs = mctscpp.GameState(mctscpp.GameState.Turn.Attackers,attackers,defenders)
 	print(gs)
 
 	# test RobotType
-	rt = mctscpp.RobotType([0.0, 0.0], [0.5, 0.5], 0.125, 0.125, 0.025, 1.0)
+	rt = mctscpp.RobotType([0.0, 0.0], [0.5, 0.5], 0.125, 0.025, 1.0)
 	# rt.p_min = [0.0, 0.0]
 	# rt.p_max = [0.5, 0.5]
 	# rt.velocity_limit = 0.125
@@ -68,7 +68,7 @@ if __name__ == '__main__':
 	attackerTypes = [rt]
 	defenderTypes = [rt]
 	dt = 0.25
-	goal = [0.25,0.25,0,0]
+	goal = [0.25,0.25]
 	max_depth = 1000
 	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b, rollout_beta)
