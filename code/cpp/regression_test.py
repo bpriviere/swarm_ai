@@ -38,10 +38,10 @@ if __name__ == '__main__':
 		data = yaml.load(f, Loader=yaml.FullLoader)
 
 	all_results = []
-	for tree_size in [10, 100, 1000, 10000, 100000]:
+	for tree_size in [10, 100, 1000, 10000]:
 		data["tree_size"] = tree_size
 
-		for useGLAS in [False]:#, True]:
+		for useGLAS in [False, True]:
 
 			results = []
 			for seed in range(1,11):
