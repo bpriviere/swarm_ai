@@ -10,9 +10,11 @@ from torch import nn, tanh, relu
 
 class Param:
 
-	def __init__(self):
+	def __init__(self,seed=None):
 
-		self.seed = int.from_bytes(os.urandom(4), sys.byteorder)
+		if seed is None: 
+			self.seed = int.from_bytes(os.urandom(4), sys.byteorder)
+
 		random.seed(self.seed)
 
 		# sim param 
@@ -66,11 +68,11 @@ class Param:
 
 		# learning (l) parameters 
 		self.device = 'cpu'
-		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
-		self.l_parallel_on = True # set to false only for debug 
+		self.l_mode = "DAgger" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
+		self.l_parallel_on = False # set to false only for debug 
 		self.l_num_iterations = 5
 		self.l_num_trials_per_iteration = 6
-		self.l_num_points_per_file = 1000
+		self.l_num_points_per_file = 100
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -106,7 +108,7 @@ class Param:
 		self.l_network_activation = relu
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 1000000 # n_points 
-		self.l_batch_size = 500
+		self.l_batch_size = 50
 		self.l_n_epoch = 30
 		self.l_lr = 1e-3
 		self.l_wd = 0 
