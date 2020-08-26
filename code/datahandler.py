@@ -9,8 +9,6 @@ import pandas as pd
 import pickle
 from datetime import datetime,timedelta
 
-from utilities import dbgp
-
 def write_sim_result(sim_result_dict,fn):
 	with open(fn+'.pickle', 'wb') as h:
 		pickle.dump(sim_result_dict, h)
@@ -64,32 +62,13 @@ def convert_cpp_data_to_sim_result(data,param):
 def write_oa_batch(batched_dataset,batch_fn):
 	np.save(batch_fn, batched_dataset)
 
-def read_oa_batch(fn,datadir):
+def read_oa_batch(fn):
 	data = np.load(fn)
 
-	# key = fn.split(datadir)[-1]
 	key = os.path.basename(fn)
 	key = key.split('_')
 	num_a = int(key[2].split('a')[0])
 	num_b = int(key[3].split('b')[0])
-	action_dim_per_agent = 2
-	state_dim_per_agent = 4
-
-	o_a = data[:,0:num_a*state_dim_per_agent]
-	o_b = data[:,num_a*state_dim_per_agent:(num_a+num_b)*state_dim_per_agent]
-	goal = data[:,(num_a+num_b)*state_dim_per_agent:(num_a+num_b)*state_dim_per_agent+state_dim_per_agent]
-	action = data[:,(num_a+num_b)*state_dim_per_agent+state_dim_per_agent:]
-	
-	return o_a,o_b,goal,action 
-
-def read_dbg_observation_fn(fn,datadir):
-	data = np.load(fn)
-
-	key = fn.split(datadir)[-1]
-	key = key.split('_')
-
-	num_a = int(key[6].split('a')[0])
-	num_b = int(key[7].split('b')[0])
 	action_dim_per_agent = 2
 	state_dim_per_agent = 4
 

@@ -21,20 +21,20 @@ class DiscreteEmptyNet(nn.Module):
 		self.param = param 
 
 		self.model_team_a = DeepSet(
-			param.il_phi_network_architecture,
-			param.il_rho_network_architecture,
-			param.il_network_activation,
+			param.l_phi_network_architecture,
+			param.l_rho_network_architecture,
+			param.l_network_activation,
 			device)
 
 		self.model_team_b = DeepSet(
-			param.il_phi_network_architecture,
-			param.il_rho_network_architecture,
-			param.il_network_activation,
+			param.l_phi_network_architecture,
+			param.l_rho_network_architecture,
+			param.l_network_activation,
 			device)
 
 		self.psi = FeedForward(
-			param.il_psi_network_architecture,
-			param.il_network_activation,device)
+			param.l_psi_network_architecture,
+			param.l_network_activation,device)
 
 		self.param = param
 		self.device = torch.device('cpu')

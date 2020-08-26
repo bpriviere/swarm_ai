@@ -4,30 +4,24 @@ import itertools, copy
 import random
 import os,sys
 from math import cos, sin 
+from torch import nn, tanh, relu
+
+# todo: make rel-path to abs-path func 
 
 class Param:
 
 	def __init__(self):
 
-		# modules 
-		self.dynamics_name 		= 'dynamics/double_integrator.py' 	# 
-		self.measurements_name 	= 'measurements/global.py' 			# global, (local)
-		self.estimator_name 	= 'estimator/kalman.py'	 			# empty,(kalman),exact...
-		self.attacker_name 		= 'attacker/empty.py' 				# empty, ...
-		self.controller_name 	= 'controller/glas.py'			 	# empty, glas, joint_mpc, mcts, ...
-
 		self.seed = int.from_bytes(os.urandom(4), sys.byteorder)
-
-		# flags
-		self.gif_on 	 = False
-		self.quiet_on 	 = False
-		self.parallel_on = True
+		random.seed(self.seed)
 
 		# sim param 
-		self.num_trials = 10
+		self.sim_num_trials = 5
 		self.sim_t0 = 0
 		self.sim_tf = 20
 		self.sim_dt = 0.25
+		self.sim_parallel_on = False
+		self.sim_mode = "GLAS" # MCTS_GLAS, MCTS_RANDOM, GLAS
 
 		# robot types 
 		self.standard_robot = {
@@ -64,49 +58,74 @@ class Param:
 		self.goal = np.array([0.75*l,0.75*l])
 
 		# mcts parameters 
-		self.tree_size = 5000
-		self.fixed_tree_depth_on = False
-		self.fixed_tree_depth = 100
-		self.rollout_horizon = 1000
-		self.c_param = 1.4
-		self.gamma = 1.0
-		
-		# estimator parameters
-		self.initial_state_covariance = 1e-10 # defines initial condition of estimators
-		
-		# dynamics parameters
-		self.process_noise_covariance = 1e-10
-		
-		# measurement parameters
-		self.measurement_noise_covariance = 1e-10
+		self.mcts_tree_size = 10000
+		self.mcts_rollout_horizon = 1000
+		self.mcts_rollout_beta = 0.5 # 0 -> 1 : random -> GLAS
+		self.mcts_c_param = 1.4
+		self.mcts_gamma = 1.0
 
-		# MPC policy 
-		self.rhc_horizon = 5
-		self.lambda_u = 0.01
-		self.danger_radius = 0.1
-
-		# path stuff
-		self.current_results_dir = '../current_results'
-
-		# model stuff 
-		self.glas_model_A = '../models/il_current_a.pt'
-		self.glas_model_B = '../models/il_current_b.pt'
-		self.combined_model_name = 'nn.yaml'
-		
-		# plotting 
-		self.plot_fn = 'plots.pdf'
-		
-		# save stuff 
-		self.info_keys = [
-			'state_vec',
-			'node_idx',
-			'node_state_mean',
-			'node_state_covariance',
-			'node_state',
-			'node_team_A',
-			'node_team_B',
+		# learning (l) parameters 
+		self.device = 'cpu'
+		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
+		self.l_parallel_on = True # set to false only for debug 
+		self.l_num_iterations = 5
+		self.l_num_trials_per_iteration = 6
+		self.l_num_points_per_file = 1000
+		self.l_training_teams = ["a","b"]
+		self.l_robot_team_composition_cases = [
+			{
+			'a': {'standard_robot':1,'evasive_robot':0},
+			'b': {'standard_robot':1,'evasive_robot':0}
+			},
+			# {
+			# 'a': {'standard_robot':2,'evasive_robot':0},
+			# 'b': {'standard_robot':1,'evasive_robot':0}
+			# },
+			# {
+			# 'a': {'standard_robot':1,'evasive_robot':0},
+			# 'b': {'standard_robot':2,'evasive_robot':0}
+			# }
 		]
 
+		n,m,h,l,p = 4,2,16,8,8 # state dim, action dim, hidden layer, output phi, output rho
+		self.l_phi_network_architecture = nn.ModuleList([
+			nn.Linear(n,h),
+			nn.Linear(h,h),
+			nn.Linear(h,l)])
+
+		self.l_rho_network_architecture = nn.ModuleList([
+			nn.Linear(l,h),
+			nn.Linear(h,h),
+			nn.Linear(h,p)])
+
+		self.l_psi_network_architecture = nn.ModuleList([
+			nn.Linear(2*p+n,h), # because two deepsets 
+			nn.Linear(h,h),
+			nn.Linear(h,9)])
+
+		self.l_network_activation = relu
+		self.l_test_train_ratio = 0.8
+		self.l_max_dataset_size = 1000000 # n_points 
+		self.l_batch_size = 500
+		self.l_n_epoch = 30
+		self.l_lr = 1e-3
+		self.l_wd = 0 
+		self.l_log_interval = 1
+		self.l_raw_fn = '{DATADIR}raw_{TEAM}train_{NUM_A}a_{NUM_B}b_{IDX_TRIAL}trial'
+		self.l_labelled_fn = '{DATADIR}labelled_{TEAM}train_{NUM_A}a_{NUM_B}b_{IDX_TRIAL}trial.npy'
+		self.l_model_fn = '{DATADIR}{TEAM}{ITER}.pt'
+
+		# path stuff
+		self.path_current_results = '../current/results/'
+		self.path_current_models = '../current/models/'
+		self.path_current_data = '../current/data/'
+		self.path_saved_results = '../saved/results/'
+		self.path_saved_models = '../saved/models/'
+		self.path_glas_model_a = os.path.join(self.path_current_models,'a.pt')
+		self.path_glas_model_b = os.path.join(self.path_current_models,'b.pt')
+		self.path_plot = 'temp_plot.pdf'
+		
+				
 		self.update()
 
 
@@ -154,8 +173,6 @@ class Param:
 
 
 	def update(self,initial_condition=None):
-
-		random.seed(self.seed)		
 
 		self.make_robot_teams()
 
