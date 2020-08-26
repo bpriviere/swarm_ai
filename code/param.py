@@ -55,7 +55,7 @@ class Param:
 		self.reset_ylim_A = [0.1*l,0.9*l]
 		self.reset_xlim_B = [0.1*l,0.9*l]
 		self.reset_ylim_B = [0.1*l,0.9*l]
-		self.goal = np.array([0.75*l,0.75*l])
+		self.goal = np.array([0.75*l,0.75*l,0,0])
 
 		# mcts parameters 
 		self.mcts_tree_size = 10000
