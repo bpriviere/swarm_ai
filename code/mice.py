@@ -318,8 +318,8 @@ def get_params(df_param,training_team,iter_i):
 
 			param.training_team = training_team
 			param.iter_i = iter_i 
-			param.glas_model_A = df_param.l_model_fn.format(DATADIR=df_param.path_current_data,TEAM="a",ITER=iter_i)
-			param.glas_model_B = df_param.l_model_fn.format(DATADIR=df_param.path_current_data,TEAM="b",ITER=iter_i)
+			param.path_glas_model_a = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
+			param.path_glas_model_b = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="b",ITER=iter_i)
 			param.update() 
 			param.dataset_fn = df_param.l_raw_fn.format(DATADIR=df_param.path_current_data,TEAM=training_team,\
 				NUM_A=param.num_nodes_A,NUM_B=param.num_nodes_B,IDX_TRIAL=trial+start)
@@ -327,6 +327,11 @@ def get_params(df_param,training_team,iter_i):
 			params.append(param)
 
 	return params	
+
+def set_iter_glas_models(params,iter):
+	for param in params: 
+		param.path_glas_model_a = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
+		param.path_glas_model_b = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="b",ITER=iter_i)
 
 
 def format_dir(df_param):
@@ -340,30 +345,30 @@ def format_dir(df_param):
 if __name__ == '__main__':
 
 	df_param = Param() 
-	# format_dir(df_param)
+	format_dir(df_param)
 	
 	for iter_i in range(df_param.l_num_iterations):
 		for training_team in df_param.l_training_teams: 
 
-			if iter_i > 0:
+			print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
 
-				print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
+			params = get_params(df_param,training_team,iter_i)
+			
+			if iter_i == 0 or df_param.l_mode == "IL":
+				states, params = get_uniform_samples(params)
+			else: 
+				set_iter_glas_models(params,iter_i-1)
+				states, params = get_self_play_samples(params) 
+				set_iter_glas_models(params,iter_i)
+			
+			make_dataset(states,params,df_param)
+			train_model(df_param,\
+				glob.glob(df_param.l_labelled_fn.format(\
+					DATADIR=df_param.path_current_data,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM=training_team,ITER='**')), \
+				training_team,\
+				df_param.l_model_fn.format(\
+					DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i))
 
-				params = get_params(df_param,training_team,iter_i)
-				
-				if iter_i == 0 or df_param.l_mode == "IL":
-					states, params = get_uniform_samples(params)
-				else: 
-					states, params = get_self_play_samples(params) 
-				
-				make_dataset(states,params,df_param)
-				train_model(df_param,\
-					glob.glob(df_param.l_labelled_fn.format(\
-						DATADIR=df_param.path_current_data,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM=training_team,ITER='**')), \
-					training_team,\
-					df_param.l_model_fn.format(\
-						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i))
-
-				if df_param.l_mode == "Mice":
-					increment(df_param)
+			if df_param.l_mode == "Mice":
+				increment(df_param)
 			
