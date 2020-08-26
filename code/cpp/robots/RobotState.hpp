@@ -14,24 +14,11 @@ public:
 
   RobotState() = default;
 
-  RobotState(
-    const Eigen::Vector2f& p,
-    const Eigen::Vector2f& v)
-    : position(p)
-    , velocity(v)
-    , status(Status::Active)
-  {}
-
-  Eigen::Vector2f position; // m
-  Eigen::Vector2f velocity; // m/s
   Status status;
 
-  friend std::ostream& operator<<(std::ostream& out, const RobotState& s)
+  friend std::ostream& operator<<(std::ostream& out, const RobotState::Status& s)
   {
-    Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");
-
-    out << "RobotState(p=" << s.position.format(fmt) << ",v=" << s.velocity.format(fmt) << ",";
-    switch(s.status) {
+    switch(s) {
       case RobotState::Status::Active:
         out << "Active";
         break;
@@ -42,7 +29,6 @@ public:
         out << "ReachedGoal";
         break;
     }
-    out << ")";
     return out;
   }
 };

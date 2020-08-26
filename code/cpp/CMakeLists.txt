@@ -46,3 +46,10 @@ pybind11_add_module(mctscpp
 target_link_libraries(mctscpp PRIVATE
   yaml-cpp
 )
+
+pybind11_add_module(mctscppsi
+  python_bindings_si.cpp
+)
+target_link_libraries(mctscppsi PRIVATE
+  yaml-cpp
+)

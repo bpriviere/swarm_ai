@@ -8,20 +8,28 @@
 #include <boost/program_options.hpp>
 #include <yaml-cpp/yaml.h>
 
+#include "robots/DoubleIntegrator2D.hpp"
+
 #include "Game.hpp"
 
 #include "monte_carlo_tree_search.hpp"
 
 #include "GLAS.hpp"
 
+typedef DoubleIntegrator2D RobotT;
+// typedef RobotT::State RobotStateT;
+typedef RobotT::Type RobotTypeT;
+// typedef GameState<RobotT> GameStateT;
+typedef Game<RobotT> GameT;
+
 void runMCTS(
   const YAML::Node& config,
   const std::string& outputFile,
   std::default_random_engine& generator,
-  const GLAS& glas_a,
-  const GLAS& glas_b)
+  const GLAS<RobotT::StateDim>& glas_a,
+  const GLAS<RobotT::StateDim>& glas_b)
 {
-  using EnvironmentT = Game;
+  using EnvironmentT = GameT;
   using GameStateT = typename EnvironmentT::GameStateT;
   using GameActionT = typename EnvironmentT::GameActionT;
 
@@ -37,7 +45,7 @@ void runMCTS(
   state.turn = GameStateT::Turn::Attackers;
   state.activeMask = 0;
   
-  std::vector<RobotType> attackerTypes(NumAttackers);
+  std::vector<RobotTypeT> attackerTypes(NumAttackers);
   for (size_t i = 0; i < NumAttackers; ++i) {
     const auto& node = config["robots"][i];
     attackerTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -51,11 +59,11 @@ void runMCTS(
     state.attackers[i].status = RobotState::Status::Active;
     assert(i<32);
     state.activeMask |= (1<<i);
-    state.attackers[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
-    state.attackers[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
+    state.attackers[i].state << node["x0"][0].as<float>(),node["x0"][1].as<float>()
+                              , node["x0"][2].as<float>(),node["x0"][3].as<float>();
 
   }
-  std::vector<RobotType> defenderTypes(NumDefenders);
+  std::vector<RobotTypeT> defenderTypes(NumDefenders);
   for (size_t i = 0; i < NumDefenders; ++i) {
     const auto& node = config["robots"][i+NumAttackers];
     defenderTypes[i].p_min << config["env_xlim"][0].as<float>(), config["env_ylim"][0].as<float>();
@@ -67,14 +75,14 @@ void runMCTS(
     defenderTypes[i].init();
 
     state.defenders[i].status = RobotState::Status::Active;
-    state.defenders[i].position << node["x0"][0].as<float>(),node["x0"][1].as<float>();
-    state.defenders[i].velocity << node["x0"][2].as<float>(),node["x0"][3].as<float>();
+    state.defenders[i].state << node["x0"][0].as<float>(),node["x0"][1].as<float>()
+                              , node["x0"][2].as<float>(),node["x0"][3].as<float>();
   }
   std::cout << state << std::endl;
 
   float dt = config["sim_dt"].as<float>();
-  Eigen::Vector2f goal;
-  goal << config["goal"][0].as<float>(),config["goal"][1].as<float>();
+  Eigen::Vector4f goal;
+  goal << config["goal"][0].as<float>(),config["goal"][1].as<float>(), 0, 0;
 
   size_t max_depth = config["rollout_horizon"].as<int>();
 
@@ -119,13 +127,13 @@ void runMCTS(
       }
 
       for (size_t j = 0; j < NumAttackers; ++j) {
-        out << lastState.attackers[j].position(0) << "," << lastState.attackers[j].position(1) << ","
-            << lastState.attackers[j].velocity(0) << "," << lastState.attackers[j].velocity(1) << ","
+        out << lastState.attackers[j].state(0) << "," << lastState.attackers[j].state(1) << ","
+            << lastState.attackers[j].state(2) << "," << lastState.attackers[j].state(3) << ","
             << action[j](0) << "," << action[j](1) << ",";
       }
       for (size_t j = 0; j < NumDefenders; ++j) {
-        out << lastState.defenders[j].position(0) << "," << lastState.defenders[j].position(1) << ","
-            << lastState.defenders[j].velocity(0) << "," << lastState.defenders[j].velocity(1) << ","
+        out << lastState.defenders[j].state(0) << "," << lastState.defenders[j].state(1) << ","
+            << lastState.defenders[j].state(2) << "," << lastState.defenders[j].state(3) << ","
             << lastAction[j+NumAttackers](0) << "," << lastAction[j+NumAttackers](1) << ",";
       }
       out << rewardAttacker << "," << rewardDefender << std::endl;
@@ -191,8 +199,8 @@ int main(int argc, char* argv[]) {
   std::cout << "Using seed " << seed << std::endl;
   std::default_random_engine generator(seed);
 
-  GLAS glas_a(generator);
-  GLAS glas_b(generator);
+  GLAS<RobotT::StateDim> glas_a(generator);
+  GLAS<RobotT::StateDim> glas_b(generator);
   if (!inputFileNN.empty()) {
     YAML::Node cfg_nn = YAML::LoadFile(inputFileNN);
 

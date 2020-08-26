@@ -87,7 +87,7 @@ def state_to_cpp_game_state(param,state,turn):
 	attackers = [] 
 	defenders = [] 
 	for robot in param.robots: 
-		rs = mctscpp.RobotState(robot["x0"][0:2],robot["x0"][2:])
+		rs = mctscpp.RobotState(robot["x0"])
 		if robot["team"] == "a":
 			attackers.append(rs)
 		elif robot["team"] == "b":
@@ -190,20 +190,18 @@ def game_state_to_cpp_result(gs,action):
 		action = np.nan*np.ones((len(gs.attackers) + len(gs.defenders),2))
 		
 	idx = 0 
-	result = []
+	result = np.empty((len(gs.attackers) + len(gs.defenders))*6+2, dtype=np.float32)
 	for rs in gs.attackers:
-		result.append(rs.position.copy())
-		result.append(rs.velocity.copy())
-		result.append(action[idx].copy())
-		idx += 1 
-	for rs in gs.defenders: 
-		result.append(rs.position.copy())
-		result.append(rs.velocity.copy())
-		result.append(action[idx].copy()) 
-		idx += 1 
-	result.append([gs.attackersReward, gs.defendersReward])
-
-	return np.array(result).flatten()	
+		result[idx*6+0:idx*6+4] = rs.state
+		result[idx*6+4:idx*6+6] = action[idx]
+		idx += 1
+	for rs in gs.defenders:
+		result[idx*6+0:idx*6+4] = rs.state
+		result[idx*6+4:idx*6+6] = action[idx]
+		idx += 1
+	result[idx*6+0] = gs.attackersReward
+	result[idx*6+1] = gs.defendersReward
+	return result
 
 def evaluate_expert(states,param,quiet_on=True):
 	
