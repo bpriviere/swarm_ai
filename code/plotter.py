@@ -16,9 +16,11 @@ import matplotlib.transforms as mtransforms
 import cv2
 import imutils
 
-
-from utilities import dbgp
 import glob
+import random 
+
+import datahandler as dh
+from param import Param 
 
 # defaults
 plt.rcParams.update({'font.size': 10})
@@ -79,186 +81,6 @@ def calc_idx_collisions(pos_x,pos_y):
 
 	return idx
 
-# Function to plot the current timestep
-def plot_nodes(sim_result, timestep, fig=None, ax=None):
-
-	times = sim_result["times"]
-	node_states = sim_result["info"]["node_state"] # [num timesteps, num nodes, state_dim_per_agent, 1]
-	reset_xlim_A = sim_result["param"]["reset_xlim_A"]
-	reset_ylim_A = sim_result["param"]["reset_ylim_A"]
-	reset_xlim_B = sim_result["param"]["reset_xlim_B"]
-	reset_ylim_B = sim_result["param"]["reset_ylim_B"]
-	goal_line_x = sim_result["param"]["goal_line_x"]
-
-	score_attackers = 1 - times[timestep]/20
-	score_defenders = 1 - score_attackers
-
-	colors = get_node_colors(sim_result, timestep)
-
-	if fig is None or ax is None:
-		fig,ax = plt.subplots()
-	
-	# Loop through each agent for plotting
-	for node_idx in range(node_states.shape[1]):
-
-		# Extract trajectories
-		node_trajectory_x = sim_result["states"][:,node_idx,0,:]
-		node_trajectory_y = sim_result["states"][:,node_idx,1,:]
-
-		# Calculate and remove paths when collisions reset
-		idx = calc_idx_collisions(node_trajectory_x,node_trajectory_y)
-
-		# Extract node data
-		node_state = node_states[timestep,node_idx,:,:]	
-
-		# Plot node ("o" if normal, "x" if captured)
-		if np.any(timestep == idx-1):
-			ax.scatter(node_state[0],node_state[1],200,color=colors[node_idx],zorder=10,marker="x")
-		else : 
-			ax.scatter(node_state[0],node_state[1],100,color=colors[node_idx],zorder=10,marker="o")
-
-		# Plot trajectories
-		idx_start = np.hstack((0, idx+1))
-		idx_stop  = np.hstack((idx,node_trajectory_x.size))
-		for ii in range(0, idx_start.size):
-			plot_x = node_trajectory_x[idx_start[ii]:idx_stop[ii]]
-			plot_y = node_trajectory_y[idx_start[ii]:idx_stop[ii]]
-			ax.plot( plot_x,plot_y,color='black',linestyle='--',alpha=0.25)
-
-	# plot initialization 
-	reset_a = patches.Rectangle((reset_xlim_A[0],reset_ylim_A[0]),\
-		reset_xlim_A[1]-reset_xlim_A[0],reset_ylim_A[1]-reset_ylim_A[0],color=colors[0],alpha=0.1)
-	reset_b = patches.Rectangle((reset_xlim_B[0],reset_ylim_B[0]),\
-		reset_xlim_B[1]-reset_xlim_B[0],reset_ylim_B[1]-reset_ylim_B[0],color=colors[-1],alpha=0.1)
-	ax.add_patch(reset_a)
-	ax.add_patch(reset_b)
-
-	# plot goal line 
-	ax.axvline(goal_line_x,color='green',alpha=0.5,linestyle='--')
-
-	# ax.plot(np.nan,np.nan,color=colors[0],label='Team A')
-	# ax.plot(np.nan,np.nan,color=colors[-1],label='Team B')
-	# ax.legend(loc='upper right')
-	ax.set_xlim(sim_result["param"]["env_xlim"])
-	ax.set_ylim(sim_result["param"]["env_ylim"])
-	ax.grid(True)
-	ax.set_aspect('equal')
-	ax.set_xlabel('pos [m]')
-	ax.set_ylabel('pos [m]')
-	ax.set_title('State Space At Time {:.2f}'.format(times[timestep]))
-
-	# Add Zone Labels
-	textBox = dict(boxstyle='round',  facecolor='none', edgecolor='none', alpha=0.5) # Create the box
-	ax.text(np.mean(reset_xlim_A), 0.02, 'Attackers', transform=ax.transAxes, fontsize=6, color=colors[0], verticalalignment='bottom', horizontalalignment='center', bbox=textBox,zorder=3)
-	ax.text(np.mean(reset_xlim_B), 0.02, 'Defenders', transform=ax.transAxes, fontsize=6, color=colors[-1], verticalalignment='bottom', horizontalalignment='center', bbox=textBox,zorder=3)
-	ax.text(goal_line_x,0.02, 'Goal Line', transform=ax.transAxes, fontsize=10, color='green', verticalalignment='bottom', horizontalalignment='right',  bbox=textBox,zorder=3, rotation=90)
-
-	# Add Scores
-	textBox = dict(boxstyle='round', facecolor='darkgray', alpha=0.5)
-	ax.text(np.mean(reset_xlim_A), 0.95, "{:.2f}".format(score_attackers), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center',  bbox=textBox,zorder=11)
-	ax.text(np.mean(reset_xlim_B), 0.95, "{:.2f}".format(score_defenders), transform=ax.transAxes, fontsize=14, verticalalignment='top', horizontalalignment='center', bbox=textBox,zorder=11)
-
-	return fig,ax
-
-
-def plot_state_estimate(sim_result):
-
-	node_state_means = sim_result["info"]["node_state_mean"] # [num timesteps, num nodes, state dim, 1]
-	node_state_covariance = sim_result["info"]["node_state_covariance"] # [num timesteps, num nodes, state dim, state dim]
-	states = sim_result["info"]["state_vec"] # [nt, state_dim, 1]
-	times = sim_result["times"]
-	colors = get_node_colors(sim_result, 0)
-
-	fig,ax = plt.subplots()
-
-	# plot mse and covariance  
-	for node_idx in range(node_state_means.shape[1]):
-
-		mse = np.linalg.norm(node_state_means[:,node_idx,:,:] - states, axis=1)
-		trace_covariance = np.linalg.norm(node_state_covariance[:,node_idx,:,:], ord = 'fro', axis=(1,2))
-
-		ax.plot(times, mse, color=colors[node_idx], alpha=0.5)
-		ax.plot(times, trace_covariance, color=colors[node_idx], alpha=0.5, linestyle = '--')
-
-	# ax.plot(np.nan,np.nan,color=colors[0],label='Team A')
-	# ax.plot(np.nan,np.nan,color=colors[-1],label='Team B')
-	ax.legend(loc='upper right')
-	ax.set_xlabel('time')
-	ax.set_ylabel('error')
-	ax.set_yscale('log')
-	ax.grid(True)
-
-	return fig,ax
-
-
-def plot_control_effort(sim_result):
-
-	times = sim_result["times"]
-	actions = sim_result["actions"] # [nt, ni, control_dim x 1]
-	colors = get_node_colors(sim_result, 0)
-
-	fig,ax = plt.subplots() 
-	for node_idx in range(actions.shape[1]):
-		effort = np.linalg.norm(actions[:,node_idx,:,0],axis=1)
-		ax.plot(times, effort, color=colors[node_idx], alpha=0.5)
-
-	ax.set_xlabel('time')
-	ax.set_ylabel('effort')
-	ax.grid(True)	
-
-	return fig,ax
-
-
-def plot_speeds(sim_result):
-
-	times = sim_result["times"]
-	node_states = sim_result["info"]["node_state"] # [num timesteps, num nodes, state_dim_per_agent, 1]
-	colors = get_node_colors(sim_result, 0)
-
-	fig,ax = plt.subplots() 
-	for node_idx in range(node_states.shape[1]):
-		speed = np.linalg.norm(node_states[:,node_idx,2:,0],axis=1)
-		ax.plot(times, speed, color=colors[node_idx], alpha=0.5)
-
-	ax.set_xlabel('time')
-	ax.set_ylabel('speed')
-	ax.grid(True)	
-
-	return fig,ax
-
-
-def get_node_colors(sim_result, timestep=0):
-
-	# from https://stackoverflow.com/questions/8931268/using-colormaps-to-set-color-of-line-in-matplotlib
-	from matplotlib import cm
-
-	node_idx = sim_result["info"]["node_idx"] # [nt x ni] 
-	node_team_A = sim_result["info"]["node_team_A"] # [nt x ni] 
-	node_team_B = sim_result["info"]["node_team_B"] # [nt x ni] 
-
-	n_agent = len(node_idx[timestep])
-
-	# some param 
-	start = 0.55
-	stop = 0.56
-	number_of_lines= n_agent
-	cm_subsection = np.linspace(start, stop, number_of_lines) 
-
-	colors_A = [ cm.Blues(x) for x in cm_subsection]
-	colors_B = [ cm.Reds(x) for x in cm_subsection]
-
-	colors = []
-	for i in node_idx[0]:
-		if node_team_A[timestep][i]:
-			colors.append(colors_A[i])
-		elif node_team_B[timestep][i]:
-			colors.append(colors_B[i])
-		else:
-			print('theta value not understood')
-			exit()
-
-	return colors
-
 
 def make_gif(sim_result):
 	
@@ -280,59 +102,6 @@ def make_gif(sim_result):
 
 	duration = 0.5 
 	imageio.mimsave(gif_name, images, duration = duration)
-
-def plot_dbg_observations(sim_result,observations):
-
-	times = sim_result["times"]
-	states = sim_result["states"]
-	actions = sim_result["actions"]
-	rewards = sim_result["rewards"]
-	team_1_idxs = sim_result["param"]["team_1_idxs"]
-	num_nodes = sim_result["param"]["num_nodes"]
-	goal = sim_result["param"]["goal"]
-	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
-	env_xlim = sim_result["param"]["env_xlim"]	
-	env_ylim = sim_result["param"]["env_ylim"]	
-
-	team_1_color = 'blue'
-	team_2_color = 'orange'
-	goal_color = 'green'
-
-	colors = get_colors(sim_result["param"])
-
-	fig,ax = plt.subplots() 
-
-
-	# plot state 
-	ax.grid(True)
-	ax.set_aspect('equal')
-	ax.set_title('State Space')
-	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
-	for i in range(num_nodes):
-		for t in range(states.shape[0]):
-			ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
-				color=colors[i],alpha=0.2,fill=False))
-		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
-		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i])
-	ax.set_xlim([env_xlim[0],env_xlim[1]])
-	ax.set_ylim([env_ylim[0],env_ylim[1]])
-
-
-	for observation in observations:
-
-		o_as,o_bs,relative_goals,actions = observation
-
-		# plot observations on top 
-		for (o_a,o_b,relative_goal,action) in zip(o_as,o_bs,relative_goals,actions):
-
-			abs_pos = np.array([sim_result["param"]["goal"][0],sim_result["param"]["goal"][1],0,0]) - relative_goal 
-
-			if len(o_a) > 0:
-				ax.plot([abs_pos[0],abs_pos[0] + o_a[0]], [abs_pos[1],abs_pos[1] + o_a[1]],color=team_1_color,alpha=0.1)
-			if len(o_b) > 0:
-				ax.plot([abs_pos[0],abs_pos[0] + o_b[0]], [abs_pos[1],abs_pos[1] + o_b[1]],color=team_2_color,alpha=0.1)
-			
-			ax.plot([abs_pos[0],abs_pos[0] + relative_goal[0]], [abs_pos[1],abs_pos[1] + relative_goal[1]],color=goal_color,alpha=0.1)
 
 
 def plot_sa_pairs(sampled_sa_pairs,sim_result,team):
@@ -394,7 +163,7 @@ def plot_sa_pairs(sampled_sa_pairs,sim_result,team):
 						ax.arrow(state_per_robot[0],state_per_robot[1],0,1e-3,color=color,alpha=0.5)
 
 
-def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list):
+def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list,env_length):
 
 	team_1_color = 'blue'
 	team_2_color = 'orange'
@@ -415,6 +184,9 @@ def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list):
 		ax.set_aspect('equal')
 		ax.set_xticks([])
 		ax.set_yticks([])
+
+		ax.set_xlim([-env_length,env_length])
+		ax.set_ylim([-env_length,env_length])
 
 		ax.scatter(0,0,color=self_color)
 		ax.scatter(goal[0],goal[1],color=goal_color)
@@ -635,11 +407,11 @@ def plot_exp1_results(all_sim_results):
 
 def plot_exp2_results(all_sim_results):
 
-	training_teams = all_sim_results[0]["param"]["training_teams"]
-	modes = all_sim_results[0]["param"]["modes"]
-	tree_sizes = all_sim_results[0]["param"]["tree_sizes"]
-	num_trials = all_sim_results[0]["param"]["num_trials"]
-	team_comps = all_sim_results[0]["param"]["robot_team_compositions"]
+	training_teams = all_sim_results[0]["param"]["l_training_teams"]
+	modes = all_sim_results[0]["param"]["sim_modes"]
+	tree_sizes = all_sim_results[0]["param"]["mcts_tree_sizes"]
+	num_trials = all_sim_results[0]["param"]["sim_num_trials"]
+	team_comps = all_sim_results[0]["param"]["l_robot_team_compositions"]
 
 	# put into easy-to-use dict! 
 	results = dict()
@@ -647,10 +419,10 @@ def plot_exp2_results(all_sim_results):
 	for sim_result in all_sim_results:
 
 		team_comp = sim_result["param"]["robot_team_composition"]
-		mode = sim_result["param"]["mode"]
-		tree_size = sim_result["param"]["tree_size"]
+		mode = sim_result["param"]["sim_mode"]
+		tree_size = sim_result["param"]["mcts_tree_size"]
 		training_team = sim_result["param"]["training_team"]
-		trial = sim_result["param"]["trial"]
+		trial = sim_result["param"]["sim_trial"]
 
 		num_nodes_A, num_nodes_B = 0,0
 		for robot_type, robot_number in team_comp["a"].items():
@@ -720,7 +492,8 @@ def plot_exp2_results(all_sim_results):
 							# results[key]["actions"] in num_points x nagents x action_dim 
 
 							im[i_tree,:] = results[key]["actions"][0,robot_idx,:] 
-							imobj = ax.imshow(im.T,vmin=0,vmax=0.5,cmap=cm.coolwarm)
+							# imobj = ax.imshow(im.T,vmin=0,vmax=0.5,cmap=cm.coolwarm)
+							imobj = ax.imshow(im.T,vmin=0,vmax=1.0,cmap=cm.coolwarm)
 							# imobj = ax.imshow(im.T,cmap=cm.coolwarm)
 
 							ax.set_xticks([])
@@ -1049,87 +822,131 @@ def sanitise_filenames(filename):
 
 	return filename
 
+def get_team_from_raw_fn(raw_fn):
+	raw_fn = os.path.basename(raw_fn)
+	raw_fn = raw_fn.split("train")
+	team = raw_fn[0][-1]
+	return team 	
+
+def get_team_from_batch_fn(batch_fn):
+	batch_fn = os.path.basename(batch_fn)
+	batch_fn = batch_fn.split("train")
+	team = batch_fn[0][-1]
+	return team 
+
 
 if __name__ == '__main__':
+
 	import argparse
 	import datahandler
 
 	parser = argparse.ArgumentParser()
-	parser.add_argument("file", help="pickle file to visualize")
-	parser.add_argument("--outputPDF", help="output pdf file")
-	parser.add_argument("--outputMP4", help="output video file")
+	parser.add_argument("-plot_type", default=None, required=False)
+	parser.add_argument("-file", default=None, required=False)
+	args = parser.parse_args() 
 
-	# parser.add_argument("--animate", action='store_true', help="animate using meshlab")
-	args = parser.parse_args()
+	if args.plot_type == "plot_sa_pairs" and not args.file is None:
+		num_points_per_file = 9 
+		sim_result = dh.load_sim_result(args.file)
+		state_action_pairs = list(zip(sim_result["states"],sim_result["actions"]))
+		sampled_sa_pairs = random.sample(state_action_pairs,num_points_per_file)
+		training_team = get_team_from_raw_fn(args.file)
+		plot_sa_pairs(sampled_sa_pairs,sim_result,training_team)
 
-	# Detect if input file is a directory or a pickle file
-	input_file, input_ext = os.path.splitext(os.path.basename(args.file))
-	if ("pickle" in input_ext):
-		print("Generating for a file")
+	if args.plot_type == "plot_oa_pairs" and not args.file is None: 
+		num_points_per_file = 9 
 
-		# Assign argument as per normal
-		files = [args.file]
-		PDFs = [args.outputPDF]
-		MP4s = [args.outputMP4]
+		param = Param()
+		rsense = param.standard_robot["r_sense"]
+		env_length = param.env_xlim[1] - param.env_xlim[0]
+		abs_goal = param.goal 
+		action_list = param.actions
+		training_team = get_team_from_batch_fn(args.file)
 
-	else:
-		# Search directory for matching files
-		print("Generating for a directory")
-		files = glob.glob(args.file+'**/*.pickle', recursive = True)
+		o_a,o_b,goal,actions = dh.read_oa_batch(args.file)
+		oa_pairs = list(zip(o_a,o_b,goal,actions))
+		sampled_oa_pairs = random.sample(oa_pairs,num_points_per_file)
+		plot_oa_pairs(sampled_oa_pairs,abs_goal,training_team,rsense,action_list,env_length)		
 
-		PDFs = []
-		MP4s = []
+	save_figs('temp_plot.pdf')
+	open_figs('temp_plot.pdf')
 
-		# Generate save names
-		for ii in range(0,len(files)):
-			# PDF files
-			output_dir,  output_file = os.path.split(args.outputPDF)
-			output_file, output_ext  = os.path.splitext(os.path.basename(args.outputPDF))
+	# parser = argparse.ArgumentParser()
+	# parser.add_argument("file", help="pickle file to visualize")
+	# parser.add_argument("--outputPDF", help="output pdf file")
+	# parser.add_argument("--outputMP4", help="output video file")
 
-			PDFs.append(os.path.join(output_dir, "{:03.0f}".format(ii+1)+'-'+output_file+'.pdf'))
+	# # parser.add_argument("--animate", action='store_true', help="animate using meshlab")
+	# args = parser.parse_args()
 
-			# MP4 files
-			output_dir,  output_file = os.path.split(args.outputMP4)
-			output_file, output_ext  = os.path.splitext(os.path.basename(args.outputMP4))
+	# # Detect if input file is a directory or a pickle file
+	# input_file, input_ext = os.path.splitext(os.path.basename(args.file))
+	# if ("pickle" in input_ext):
+	# 	print("Generating for a file")
 
-			MP4s.append(os.path.join(output_dir, "{:03.0f}".format(ii+1)+'-'+output_file+'.mp4'))
+	# 	# Assign argument as per normal
+	# 	files = [args.file]
+	# 	PDFs = [args.outputPDF]
+	# 	MP4s = [args.outputMP4]
 
-	# Loop through each of the files in files
-	for ii in range(0,len(files)):
-		print("{:3.0f}".format(ii+1),"/"+"{:3.0f}".format(len(files))+" - Generating plots for "+files[ii])
+	# else:
+	# 	# Search directory for matching files
+	# 	print("Generating for a directory")
+	# 	files = glob.glob(args.file+'**/*.pickle', recursive = True)
+
+	# 	PDFs = []
+	# 	MP4s = []
+
+	# 	# Generate save names
+	# 	for ii in range(0,len(files)):
+	# 		# PDF files
+	# 		output_dir,  output_file = os.path.split(args.outputPDF)
+	# 		output_file, output_ext  = os.path.splitext(os.path.basename(args.outputPDF))
+
+	# 		PDFs.append(os.path.join(output_dir, "{:03.0f}".format(ii+1)+'-'+output_file+'.pdf'))
+
+	# 		# MP4 files
+	# 		output_dir,  output_file = os.path.split(args.outputMP4)
+	# 		output_file, output_ext  = os.path.splitext(os.path.basename(args.outputMP4))
+
+	# 		MP4s.append(os.path.join(output_dir, "{:03.0f}".format(ii+1)+'-'+output_file+'.mp4'))
+
+	# # Loop through each of the files in files
+	# for ii in range(0,len(files)):
+	# 	print("{:3.0f}".format(ii+1),"/"+"{:3.0f}".format(len(files))+" - Generating plots for "+files[ii])
 		
-		args.file      = sanitise_filenames(files[ii])
-		args.outputPDF = sanitise_filenames(PDFs[ii])
-		args.outputMP4 = sanitise_filenames(MP4s[ii])
+	# 	args.file      = sanitise_filenames(files[ii])
+	# 	args.outputPDF = sanitise_filenames(PDFs[ii])
+	# 	args.outputMP4 = sanitise_filenames(MP4s[ii])
 
-		# Load results
-		sim_result = datahandler.load_sim_result(args.file)
+	# 	# Load results
+	# 	sim_result = datahandler.load_sim_result(args.file)
 
-		if args.outputPDF:
-			plot_tree_results(sim_result)
+	# 	if args.outputPDF:
+	# 		plot_tree_results(sim_result)
 
-			save_figs(args.outputPDF)
-			# Only open PDF if we're looking at one file
-			if len(files) == 1:
-				open_figs(args.outputPDF)
+	# 		save_figs(args.outputPDF)
+	# 		# Only open PDF if we're looking at one file
+	# 		if len(files) == 1:
+	# 			open_figs(args.outputPDF)
 
-		if args.outputMP4:
-			plot_animation(sim_result,args)
+	# 	if args.outputMP4:
+	# 		plot_animation(sim_result,args)
 	
-	# Join the movies together if running in batch mode
-	#	This piece of code will work but needs to be run from the correct directory...
-	#	Haven't worked this out yet...
-	'''
-	if (len(files) > 1):
-		print("Combining MP4s")
-		# Get a list of the movies generated
-		cmd = "for f in *.mp4 ; do echo file \'$f\' >> list.txt;"
-		os.system(cmd)
-		# Combine them ussing ffmpeg
-		cmd = "ffmpeg -f concat -safe 0 -i list.txt -c copy swarm-AI.mp4"
-		os.system(cmd)
-	'''
-	#  for f in *.mp4 ; do echo file \'$f\' >> list.txt; done && ffmpeg -f concat -safe 0 -i list.txt -c copy swarm-AI.mp4
+	# # Join the movies together if running in batch mode
+	# #	This piece of code will work but needs to be run from the correct directory...
+	# #	Haven't worked this out yet...
+	# '''
+	# if (len(files) > 1):
+	# 	print("Combining MP4s")
+	# 	# Get a list of the movies generated
+	# 	cmd = "for f in *.mp4 ; do echo file \'$f\' >> list.txt;"
+	# 	os.system(cmd)
+	# 	# Combine them ussing ffmpeg
+	# 	cmd = "ffmpeg -f concat -safe 0 -i list.txt -c copy swarm-AI.mp4"
+	# 	os.system(cmd)
+	# '''
+	# #  for f in *.mp4 ; do echo file \'$f\' >> list.txt; done && ffmpeg -f concat -safe 0 -i list.txt -c copy swarm-AI.mp4
 
 	
-	print("\n\nDone!\n")
+	# print("\n\nDone!\n")
