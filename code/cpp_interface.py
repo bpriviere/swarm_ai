@@ -15,7 +15,8 @@ def create_cpp_robot_type(param, robot_type):
 	acceleration_limit = param.__dict__[robot_type]["acceleration_limit"]
 	tag_radius = param.__dict__[robot_type]["tag_radius"]
 	r_sense = param.__dict__[robot_type]["r_sense"]
-	rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense)
+	radius = param.__dict__[robot_type]["radius"]
+	rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)
 	return rt
 
 def robot_composition_to_cpp_robot_types(param,team):
@@ -123,61 +124,65 @@ def rollout(param):
 	state = param.state
 	gs = state_to_cpp_game_state(param,state,"a")
 	next_state = state_to_cpp_game_state(param,state,"a")
-	while True:
 
-		if "MCTS" in param.sim_mode:
-			
-			next_state.attackersReward = 0
-			next_state.defendersReward = 0
-			next_state.depth = 0
+	if g.isValid(gs):
+		while True:
 
-			mctsresult = mctscpp.search(g, next_state, generator, param.mcts_tree_size)
-			if mctsresult.success: 
-				team_action = mctsresult.bestAction
-				if next_state.turn == mctscpp.GameState.Turn.Attackers:
-					for idx in param.team_1_idxs: 
-						action.append(team_action[idx])
-				elif next_state.turn == mctscpp.GameState.Turn.Defenders:
-					for idx in param.team_2_idxs: 
-						action.append(team_action[idx])
-				success = g.step(next_state, team_action, next_state)
-
-				if success and next_state.turn == mctscpp.GameState.Turn.Attackers:
-					print(action)
-					results.append(game_state_to_cpp_result(gs,action))
-					action = []
-					gs = next_state
-			else:
-				success = False
-
-		elif param.sim_mode == "GLAS":
-
-			gs.attackersReward = 0
-			gs.defendersReward = 0
-			gs.depth = 0
-
-			action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, goal, attackerTypes, defenderTypes, generator, deterministic)
-
-			# step twice (once per team)
-			success = g.step(gs, action, next_state)
-			if success:
+			if "MCTS" in param.sim_mode:
+				
 				next_state.attackersReward = 0
 				next_state.defendersReward = 0
 				next_state.depth = 0
-				success = g.step(next_state, action, next_state)
 
-			if not success:
+				mctsresult = mctscpp.search(g, next_state, generator, param.mcts_tree_size)
+				if mctsresult.success: 
+					team_action = mctsresult.bestAction
+					if next_state.turn == mctscpp.GameState.Turn.Attackers:
+						for idx in param.team_1_idxs: 
+							action.append(team_action[idx])
+					elif next_state.turn == mctscpp.GameState.Turn.Defenders:
+						for idx in param.team_2_idxs: 
+							action.append(team_action[idx])
+					success = g.step(next_state, team_action, next_state)
+
+					if success and next_state.turn == mctscpp.GameState.Turn.Attackers:
+						print(action)
+						results.append(game_state_to_cpp_result(gs,action))
+						action = []
+						gs = next_state
+				else:
+					success = False
+
+			elif param.sim_mode == "GLAS":
+
+				gs.attackersReward = 0
+				gs.defendersReward = 0
+				gs.depth = 0
+
+				action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, goal, attackerTypes, defenderTypes, generator, deterministic)
+
+				# step twice (once per team)
+				success = g.step(gs, action, next_state)
+				if success:
+					next_state.attackersReward = 0
+					next_state.defendersReward = 0
+					next_state.depth = 0
+					success = g.step(next_state, action, next_state)
+
+				if not success:
+					break
+
+				results.append(game_state_to_cpp_result(gs,action))
+				gs = next_state
+
+			if success:
+				if g.isTerminal(next_state):
+					results.append(game_state_to_cpp_result(next_state,None))
+					break 
+			else:
 				break
-
-			results.append(game_state_to_cpp_result(gs,action))
-			gs = next_state
-
-		if success:
-			if g.isTerminal(next_state):
-				results.append(game_state_to_cpp_result(next_state,None))
-				break 
-		else:
-			break
+	else:
+		print("Warning: Initial state {} is not valid!".format(gs))
 
 	if len(results) == 0:
 		results.append(game_state_to_cpp_result(gs,None))

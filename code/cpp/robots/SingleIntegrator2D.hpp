@@ -51,8 +51,9 @@ public:
     const Eigen::Vector2f& p_max,
     float v_max,
     float tag_radius,
-    float r_sense)
-    : RobotType(p_min, p_max, tag_radius, r_sense)
+    float r_sense,
+    float radius)
+    : RobotType(p_min, p_max, tag_radius, r_sense, radius)
     , velocity_limit(v_max)
   {
     init();

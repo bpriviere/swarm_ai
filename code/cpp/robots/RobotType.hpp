@@ -15,11 +15,13 @@ public:
     const Eigen::Vector2f& p_min,
     const Eigen::Vector2f& p_max,
     float tag_radius,
-    float r_sense)
+    float r_sense,
+    float radius)
     : p_min(p_min)
     , p_max(p_max)
     , tag_radiusSquared(tag_radius*tag_radius)
     , r_senseSquared(r_sense*r_sense)
+    , radius(radius)
   {
   }
 
@@ -27,4 +29,5 @@ public:
   Eigen::Vector2f p_max;
   float tag_radiusSquared;
   float r_senseSquared;
+  float radius;
 };
