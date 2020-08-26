@@ -81,8 +81,7 @@ def get_params(df_param):
 				for training_team in df_param.l_training_teams:
 					for mode in df_param.sim_modes: 
 
-						param = Param()
-						param.seed = seed 
+						param = Param(seed=seed)
 
 						param.mcts_rollout_beta = df_param.mcts_rollout_beta
 						param.mcts_tree_sizes = df_param.mcts_tree_sizes 

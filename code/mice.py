@@ -301,8 +301,7 @@ def get_params(df_param,training_team,iter_i):
 
 		for trial in range(df_param.l_num_trials_per_iteration): 
 
-			param = Param()
-			param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
+			param = Param() # random seed 
 			param.robot_team_composition = robot_team_composition 
 			param.mcts_tree_size = df_param.mcts_tree_size
 			param.l_num_points_per_file = df_param.l_num_points_per_file

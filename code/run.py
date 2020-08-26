@@ -21,7 +21,6 @@ def get_params(df_param):
 	params = [] 
 	for trial in range(df_param.sim_num_trials):
 		param = Param()
-		param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
 		param.sim_mode = df_param.sim_mode
 		param.path_glas_model_a = df_param.path_glas_model_a
 		param.path_glas_model_b = df_param.path_glas_model_b

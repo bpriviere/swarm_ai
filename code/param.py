@@ -10,9 +10,11 @@ from torch import nn, tanh, relu
 
 class Param:
 
-	def __init__(self):
+	def __init__(self,seed=None):
 
-		self.seed = int.from_bytes(os.urandom(4), sys.byteorder)
+		if seed is None: 
+			self.seed = int.from_bytes(os.urandom(4), sys.byteorder)
+
 		random.seed(self.seed)
 
 		# sim param 
