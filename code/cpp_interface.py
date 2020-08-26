@@ -108,7 +108,7 @@ def state_to_cpp_game_state(param,state,turn):
 
 	return game_state 
 
-def rollout(param):
+def rollout(param,sim_mode):
 	# rollout adapted from test_python_bindings
 
 	generator = mctscpp.createRandomGenerator(param.seed)
@@ -125,7 +125,7 @@ def rollout(param):
 	next_state = state_to_cpp_game_state(param,state,"a")
 	while True:
 
-		if "MCTS" in param.sim_mode:
+		if "MCTS" in sim_mode:
 			
 			next_state.attackersReward = 0
 			next_state.defendersReward = 0
@@ -143,14 +143,13 @@ def rollout(param):
 				success = g.step(next_state, team_action, next_state)
 
 				if success and next_state.turn == mctscpp.GameState.Turn.Attackers:
-					print(action)
 					results.append(game_state_to_cpp_result(gs,action))
 					action = []
 					gs = next_state
 			else:
 				success = False
 
-		elif param.sim_mode == "GLAS":
+		elif sim_mode == "GLAS":
 
 			gs.attackersReward = 0
 			gs.defendersReward = 0
@@ -206,8 +205,10 @@ def game_state_to_cpp_result(gs,action):
 
 	return np.array(result).flatten()	
 
-def evaluate_expert(states,param):
-	# print('   running expert for instance {}'.format(param.dataset_fn))
+def evaluate_expert(states,param,quiet_on=True):
+	
+	if not quiet_on:
+		print('   running expert for instance {}'.format(param.dataset_fn))
 
 	generator = mctscpp.createRandomGenerator(param.seed)
 	game,_,_,_,_ = param_to_cpp_game(param,generator) 
@@ -228,7 +229,9 @@ def evaluate_expert(states,param):
 	sim_result["states"] = np.array(sim_result["states"])
 	sim_result["actions"] = np.array(sim_result["actions"])
 	dh.write_sim_result(sim_result,param.dataset_fn)
-	# print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
+
+	if not quiet_on:
+		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 
 def evaluate_glas(states,param):
 	exit('not implemented, i want this to return valueperaction')

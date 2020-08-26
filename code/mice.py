@@ -12,7 +12,7 @@ from tqdm import tqdm
 
 import plotter
 import datahandler as dh
-from cpp_interface import evaluate_expert
+from cpp_interface import evaluate_expert, rollout
 from param import Param 
 from learning.discrete_emptynet import DiscreteEmptyNet
 
@@ -113,18 +113,20 @@ def get_uniform_samples(params):
 	return states, params
 
 
-def get_self_play_samples(gparam,params):
-	exit('not implented/tested')
+def get_self_play_samples(params):
 	print('getting self-play samples...')
 	states = []
 	for param in params: 
-		sim_result = rollout(param)
-		states.append(sim_result["states"])
+		states_per_file = [] 
+		while len(states_per_file) < param.l_num_points_per_file:
+			sim_result = rollout(param,"GLAS")
+			states_per_file.extend(sim_result["states"])
+		states.append(states_per_file)
 	print('self-play sample collection completed.')
 	return states, params 
 	
 
-def increment(gparam):
+def increment():
 	exit('not implemented')
 
 
@@ -252,14 +254,12 @@ def make_dataset(states,params,df_param):
 
 	if not df_param.l_parallel_on:
 		for states_per_file, param in zip(states, params): 
-			evaluate_expert(states_per_file, param)
+			evaluate_expert(states_per_file, param, quiet_on=False)
 	else:
 		ncpu = cpu_count()
 		print('ncpu: ', ncpu)
 		with Pool(ncpu-1) as p:
-			# p.starmap(evaluate_expert, states, params)
-			p.starmap(evaluate_expert, list(zip(states, params)))
-
+			p.starmap(evaluate_expert, list(zip(states, params, repeat(False))))
 
 	# labelled dataset 
 	print('cleaning labelled data...')
@@ -309,12 +309,12 @@ def get_params(df_param,training_team,iter_i):
 
 			if df_param.l_mode == "DAgger" or df_param.l_mode == "IL":
 				param.mcts_rollout_beta = 0.0
-				param.mcts_mode = "MCTS_RANDOM"
+				param.sim_mode = "MCTS_RANDOM"
 			elif df_param.l_mode == "ExIt" or df_param.l_mode == "Mice":
 				param.mcts_rollout_beta = df_param.mcts_rollout_beta
-				param.mcts_mode = "MCTS_GLAS"
+				param.sim_mode = "MCTS_GLAS"
 			else: 
-				exit('df_param.mode not recognized')
+				exit('df_param.l_mode not recognized')
 
 			param.training_team = training_team
 			param.iter_i = iter_i 
@@ -340,28 +340,30 @@ def format_dir(df_param):
 if __name__ == '__main__':
 
 	df_param = Param() 
-	format_dir(df_param)
+	# format_dir(df_param)
 	
 	for iter_i in range(df_param.l_num_iterations):
 		for training_team in df_param.l_training_teams: 
 
-			print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
+			if iter_i > 0:
 
-			params = get_params(df_param,training_team,iter_i)
-			
-			if iter_i == 0 or df_param.l_mode == "IL":
-				states, params = get_uniform_samples(params)
-			else: 
-				states, params = get_self_play_samples(params) 
-			
-			make_dataset(states,params,df_param)
-			train_model(df_param,\
-				glob.glob(df_param.l_labelled_fn.format(\
-					DATADIR=df_param.path_current_data,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM=training_team,ITER='**')), \
-				training_team,\
-				df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i))
+				print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
 
-			if df_param.l_mode == "Mice":
-				increment(df_param)
+				params = get_params(df_param,training_team,iter_i)
+				
+				if iter_i == 0 or df_param.l_mode == "IL":
+					states, params = get_uniform_samples(params)
+				else: 
+					states, params = get_self_play_samples(params) 
+				
+				make_dataset(states,params,df_param)
+				train_model(df_param,\
+					glob.glob(df_param.l_labelled_fn.format(\
+						DATADIR=df_param.path_current_data,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM=training_team,ITER='**')), \
+					training_team,\
+					df_param.l_model_fn.format(\
+						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i))
+
+				if df_param.l_mode == "Mice":
+					increment(df_param)
 			

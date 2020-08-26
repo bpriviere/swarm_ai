@@ -13,7 +13,7 @@ import datahandler
 import plotter 
 
 def run_sim(param):
-	sim_result = rollout(param)
+	sim_result = rollout(param,param.sim_mode)
 	results_fn = os.path.join(param.path_current_results,'sim_result_{}'.format(param.trial))
 	datahandler.write_sim_result(sim_result,results_fn)
 
