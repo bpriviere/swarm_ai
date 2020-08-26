@@ -92,9 +92,9 @@ void runGame(
   goal << config["goal"][0].as<float>(),config["goal"][1].as<float>(), 0, 0;
 
   // load GLAS
-  GLAS glas_a(generator);
+  GLAS<RobotT::StateDim> glas_a(generator);
   glas_a.load(cfg_nn["team_a"]);
-  GLAS glas_b(generator);
+  GLAS<RobotT::StateDim> glas_b(generator);
   glas_b.load(cfg_nn["team_b"]);
 
   EnvironmentT env(attackerTypes, defenderTypes, dt, goal, 1e6, generator, glas_a, glas_b, 0.0);

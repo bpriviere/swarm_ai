@@ -55,11 +55,11 @@ class Game {
     const std::vector<RobotTypeT>& attackerTypes,
     const std::vector<RobotTypeT>& defenderTypes,
     float dt,
-    const Eigen::Vector4f& goal,
+    const Eigen::Matrix<float, Robot::StateDim, 1>& goal,
     size_t maxDepth,
     std::default_random_engine& generator,
-    const GLAS& glas_a,
-    const GLAS& glas_b,
+    const GLAS<Robot::StateDim>& glas_a,
+    const GLAS<Robot::StateDim>& glas_b,
     float rollout_beta)
     : m_attackerTypes(attackerTypes)
     , m_defenderTypes(defenderTypes)
@@ -112,7 +112,7 @@ class Game {
     // Update status
     for (size_t i = 0; i < NumAttackers; ++i) {
       if (nextState.attackers[i].status == RobotStateT::Status::Active) {
-        float distToGoalSquared = (nextState.attackers[i].position() - m_goal.segment<2>(0)).squaredNorm();
+        float distToGoalSquared = (nextState.attackers[i].position() - m_goal.template head<2>()).squaredNorm();
         if (distToGoalSquared <= m_attackerTypes[i].tag_radiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
           nextState.attackers[i].status = RobotStateT::Status::ReachedGoal;
@@ -373,11 +373,11 @@ private:
   std::vector<RobotTypeT> m_attackerTypes;
   std::vector<RobotTypeT> m_defenderTypes;
   float m_dt;
-  Eigen::Vector4f m_goal;
+  Eigen::Matrix<float, Robot::StateDim, 1> m_goal;
   size_t m_maxDepth;
   std::default_random_engine& m_generator;
-  GLAS m_glas_a;
-  GLAS m_glas_b;
+  GLAS<Robot::StateDim> m_glas_a;
+  GLAS<Robot::StateDim> m_glas_b;
   float m_rollout_beta;
 
   // Maps activeRobots -> possible actions

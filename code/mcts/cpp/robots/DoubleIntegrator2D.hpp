@@ -109,6 +109,10 @@ public:
     invalidAction << nanf("") , nanf("");
   }
 
+  float actionLimit() const {
+    return acceleration_limit;
+  }
+
   friend std::ostream& operator<<(std::ostream& out, const RobotTypeDoubleIntegrator2D& rt)
   {
     Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");
@@ -132,6 +136,6 @@ public:
   typedef RobotActionDoubleIntegrator2D Action;
   typedef RobotTypeDoubleIntegrator2D Type;
 
-  static const size_t StateDim = 4;
-  static const size_t ActionDim = 2;
+  static constexpr int StateDim = 4;
+  static constexpr int ActionDim = 2;
 };

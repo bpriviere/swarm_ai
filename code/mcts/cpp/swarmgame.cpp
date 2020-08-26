@@ -26,8 +26,8 @@ void runMCTS(
   const YAML::Node& config,
   const std::string& outputFile,
   std::default_random_engine& generator,
-  const GLAS& glas_a,
-  const GLAS& glas_b)
+  const GLAS<RobotT::StateDim>& glas_a,
+  const GLAS<RobotT::StateDim>& glas_b)
 {
   using EnvironmentT = GameT;
   using GameStateT = typename EnvironmentT::GameStateT;
@@ -199,8 +199,8 @@ int main(int argc, char* argv[]) {
   std::cout << "Using seed " << seed << std::endl;
   std::default_random_engine generator(seed);
 
-  GLAS glas_a(generator);
-  GLAS glas_b(generator);
+  GLAS<RobotT::StateDim> glas_a(generator);
+  GLAS<RobotT::StateDim> glas_b(generator);
   if (!inputFileNN.empty()) {
     YAML::Node cfg_nn = YAML::LoadFile(inputFileNN);
 
