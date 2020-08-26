@@ -121,8 +121,8 @@ class Param:
 		self.path_current_data = '../current/data/'
 		self.path_saved_results = '../saved/results/'
 		self.path_saved_models = '../saved/models/'
-		self.path_glas_model_a = os.path.join(self.path_current_models,'a.pt')
-		self.path_glas_model_b = os.path.join(self.path_current_models,'b.pt')
+		self.path_glas_model_a = os.path.join(self.path_current_models,'a0.pt')
+		self.path_glas_model_b = os.path.join(self.path_current_models,'b0.pt')
 		self.path_plot = 'temp_plot.pdf'
 		
 				
