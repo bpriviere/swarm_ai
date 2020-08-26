@@ -408,7 +408,7 @@ def plot_exp1_results(all_sim_results):
 def plot_exp2_results(all_sim_results):
 
 	training_teams = all_sim_results[0]["param"]["l_training_teams"]
-	modes = all_sim_results[0]["param"]["l_modes"]
+	modes = all_sim_results[0]["param"]["sim_modes"]
 	tree_sizes = all_sim_results[0]["param"]["mcts_tree_sizes"]
 	num_trials = all_sim_results[0]["param"]["sim_num_trials"]
 	team_comps = all_sim_results[0]["param"]["l_robot_team_compositions"]
@@ -419,7 +419,7 @@ def plot_exp2_results(all_sim_results):
 	for sim_result in all_sim_results:
 
 		team_comp = sim_result["param"]["robot_team_composition"]
-		mode = sim_result["param"]["l_mode"]
+		mode = sim_result["param"]["sim_mode"]
 		tree_size = sim_result["param"]["mcts_tree_size"]
 		training_team = sim_result["param"]["training_team"]
 		trial = sim_result["param"]["sim_trial"]
@@ -492,7 +492,8 @@ def plot_exp2_results(all_sim_results):
 							# results[key]["actions"] in num_points x nagents x action_dim 
 
 							im[i_tree,:] = results[key]["actions"][0,robot_idx,:] 
-							imobj = ax.imshow(im.T,vmin=0,vmax=0.5,cmap=cm.coolwarm)
+							# imobj = ax.imshow(im.T,vmin=0,vmax=0.5,cmap=cm.coolwarm)
+							imobj = ax.imshow(im.T,vmin=0,vmax=1.0,cmap=cm.coolwarm)
 							# imobj = ax.imshow(im.T,cmap=cm.coolwarm)
 
 							ax.set_xticks([])

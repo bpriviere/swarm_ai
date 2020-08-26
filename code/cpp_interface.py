@@ -32,16 +32,20 @@ def param_to_cpp_game(param,generator):
 	defenderTypes = robot_composition_to_cpp_robot_types(param,"b") 
 	
 	dt = param.sim_dt 
-	rollout_beta = param.mcts_rollout_beta 
+
+	if param.sim_mode == "MCTS_RANDOM":
+		rollout_beta = 0.0
+	elif param.sim_mode == "MCTS_GLAS":
+		rollout_beta = param.mcts_rollout_beta 
+	elif param.sim_mode == "GLAS":
+		rollout_beta = 0.0 
+
 	goal = param.goal 
 	max_depth = param.mcts_rollout_horizon
 	generator = generator
 
-	if "GLAS" in param.sim_mode:
-		glas_a = createGLAS(param.path_glas_model_a, generator)
-		glas_b = createGLAS(param.path_glas_model_b, generator)
-	else:
-		glas_a = glas_b = mctscpp.GLAS(generator)
+	glas_a = createGLAS(param.path_glas_model_a, generator)
+	glas_b = createGLAS(param.path_glas_model_b, generator)
 
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b, rollout_beta)
 
@@ -227,6 +231,7 @@ def evaluate_expert(states,param):
 	# print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 
 def evaluate_glas(states,param):
+	exit('not implemented, i want this to return valueperaction')
 	print('   running glas for instance {}'.format(param.dataset_fn))
 
 	generator = mctscpp.createRandomGenerator(param.seed)

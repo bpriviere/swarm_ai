@@ -22,9 +22,10 @@ def evaluate_stochastic_policy(param):
 
 	print('running param {}/{}'.format(param.count,param.total))
 
-	if 'MCTS' in param.l_mode:
+	if 'MCTS' in param.sim_mode:
 		evaluate_expert([param.state],param)
-	elif param.l_mode == 'GLAS':
+
+	elif param.sim_mode == 'GLAS':
 		
 		state = param.state
 		model = DiscreteEmptyNet(param, "cpu")
@@ -57,7 +58,7 @@ def evaluate_stochastic_policy(param):
 		dh.write_sim_result(sim_result,param.dataset_fn)
 
 	else:
-		exit('mode not recognized',param.l_mode)
+		exit('mode not recognized',param.sim_mode)
 
 
 def get_params(df_param):
@@ -67,7 +68,7 @@ def get_params(df_param):
 	curr_ic = -1
 	count = 0 
 	total = df_param.sim_num_trials*len(df_param.l_robot_team_composition_cases)*len(df_param.mcts_tree_sizes)*\
-		len(df_param.l_training_teams)*len(df_param.l_modes)
+		len(df_param.l_training_teams)*len(df_param.sim_modes)
 
 	for trial in range(df_param.sim_num_trials):
 		for robot_team_composition in df_param.l_robot_team_composition_cases:
@@ -78,7 +79,7 @@ def get_params(df_param):
 
 			for tree_size in df_param.mcts_tree_sizes: 
 				for training_team in df_param.l_training_teams:
-					for mode in df_param.l_modes: 
+					for mode in df_param.sim_modes: 
 
 						param = Param()
 						param.seed = seed 
@@ -86,7 +87,7 @@ def get_params(df_param):
 						param.mcts_rollout_beta = df_param.mcts_rollout_beta
 						param.mcts_tree_sizes = df_param.mcts_tree_sizes 
 						param.l_robot_team_compositions = df_param.l_robot_team_composition_cases
-						param.l_modes = df_param.l_modes 
+						param.sim_modes = df_param.sim_modes 
 						param.l_training_teams = df_param.l_training_teams
 						param.l_num_points_per_file = 1 
 						param.sim_num_trials = df_param.sim_num_trials
@@ -94,7 +95,7 @@ def get_params(df_param):
 						param.robot_team_composition = robot_team_composition 
 						param.sim_trial = trial
 						param.mcts_tree_size = tree_size
-						param.l_mode = mode 
+						param.sim_mode = mode 
 						param.training_team = training_team
 						param.dataset_fn = '{}sim_result_{}'.format(df_param.path_current_results,count)
 						param.count = count 
@@ -116,7 +117,7 @@ def format_dir(df_param):
 if __name__ == '__main__':
 
 	df_param = Param()
-	df_param.l_modes = ["GLAS","MCTS_RANDOM","MCTS_GLAS"]
+	df_param.sim_modes = ["GLAS","MCTS_RANDOM","MCTS_GLAS"]
 	df_param.mcts_tree_sizes = [1000,5000,10000,50000,100000] 
 
 	run_on = True
