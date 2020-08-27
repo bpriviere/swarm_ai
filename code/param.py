@@ -32,8 +32,8 @@ class Param:
 			'acceleration_limit':0.125,
 			'tag_radius': 0.025,
 			'dynamics':'double_integrator',
-			'r_comm': 0.4,
 			'r_sense': 1.0,
+			'radius': 0.025,
 		}
 
 		self.evasive_robot = {
@@ -41,8 +41,8 @@ class Param:
 			'acceleration_limit':0.2,
 			'tag_radius': 0.025,
 			'dynamics':'double_integrator',
-			'r_comm': 0.4,
 			'r_sense': 1.0,
+			'radius': 0.025,
 		}
 
 		self.robot_team_composition = {

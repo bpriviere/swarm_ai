@@ -48,7 +48,7 @@ if __name__ == '__main__':
 	print(gs)
 
 	# test RobotType
-	rt = mctscpp.RobotType([0.0, 0.0], [0.5, 0.5], 0.125, 0.025, 1.0)
+	rt = mctscpp.RobotType([0.0, 0.0], [0.5, 0.5], 0.125, 0.025, 1.0, 0.025)
 	# rt.p_min = [0.0, 0.0]
 	# rt.p_max = [0.5, 0.5]
 	# rt.velocity_limit = 0.125
