@@ -1,54 +1,5 @@
 #pragma once
 
-namespace YAML {
-template<>
-struct convert<Eigen::MatrixXf> {
-  static Node encode(const Eigen::MatrixXf& rhs) {
-    Node node;
-    // node.push_back(rhs.x);
-    // node.push_back(rhs.y);
-    // node.push_back(rhs.z);
-    return node;
-  }
-
-  static bool decode(const Node& node, Eigen::MatrixXf& rhs) {
-    if(!node.IsSequence()) {
-      return false;
-    }
-
-    size_t numRows = node.size();
-    size_t numCols = 1;
-    if (node[0].IsSequence()) {
-      // 2D matrix
-      size_t numCols = node[0].size();
-      rhs.resize(numRows, numCols);
-      for (size_t r = 0; r < numRows; ++r) {
-        for (size_t c = 0; c < numCols; ++c) {
-          rhs(r,c) = node[r][c].as<float>();
-        }
-      }
-    } else {
-      // 1D matrix
-      rhs.resize(numRows, 1);
-      for (size_t r = 0; r < numRows; ++r) {
-        rhs(r) = node[r].as<float>();
-      }
-    }
-    // std::cout << numRows << " " << numCols << std::endl;
-
-    // rhs.resize(numRows,numCols);
-    // for (size_t r = 0; r < numRows; ++r) {
-    //   for (size_t )
-    // }
-
-    // rhs.x = node[0].as<double>();
-    // rhs.y = node[1].as<double>();
-    // rhs.z = node[2].as<double>();
-    return true;
-  }
-};
-}
-
 class FeedForwardNN
 {
 public:
@@ -80,21 +31,6 @@ public:
   {
     assert(m_layers.size() > 0);
     return m_layers.back().bias.size();
-  }
-
-  void load(const YAML::Node& node, const std::string& name)
-  {
-    for (size_t l = 0; ; ++l) {
-      std::string key1 = name + ".layers." + std::to_string(l) + ".weight";
-      std::string key2 = name + ".layers." + std::to_string(l) + ".bias";
-      if (node[key1] && node[key2]) {
-        addLayer(
-          node[key1].as<Eigen::MatrixXf>(),
-          node[key2].as<Eigen::MatrixXf>());
-      } else {
-        break;
-      }
-    }
   }
 
   bool valid() const
