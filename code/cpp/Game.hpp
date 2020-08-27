@@ -131,6 +131,33 @@ class Game {
       }
     }
 
+    // Collision check
+    // This only affects active robots within their respective teams.
+    // If robots from different teams get too close to each other, this is considered tagging.
+    for (size_t i = 0; i < NumAttackers; ++i) {
+      if (nextState.attackers[i].status == RobotStateT::Status::Active) {
+        for (size_t j = i+1; j < NumAttackers; ++j) {
+          if (nextState.attackers[j].status == RobotStateT::Status::Active) {
+            float dist = (nextState.attackers[i].position() - nextState.attackers[j].position()).norm();
+            float maxDist = m_attackerTypes[i].radius + m_attackerTypes[j].radius;
+            if (dist < maxDist) {
+              return false;
+            }
+          }
+        }
+      }
+    }
+
+    for (size_t i = 0; i < NumDefenders; ++i) {
+      for (size_t j = i+1; j < NumDefenders; ++j) {
+        float dist = (nextState.defenders[i].position() - nextState.defenders[j].position()).norm();
+        float maxDist = m_defenderTypes[i].radius + m_defenderTypes[j].radius;
+        if (dist < maxDist) {
+          return false;
+        }
+      }
+    }
+
     // update accumulated reward
     float r = computeReward(nextState);
     nextState.attackersReward += r;
@@ -138,6 +165,46 @@ class Game {
 
     nextState.depth += 1;
 
+    return true;
+  }
+
+  bool isValid(const GameStateT& state)
+  {
+    assert(state.attackers.size() == m_attackerTypes.size());
+    assert(state.defenders.size() == m_defenderTypes.size());
+
+    size_t NumAttackers = state.attackers.size();
+    size_t NumDefenders = state.defenders.size();
+
+    for (size_t i = 0; i < NumAttackers; ++i) {
+      if (state.attackers[i].status == RobotStateT::Status::Active) {
+        if (!m_attackerTypes[i].isStateValid(state.attackers[i])) {
+          return false;
+        }
+        for (size_t j = i+1; j < NumAttackers; ++j) {
+          if (state.attackers[j].status == RobotStateT::Status::Active) {
+            float dist = (state.attackers[i].position() - state.attackers[j].position()).norm();
+            float maxDist = m_attackerTypes[i].radius + m_attackerTypes[j].radius;
+            if (dist < maxDist) {
+              return false;
+            }
+          }
+        }
+      }
+    }
+
+    for (size_t i = 0; i < NumDefenders; ++i) {
+      if (!m_defenderTypes[i].isStateValid(state.defenders[i])) {
+        return false;
+      }
+      for (size_t j = i+1; j < NumDefenders; ++j) {
+        float dist = (state.defenders[i].position() - state.defenders[j].position()).norm();
+        float maxDist = m_defenderTypes[i].radius + m_defenderTypes[j].radius;
+        if (dist < maxDist) {
+          return false;
+        }
+      }
+    }
     return true;
   }
 
