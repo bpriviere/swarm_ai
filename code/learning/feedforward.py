@@ -6,11 +6,22 @@ class FeedForward(nn.Module):
 
 	def __init__(self,layers,activation,device):
 		super(FeedForward, self).__init__()
-		self.layers = copy.deepcopy(layers)
-		self.activation = activation
+
+		self.layers = nn.ModuleList()
+		for layer in layers:
+			if layer[0] == "Linear":
+				self.layers.append(nn.Linear(layer[1], layer[2]))
+			else:
+				raise Exception("Unknown layer type: {}".format(layer[0]))
+
+		if activation == "relu":
+			self.activation = torch.relu
+		else:
+			raise Exception("Unknown activation: {}".format(activation))
+
 		self.device = torch.device(device)
-		self.in_dim = layers[0].in_features
-		self.out_dim = layers[-1].out_features
+		self.in_dim = self.layers[0].in_features
+		self.out_dim = self.layers[-1].out_features
 
 	def forward(self, x):
 		for layer in self.layers[:-1]:

@@ -1,10 +1,9 @@
 
-import numpy as np 
+import numpy as np
 import itertools, copy
 import random
 import os,sys
-from math import cos, sin 
-from torch import nn, tanh, relu
+from math import cos, sin
 
 # todo: make rel-path to abs-path func 
 
@@ -88,22 +87,25 @@ class Param:
 		]
 
 		n,m,h,l,p = 4,2,16,8,8 # state dim, action dim, hidden layer, output phi, output rho
-		self.l_phi_network_architecture = nn.ModuleList([
-			nn.Linear(n,h),
-			nn.Linear(h,h),
-			nn.Linear(h,l)])
+		self.l_phi_network_architecture = [
+			["Linear", n, h],
+			["Linear", h, h],
+			["Linear", h, l]
+		]
 
-		self.l_rho_network_architecture = nn.ModuleList([
-			nn.Linear(l,h),
-			nn.Linear(h,h),
-			nn.Linear(h,p)])
+		self.l_rho_network_architecture = [
+			["Linear", l, h],
+			["Linear", h, h],
+			["Linear", h, p]
+		]
 
-		self.l_psi_network_architecture = nn.ModuleList([
-			nn.Linear(2*p+n,h), # because two deepsets 
-			nn.Linear(h,h),
-			nn.Linear(h,9)])
+		self.l_psi_network_architecture = [
+			["Linear", 2*p+n, h],
+			["Linear", h, h],
+			["Linear", h, 9]
+		]
 
-		self.l_network_activation = relu
+		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 1000000 # n_points 
 		self.l_batch_size = 500
