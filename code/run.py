@@ -78,5 +78,5 @@ if __name__ == '__main__':
 		plotter.plot_tree_results(sim_result)
 
 	print('saving and opening figs...')
-	plotter.save_figs(df_param.path_plot)
-	plotter.open_figs(df_param.path_plot)
+	plotter.save_figs('plots/run.pdf')
+	plotter.open_figs('plots/run.pdf')
