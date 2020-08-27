@@ -100,7 +100,7 @@ def uniform_sample(param,n):
 	states = [] 
 	for _ in range(n):
 		state = param.make_initial_condition() 
-		states.append(param.state)
+		states.append(state)
 	return states
 
 
