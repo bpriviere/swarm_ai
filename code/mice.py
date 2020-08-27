@@ -99,7 +99,7 @@ def test(model,optimizer,loader):
 def uniform_sample(param,n):
 	states = [] 
 	for _ in range(n):
-		param.make_initial_condition() 
+		state = param.make_initial_condition() 
 		states.append(param.state)
 	return states
 
@@ -370,4 +370,5 @@ if __name__ == '__main__':
 
 			if df_param.l_mode == "Mice":
 				increment(df_param)
-			
+	
+	print('done!')
