@@ -303,32 +303,6 @@ def evaluate_expert(states,param,quiet_on=True):
 
 	if not quiet_on:
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
-
-def evaluate_glas(states,param):
-	exit('not implemented, i want this to return valueperaction')
-	print('   running glas for instance {}'.format(param.dataset_fn))
-
-	generator = mctscpp.createRandomGenerator(param.seed)
-	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator) # this calls param.glas_model_a
-
-	sim_result = {
-		'states' : [],
-		'actions' : [],
-		'param' : param.to_dict()
-		}
-
-	deterministic = False
-
-	for state in states:
-		gs = state_to_cpp_game_state(param,state,param.training_team)
-		action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, param.goal, attackerTypes, defenderTypes, generator, deterministic)
-		sim_result["states"].append(state) # total number of robots x state dimension per robot 
-		sim_result["actions"].append(action) # total number of robots x action dimension per robot 
-
-	sim_result["states"] = np.array(sim_result["states"])
-	sim_result["actions"] = np.array(sim_result["actions"])
-	dh.write_sim_result(sim_result,param.dataset_fn)
-	print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 	
 
 def value_to_dist(param,valuePerAction):

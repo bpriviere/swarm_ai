@@ -22,7 +22,7 @@ class Param:
 		self.sim_t0 = 0
 		self.sim_tf = 20
 		self.sim_dt = 0.25
-		self.sim_parallel_on = False
+		self.sim_parallel_on = True
 		self.sim_mode = "GLAS" # MCTS_GLAS, MCTS_RANDOM, GLAS
 
 		# robot types 
@@ -79,14 +79,18 @@ class Param:
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
+			{
+			'a': {'standard_robot':2,'evasive_robot':0},
+			'b': {'standard_robot':1,'evasive_robot':0}
+			},
+			{
+			'a': {'standard_robot':1,'evasive_robot':0},
+			'b': {'standard_robot':2,'evasive_robot':0}
+			},
 			# {
 			# 'a': {'standard_robot':2,'evasive_robot':0},
-			# 'b': {'standard_robot':1,'evasive_robot':0}
-			# },
-			# {
-			# 'a': {'standard_robot':1,'evasive_robot':0},
 			# 'b': {'standard_robot':2,'evasive_robot':0}
-			# }
+			# },			
 		]
 
 		n,m,h,l,p = 4,2,16,8,8 # state dim, action dim, hidden layer, output phi, output rho
@@ -124,8 +128,6 @@ class Param:
 		self.path_current_results = '../current/results/'
 		self.path_current_models = '../current/models/'
 		self.path_current_data = '../current/data/'
-		self.path_saved_results = '../saved/results/'
-		self.path_saved_models = '../saved/models/'
 		self.path_glas_model_a = os.path.join(self.path_current_models,'a0.pt')
 		self.path_glas_model_b = os.path.join(self.path_current_models,'b0.pt')
 		
