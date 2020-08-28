@@ -56,16 +56,28 @@ MCTSResult search(
   GameT& game,
   const GameT::GameStateT& startState,
   std::default_random_engine& generator,
-  size_t num_nodes)
+  size_t num_nodes,
+  float rollout_beta,
+  float Cp)
 {
+  game.setRolloutBeta(rollout_beta);
   MCTSResult result;
-  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(game, generator, num_nodes, 1.4);
+  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(game, generator, num_nodes, Cp);
   result.success = mcts.search(startState, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
     result.valuePerAction = mcts.valuePerAction();
   }
   return result;
+}
+
+GameT::GameActionT eval(
+  GameT& game,
+  const GameT::GameStateT& startState,
+  std::default_random_engine& generator,
+  bool deterministic)
+{
+  return computeActionsWithGLAS(game.glasA(), game.glasB(), startState, game.goal(), game.attackerTypes(), game.defenderTypes(), generator, deterministic);
 }
 
 
@@ -75,7 +87,7 @@ PYBIND11_MODULE(mctscpp, m) {
   // helper functions
   m.def("createRandomGenerator", &createRandomGenerator);
   m.def("search", &search);
-  m.def("computeActionsWithGLAS", &computeActionsWithGLAS<RobotT>);
+  m.def("eval", &eval);
 
   // helper classes
   py::class_<std::default_random_engine> (m, "default_random_engine");
@@ -173,13 +185,14 @@ PYBIND11_MODULE(mctscpp, m) {
       float,
       const Eigen::Vector4f&,
       size_t,
-      std::default_random_engine&,
-      const GLAST&,
-      const GLAST&,
-      float>())
+      std::default_random_engine&>())
     .def("step", &GameT::step)
     .def("isTerminal", &GameT::isTerminal)
-    .def("isValid", &GameT::isValid);
+    .def("isValid", &GameT::isValid)
+    .def_property_readonly("glasA", &GameT::glasA)
+    .def_property_readonly("glasB", &GameT::glasB)
+    .def_property_readonly("attackerTypes", &GameT::attackerTypes)
+    .def_property_readonly("defenderTypes", &GameT::defenderTypes);
 }
 
 // PYBIND11_MODULE(mctscpp, m) {

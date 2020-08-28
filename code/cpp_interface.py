@@ -36,28 +36,19 @@ def param_to_cpp_game(param,generator,sim_mode):
 	
 	dt = param.sim_dt 
 
-	if sim_mode == "MCTS_RANDOM":
-		rollout_beta = 0.0
-	elif sim_mode == "MCTS_GLAS":
-		rollout_beta = param.mcts_rollout_beta 
-	elif sim_mode == "GLAS":
-		rollout_beta = 0.0 
-
 	goal = param.goal 
 	max_depth = param.mcts_rollout_horizon
 	generator = generator
 
-	glas_a = createGLAS(param.path_glas_model_a, generator)
-	glas_b = createGLAS(param.path_glas_model_b, generator)
+	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator)
+	loadGLAS(g.glasA, param.path_glas_model_a)
+	loadGLAS(g.glasB, param.path_glas_model_b)
 
-	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b, rollout_beta)
+	return g
 
-	return g,glas_a,glas_b,attackerTypes,defenderTypes
-
-def createGLAS(file, generator):
+def loadGLAS(glas, file):
 	state_dict = torch.load(file)
 
-	glas = mctscpp.GLAS(generator)
 	den = glas.discreteEmptyNet
 	loadFeedForwardNNWeights(den.deepSetA.phi, state_dict, "model_team_a.phi")
 	loadFeedForwardNNWeights(den.deepSetA.rho, state_dict, "model_team_a.rho")
@@ -114,10 +105,9 @@ def state_to_cpp_game_state(param,state,turn):
 def rollout(param,sim_mode): # self-play
 
 	generator = mctscpp.createRandomGenerator(param.seed)
-	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator,sim_mode) 
+	g = param_to_cpp_game(param,generator) 
 
 	deterministic = True
-	goal = param.goal 
 
 	results = []
 	action = []
@@ -160,7 +150,7 @@ def rollout(param,sim_mode): # self-play
 				gs.defendersReward = 0
 				gs.depth = 0
 
-				action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, goal, attackerTypes, defenderTypes, generator, deterministic)
+				action = mctscpp.eval(g, gs, generator, deterministic)
 
 				# step twice (once per team)
 				success = g.step(gs, action, next_state)
@@ -206,10 +196,9 @@ def play_game(param):
 
 	# similar to rollout 
 	generator = mctscpp.createRandomGenerator(param.seed)
-	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator,param.sim_mode) 
+	g = param_to_cpp_game(param,generator) 
 
 	deterministic = True
-	goal = param.goal 
 
 	results = []
 
@@ -230,7 +219,7 @@ def play_game(param):
 
 		if "MCTS" in policy_dict["sim_mode"]:
 			
-			mctsresult = mctscpp.search(g, gs, generator, policy_dict["mcts_tree_size"])
+			mctsresult = mctscpp.search(g, gs, generator, policy_dict["mcts_tree_size"], policy_dict["mcts_rollout_beta"], policy_dict["mcts_c_param"])
 			if mctsresult.success: 
 				team_action = mctsresult.bestAction
 				success = g.step(gs, team_action, gs)
@@ -239,7 +228,7 @@ def play_game(param):
 
 		elif policy_dict["sim_mode"] == "GLAS":
 
-			action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, goal, attackerTypes, defenderTypes, generator, deterministic)
+			action = mctscpp.eval(g, gs, generator, deterministic)
 			success = g.step(gs, action, gs)
 
 		results.append(game_state_to_cpp_result(gs,None))
@@ -290,7 +279,8 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 		enumeration = states
 
 	generator = mctscpp.createRandomGenerator(param.seed)
-	game,_,_,_,_ = param_to_cpp_game(param,generator,param.sim_mode) 
+	game = param_to_cpp_game(param,generator) 
+
 	sim_result = {
 		'states' : [],
 		'actions' : [],
@@ -299,7 +289,7 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 
 	for state in enumeration:
 		game_state = state_to_cpp_game_state(param,state,param.training_team)
-		mctsresult = mctscpp.search(game, game_state, generator, param.mcts_tree_size)
+		mctsresult = mctscpp.search(game, game_state, generator, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
 		if mctsresult.success: 
 			action = value_to_dist(param,mctsresult.valuePerAction) # 
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
