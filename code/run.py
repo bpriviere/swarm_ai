@@ -34,7 +34,7 @@ def format_dir(df_param):
 		for file in glob.glob(df_param.path_current_results + "/*"):
 			os.remove(file)
 	os.makedirs(df_param.path_current_results,exist_ok=True)
-	os.makedirs(df_param.path_current_models,exist_ok=True)
+	
 
 if __name__ == '__main__':
 
