@@ -278,14 +278,16 @@ def game_state_to_cpp_result(gs,action):
 	result[idx*6+1] = gs.defendersReward
 	return result
 
-def evaluate_expert(states,param,quiet_on=True):
+def evaluate_expert(states,param,quiet_on=True,progress=None):
 	
 	if not quiet_on:
 		print('   running expert for instance {}'.format(param.dataset_fn))
 
-	# TODO: This ID is incrementing over multiple Pool usages
-	#       The output could be improved if we would know a fixed offset here.
-	progress_pos = current_process()._identity[0]
+	if progress is not None:
+		progress_pos = current_process()._identity[0] - progress
+		enumeration = tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos)
+	else:
+		enumeration = states
 
 	generator = mctscpp.createRandomGenerator(param.seed)
 	game,_,_,_,_ = param_to_cpp_game(param,generator) 
@@ -295,8 +297,7 @@ def evaluate_expert(states,param,quiet_on=True):
 		'param' : param.to_dict()
 		}
 
-	# for state in states:
-	for state in tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos):
+	for state in enumeration:
 		game_state = state_to_cpp_game_state(param,state,param.training_team)
 		mctsresult = mctscpp.search(game, game_state, generator, param.mcts_tree_size)
 		if mctsresult.success: 

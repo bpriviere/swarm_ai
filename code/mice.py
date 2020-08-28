@@ -226,18 +226,16 @@ def train_model(df_param,batched_files,training_team,model_fn):
 		start_time = time.time()
 		best_test_loss = np.Inf
 		scheduler = ReduceLROnPlateau(optimizer, 'min')
-		for epoch in range(1,df_param.l_n_epoch+1):
+		pbar = tqdm(range(1,df_param.l_n_epoch+1))
+		for epoch in pbar:
 			train_epoch_loss = train(model,optimizer,train_loader)
 			test_epoch_loss = test(model,optimizer,test_loader)
 			scheduler.step(test_epoch_loss)
 			losses.append((train_epoch_loss,test_epoch_loss))
 			if epoch%df_param.l_log_interval==0:
-				print('epoch: ', epoch)
-				print('   Train Epoch Loss: ', train_epoch_loss)
-				print('   Test Epoch Loss: ', test_epoch_loss)
 				if test_epoch_loss < best_test_loss:
 					best_test_loss = test_epoch_loss
-					print('      saving @ best test loss:', best_test_loss)
+					pbar.set_description("Best Test Loss: {:.2f}".format(best_test_loss))
 					torch.save(model.state_dict(), model_fn)
 					model.to(df_param.device)
 			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
@@ -259,15 +257,17 @@ def make_dataset(states,params,df_param):
 		for states_per_file, param in zip(states, params): 
 			evaluate_expert(states_per_file, param, quiet_on=False)
 	else:
+		global pool_count
 		freeze_support()
 		ncpu = cpu_count()
 		print('ncpu: ', ncpu)
-
-		with Pool(ncpu-1, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
-			args = list(zip(states, params))
+		num_workers = min(ncpu-1, len(params))
+		with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
+			args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
 			r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
 			# p.starmap(evaluate_expert, states, params)
 			# p.starmap(evaluate_expert, list(zip(states, params)))
+		pool_count += num_workers
 
 	# labelled dataset 
 	print('cleaning labelled data...')
@@ -350,6 +350,8 @@ def format_dir(df_param):
 
 
 if __name__ == '__main__':
+
+	pool_count = 0
 
 	df_param = Param() 
 	format_dir(df_param)
