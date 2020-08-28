@@ -529,11 +529,13 @@ def plot_exp2_results(all_sim_results):
 def policy_to_label(policy):
 	# keys = ["mcts_tree_size"]
 	# keys = ["sim_mode","path","mcts_tree_size"]
-	keys = ["sim_mode","path"] 
+	# keys = ["sim_mode","path","mcts_rollout_beta"] 
+	# keys = ["sim_mode","mcts_rollout_beta"] 
+	keys = ["sim_mode","mcts_rollout_beta","mcts_tree_size"] 
 	# keys = ["path"]
 	label = '' 
 	for key, value in policy.items():
-		if "path" in key:
+		if "path" in key and np.any(['path' in a for a in keys]):
 			label += '{} '.format(os.path.basename(value).split(".")[0])
 		elif key in keys:  
 			label += '{} '.format(value)

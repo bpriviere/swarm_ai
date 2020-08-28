@@ -98,28 +98,78 @@ if __name__ == '__main__':
 
 	df_param.attackerPolicyDicts = [
 		{
-			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_a" : "../current/models/a0.pt",
-			"mcts_tree_size" : 2,
+			"sim_mode" : "MCTS_GLAS",
+			"path_glas_model_a" : "../saved/IL/models/a4.pt",
+			"mcts_tree_size" : 5000,
+			"mcts_rollout_beta" : 0.0,
+			"mcts_c_param" : 1.4,
 		},
 		{
-			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_a" : "../current/models/a0.pt",
-			"mcts_tree_size" : 10000,
+			"sim_mode" : "MCTS_GLAS",
+			"path_glas_model_a" : "../saved/IL/models/a4.pt",
+			"mcts_tree_size" : 5000,
+			"mcts_rollout_beta" : 0.25,
+			"mcts_c_param" : 1.4,
 		},		
+		{
+			"sim_mode" : "MCTS_GLAS",
+			"path_glas_model_a" : "../saved/IL/models/a4.pt",
+			"mcts_tree_size" : 5000,
+			"mcts_rollout_beta" : 0.5,
+			"mcts_c_param" : 1.4,
+		},
+		{
+			"sim_mode" : "MCTS_GLAS",
+			"path_glas_model_a" : "../saved/IL/models/a4.pt",
+			"mcts_tree_size" : 5000,
+			"mcts_rollout_beta" : 0.75,
+			"mcts_c_param" : 1.4,
+		},		
+		{
+			"sim_mode" : "MCTS_GLAS",
+			"path_glas_model_a" : "../saved/IL/models/a4.pt",
+			"mcts_tree_size" : 5000,
+			"mcts_rollout_beta" : 0.99,
+			"mcts_c_param" : 1.4,
+		},
 	]
 
 	df_param.defenderPolicyDicts = [
 		{
 			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_b" : "../current/models/b0.pt",
-			"mcts_tree_size" : 2,
+			"path_glas_model_b" : "../saved/IL/models/b0.pt",
+			"mcts_tree_size" : 10,
+			"mcts_rollout_beta" : 0.0,
+			"mcts_c_param" : 1.4,
 		},
-		# {
-		# 	"sim_mode" : "MCTS_RANDOM",
-		# 	"path_glas_model_b" : "../saved/IL/models/b4.pt",
-		# 	"mcts_tree_size" : 100000,
-		# },		
+		{
+			"sim_mode" : "MCTS_RANDOM",
+			"path_glas_model_b" : "../saved/IL/models/b0.pt",
+			"mcts_tree_size" : 1000,
+			"mcts_rollout_beta" : 0.0,
+			"mcts_c_param" : 1.4,
+		},
+		{
+			"sim_mode" : "MCTS_RANDOM",
+			"path_glas_model_b" : "../saved/IL/models/b0.pt",
+			"mcts_tree_size" : 2000,
+			"mcts_rollout_beta" : 0.0,
+			"mcts_c_param" : 1.4,
+		},		
+		{
+			"sim_mode" : "MCTS_RANDOM",
+			"path_glas_model_b" : "../saved/IL/models/b0.pt",
+			"mcts_tree_size" : 5000,
+			"mcts_rollout_beta" : 0.0,
+			"mcts_c_param" : 1.4,
+		},
+		{
+			"sim_mode" : "MCTS_RANDOM",
+			"path_glas_model_b" : "../saved/IL/models/b0.pt",
+			"mcts_tree_size" : 10000,
+			"mcts_rollout_beta" : 0.0,
+			"mcts_c_param" : 1.4,
+		},
 	]
 
 	parser = argparse.ArgumentParser()
@@ -129,12 +179,20 @@ if __name__ == '__main__':
 	if not args.game_file is None: 
 		initial_conditions,robot_team_compositions = read_games_file(args.game_file)
 	else: 
-		df_param.num_trials = 2
+		df_param.num_trials = 10
 		df_param.robot_team_compositions = [
+			# {
+			# 'a': {'standard_robot':1,'evasive_robot':0},
+			# 'b': {'standard_robot':1,'evasive_robot':0}
+			# },
 			{
-			'a': {'standard_robot':1,'evasive_robot':0},
+			'a': {'standard_robot':2,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
+			# {
+			# 'a': {'standard_robot':1,'evasive_robot':0},
+			# 'b': {'standard_robot':2,'evasive_robot':0}
+			# },						
 		]		
 		initial_conditions,robot_team_compositions = make_games(df_param)
 

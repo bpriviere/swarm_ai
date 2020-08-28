@@ -29,7 +29,7 @@ def robot_composition_to_cpp_robot_types(param,team):
 			types.append(rt)
 	return types
 
-def param_to_cpp_game(param,generator,sim_mode):
+def param_to_cpp_game(param,generator):
 	
 	attackerTypes = robot_composition_to_cpp_robot_types(param,"a") 
 	defenderTypes = robot_composition_to_cpp_robot_types(param,"b") 
@@ -185,9 +185,6 @@ def play_game(param):
 
 	print('playing game {}/{}'.format(param.count,param.total))	
 
-	# import time 
-	# time.sleep(2)
-
 	# assign glas
 	if param.policy_a_dict["sim_mode"] == "GLAS" or "MCTS_GLAS" or "MCTS_RANDOM":
 		param.path_glas_model_a = param.policy_a_dict["path_glas_model_a"]
@@ -219,7 +216,8 @@ def play_game(param):
 
 		if "MCTS" in policy_dict["sim_mode"]:
 			
-			mctsresult = mctscpp.search(g, gs, generator, policy_dict["mcts_tree_size"], policy_dict["mcts_rollout_beta"], policy_dict["mcts_c_param"])
+			mctsresult = mctscpp.search(g, gs, generator, \
+				policy_dict["mcts_tree_size"], policy_dict["mcts_rollout_beta"], policy_dict["mcts_c_param"])
 			if mctsresult.success: 
 				team_action = mctsresult.bestAction
 				success = g.step(gs, team_action, gs)
