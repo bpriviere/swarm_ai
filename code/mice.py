@@ -343,6 +343,12 @@ def format_dir(df_param):
 			os.remove(file)
 	os.makedirs(datadir,exist_ok=True)
 
+	modeldir = df_param.path_current_models
+	if os.path.exists(modeldir):
+		for file in in glob.glob(modeldir + "/*"):
+			os.remove(file)
+	os.makedirs(modeldir,exist_ok=True)	
+
 
 if __name__ == '__main__':
 
