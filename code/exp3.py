@@ -20,10 +20,12 @@ def get_params(df_param):
 	seed = int.from_bytes(os.urandom(4), sys.byteorder)
 
 	for robot_team_composition in df_param.robot_team_compositions:
+		
+		df_param.robot_team_composition = robot_team_composition
+		df_param.update()
+
 		for trial in range(df_param.num_trials):
 
-			df_param.robot_team_composition = robot_team_composition
-			df_param.update()
 			state = df_param.make_initial_condition()
 
 			for policy_a_dict in df_param.attackerPolicyDicts:
@@ -56,17 +58,17 @@ if __name__ == '__main__':
 
 	df_param = Param()
 
-	df_param.num_trials = 20
+	df_param.num_trials = 2
 
 	df_param.robot_team_compositions = [
 		{
 		'a': {'standard_robot':1,'evasive_robot':0},
 		'b': {'standard_robot':1,'evasive_robot':0}
 		},
-		{
-		'a': {'standard_robot':2,'evasive_robot':0},
-		'b': {'standard_robot':1,'evasive_robot':0}
-		},
+		# {
+		# 'a': {'standard_robot':2,'evasive_robot':0},
+		# 'b': {'standard_robot':1,'evasive_robot':0}
+		# },
 		# {
 		# 'a': {'standard_robot':1,'evasive_robot':0},
 		# 'b': {'standard_robot':2,'evasive_robot':0}
@@ -82,45 +84,56 @@ if __name__ == '__main__':
 		{
 			"sim_mode" : "GLAS",
 			"path_glas_model_a" : "../saved/IL/models/a1.pt",
-			"mcts_tree_size" : 10000,
+			"mcts_tree_size" : 5000,
 		},
-		{
-			"sim_mode" : "GLAS",
-			"path_glas_model_a" : "../saved/IL/models/a2.pt",
-			"mcts_tree_size" : 50000,
-		},
-		{
-			"sim_mode" : "GLAS",
-			"path_glas_model_a" : "../saved/IL/models/a3.pt",
-			"mcts_tree_size" : 100000,
-		},
+		# {
+		# 	"sim_mode" : "GLAS",
+		# 	"path_glas_model_a" : "../saved/IL/models/a2.pt",
+		# 	"mcts_tree_size" : 10000,
+		# },
+		# {
+		# 	"sim_mode" : "GLAS",
+		# 	"path_glas_model_a" : "../saved/IL/models/a3.pt",
+		# 	"mcts_tree_size" : 50000,
+		# },
+		# {
+		# 	"sim_mode" : "GLAS",
+		# 	"path_glas_model_a" : "../saved/IL/models/a4.pt",
+		# 	"mcts_tree_size" : 100000,
+		# },		
 	]
 
 	df_param.defenderPolicyDicts = [
-		{
-			"sim_mode" : "GLAS",
-			"path_glas_model_b" : "../saved/IL/models/b0.pt",
-			"mcts_rollout_beta" : 0.0, 
-			"mcts_tree_size" : 100000,
-		},				
-		{
-			"sim_mode" : "GLAS",
-			"path_glas_model_b" : "../saved/IL/models/b1.pt",
-			"mcts_rollout_beta" : 0.0, 
-			"mcts_tree_size" : 1000,
-		},
-		{
-			"sim_mode" : "GLAS",
-			"path_glas_model_b" : "../saved/IL/models/b2.pt",
-			"mcts_rollout_beta" : 0.0, 
-			"mcts_tree_size" : 10000,
-		},
+		# {
+		# 	"sim_mode" : "GLAS",
+		# 	"path_glas_model_b" : "../saved/IL/models/b0.pt",
+		# 	"mcts_rollout_beta" : 0.0, 
+		# 	"mcts_tree_size" : 1000,
+		# },				
+		# {
+		# 	"sim_mode" : "GLAS",
+		# 	"path_glas_model_b" : "../saved/IL/models/b1.pt",
+		# 	"mcts_rollout_beta" : 0.0, 
+		# 	"mcts_tree_size" : 5000,
+		# },
+		# {
+		# 	"sim_mode" : "GLAS",
+		# 	"path_glas_model_b" : "../saved/IL/models/b2.pt",
+		# 	"mcts_rollout_beta" : 0.0, 
+		# 	"mcts_tree_size" : 10000,
+		# },
 		{
 			"sim_mode" : "GLAS",
 			"path_glas_model_b" : "../saved/IL/models/b3.pt",
 			"mcts_rollout_beta" : 0.0, 
 			"mcts_tree_size" : 50000,
 		},
+		{
+			"sim_mode" : "GLAS",
+			"path_glas_model_b" : "../saved/IL/models/b4.pt",
+			"mcts_rollout_beta" : 0.0, 
+			"mcts_tree_size" : 100000,
+		},		
 	]
 
 	run_on = True
@@ -143,11 +156,11 @@ if __name__ == '__main__':
 
 	plotter.plot_exp3_results(sim_results)
 
-	# for sim_result in sim_results:
-	# 	plotter.plot_tree_results(sim_result,title='T: {}, A:{}, B:{}'.format(\
-	# 		sim_result["param"]["trial"],
-	# 		policy_to_label(sim_result["param"]["policy_a_dict"]),\
-	# 		policy_to_label(sim_result["param"]["policy_b_dict"])))
+	for sim_result in sim_results:
+		plotter.plot_tree_results(sim_result,title='T: {}, A:{}, B:{}'.format(\
+			sim_result["param"]["trial"],
+			policy_to_label(sim_result["param"]["policy_a_dict"]),\
+			policy_to_label(sim_result["param"]["policy_b_dict"])))
 
 	print('saving and opening figs...')
 	plotter.save_figs("plots/exp3.pdf")

@@ -71,8 +71,8 @@ class Param:
 		self.l_mode = "DAgger" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 5
-		self.l_num_trials_per_iteration = 10
-		self.l_num_points_per_file = 5000
+		self.l_num_trials_per_iteration = 5
+		self.l_num_points_per_file = 1000
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -115,7 +115,7 @@ class Param:
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 1000000 # n_points 
-		self.l_batch_size = 5000
+		self.l_batch_size = 2000
 		self.l_n_epoch = 100
 		self.l_lr = 1e-3
 		self.l_wd = 0 
