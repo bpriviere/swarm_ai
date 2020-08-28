@@ -13,7 +13,7 @@ import datahandler
 import plotter 
 
 def run_sim(param):
-	sim_result = rollout(param)
+	sim_result = rollout(param,param.sim_mode)
 	results_fn = os.path.join(param.path_current_results,'sim_result_{}'.format(param.trial))
 	datahandler.write_sim_result(sim_result,results_fn)
 
@@ -21,7 +21,6 @@ def get_params(df_param):
 	params = [] 
 	for trial in range(df_param.sim_num_trials):
 		param = Param()
-		param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
 		param.sim_mode = df_param.sim_mode
 		param.path_glas_model_a = df_param.path_glas_model_a
 		param.path_glas_model_b = df_param.path_glas_model_b
@@ -79,5 +78,5 @@ if __name__ == '__main__':
 		plotter.plot_tree_results(sim_result)
 
 	print('saving and opening figs...')
-	plotter.save_figs(df_param.path_plot)
-	plotter.open_figs(df_param.path_plot)
+	plotter.save_figs('plots/run.pdf')
+	plotter.open_figs('plots/run.pdf')

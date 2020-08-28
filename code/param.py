@@ -9,17 +9,20 @@ from math import cos, sin
 
 class Param:
 
-	def __init__(self):
+	def __init__(self,seed=None):
 
-		self.seed = int.from_bytes(os.urandom(4), sys.byteorder)
-		random.seed(self.seed)
+		if seed is None: 
+			seed = int.from_bytes(os.urandom(4), sys.byteorder)
+
+		self.seed = seed
+		# random.seed(self.seed)
 
 		# sim param 
 		self.sim_num_trials = 5
 		self.sim_t0 = 0
 		self.sim_tf = 20
 		self.sim_dt = 0.25
-		self.sim_parallel_on = False
+		self.sim_parallel_on = True
 		self.sim_mode = "GLAS" # MCTS_GLAS, MCTS_RANDOM, GLAS
 
 		# robot types 
@@ -57,7 +60,7 @@ class Param:
 		self.goal = np.array([0.75*l,0.75*l,0,0])
 
 		# mcts parameters 
-		self.mcts_tree_size = 10000
+		self.mcts_tree_size = 50000
 		self.mcts_rollout_horizon = 1000
 		self.mcts_rollout_beta = 0.5 # 0 -> 1 : random -> GLAS
 		self.mcts_c_param = 1.4
@@ -65,25 +68,29 @@ class Param:
 
 		# learning (l) parameters 
 		self.device = 'cpu'
-		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
+		self.l_mode = "DAgger" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 5
-		self.l_num_trials_per_iteration = 6
-		self.l_num_points_per_file = 1000
+		self.l_num_trials_per_iteration = 10
+		self.l_num_points_per_file = 5000
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
+			{
+			'a': {'standard_robot':2,'evasive_robot':0},
+			'b': {'standard_robot':1,'evasive_robot':0}
+			},
+			{
+			'a': {'standard_robot':1,'evasive_robot':0},
+			'b': {'standard_robot':2,'evasive_robot':0}
+			},
 			# {
 			# 'a': {'standard_robot':2,'evasive_robot':0},
-			# 'b': {'standard_robot':1,'evasive_robot':0}
-			# },
-			# {
-			# 'a': {'standard_robot':1,'evasive_robot':0},
 			# 'b': {'standard_robot':2,'evasive_robot':0}
-			# }
+			# },			
 		]
 
 		n,m,h,l,p = 4,2,16,8,8 # state dim, action dim, hidden layer, output phi, output rho
@@ -108,8 +115,8 @@ class Param:
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 1000000 # n_points 
-		self.l_batch_size = 500
-		self.l_n_epoch = 30
+		self.l_batch_size = 5000
+		self.l_n_epoch = 100
 		self.l_lr = 1e-3
 		self.l_wd = 0 
 		self.l_log_interval = 1
@@ -121,13 +128,9 @@ class Param:
 		self.path_current_results = '../current/results/'
 		self.path_current_models = '../current/models/'
 		self.path_current_data = '../current/data/'
-		self.path_saved_results = '../saved/results/'
-		self.path_saved_models = '../saved/models/'
-		self.path_glas_model_a = os.path.join(self.path_current_models,'a.pt')
-		self.path_glas_model_b = os.path.join(self.path_current_models,'b.pt')
-		self.path_plot = 'temp_plot.pdf'
+		self.path_glas_model_a = os.path.join(self.path_current_models,'a0.pt')
+		self.path_glas_model_b = os.path.join(self.path_current_models,'b0.pt')
 		
-				
 		self.update()
 
 
@@ -141,7 +144,7 @@ class Param:
 
 	def make_initial_condition(self):
 
-		self.state = [] 
+		state = [] 
 		for robot in self.robots: 
 
 			if robot["team"] == "a":
@@ -153,7 +156,9 @@ class Param:
 
 			position = self.get_random_position_inside(xlim,ylim)
 			velocity = self.get_random_velocity_inside(robot["speed_limit"])
-			self.state.append([position[0],position[1],velocity[0],velocity[1]])
+			state.append([position[0],position[1],velocity[0],velocity[1]])
+
+		return state
 
 
 	def assign_initial_condition(self):
@@ -179,9 +184,8 @@ class Param:
 		self.make_robot_teams()
 
 		if initial_condition is None:
-			self.make_initial_condition()
-		else: 
-			self.state = initial_condition
+			initial_condition = self.make_initial_condition()
+		self.state = initial_condition
 
 		self.assign_initial_condition()		
 

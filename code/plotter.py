@@ -251,6 +251,12 @@ def get_colors(param):
 
 	return colors
 
+def get_n_colors(n):
+	colors = []
+	cm_subsection = np.linspace(0, 1, n) 
+	colors = [ cm.tab20(x) for x in cm_subsection]
+	return colors
+
 
 def plot_tree_results(sim_result,title=None): 
 
@@ -514,6 +520,61 @@ def plot_exp2_results(all_sim_results):
 						ax.set_xticklabels(np.array(tree_sizes,dtype=int)/1000,rotation=45)
 						# ax.set_xlabel('Tree Size [K]')
 
+def policy_to_label(policy):
+	# keys = ["sim_mode","path","mcts_tree_size"]
+	keys = ["sim_mode","path"] #,"mcts_tree_size"]
+	label = '' 
+	for key, value in policy.items():
+		if "path" in key:
+			label += '{} '.format(os.path.basename(value).split(".")[0])
+		elif key in keys:  
+			label += '{} '.format(value)
+	
+	return label
+
+def plot_exp3_results(all_sim_results):
+	
+	results = defaultdict(list)
+	for sim_result in all_sim_results:
+		key = (\
+			policy_to_label(sim_result["param"]["policy_a_dict"]),
+			policy_to_label(sim_result["param"]["policy_b_dict"]))
+		results[key].append(sim_result["rewards"][-1,0])
+
+	attackerPolicies = all_sim_results[0]["param"]["attackerPolicyDicts"]
+	defenderPolicies = all_sim_results[0]["param"]["defenderPolicyDicts"]
+
+	mean_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	std_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	for a_idx, policy_a_dict in enumerate(attackerPolicies):
+		for b_idx, policy_b_dict in enumerate(defenderPolicies):
+			# key = (sim_mode_a, path_glas_model_a,sim_mode_b,path_glas_model_b)
+			key = (\
+				policy_to_label(policy_a_dict),
+				policy_to_label(policy_b_dict))			
+			mean_result[a_idx,b_idx] = np.mean(results[key])
+			std_result[a_idx,b_idx] = np.std(results[key])
+
+	xticklabels = []
+	for policy_b_dict in defenderPolicies:
+		xticklabels.append(policy_to_label(policy_b_dict))
+
+	b_idxs = np.arange(len(defenderPolicies))
+
+	fig,ax = plt.subplots()
+	# colors = get_n_colors(len(attackerPolicies))
+
+	for a_idx, policy_a_dict in enumerate(attackerPolicies):
+
+		label = policy_to_label(policy_a_dict)
+		line = ax.plot(b_idxs,mean_result[a_idx,:],marker='o',label=label)
+		ax.errorbar(b_idxs,mean_result[a_idx,:],std_result[a_idx,:],color=line[0].get_color(),alpha=0.2)
+
+	ax.set_xticks(range(len(defenderPolicies)))
+	ax.set_xticklabels(xticklabels,rotation=0)
+	ax.set_ylim([-0.05,1.05])
+	ax.legend()
+	ax.grid(True)
 
 
 def plot_convergence(all_sim_results):
