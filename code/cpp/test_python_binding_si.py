@@ -19,10 +19,9 @@ def loadFeedForwardNNWeights(ff, state_dict, name):
 			break
 		l += 1
 
-def createGLAS(file, generator):
+def loadGLAS(glas, file):
 	state_dict = torch.load(file)
 
-	glas = mctscpp.GLAS(generator)
 	den = glas.discreteEmptyNet
 	loadFeedForwardNNWeights(den.deepSetA.phi, state_dict, "model_team_a.phi")
 	loadFeedForwardNNWeights(den.deepSetA.rho, state_dict, "model_team_a.rho")
@@ -56,13 +55,7 @@ if __name__ == '__main__':
 	# rt.tag_radiusSquared = 0.025**2
 	# rt.r_senseSquared = 1.0**2
 
-	# test GLAS
 	generator = mctscpp.createRandomGenerator(seed)
-	if "GLAS" in mode:
-		glas_a = createGLAS("../../../models/il_current_a.pt", generator)
-		glas_b = createGLAS("../../../models/il_current_b.pt", generator)
-	else:
-		glas_a = glas_b = mctscpp.GLAS(generator) # dummy GLAS object
 
 	# test Game
 	attackerTypes = [rt]
@@ -71,7 +64,11 @@ if __name__ == '__main__':
 	goal = [0.25,0.25]
 	max_depth = 1000
 	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS
-	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator, glas_a, glas_b, rollout_beta)
+	Cp = 1.4
+	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator)
+	if "GLAS" in mode:
+		loadGLAS(g.glasA, "../../current/models/a1.pt")
+		loadGLAS(g.glasB, "../../current/models/b1.pt")
 	print(g)
 
 	next_state = mctscpp.GameState()
@@ -83,7 +80,7 @@ if __name__ == '__main__':
 	ax.add_patch(mpatches.Circle(goal, 0.025,alpha=0.5))
 
 	result = []
-	while True:
+	for d in range(max_depth):
 		gs.attackersReward = 0;
 		gs.defendersReward = 0;
 		gs.depth = 0;
@@ -92,7 +89,7 @@ if __name__ == '__main__':
 			[rs.state[0:2].copy() for rs in gs.attackers],
 			[rs.state[0:2].copy() for rs in gs.defenders]])
 		if "MCTS" in mode:
-			mctsresult = mctscpp.search(g, gs, generator, num_nodes)
+			mctsresult = mctscpp.search(g, gs, generator, num_nodes, rollout_beta, Cp)
 			if mctsresult.success:
 				print(mctsresult.expectedReward)
 				# print(mctsresult.valuePerAction)
@@ -120,7 +117,7 @@ if __name__ == '__main__':
 				break
 		elif mode == "GLAS":
 			deterministic = True
-			action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, goal, attackerTypes, defenderTypes, generator, deterministic)
+			action = mctscpp.eval(g, gs, generator, deterministic)
 			# step twice (once per team)
 			success = g.step(gs, action, gs)
 			if success:
