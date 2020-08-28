@@ -260,6 +260,10 @@ def get_n_colors(n):
 
 def plot_tree_results(sim_result,title=None): 
 
+	def team_1_reward_to_gamma(reward_1):
+		gamma = reward_1 * 2 - 1 
+		return gamma 
+
 	times = sim_result["times"]
 	states = sim_result["states"]
 	actions = sim_result["actions"]
@@ -299,9 +303,11 @@ def plot_tree_results(sim_result,title=None):
 	ax = axs[0,1] 
 	ax.grid(True)
 	ax.set_title('Value Function')
-	ax.plot(times,rewards[:,0],color=team_1_color,label='attackers')
-	ax.plot(times,rewards[:,1],color=team_2_color,label='defenders')
-	ax.legend()
+	# ax.plot(times,rewards[:,0],color=team_1_color,label='attackers')
+	# ax.plot(times,rewards[:,1],color=team_2_color,label='defenders')
+	# ax.legend()
+	ax.plot(times,team_1_reward_to_gamma(rewards[:,0]),color=team_1_color)	
+	ax.set_ylim([-1,1])
 
 	# time varying velocity
 	ax = axs[1,0]
@@ -521,8 +527,10 @@ def plot_exp2_results(all_sim_results):
 						# ax.set_xlabel('Tree Size [K]')
 
 def policy_to_label(policy):
+	# keys = ["mcts_tree_size"]
 	# keys = ["sim_mode","path","mcts_tree_size"]
-	keys = ["sim_mode","path"] #,"mcts_tree_size"]
+	keys = ["sim_mode","path"] 
+	# keys = ["path"]
 	label = '' 
 	for key, value in policy.items():
 		if "path" in key:
