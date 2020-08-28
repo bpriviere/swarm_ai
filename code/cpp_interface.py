@@ -29,18 +29,18 @@ def robot_composition_to_cpp_robot_types(param,team):
 			types.append(rt)
 	return types
 
-def param_to_cpp_game(param,generator):
+def param_to_cpp_game(param,generator,sim_mode):
 	
 	attackerTypes = robot_composition_to_cpp_robot_types(param,"a") 
 	defenderTypes = robot_composition_to_cpp_robot_types(param,"b") 
 	
 	dt = param.sim_dt 
 
-	if param.sim_mode == "MCTS_RANDOM":
+	if sim_mode == "MCTS_RANDOM":
 		rollout_beta = 0.0
-	elif param.sim_mode == "MCTS_GLAS":
+	elif sim_mode == "MCTS_GLAS":
 		rollout_beta = param.mcts_rollout_beta 
-	elif param.sim_mode == "GLAS":
+	elif sim_mode == "GLAS":
 		rollout_beta = 0.0 
 
 	goal = param.goal 
@@ -114,7 +114,7 @@ def state_to_cpp_game_state(param,state,turn):
 def rollout(param,sim_mode): # self-play
 
 	generator = mctscpp.createRandomGenerator(param.seed)
-	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator) 
+	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator,sim_mode) 
 
 	deterministic = True
 	goal = param.goal 
@@ -129,7 +129,7 @@ def rollout(param,sim_mode): # self-play
 	if g.isValid(gs):
 		while True:
 
-			if "MCTS" in param.sim_mode:
+			if "MCTS" in sim_mode:
 				
 				next_state.attackersReward = 0
 				next_state.defendersReward = 0
@@ -154,7 +154,7 @@ def rollout(param,sim_mode): # self-play
 				else:
 					success = False
 
-			elif param.sim_mode == "GLAS":
+			elif sim_mode == "GLAS":
 
 				gs.attackersReward = 0
 				gs.defendersReward = 0
@@ -206,7 +206,7 @@ def play_game(param):
 
 	# similar to rollout 
 	generator = mctscpp.createRandomGenerator(param.seed)
-	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator) 
+	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator,param.sim_mode) 
 
 	deterministic = True
 	goal = param.goal 
@@ -288,7 +288,7 @@ def evaluate_expert(states,param,quiet_on=True):
 	progress_pos = current_process()._identity[0]
 
 	generator = mctscpp.createRandomGenerator(param.seed)
-	game,_,_,_,_ = param_to_cpp_game(param,generator) 
+	game,_,_,_,_ = param_to_cpp_game(param,generator,param.sim_mode) 
 	sim_result = {
 		'states' : [],
 		'actions' : [],
