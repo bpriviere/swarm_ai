@@ -13,7 +13,7 @@ import itertools
 
 import plotter
 import datahandler as dh
-from cpp_interface import evaluate_expert
+from cpp_interface import evaluate_expert, rollout
 from param import Param 
 from learning.discrete_emptynet import DiscreteEmptyNet
 
@@ -100,8 +100,8 @@ def test(model,optimizer,loader):
 def uniform_sample(param,n):
 	states = [] 
 	for _ in range(n):
-		param.make_initial_condition() 
-		states.append(param.state)
+		state = param.make_initial_condition() 
+		states.append(state)
 	return states
 
 
@@ -114,18 +114,20 @@ def get_uniform_samples(params):
 	return states, params
 
 
-def get_self_play_samples(gparam,params):
-	exit('not implented/tested')
+def get_self_play_samples(params):
 	print('getting self-play samples...')
 	states = []
 	for param in params: 
-		sim_result = rollout(param)
-		states.append(sim_result["states"])
+		states_per_file = [] 
+		while len(states_per_file) < param.l_num_points_per_file:
+			sim_result = rollout(param,"GLAS")
+			states_per_file.extend(sim_result["states"])
+		states.append(states_per_file)
 	print('self-play sample collection completed.')
 	return states, params 
 	
 
-def increment(gparam):
+def increment():
 	exit('not implemented')
 
 
@@ -255,17 +257,17 @@ def make_dataset(states,params,df_param):
 
 	if not df_param.l_parallel_on:
 		for states_per_file, param in zip(states, params): 
-			evaluate_expert(states_per_file, param)
+			evaluate_expert(states_per_file, param, quiet_on=False)
 	else:
 		freeze_support()
 		ncpu = cpu_count()
 		print('ncpu: ', ncpu)
+
 		with Pool(ncpu-1, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
 			args = list(zip(states, params))
 			r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
 			# p.starmap(evaluate_expert, states, params)
 			# p.starmap(evaluate_expert, list(zip(states, params)))
-
 
 	# labelled dataset 
 	print('cleaning labelled data...')
@@ -307,25 +309,24 @@ def get_params(df_param,training_team,iter_i):
 
 		for trial in range(df_param.l_num_trials_per_iteration): 
 
-			param = Param()
-			param.seed = int.from_bytes(os.urandom(4), sys.byteorder)
+			param = Param() # random seed 
 			param.robot_team_composition = robot_team_composition 
 			param.mcts_tree_size = df_param.mcts_tree_size
 			param.l_num_points_per_file = df_param.l_num_points_per_file
 
 			if df_param.l_mode == "DAgger" or df_param.l_mode == "IL":
 				param.mcts_rollout_beta = 0.0
-				param.mcts_mode = "MCTS_RANDOM"
+				param.sim_mode = "MCTS_RANDOM"
 			elif df_param.l_mode == "ExIt" or df_param.l_mode == "Mice":
 				param.mcts_rollout_beta = df_param.mcts_rollout_beta
-				param.mcts_mode = "MCTS_GLAS"
+				param.sim_mode = "MCTS_GLAS"
 			else: 
-				exit('df_param.mode not recognized')
+				exit('df_param.l_mode not recognized')
 
 			param.training_team = training_team
 			param.iter_i = iter_i 
-			param.glas_model_A = df_param.l_model_fn.format(DATADIR=df_param.path_current_data,TEAM="a",ITER=iter_i)
-			param.glas_model_B = df_param.l_model_fn.format(DATADIR=df_param.path_current_data,TEAM="b",ITER=iter_i)
+			param.path_glas_model_a = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
+			param.path_glas_model_b = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="b",ITER=iter_i)
 			param.update() 
 			param.dataset_fn = df_param.l_raw_fn.format(DATADIR=df_param.path_current_data,TEAM=training_team,\
 				NUM_A=param.num_nodes_A,NUM_B=param.num_nodes_B,IDX_TRIAL=trial+start)
@@ -333,6 +334,11 @@ def get_params(df_param,training_team,iter_i):
 			params.append(param)
 
 	return params	
+
+def set_iter_glas_models(params,iter):
+	for param in params: 
+		param.path_glas_model_a = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
+		param.path_glas_model_b = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="b",ITER=iter_i)
 
 
 def format_dir(df_param):
@@ -358,7 +364,9 @@ if __name__ == '__main__':
 			if iter_i == 0 or df_param.l_mode == "IL":
 				states, params = get_uniform_samples(params)
 			else: 
+				set_iter_glas_models(params,iter_i-1)
 				states, params = get_self_play_samples(params) 
+				set_iter_glas_models(params,iter_i)
 			
 			make_dataset(states,params,df_param)
 			train_model(df_param,\
@@ -370,4 +378,5 @@ if __name__ == '__main__':
 
 			if df_param.l_mode == "Mice":
 				increment(df_param)
-			
+	
+	print('done!')

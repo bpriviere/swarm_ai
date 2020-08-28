@@ -111,11 +111,10 @@ def state_to_cpp_game_state(param,state,turn):
 
 	return game_state 
 
-def rollout(param):
-	# rollout adapted from test_python_bindings
+def rollout(param,sim_mode): # self-play
 
 	generator = mctscpp.createRandomGenerator(param.seed)
-	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator) # this calls param.glas_model_a
+	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator) 
 
 	deterministic = True
 	goal = param.goal 
@@ -148,7 +147,7 @@ def rollout(param):
 					success = g.step(next_state, team_action, next_state)
 
 					if success and next_state.turn == mctscpp.GameState.Turn.Attackers:
-						print(action)
+						# print(action)
 						results.append(game_state_to_cpp_result(gs,action))
 						action = []
 						gs = next_state
@@ -192,6 +191,74 @@ def rollout(param):
 	sim_result = dh.convert_cpp_data_to_sim_result(np.array(results),param)
 	return sim_result	
 
+def play_game(param): 
+
+	print('playing game {}/{}'.format(param.count,param.total))	
+
+	# import time 
+	# time.sleep(2)
+
+	# assign glas
+	if param.policy_a_dict["sim_mode"] == "GLAS" or "MCTS_GLAS" or "MCTS_RANDOM":
+		param.path_glas_model_a = param.policy_a_dict["path_glas_model_a"]
+	if param.policy_b_dict["sim_mode"] == "GLAS" or "MCTS_GLAS" or "MCTS_RANDOM":
+		param.path_glas_model_b = param.policy_b_dict["path_glas_model_b"]
+
+	# similar to rollout 
+	generator = mctscpp.createRandomGenerator(param.seed)
+	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator) 
+
+	deterministic = True
+	goal = param.goal 
+
+	results = []
+
+	state = param.state
+	gs = state_to_cpp_game_state(param,state,"a")
+	while True:
+
+		gs.attackersReward = 0
+		gs.defendersReward = 0
+		gs.depth = 0
+
+		if gs.turn == mctscpp.GameState.Turn.Attackers:
+			policy_dict = param.policy_a_dict
+			idxs = param.team_1_idxs
+		elif gs.turn == mctscpp.GameState.Turn.Defenders:
+			policy_dict = param.policy_b_dict
+			idxs = param.team_2_idxs 
+
+		if "MCTS" in policy_dict["sim_mode"]:
+			
+			mctsresult = mctscpp.search(g, gs, generator, policy_dict["mcts_tree_size"])
+			if mctsresult.success: 
+				team_action = mctsresult.bestAction
+				success = g.step(gs, team_action, gs)
+			else:
+				success = False
+
+		elif policy_dict["sim_mode"] == "GLAS":
+
+			action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, goal, attackerTypes, defenderTypes, generator, deterministic)
+			success = g.step(gs, action, gs)
+
+		results.append(game_state_to_cpp_result(gs,None))
+
+		if success:
+			if g.isTerminal(gs):
+				results.append(game_state_to_cpp_result(gs,None))
+				break 
+		else:
+			break
+
+	if len(results) == 0:
+		results.append(game_state_to_cpp_result(gs,None))
+		
+	sim_result = dh.convert_cpp_data_to_sim_result(np.array(results),param)
+	dh.write_sim_result(sim_result,param.dataset_fn)
+
+
+
 def game_state_to_cpp_result(gs,action):
 
 	if action is None:
@@ -211,8 +278,10 @@ def game_state_to_cpp_result(gs,action):
 	result[idx*6+1] = gs.defendersReward
 	return result
 
-def evaluate_expert(states,param):
-	# print('   running expert for instance {}'.format(param.dataset_fn))
+def evaluate_expert(states,param,quiet_on=True):
+	
+	if not quiet_on:
+		print('   running expert for instance {}'.format(param.dataset_fn))
 
 	# TODO: This ID is incrementing over multiple Pool usages
 	#       The output could be improved if we would know a fixed offset here.
@@ -238,33 +307,9 @@ def evaluate_expert(states,param):
 	sim_result["states"] = np.array(sim_result["states"])
 	sim_result["actions"] = np.array(sim_result["actions"])
 	dh.write_sim_result(sim_result,param.dataset_fn)
-	# print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 
-def evaluate_glas(states,param):
-	exit('not implemented, i want this to return valueperaction')
-	print('   running glas for instance {}'.format(param.dataset_fn))
-
-	generator = mctscpp.createRandomGenerator(param.seed)
-	g,glas_a,glas_b,attackerTypes,defenderTypes = param_to_cpp_game(param,generator) # this calls param.glas_model_a
-
-	sim_result = {
-		'states' : [],
-		'actions' : [],
-		'param' : param.to_dict()
-		}
-
-	deterministic = False
-
-	for state in states:
-		gs = state_to_cpp_game_state(param,state,param.training_team)
-		action = mctscpp.computeActionsWithGLAS(glas_a, glas_b, gs, param.goal, attackerTypes, defenderTypes, generator, deterministic)
-		sim_result["states"].append(state) # total number of robots x state dimension per robot 
-		sim_result["actions"].append(action) # total number of robots x action dimension per robot 
-
-	sim_result["states"] = np.array(sim_result["states"])
-	sim_result["actions"] = np.array(sim_result["actions"])
-	dh.write_sim_result(sim_result,param.dataset_fn)
-	print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
+	if not quiet_on:
+		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 	
 
 def value_to_dist(param,valuePerAction):

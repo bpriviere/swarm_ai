@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import torch
+import argparse
 
 # ours
 from param import Param 
@@ -70,20 +71,25 @@ def get_params(df_param):
 	total = df_param.sim_num_trials*len(df_param.l_robot_team_composition_cases)*len(df_param.mcts_tree_sizes)*\
 		len(df_param.l_training_teams)*len(df_param.sim_modes)
 
-	for trial in range(df_param.sim_num_trials):
-		for robot_team_composition in df_param.l_robot_team_composition_cases:
+	for robot_team_composition in df_param.l_robot_team_composition_cases:
+		
+		df_param.robot_team_composition = robot_team_composition
+		df_param.update()
 
-			df_param.robot_team_composition = robot_team_composition
-			df_param.update() # makes an initial condition 
+		for trial in range(df_param.sim_num_trials):
+
+			initial_condition = df_param.make_initial_condition()
 			curr_ic += 1 
 
 			for tree_size in df_param.mcts_tree_sizes: 
 				for training_team in df_param.l_training_teams:
 					for mode in df_param.sim_modes: 
 
-						param = Param()
-						param.seed = seed 
+						param = Param(seed=seed)
 
+						# global param 
+						param.path_glas_model_a = df_param.path_glas_model_a
+						param.path_glas_model_b = df_param.path_glas_model_b
 						param.mcts_rollout_beta = df_param.mcts_rollout_beta
 						param.mcts_tree_sizes = df_param.mcts_tree_sizes 
 						param.l_robot_team_compositions = df_param.l_robot_team_composition_cases
@@ -92,6 +98,7 @@ def get_params(df_param):
 						param.l_num_points_per_file = 1 
 						param.sim_num_trials = df_param.sim_num_trials
 
+						# local param 
 						param.robot_team_composition = robot_team_composition 
 						param.sim_trial = trial
 						param.mcts_tree_size = tree_size
@@ -103,7 +110,7 @@ def get_params(df_param):
 						param.curr_ic = curr_ic
 						count += 1 
 
-						param.update(df_param.state) 
+						param.update(initial_condition=initial_condition) 
 						params.append(param)
 
 	return params
@@ -119,6 +126,16 @@ if __name__ == '__main__':
 	df_param = Param()
 	df_param.sim_modes = ["GLAS","MCTS_RANDOM","MCTS_GLAS"]
 	df_param.mcts_tree_sizes = [1000,5000,10000,50000,100000] 
+
+	parser = argparse.ArgumentParser()
+	parser.add_argument("-path_glas_model_a", default=None, required=False)
+	parser.add_argument("-path_glas_model_b", default=None, required=False)
+	args = parser.parse_args() 	
+
+	if not args.path_glas_model_a is None: 
+		df_param.path_glas_model_a = args.path_glas_model_a
+	if not args.path_glas_model_b is None: 
+		df_param.path_glas_model_b = args.path_glas_model_b	
 
 	run_on = True
 	if run_on: 
@@ -140,5 +157,5 @@ if __name__ == '__main__':
 
 	plotter.plot_exp2_results(sim_results)
 	
-	plotter.save_figs("plots.pdf")
-	plotter.open_figs("plots.pdf")
+	plotter.save_figs("plots/exp2.pdf")
+	plotter.open_figs("plots/exp2.pdf")
