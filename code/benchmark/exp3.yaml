@@ -1,0 +1,48 @@
+games:
+  - sim_dt: 0.25
+    env_xlim: [0, 0.5]
+    env_ylim: [0, 0.5]
+    goal: [0.25, 0.25]
+    team_a:
+      - x0: [0.05,0.25,0,0]
+        type: 'standard_robot'
+    team_b:
+      - x0: [0.45,0.25,0,0]
+        type: 'standard_robot'
+
+  - sim_dt: 0.25
+    env_xlim: [0, 0.5]
+    env_ylim: [0, 0.5]
+    goal: [0.25, 0.25]
+    team_a:
+      - x0: [0.05,0.25,0,0]
+        type: 'standard_robot'
+    team_b:
+      - x0: [0.35,0.25,0,0]
+        type: 'standard_robot'
+
+  - sim_dt: 0.25
+    env_xlim: [0, 0.5]
+    env_ylim: [0, 0.5]
+    goal: [0.25, 0.25]
+    team_a:
+      - x0: [0.05,0.25,0,0]
+        type: 'standard_robot'
+      - x0: [0.05,0.35,0,0]
+        type: 'standard_robot'
+    team_b:
+      - x0: [0.45,0.25,0,0]
+        type: 'standard_robot'
+
+  - sim_dt: 0.25
+    env_xlim: [0, 0.5]
+    env_ylim: [0, 0.5]
+    goal: [0.25, 0.25]
+    team_a:
+      - x0: [0.05,0.25,0,0]
+        type: 'standard_robot'
+    team_b:
+      - x0: [0.35,0.15,0,0]
+        type: 'standard_robot'
+      - x0: [0.35,0.35,0,0]
+        type: 'standard_robot'
