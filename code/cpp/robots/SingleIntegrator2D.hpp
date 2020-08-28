@@ -2,6 +2,9 @@
 #include "RobotState.hpp"
 #include "RobotType.hpp"
 
+// Uncomment the following line to clip the environment, rather than executing a validity check
+#define CLIP_ENVIRONMENT
+
 struct RobotStateSingleIntegrator2D
   : public RobotState
 {
@@ -68,12 +71,21 @@ public:
     float dt,
     RobotStateSingleIntegrator2D& result) const
   {
+#ifdef CLIP_ENVIRONMENT
+    auto position = state.state + action * dt;
+    result.state = position.cwiseMin(p_max).cwiseMax(p_min);
+#else
     result.state = state.state + action * dt;
+#endif
   }
 
   bool isStateValid(const RobotStateSingleIntegrator2D& state) const
   {
+#ifdef CLIP_ENVIRONMENT
+    return true;
+#else
     return (state.position().array() >= p_min.array()).all() && (state.position().array() <= p_max.array()).all();
+#endif
   }
 
   void init()

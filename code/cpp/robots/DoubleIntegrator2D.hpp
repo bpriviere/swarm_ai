@@ -2,6 +2,9 @@
 #include "RobotState.hpp"
 #include "RobotType.hpp"
 
+// Uncomment the following line to clip the environment, rather than executing a validity check
+#define CLIP_ENVIRONMENT
+
 struct RobotStateDoubleIntegrator2D
   : public RobotState
 {
@@ -80,9 +83,14 @@ public:
     float dt,
     RobotStateDoubleIntegrator2D& result) const
   {
+#ifdef CLIP_ENVIRONMENT
+    auto position = state.position() + state.velocity() * dt;
+    result.position() = position.cwiseMin(p_max).cwiseMax(p_min);
+#else
     result.position() = state.position() + state.velocity() * dt;
-    Eigen::Vector2f velocity = state.velocity() + action * dt;
+#endif
 
+    auto velocity = state.velocity() + action * dt;
     float alpha = velocity.norm() / velocity_limit;
     result.velocity() = velocity / std::max(alpha, 1.0f);
     // result.velocity = clip(velocity, -velocity_limit, velocity_limit);
@@ -91,7 +99,11 @@ public:
 
   bool isStateValid(const RobotStateDoubleIntegrator2D& state) const
   {
+#ifdef CLIP_ENVIRONMENT
+    return true;
+#else
     return (state.position().array() >= p_min.array()).all() && (state.position().array() <= p_max.array()).all();
+#endif
   }
 
   void init()
