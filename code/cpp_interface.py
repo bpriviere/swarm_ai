@@ -145,7 +145,7 @@ def rollout(param,sim_mode): # self-play
 					success = g.step(next_state, team_action, next_state)
 
 					if success and next_state.turn == mctscpp.GameState.Turn.Attackers:
-						print(action)
+						# print(action)
 						results.append(game_state_to_cpp_result(gs,action))
 						action = []
 						gs = next_state
@@ -197,9 +197,9 @@ def play_game(param):
 	# time.sleep(2)
 
 	# assign glas
-	if param.policy_a_dict["sim_mode"] == "GLAS" or "MCTS":
+	if param.policy_a_dict["sim_mode"] == "GLAS" or "MCTS_GLAS" or "MCTS_RANDOM":
 		param.path_glas_model_a = param.policy_a_dict["path_glas_model_a"]
-	if param.policy_b_dict["sim_mode"] == "GLAS" or "MCTS":
+	if param.policy_b_dict["sim_mode"] == "GLAS" or "MCTS_GLAS" or "MCTS_RANDOM":
 		param.path_glas_model_b = param.policy_b_dict["path_glas_model_b"]
 
 	# similar to rollout 
