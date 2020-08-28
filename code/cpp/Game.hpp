@@ -57,19 +57,16 @@ class Game {
     float dt,
     const Eigen::Matrix<float, Robot::StateDim, 1>& goal,
     size_t maxDepth,
-    std::default_random_engine& generator,
-    const GLAS<Robot::StateDim>& glas_a,
-    const GLAS<Robot::StateDim>& glas_b,
-    float rollout_beta)
+    std::default_random_engine& generator)
     : m_attackerTypes(attackerTypes)
     , m_defenderTypes(defenderTypes)
     , m_dt(dt)
     , m_goal(goal)
     , m_maxDepth(maxDepth)
     , m_generator(generator)
-    , m_glas_a(glas_a)
-    , m_glas_b(glas_b)
-    , m_rollout_beta(rollout_beta)
+    , m_glas_a(generator)
+    , m_glas_b(generator)
+    , m_rollout_beta(0.0)
   {
   }
 
@@ -362,6 +359,39 @@ class Game {
     }
 
     return cumulativeReward / state.attackers.size();
+  }
+
+  float rolloutBeta() const {
+    return m_rollout_beta;
+  }
+
+  void setRolloutBeta(float rollout_beta) {
+    m_rollout_beta = rollout_beta;
+  }
+
+  GLAS<Robot::StateDim>& glasA()
+  {
+    return m_glas_a;
+  }
+
+  GLAS<Robot::StateDim>& glasB()
+  {
+    return m_glas_b;
+  }
+
+  const auto& attackerTypes() const
+  {
+    return m_attackerTypes;
+  }
+
+  const auto& defenderTypes() const
+  {
+    return m_defenderTypes;
+  }
+
+  const auto& goal() const
+  {
+    return m_goal;
   }
 
 private:

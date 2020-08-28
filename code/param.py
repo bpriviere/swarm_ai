@@ -64,7 +64,6 @@ class Param:
 		self.mcts_rollout_horizon = 1000
 		self.mcts_rollout_beta = 0.5 # 0 -> 1 : random -> GLAS
 		self.mcts_c_param = 1.4
-		self.mcts_gamma = 1.0
 
 		# learning (l) parameters 
 		self.device = 'cpu'
