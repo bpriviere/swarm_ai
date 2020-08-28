@@ -108,10 +108,10 @@ def uniform_sample(param,n):
 def get_uniform_samples(params):
 	print('getting uniform samples...')
 	states = []
-	for param in params: 
+	for param in params:
 		states.append(uniform_sample(param,param.l_num_points_per_file))
 	print('uniform samples collection completed.')
-	return states, params
+	return states
 
 
 def get_self_play_samples(params):
@@ -124,7 +124,7 @@ def get_self_play_samples(params):
 			states_per_file.extend(sim_result["states"])
 		states.append(states_per_file)
 	print('self-play sample collection completed.')
-	return states, params 
+	return states
 	
 
 def increment():
@@ -314,7 +314,7 @@ def get_params(df_param,training_team,iter_i):
 			param.mcts_tree_size = df_param.mcts_tree_size
 			param.l_num_points_per_file = df_param.l_num_points_per_file
 
-			if df_param.l_mode == "DAgger" or df_param.l_mode == "IL":
+			if df_param.l_mode == "DAgger" or df_param.l_mode == "IL" or iter_i == 0:
 				param.mcts_rollout_beta = 0.0
 				param.sim_mode = "MCTS_RANDOM"
 			elif df_param.l_mode == "ExIt" or df_param.l_mode == "Mice":
@@ -335,11 +335,6 @@ def get_params(df_param,training_team,iter_i):
 
 	return params	
 
-def set_iter_glas_models(params,iter):
-	for param in params: 
-		param.path_glas_model_a = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
-		param.path_glas_model_b = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="b",ITER=iter_i)
-
 
 def format_dir(df_param):
 	datadir = df_param.path_current_data
@@ -355,22 +350,27 @@ if __name__ == '__main__':
 
 	df_param = Param() 
 	format_dir(df_param)
-	
-	for iter_i in range(df_param.l_num_iterations):
-		for training_team in df_param.l_training_teams: 
+
+	# Create randomly initialized models for use in the first iteration
+	model = DiscreteEmptyNet(df_param,'cpu')
+	for training_team in df_param.l_training_teams:
+		torch.save(model.state_dict(), df_param.l_model_fn.format(\
+						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=0))
+	del model
+
+	for iter_i in range(1, df_param.l_num_iterations+1):
+		for training_team in df_param.l_training_teams:
 
 			print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
 
-			params = get_params(df_param,training_team,iter_i)
-			
+			params = get_params(df_param,training_team,iter_i-1)
 			if iter_i == 0 or df_param.l_mode == "IL":
-				states, params = get_uniform_samples(params)
+				states = get_uniform_samples(params)
 			else: 
-				set_iter_glas_models(params,iter_i-1)
-				states, params = get_self_play_samples(params) 
-				set_iter_glas_models(params,iter_i)
+				states = get_self_play_samples(params)
 			
 			make_dataset(states,params,df_param)
+
 			train_model(df_param,\
 				glob.glob(df_param.l_labelled_fn.format(\
 					DATADIR=df_param.path_current_data,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM=training_team,ITER='**')), \
