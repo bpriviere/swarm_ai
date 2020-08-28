@@ -1,8 +1,10 @@
 
 # standard 
-import torch 
-import numpy as np 
+import torch
+import numpy as np
+import tqdm
 from collections import defaultdict
+from multiprocessing import current_process
 
 # ours
 from cpp.buildRelease import mctscpp
@@ -281,6 +283,10 @@ def evaluate_expert(states,param,quiet_on=True):
 	if not quiet_on:
 		print('   running expert for instance {}'.format(param.dataset_fn))
 
+	# TODO: This ID is incrementing over multiple Pool usages
+	#       The output could be improved if we would know a fixed offset here.
+	progress_pos = current_process()._identity[0]
+
 	generator = mctscpp.createRandomGenerator(param.seed)
 	game,_,_,_,_ = param_to_cpp_game(param,generator) 
 	sim_result = {
@@ -289,7 +295,8 @@ def evaluate_expert(states,param,quiet_on=True):
 		'param' : param.to_dict()
 		}
 
-	for state in states:
+	# for state in states:
+	for state in tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos):
 		game_state = state_to_cpp_game_state(param,state,param.training_team)
 		mctsresult = mctscpp.search(game, game_state, generator, param.mcts_tree_size)
 		if mctsresult.success: 

@@ -6,9 +6,10 @@ import time
 import torch 
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from collections import defaultdict
-from itertools import repeat 
-from multiprocessing import cpu_count, Pool
-from tqdm import tqdm 
+from itertools import repeat
+from multiprocessing import cpu_count, Pool, freeze_support
+from tqdm import tqdm
+import itertools
 
 import plotter
 import datahandler as dh
@@ -248,6 +249,8 @@ def load_param(some_dict):
 	param.from_dict(some_dict)
 	return param 
 
+def evaluate_expert_wrapper(arg):
+	evaluate_expert(*arg)
 
 def make_dataset(states,params,df_param):
 	print('making dataset...')
@@ -256,10 +259,15 @@ def make_dataset(states,params,df_param):
 		for states_per_file, param in zip(states, params): 
 			evaluate_expert(states_per_file, param, quiet_on=False)
 	else:
+		freeze_support()
 		ncpu = cpu_count()
 		print('ncpu: ', ncpu)
-		with Pool(ncpu-1) as p:
-			p.starmap(evaluate_expert, list(zip(states, params, repeat(False))))
+
+		with Pool(ncpu-1, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
+			args = list(zip(states, params))
+			r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
+			# p.starmap(evaluate_expert, states, params)
+			# p.starmap(evaluate_expert, list(zip(states, params)))
 
 	# labelled dataset 
 	print('cleaning labelled data...')
