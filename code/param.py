@@ -144,6 +144,9 @@ class Param:
 	def make_initial_condition(self):
 
 		state = [] 
+		positions = [] 
+		velocities = [] 
+		radii = [] 
 		for robot in self.robots: 
 
 			if robot["team"] == "a":
@@ -153,11 +156,33 @@ class Param:
 				xlim = self.reset_xlim_B
 				ylim = self.reset_ylim_B
 
+			count = 0 
 			position = self.get_random_position_inside(xlim,ylim)
 			velocity = self.get_random_velocity_inside(robot["speed_limit"])
+			while self.collision(position,velocity,robot["radius"],positions,velocities,radii):
+				position = self.get_random_position_inside(xlim,ylim)
+				count += 1 
+				if count > 10000:
+					exit('infeasible initial condition')
+
+			radii.append(robot["radius"])
+			positions.append(np.array((position[0],position[1])))
+			velocities.append(np.array((velocity[0],velocity[1])))
 			state.append([position[0],position[1],velocity[0],velocity[1]])
 
 		return state
+
+	def collision(self,p1,v1,r1,p2s,v2s,r2s):
+		p1_tp1 = np.array(p1) + self.sim_dt * np.array(v1)
+		for p2, v2, r2 in zip(p2s,v2s,r2s):
+			# check initial condition 
+			if np.linalg.norm(np.array(p1)-p2) < (r1 + r2): 
+				return True 
+			# check next state 
+			p2_tp1 = p2 + self.sim_dt * v2
+			if np.linalg.norm(p1_tp1-p2_tp1) < (r1 + r2): 
+				return True 
+		return False 
 
 
 	def assign_initial_condition(self):

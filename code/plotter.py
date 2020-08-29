@@ -537,8 +537,15 @@ def policy_to_label(policy):
 	for key, value in policy.items():
 		if "path" in key and np.any(['path' in a for a in keys]):
 			label += '{} '.format(os.path.basename(value).split(".")[0])
-		elif key in keys:  
+		elif key == "mcts_rollout_beta":
+			if policy["sim_mode"] == "MCTS_GLAS":
+				label += ', b: {}'.format(value)
+		elif key == "mcts_tree_size":
+			label += ', |n|: {}'.format(value)
+		elif key == "sim_mode":
 			label += '{} '.format(value)
+		elif key in keys:  
+			label += ', {}'.format(value)
 	
 	return label
 
