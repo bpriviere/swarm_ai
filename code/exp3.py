@@ -98,50 +98,43 @@ if __name__ == '__main__':
 
 	df_param.attackerPolicyDicts = [
 		{
-			"sim_mode" : "MCTS_GLAS",
+			"sim_mode" : "MCTS_RANDOM",
 			"path_glas_model_a" : "../saved/IL/models/a4.pt",
-			"mcts_tree_size" : 5000,
-			"mcts_rollout_beta" : 0.0,
+			"mcts_tree_size" : 1000,
+			"mcts_rollout_beta" : 0.75,
 			"mcts_c_param" : 1.4,
 		},
 		{
 			"sim_mode" : "MCTS_GLAS",
 			"path_glas_model_a" : "../saved/IL/models/a4.pt",
-			"mcts_tree_size" : 5000,
-			"mcts_rollout_beta" : 0.25,
+			"mcts_tree_size" : 1000,
+			"mcts_rollout_beta" : 0.01,
 			"mcts_c_param" : 1.4,
 		},		
 		{
 			"sim_mode" : "MCTS_GLAS",
 			"path_glas_model_a" : "../saved/IL/models/a4.pt",
-			"mcts_tree_size" : 5000,
+			"mcts_tree_size" : 1000,
+			"mcts_rollout_beta" : 0.25,
+			"mcts_c_param" : 1.4,
+		},
+		{
+			"sim_mode" : "MCTS_GLAS",
+			"path_glas_model_a" : "../saved/IL/models/a4.pt",
+			"mcts_tree_size" : 1000,
 			"mcts_rollout_beta" : 0.5,
 			"mcts_c_param" : 1.4,
 		},
 		{
 			"sim_mode" : "MCTS_GLAS",
 			"path_glas_model_a" : "../saved/IL/models/a4.pt",
-			"mcts_tree_size" : 5000,
-			"mcts_rollout_beta" : 0.75,
-			"mcts_c_param" : 1.4,
-		},		
-		{
-			"sim_mode" : "MCTS_GLAS",
-			"path_glas_model_a" : "../saved/IL/models/a4.pt",
-			"mcts_tree_size" : 5000,
+			"mcts_tree_size" : 1000,
 			"mcts_rollout_beta" : 0.99,
 			"mcts_c_param" : 1.4,
 		},
 	]
 
 	df_param.defenderPolicyDicts = [
-		{
-			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_b" : "../saved/IL/models/b0.pt",
-			"mcts_tree_size" : 10,
-			"mcts_rollout_beta" : 0.0,
-			"mcts_c_param" : 1.4,
-		},
 		{
 			"sim_mode" : "MCTS_RANDOM",
 			"path_glas_model_b" : "../saved/IL/models/b0.pt",
@@ -163,13 +156,6 @@ if __name__ == '__main__':
 			"mcts_rollout_beta" : 0.0,
 			"mcts_c_param" : 1.4,
 		},
-		{
-			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_b" : "../saved/IL/models/b0.pt",
-			"mcts_tree_size" : 10000,
-			"mcts_rollout_beta" : 0.0,
-			"mcts_c_param" : 1.4,
-		},
 	]
 
 	parser = argparse.ArgumentParser()
@@ -181,14 +167,14 @@ if __name__ == '__main__':
 	else: 
 		df_param.num_trials = 10
 		df_param.robot_team_compositions = [
-			# {
-			# 'a': {'standard_robot':1,'evasive_robot':0},
-			# 'b': {'standard_robot':1,'evasive_robot':0}
-			# },
 			{
-			'a': {'standard_robot':2,'evasive_robot':0},
+			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
+			# {
+			# 'a': {'standard_robot':5,'evasive_robot':0},
+			# 'b': {'standard_robot':5,'evasive_robot':0}
+			# },
 			# {
 			# 'a': {'standard_robot':1,'evasive_robot':0},
 			# 'b': {'standard_robot':2,'evasive_robot':0}
@@ -216,11 +202,15 @@ if __name__ == '__main__':
 
 	plotter.plot_exp3_results(sim_results)
 
+	count = 0 
 	for sim_result in sim_results:
 		plotter.plot_tree_results(sim_result,title='T: {}, A:{}, B:{}'.format(\
 			sim_result["param"]["trial"],
 			policy_to_label(sim_result["param"]["policy_a_dict"]),\
 			policy_to_label(sim_result["param"]["policy_b_dict"])))
+		count += 1 
+		if count >= 10:
+			break 
 
 	print('saving and opening figs...')
 	plotter.save_figs("plots/exp3.pdf")
