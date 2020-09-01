@@ -336,6 +336,8 @@ def get_params(df_param,training_team,iter_i):
 def set_params_sim_mode(params,sim_mode):
 	for param in params: 
 		param.sim_mode = sim_mode
+		if sim_mode == "MCTS_RANDOM":
+			param.mcts_rollout_beta = 0.0
 	return params
 
 def format_dir(df_param):
