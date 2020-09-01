@@ -102,7 +102,7 @@ def state_to_cpp_game_state(param,state,turn):
 
 	return game_state 
 
-def rollout(param,sim_mode): # self-play
+def rollout(param): # self-play
 
 	generator = mctscpp.createRandomGenerator(param.seed)
 	g = param_to_cpp_game(param,generator) 
@@ -111,15 +111,16 @@ def rollout(param,sim_mode): # self-play
 
 	results = []
 	action = []
+	count = 0 
 
 	state = param.state
 	gs = state_to_cpp_game_state(param,state,"a")
 	next_state = state_to_cpp_game_state(param,state,"a")
 
 	if g.isValid(gs):
-		while True:
+		while count < param.mcts_rollout_horizon:
 
-			if "MCTS" in sim_mode:
+			if "MCTS" in param.sim_mode:
 				
 				next_state.attackersReward = 0
 				next_state.defendersReward = 0
@@ -144,7 +145,7 @@ def rollout(param,sim_mode): # self-play
 				else:
 					success = False
 
-			elif sim_mode == "GLAS":
+			elif param.sim_mode == "GLAS":
 
 				gs.attackersReward = 0
 				gs.defendersReward = 0
@@ -165,6 +166,8 @@ def rollout(param,sim_mode): # self-play
 
 				results.append(game_state_to_cpp_result(gs,action))
 				gs = next_state
+
+			count += 1
 
 			if success:
 				if g.isTerminal(next_state):

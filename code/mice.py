@@ -117,10 +117,13 @@ def get_uniform_samples(params):
 def get_self_play_samples(params):
 	print('getting self-play samples...')
 	states = []
+	params = set_params_sim_mode(params,"GLAS")
 	for param in params: 
 		states_per_file = [] 
 		while len(states_per_file) < param.l_num_points_per_file:
-			sim_result = rollout(param,"GLAS")
+			sim_result = rollout(param)
+			if len(sim_result["states"]) > param.l_num_points_per_file:
+				sim_result["states"] = sim_result["states"][0:param.l_num_points_per_file]
 			states_per_file.extend(sim_result["states"])
 		states.append(states_per_file)
 	print('self-play sample collection completed.')
@@ -253,6 +256,11 @@ def evaluate_expert_wrapper(arg):
 def make_dataset(states,params,df_param):
 	print('making dataset...')
 
+	if df_param.l_mode == "IL" or df_param.l_mode == "DAgger":
+		params = set_params_sim_mode(params,"MCTS_RANDOM")
+	elif df_param.l_mode == "ExIt" or df_param.l_mode == "Mice":
+		params = set_params_sim_mode(params,"MCTS_GLAS")
+
 	if not df_param.l_parallel_on:
 		for states_per_file, param in zip(states, params): 
 			evaluate_expert(states_per_file, param, quiet_on=False)
@@ -313,16 +321,6 @@ def get_params(df_param,training_team,iter_i):
 			param.robot_team_composition = robot_team_composition 
 			param.mcts_tree_size = df_param.mcts_tree_size
 			param.l_num_points_per_file = df_param.l_num_points_per_file
-
-			if df_param.l_mode == "DAgger" or df_param.l_mode == "IL" or iter_i == 0:
-				param.mcts_rollout_beta = 0.0
-				param.sim_mode = "MCTS_RANDOM"
-			elif df_param.l_mode == "ExIt" or df_param.l_mode == "Mice":
-				param.mcts_rollout_beta = df_param.mcts_rollout_beta
-				param.sim_mode = "MCTS_GLAS"
-			else: 
-				exit('df_param.l_mode not recognized')
-
 			param.training_team = training_team
 			param.iter_i = iter_i 
 			param.path_glas_model_a = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
@@ -335,6 +333,10 @@ def get_params(df_param,training_team,iter_i):
 
 	return params	
 
+def set_params_sim_mode(params,sim_mode):
+	for param in params: 
+		param.sim_mode = sim_mode
+	return params
 
 def format_dir(df_param):
 	datadir = df_param.path_current_data

@@ -67,7 +67,7 @@ class Param:
 
 		# learning (l) parameters 
 		self.device = 'cpu'
-		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
+		self.l_mode = "DAgger" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 5
 		self.l_num_file_per_iteration = 7 # optimized for num cpu on ben's laptop 
@@ -92,7 +92,7 @@ class Param:
 			# },			
 		]
 
-		n,m,h,l,p = 4,2,16,8,8 # state dim, action dim, hidden layer, output phi, output rho
+		n,m,h,l,p = 4,2,32,8,8 # state dim, action dim, hidden layer, output phi, output rho
 		self.l_phi_network_architecture = [
 			["Linear", n, h],
 			["Linear", h, h],
