@@ -419,11 +419,11 @@ def plot_exp1_results(all_sim_results):
 
 def plot_exp2_results(all_sim_results):
 
-	training_teams = all_sim_results[0]["param"]["l_training_teams"]
-	modes = all_sim_results[0]["param"]["sim_modes"]
+	training_teams = all_sim_results[0]["param"]["training_teams"]
+	modes = all_sim_results[0]["param"]["modes"]
 	tree_sizes = all_sim_results[0]["param"]["mcts_tree_sizes"]
 	num_trials = all_sim_results[0]["param"]["sim_num_trials"]
-	team_comps = all_sim_results[0]["param"]["l_robot_team_compositions"]
+	team_comps = all_sim_results[0]["param"]["robot_team_compositions"]
 
 	# put into easy-to-use dict! 
 	results = dict()
@@ -431,17 +431,16 @@ def plot_exp2_results(all_sim_results):
 	for sim_result in all_sim_results:
 
 		team_comp = sim_result["param"]["robot_team_composition"]
-		mode = sim_result["param"]["sim_mode"]
 		tree_size = sim_result["param"]["mcts_tree_size"]
 		training_team = sim_result["param"]["training_team"]
 		trial = sim_result["param"]["sim_trial"]
+		mode = sim_result["param"]["mode"]
 
 		num_nodes_A, num_nodes_B = 0,0
 		for robot_type, robot_number in team_comp["a"].items():
 			num_nodes_A += robot_number 
 		for robot_Type, robot_number in team_comp["b"].items():
 			num_nodes_B += robot_number 
-
 
 		key = (num_nodes_A,num_nodes_B,tree_size,training_team,mode,trial)
 		# key = (tree_size,mode)
@@ -524,7 +523,6 @@ def plot_exp2_results(all_sim_results):
 						ax.set_title(mode)
 						ax.set_xticks(np.arange(len(tree_sizes)))
 						ax.set_xticklabels(np.array(tree_sizes,dtype=int)/1000,rotation=45)
-						# ax.set_xlabel('Tree Size [K]')
 
 def policy_to_label(policy):
 	# keys = ["mcts_tree_size"]

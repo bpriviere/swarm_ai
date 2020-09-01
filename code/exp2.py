@@ -14,7 +14,7 @@ import argparse
 from param import Param 
 import datahandler as dh
 import plotter 
-from cpp_interface import evaluate_expert, evaluate_glas
+from cpp_interface import evaluate_expert
 from mice import relative_state, format_data
 from learning.discrete_emptynet import DiscreteEmptyNet
 
@@ -68,41 +68,49 @@ def get_params(df_param):
 	seed = int.from_bytes(os.urandom(4), sys.byteorder) 
 	curr_ic = -1
 	count = 0 
-	total = df_param.sim_num_trials*len(df_param.l_robot_team_composition_cases)*len(df_param.mcts_tree_sizes)*\
-		len(df_param.l_training_teams)*len(df_param.sim_modes)
+	total = df_param.num_trials*len(df_param.robot_team_compositions)*len(df_param.mcts_tree_sizes)*\
+		len(df_param.training_teams)*len(df_param.modes)
+	num_ics = df_param.num_trials*len(df_param.robot_team_compositions)
 
-	for robot_team_composition in df_param.l_robot_team_composition_cases:
+	for robot_team_composition in df_param.robot_team_compositions:
 		
 		df_param.robot_team_composition = robot_team_composition
 		df_param.update()
 
-		for trial in range(df_param.sim_num_trials):
+		for trial in range(df_param.num_trials):
 
 			initial_condition = df_param.make_initial_condition()
 			curr_ic += 1 
 
 			for tree_size in df_param.mcts_tree_sizes: 
-				for training_team in df_param.l_training_teams:
-					for mode in df_param.sim_modes: 
+				for training_team in df_param.training_teams:
+					for mode in df_param.modes: 
 
 						param = Param(seed=seed)
 
 						# global param 
 						param.path_glas_model_a = df_param.path_glas_model_a
 						param.path_glas_model_b = df_param.path_glas_model_b
-						param.mcts_rollout_beta = df_param.mcts_rollout_beta
 						param.mcts_tree_sizes = df_param.mcts_tree_sizes 
-						param.l_robot_team_compositions = df_param.l_robot_team_composition_cases
-						param.sim_modes = df_param.sim_modes 
-						param.l_training_teams = df_param.l_training_teams
+						param.robot_team_compositions = df_param.robot_team_compositions
+						param.modes = df_param.modes
+						param.training_teams = df_param.training_teams
 						param.l_num_points_per_file = 1 
-						param.sim_num_trials = df_param.sim_num_trials
+						param.sim_num_trials = df_param.num_trials
+						param.num_ics = num_ics
 
 						# local param 
+						if mode == "GLAS":
+							param.mcts_rollout_beta = 0.0
+							param.sim_mode = "GLAS"
+						elif "MCTS" in mode:
+							param.mcts_rollout_beta = float(mode.split("MCTS ")[-1])
+							param.sim_mode = "MCTS"
+
+						param.mode = mode  
 						param.robot_team_composition = robot_team_composition 
 						param.sim_trial = trial
 						param.mcts_tree_size = tree_size
-						param.sim_mode = mode 
 						param.training_team = training_team
 						param.dataset_fn = '{}sim_result_{}'.format(df_param.path_current_results,count)
 						param.count = count 
@@ -124,8 +132,18 @@ def format_dir(df_param):
 if __name__ == '__main__':
 
 	df_param = Param()
-	df_param.sim_modes = ["GLAS","MCTS_RANDOM","MCTS_GLAS"]
-	df_param.mcts_tree_sizes = [1000,5000,10000,50000,100000] 
+	df_param.num_trials = 1
+	df_param.modes = ["GLAS", "MCTS 0.0", "MCTS 0.5", "MCTS 1.0"]
+	df_param.mcts_tree_sizes = [1000,5000,10000,50000,100000,500000] 
+	df_param.path_glas_model_a = "../saved/IL/models/a4.pt"
+	df_param.path_glas_model_b = "../saved/IL/models/b4.pt"
+	df_param.robot_team_compositions = [
+		{
+		'a': {'standard_robot':1,'evasive_robot':0},
+		'b': {'standard_robot':1,'evasive_robot':0}
+		},
+		]
+	df_param.training_teams = ["a"] #["a","b"]	
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-path_glas_model_a", default=None, required=False)
