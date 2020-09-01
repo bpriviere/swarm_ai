@@ -18,7 +18,7 @@ class Param:
 		# random.seed(self.seed)
 
 		# sim param 
-		self.sim_num_trials = 5
+		self.sim_num_trials = 1
 		self.sim_t0 = 0
 		self.sim_tf = 20
 		self.sim_dt = 0.25
@@ -70,8 +70,8 @@ class Param:
 		self.l_mode = "DAgger" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 5
-		self.l_num_trials_per_iteration = 5
-		self.l_num_points_per_file = 1000
+		self.l_num_file_per_iteration = 10
+		self.l_num_points_per_file = 5000
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{

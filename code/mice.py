@@ -307,7 +307,7 @@ def get_params(df_param,training_team,iter_i):
 
 		start = get_start(df_param,robot_team_composition)
 
-		for trial in range(df_param.l_num_trials_per_iteration): 
+		for trial in range(df_param.l_num_file_per_iteration): 
 
 			param = Param() # random seed 
 			param.robot_team_composition = robot_team_composition 
@@ -345,7 +345,7 @@ def format_dir(df_param):
 
 	modeldir = df_param.path_current_models
 	if os.path.exists(modeldir):
-		for file in in glob.glob(modeldir + "/*"):
+		for file in glob.glob(modeldir + "/*"):
 			os.remove(file)
 	os.makedirs(modeldir,exist_ok=True)	
 
@@ -364,7 +364,7 @@ if __name__ == '__main__':
 						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=0))
 	del model
 
-	for iter_i in range(1, df_param.l_num_iterations+1):
+	for iter_i in range(df_param.l_num_iterations):
 		for training_team in df_param.l_training_teams:
 
 			print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
