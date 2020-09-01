@@ -369,7 +369,7 @@ if __name__ == '__main__':
 
 			print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
 
-			params = get_params(df_param,training_team,iter_i-1)
+			params = get_params(df_param,training_team,iter_i)
 			if iter_i == 0 or df_param.l_mode == "IL":
 				states = get_uniform_samples(params)
 			else: 
@@ -382,7 +382,7 @@ if __name__ == '__main__':
 					DATADIR=df_param.path_current_data,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM=training_team,ITER='**')), \
 				training_team,\
 				df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i))
+					DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i+1))
 
 			if df_param.l_mode == "Mice":
 				increment(df_param)
