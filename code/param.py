@@ -67,12 +67,12 @@ class Param:
 
 		# learning (l) parameters 
 		self.device = 'cpu'
-		self.l_mode = "DAgger" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
+		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 5
-		self.l_num_file_per_iteration = 10
-		self.l_num_points_per_file = 5000
-		self.l_training_teams = ["a","b"]
+		self.l_num_file_per_iteration = 7 # optimized for num cpu on ben's laptop 
+		self.l_num_points_per_file = 7000
+		self.l_training_teams = ["a"] #,"b"]
 		self.l_robot_team_composition_cases = [
 			{
 			'a': {'standard_robot':1,'evasive_robot':0},
