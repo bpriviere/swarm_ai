@@ -13,7 +13,7 @@ import itertools
 
 import plotter
 import datahandler as dh
-from cpp_interface import evaluate_expert, rollout
+from cpp_interface import evaluate_expert, self_play
 from param import Param 
 from learning.discrete_emptynet import DiscreteEmptyNet
 
@@ -121,7 +121,7 @@ def get_self_play_samples(params):
 	for param in params: 
 		states_per_file = [] 
 		while len(states_per_file) < param.l_num_points_per_file:
-			sim_result = rollout(param)
+			sim_result = self_play(param)
 			if len(sim_result["states"]) > param.l_num_points_per_file:
 				sim_result["states"] = sim_result["states"][0:param.l_num_points_per_file]
 			states_per_file.extend(sim_result["states"])
