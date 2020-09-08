@@ -8,6 +8,7 @@ from multiprocessing import current_process
 
 # ours
 from cpp.buildRelease import mctscpp
+from benchmark.panagou import PanagouPolicy
 import datahandler as dh
 
 def create_cpp_robot_type(param, robot_type):
@@ -71,6 +72,17 @@ def loadFeedForwardNNWeights(ff, state_dict, name):
 			break
 		l += 1
 
+def cpp_state_to_pstate(gs):
+
+	pstate = np.zeros((len(gs.attackers)+len(gs.defenders),4))
+	idx = 0 
+	for rs in gs.attackers:
+		pstate[idx,:] = rs.state
+		idx += 1 
+	for rs in gs.defenders:
+		pstate[idx,:] = rs.state
+		idx += 1 		
+	return pstate
 
 def state_to_cpp_game_state(param,state,turn):
 
@@ -102,10 +114,23 @@ def state_to_cpp_game_state(param,state,turn):
 
 	return game_state 
 
+def expected_value(param):
+	generator = mctscpp.createRandomGenerator(param.seed)
+	g = param_to_cpp_game(param,generator) 
+	state = np.array(param.state)
+	gs = state_to_cpp_game_state(param,state,"a")
+	mctsresult = mctscpp.search(g, gs, generator, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
+	return mctsresult.expectedReward
+
+
 def rollout(param): # self-play
 
 	generator = mctscpp.createRandomGenerator(param.seed)
 	g = param_to_cpp_game(param,generator) 
+
+	if param.sim_mode == "PANAGOU":
+		pp = PanagouPolicy(param)
+		pp.init_sim(param.state)
 
 	deterministic = True
 
@@ -119,6 +144,7 @@ def rollout(param): # self-play
 
 	if g.isValid(gs):
 		while count < param.mcts_rollout_horizon:
+		# while True:
 
 			if "MCTS" in param.sim_mode:
 				
@@ -126,7 +152,7 @@ def rollout(param): # self-play
 				next_state.defendersReward = 0
 				next_state.depth = 0
 
-				mctsresult = mctscpp.search(g, next_state, generator, param.mcts_tree_size)
+				mctsresult = mctscpp.search(g, next_state, generator, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
 				if mctsresult.success: 
 					team_action = mctsresult.bestAction
 					if next_state.turn == mctscpp.GameState.Turn.Attackers:
@@ -152,6 +178,25 @@ def rollout(param): # self-play
 				gs.depth = 0
 
 				action = mctscpp.eval(g, gs, generator, deterministic)
+
+				# step twice (once per team)
+				success = g.step(gs, action, next_state)
+				if success:
+					next_state.attackersReward = 0
+					next_state.defendersReward = 0
+					next_state.depth = 0
+					success = g.step(next_state, action, next_state)
+
+				if not success:
+					break
+
+				results.append(game_state_to_cpp_result(gs,action))
+				gs = next_state
+
+			elif param.sim_mode == "PANAGOU":
+
+				pstate = cpp_state_to_pstate(gs)
+				action = pp.eval(pstate)
 
 				# step twice (once per team)
 				success = g.step(gs, action, next_state)
@@ -204,8 +249,9 @@ def play_game(param):
 
 	state = param.state
 	gs = state_to_cpp_game_state(param,state,"a")
-	while True:
-
+	count = 0 
+	while count < param.mcts_rollout_horizon:
+	# while True:
 		gs.attackersReward = 0
 		gs.defendersReward = 0
 		gs.depth = 0
@@ -232,7 +278,16 @@ def play_game(param):
 			action = mctscpp.eval(g, gs, generator, deterministic)
 			success = g.step(gs, action, gs)
 
+
+		elif policy_dict["sim_mode"] == "PANAGOU":
+			# todo 
+			exit('todo') 
+
+		else: 
+			exit('sim mode {} not recognized'.format(policy_dict["sim_mode"]))
+		
 		results.append(game_state_to_cpp_result(gs,None))
+		count += 1 
 
 		if success:
 			if g.isTerminal(gs):

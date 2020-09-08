@@ -103,6 +103,47 @@ def make_gif(sim_result):
 	duration = 0.5 
 	imageio.mimsave(gif_name, images, duration = duration)
 
+def plot_panagou(R,R_nom,I,states,param,plot_isochrones=True,plot_nominal=True,plot_intersections=True,plot_states=True):
+
+	num_robots, num_times, num_thetas, state_dim = R.shape
+
+	colors = get_2_colors(num_robots,len(param.team_1_idxs))
+
+	intersection_color = 'yellow'
+	goal_color = 'green'
+	nominal_color = 'black'
+	df_alpha = 0.2
+
+	fig,ax = plt.subplots()
+	for i_robot in range(num_robots):
+
+		if plot_isochrones:
+			for i_time in range(num_times):
+				ax.plot(R[i_robot,i_time,:,0],R[i_robot,i_time,:,1],color=colors[i_robot],marker='o',alpha=df_alpha)
+				ax.plot([R[i_robot,i_time,-1,0],R[i_robot,i_time,0,0]],
+					[R[i_robot,i_time,-1,1],R[i_robot,i_time,0,1]],color=colors[i_robot],marker='o',alpha=df_alpha)
+		
+		if plot_nominal:
+			ax.plot(R_nom[i_robot,:,0],R_nom[i_robot,:,1],color=nominal_color,marker='o',alpha=df_alpha)
+
+		if plot_intersections:
+			for (ii_robot,jj_robot), intersections in I.items():
+				if i_robot == ii_robot or i_robot == jj_robot: 
+					for (ii_theta,jj_theta,ii_time) in intersections:
+						ax.plot(R[ii_robot,ii_time,ii_theta,0],R[ii_robot,ii_time,ii_theta,1],\
+							color=intersection_color,marker='s',alpha=df_alpha)
+						ax.plot(R[jj_robot,ii_time,jj_theta,0],R[jj_robot,ii_time,jj_theta,1],\
+							color=intersection_color,marker='s',alpha=df_alpha)
+
+		if plot_states: 
+			for i_robot in range(num_robots):
+				ax.plot(states[:,i_robot,0],states[:,i_robot,1],color=colors[i_robot])
+
+	ax.plot(param.goal[0],param.goal[1],color=goal_color,marker='*')
+	ax.set_xlim([param.env_xlim[0],param.env_xlim[1]])
+	ax.set_ylim([param.env_ylim[0],param.env_ylim[1]])
+	ax.grid(True)
+
 
 def plot_sa_pairs(sampled_sa_pairs,sim_result,team):
 
@@ -250,6 +291,26 @@ def get_colors(param):
 			colors.append(colors_b[i])
 
 	return colors
+
+def get_2_colors(total,split):
+
+	colors = []
+
+	start, stop = 0.4, 0.7
+	cm_subsection = np.linspace(start, stop, total) 
+
+	colors_a = [ cm.Blues(x) for x in cm_subsection]
+	colors_b = [ cm.Oranges(x) for x in cm_subsection]
+
+	colors = []
+	for i in range(total):
+		if i < split:
+			colors.append(colors_a[i])
+		else:
+			colors.append(colors_b[i])
+
+	return colors
+
 
 def get_n_colors(n):
 	colors = []
@@ -415,6 +476,65 @@ def plot_exp1_results(all_sim_results):
 						ax.set_ylabel('Trial {}'.format(i_trial))
 
 			fig.tight_layout()
+
+def plot_exp4_results(all_sim_results):
+
+	def get_initial_condition(param,X,Y):
+		pos = np.zeros(2)
+		pos[0] = param["state"][0][0]
+		pos[1] = param["state"][0][1]
+		i_x = np.where(pos[0] == X)[0][0]
+		i_y = np.where(pos[1] == Y)[0][0]
+		return pos, i_x, i_y 
+
+	X = all_sim_results[0]["param"]["X"]
+	Y = all_sim_results[0]["param"]["Y"]
+	num_trials = all_sim_results[0]["param"]["num_trials"]
+	sim_modes = all_sim_results[0]["param"]["sim_modes"]
+	xlim = [all_sim_results[0]["param"]["env_xlim"][0],all_sim_results[0]["param"]["env_xlim"][1]]
+	ylim = [all_sim_results[0]["param"]["env_ylim"][0],all_sim_results[0]["param"]["env_ylim"][1]]
+
+	results = dict() 
+	for sim_mode in sim_modes: 
+		results[sim_mode] = np.zeros((X.shape[0],Y.shape[0],num_trials))
+
+	for sim_result in all_sim_results:
+		pos,i_x,i_y = get_initial_condition(sim_result["param"],X,Y)
+		sim_mode = sim_result["param"]["sim_mode"]
+		results[sim_mode][i_x,i_y,sim_result["param"]["i_trial"]] = sim_result["rewards"][-1,0]
+
+	# values = np.zeros((X.shape[0],Y.shape[0],num_trials)) 
+	# for sim_result in all_sim_results:
+	# 	pos,i_x,i_y = get_initial_condition(sim_result["param"],X,Y)
+	# 	values[i_x,i_y,sim_result["param"]["i_trial"]] = sim_result["rewards"][-1,0]
+
+	# print(values.shape)
+	# print(np.mean(values,axis=2).shape)
+	# exit()
+
+
+	colors = get_n_colors(len(sim_result["param"]["robots"]))
+
+	for sim_mode, values in results.items():
+		fig,ax = plt.subplots()
+		im = ax.imshow(np.mean(values,axis=2),origin='lower',extent=(xlim[0],xlim[1],ylim[0],ylim[1]),vmin=0,vmax=1)
+		fig.colorbar(im)
+		ax.scatter(sim_result["param"]["goal"][0],sim_result["param"]["goal"][1],color='green',marker='o',label='goal')
+		for robot_idx in range(sim_result["param"]["num_nodes"]):
+			if not robot_idx == 0:
+				ax.scatter(sim_result["states"][0,robot_idx,0],sim_result["states"][0,robot_idx,1],marker='o',color=colors[robot_idx],label=str(robot_idx))
+				ax.arrow(sim_result["states"][0,robot_idx,0], sim_result["states"][0,robot_idx,1], \
+					sim_result["states"][0,robot_idx,2], sim_result["states"][0,robot_idx,3], color=colors[robot_idx])
+		ax.set_xlim([xlim[0],xlim[1]])
+		ax.set_ylim([ylim[0],ylim[1]])
+
+		dx = xlim[1] - X[-1]
+		ax.set_xticks(X - dx)
+		ax.set_yticks(Y - dx)
+		ax.grid(True)
+		ax.set_aspect('equal')
+		ax.legend(loc='upper left')
+		ax.set_title(sim_mode)
 
 
 def plot_exp2_results(all_sim_results):
