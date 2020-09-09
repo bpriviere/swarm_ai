@@ -234,96 +234,50 @@ class Game {
   {
     GameStateT s = state;
     GameStateT nextState;
-    if (m_glas_a.valid() && m_glas_b.valid()) {
-      // NN rollout
 
-      std::uniform_real_distribution<float> dist(0.0,1.0);
+    std::uniform_real_distribution<float> dist(0.0,1.0);
+
+    while (true) {
       bool valid = true;
+      if (m_rollout_beta > 0 && dist(m_generator) < m_rollout_beta) {
+        // Use NN if rollout_beta is > 0 probabilistically
+        assert(m_glas_a.valid() && m_glas_b.valid());
 
-      while (true) {
-        float p = dist(m_generator);
-        if (p < m_rollout_beta) {
+        const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator, false);
 
-          const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator, false);
+        // step twice (once for each player)
+        valid &= step(s, action, nextState);
+        valid &= step(nextState, action, nextState);
+      } else {
+        // use regular random rollout
 
-          // step twice (once for each player)
-          valid &= step(s, action, nextState);
-          valid &= step(nextState, action, nextState);
-        } else {
-          // compute and step for player1
-          const auto& actions1 = getPossibleActions(s);
+        // compute and step for player1
+        const auto& actions1 = getPossibleActions(s);
 
-          std::uniform_int_distribution<int> dist1(0, actions1.size() - 1);
-          int idx1 = dist1(m_generator);
-          const auto& action1 = actions1[idx1];
+        std::uniform_int_distribution<int> dist1(0, actions1.size() - 1);
+        int idx1 = dist1(m_generator);
+        const auto& action1 = actions1[idx1];
 
-          valid &= step(s, action1, nextState);
+        valid &= step(s, action1, nextState);
 
-          // compute and step for player2
-          const auto& actions2 = getPossibleActions(nextState);
+        // compute and step for player2
+        const auto& actions2 = getPossibleActions(nextState);
 
-          std::uniform_int_distribution<int> dist2(0, actions2.size() - 1);
-          int idx2 = dist2(m_generator);
-          const auto& action2 = actions2[idx2];
+        std::uniform_int_distribution<int> dist2(0, actions2.size() - 1);
+        int idx2 = dist2(m_generator);
+        const auto& action2 = actions2[idx2];
 
-          valid &= step(nextState, action2, nextState);
-        }
-
-        if (valid) {
-          s = nextState;
-          if (isTerminal(s)) {
-            break;
-          }
-        } else {
-          break;
-        }
+        valid &= step(nextState, action2, nextState);
       }
 
-    } else {
-      // uniform sampling rollout
-
-      while (true) {
-        const auto& actions = getPossibleActions(s);
-
-        std::uniform_int_distribution<int> dist(0, actions.size() - 1);
-        int idx = dist(m_generator);
-        const auto& action = actions[idx];
-
-        bool valid = step(s, action, nextState);
-        if (valid) {
-          s = nextState;
-          if (isTerminal(s)) {
-            break;
-          }
-        } else {
+      if (valid) {
+        s = nextState;
+        if (isTerminal(s)) {
           break;
         }
+      } else {
+        break;
       }
-
-      // while (true) {
-      //   std::vector<GameActionT> actions;
-      //   getPossibleActions(s, actions);
-
-      //   while (actions.size() > 0) {
-      //     // shuffle on demand
-      //     std::uniform_int_distribution<int> dist(0, actions.size() - 1);
-      //     int idx = dist(m_generator);
-      //     std::swap(actions.back(), actions.begin()[idx]);
-
-      //     const auto& action = actions.back();
-      //     GameStateT nextState;
-      //     bool valid = step(s, action, nextState);
-      //     if (valid) {
-      //       s = nextState;
-      //       break;
-      //     }
-      //     actions.pop_back();
-      //   }
-
-      //   if (isTerminal(s) || actions.size() == 0) {
-      //     break;
-      //   }
-      // }
     }
 
     float attackersReward = s.attackersReward;
