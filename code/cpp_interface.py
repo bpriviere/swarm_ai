@@ -257,6 +257,7 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 	sim_result = {
 		'states' : [],
 		'actions' : [],
+		'values' : [],
 		'param' : param.to_dict()
 		}
 
@@ -265,8 +266,10 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 		mctsresult = mctscpp.search(game, game_state, generator, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
 		if mctsresult.success: 
 			action = value_to_dist(param,mctsresult.valuePerAction) # 
+			value = mctsresult.expectedReward[0]
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["actions"].append(action) # total number of robots x action dimension per robot 
+			sim_result["values"].append(value)
 
 	sim_result["states"] = np.array(sim_result["states"])
 	sim_result["actions"] = np.array(sim_result["actions"])

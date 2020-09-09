@@ -1,9 +1,10 @@
 
-
+# standard
 import os,sys,glob,shutil
 import numpy as np 
 import time 
 import torch 
+import argparse
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from collections import defaultdict
 from itertools import repeat
@@ -11,12 +12,20 @@ from multiprocessing import cpu_count, Pool, freeze_support
 from tqdm import tqdm
 import itertools
 
+# custom 
 import plotter
 import datahandler as dh
 from cpp_interface import evaluate_expert, self_play
 from param import Param 
 from learning.discrete_emptynet import DiscreteEmptyNet
 
+def my_loss(value, policy, target_value, target_policy):
+	# https://www.nature.com/articles/nature24270
+
+	dist_loss = torch.nn.MultiLabelSoftMarginLoss()  
+	mse_loss = torch.nn.MSELoss() 
+
+	return mse_loss(value,target_value) + dist_loss(policy,target_policy)
 
 def relative_state(states,param,idx):
 
@@ -68,33 +77,46 @@ def format_data(o_a,o_b,goal):
 
 def train(model,optimizer,loader):
 	
-	# loss_func = torch.nn.MSELoss()  # this is for regression mean squared loss
-	# loss_func = torch.nn.CrossEntropyLoss()  
-	loss_func = torch.nn.MultiLabelSoftMarginLoss()  
+	# loss_func = torch.nn.MultiLabelSoftMarginLoss()  
+	# epoch_loss = 0
+	# for step, (o_a,o_b,goal,action) in enumerate(loader): 
+	# 	prediction = model(o_a,o_b,goal,training=True)
+	# 	loss = loss_func(prediction, action)
+	# 	optimizer.zero_grad()   
+	# 	loss.backward()         
+	# 	optimizer.step()        
+	# 	epoch_loss += float(loss)
+	# return epoch_loss/(step+1)
+
 	epoch_loss = 0
-	for step, (o_a,o_b,goal,action) in enumerate(loader): 
-		prediction = model(o_a,o_b,goal,training=True)
-		# loss = loss_func(prediction, action.flatten())  # for cross entopy
-		loss = loss_func(prediction, action) # for anything else 
+	for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
+		value,policy = model(o_a,o_b,goal,training=True)
+		loss = my_loss(value, policy, target_value, target_policy)
 		optimizer.zero_grad()   
 		loss.backward()         
 		optimizer.step()        
 		epoch_loss += float(loss)
-	return epoch_loss/(step+1)
+	return epoch_loss/(step+1)	
+
+
 
 
 def test(model,optimizer,loader):
-	
-	# loss_func = torch.nn.MSELoss()  
-	# loss_func = torch.nn.CrossEntropyLoss()  
-	loss_func = torch.nn.MultiLabelSoftMarginLoss()  
+
+	# loss_func = torch.nn.MultiLabelSoftMarginLoss()  
+	# epoch_loss = 0
+	# for step, (o_a,o_b,goal,action) in enumerate(loader): 
+	# 	prediction = model(o_a,o_b,goal,training=True)     
+	# 	loss = loss_func(prediction, action) 
+	# 	epoch_loss += float(loss)
+	# return epoch_loss/(step+1)
+
 	epoch_loss = 0
-	for step, (o_a,o_b,goal,action) in enumerate(loader): 
-		prediction = model(o_a,o_b,goal,training=True)     
-		# loss = loss_func(prediction, action.flatten()) # for cross entropy
-		loss = loss_func(prediction, action) # for others 
+	for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
+		value,policy = model(o_a,o_b,goal,training=True)
+		loss = my_loss(value, policy, target_value, target_policy)
 		epoch_loss += float(loss)
-	return epoch_loss/(step+1)
+	return epoch_loss/(step+1)	
 
 
 def uniform_sample(param,n):
@@ -139,17 +161,20 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 	param = load_param(sim_result["param"])
 	states = sim_result["states"] # nt x nrobots x nstate_per_robot
 	actions = sim_result["actions"] # nt x nrobots x 9 
+	values = sim_result["values"] # nt 
 
 	if param.training_team == "a":
 		robot_idxs = param.team_1_idxs
 	elif param.training_team == "b":
 		robot_idxs = param.team_2_idxs
 
-	for timestep,(state,action) in enumerate(zip(states,actions)):
+	# for timestep,(state,action) in enumerate(zip(states,actions)):
+	for timestep,(state,action,value) in enumerate(zip(states,actions,values)):
 		for robot_idx in robot_idxs:
 			o_a, o_b, goal = relative_state(state,param,robot_idx)
 			key = (param.training_team,len(o_a),len(o_b))
-			oa_pairs_by_size[key].append((o_a, o_b, goal, action[robot_idx,:]))
+			# oa_pairs_by_size[key].append((o_a, o_b, goal, action[robot_idx,:]))
+			oa_pairs_by_size[key].append((o_a, o_b, goal, value, action[robot_idx,:]))
 
 	return oa_pairs_by_size
 
@@ -159,8 +184,9 @@ def write_labelled_data(df_param,oa_pairs_by_size):
 	for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
 		batch_num = 0 
 		batched_dataset = [] 
-		for (o_a, o_b, goal, action) in oa_pairs:
-			data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
+		# for (o_a, o_b, goal, action) in oa_pairs:
+		for (o_a, o_b, goal, value, action) in oa_pairs:
+			data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(value).flatten(),np.array(action).flatten()))
 			batched_dataset.append(data)
 			if len(batched_dataset) >= df_param.l_batch_size:
 				batch_fn = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,TEAM=team,NUM_A=num_a,NUM_B=num_b,IDX_TRIAL=batch_num)
@@ -176,7 +202,8 @@ def get_dataset_size(df_param,batched_files):
 	n_points = 0 
 	for batched_file in batched_files:
 		# print('batched_file',batched_file)
-		o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
+		# o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
+		o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)
 		n_points += action.shape[0]
 	n_points = np.min((n_points, df_param.l_max_dataset_size))
 	return n_points
@@ -188,23 +215,38 @@ def make_loaders(df_param,batched_files,n_points):
 	test_loader = [] 
 	curr_points, train_dataset_size, test_dataset_size = 0,0,0
 	for batched_file in batched_files: 
-		o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
+		# o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
+		o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)
 		if curr_points < df_param.l_test_train_ratio * n_points: 
+			# train_loader.append([
+			# 	torch.from_numpy(o_a).float().to(df_param.device),
+			# 	torch.from_numpy(o_b).float().to(df_param.device),
+			# 	torch.from_numpy(goal).float().to(df_param.device),
+			# 	torch.from_numpy(action).float().to(df_param.device)])
+
 			train_loader.append([
 				torch.from_numpy(o_a).float().to(df_param.device),
 				torch.from_numpy(o_b).float().to(df_param.device),
 				torch.from_numpy(goal).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device),
 				torch.from_numpy(action).float().to(df_param.device)])
-				# torch.from_numpy(action).type(torch.long).to(df_param.device)])
+				
 			train_dataset_size += action.shape[0]
 
 		elif curr_points < n_points:
+			# test_loader.append([
+			# 	torch.from_numpy(o_a).float().to(df_param.device),
+			# 	torch.from_numpy(o_b).float().to(df_param.device),
+			# 	torch.from_numpy(goal).float().to(df_param.device),
+			# 	torch.from_numpy(action).float().to(df_param.device)]) 
+
 			test_loader.append([
 				torch.from_numpy(o_a).float().to(df_param.device),
 				torch.from_numpy(o_b).float().to(df_param.device),
 				torch.from_numpy(goal).float().to(df_param.device),
-				torch.from_numpy(action).float().to(df_param.device)]) # for others
-				# torch.from_numpy(action).type(torch.long).to(df_param.device)]) # for cross entopy
+				torch.from_numpy(value).float().to(df_param.device),
+				torch.from_numpy(action).float().to(df_param.device)]) 			
+
 			test_dataset_size += action.shape[0]
 		curr_points += action.shape[0]	
 
@@ -212,6 +254,8 @@ def make_loaders(df_param,batched_files,n_points):
 
 
 def train_model(df_param,batched_files,training_team,model_fn):
+
+	print('training model... {}'.format(model_fn))
 
 	n_points = get_dataset_size(df_param,batched_files)
 	train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders(df_param,batched_files,n_points)
@@ -243,6 +287,8 @@ def train_model(df_param,batched_files,training_team,model_fn):
 					model.to(df_param.device)
 			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
 	plotter.plot_loss(losses,training_team)
+
+	print('training model complete for {}'.format(model_fn))
 
 
 def load_param(some_dict):
@@ -341,11 +387,13 @@ def set_params_sim_mode(params,sim_mode):
 	return params
 
 def format_dir(df_param):
-	datadir = df_param.path_current_data
-	if os.path.exists(datadir):
-		for file in glob.glob(datadir + "/*"):
-			os.remove(file)
-	os.makedirs(datadir,exist_ok=True)
+
+	if df_param.clean_data_on:
+		datadir = df_param.path_current_data
+		if os.path.exists(datadir):
+			for file in glob.glob(datadir + "/*"):
+				os.remove(file)
+		os.makedirs(datadir,exist_ok=True)
 
 	modeldir = df_param.path_current_models
 	if os.path.exists(modeldir):
@@ -359,27 +407,37 @@ if __name__ == '__main__':
 	pool_count = 0
 
 	df_param = Param() 
+	df_param.clean_data_on = True
+	df_param.make_data_on = True
+
+	print('Clean old data on: {}'.format(df_param.clean_data_on))
+	print('Make new data on: {}'.format(df_param.make_data_on))
+
 	format_dir(df_param)
 
-	# Create randomly initialized models for use in the first iteration
+	# create randomly initialized models for use in the first iteration
 	model = DiscreteEmptyNet(df_param,'cpu')
 	for training_team in df_param.l_training_teams:
 		torch.save(model.state_dict(), df_param.l_model_fn.format(\
 						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=0))
 	del model
 
+	# training loop 
 	for iter_i in range(df_param.l_num_iterations):
 		for training_team in df_param.l_training_teams:
 
 			print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
 
-			params = get_params(df_param,training_team,iter_i)
-			if iter_i == 0 or df_param.l_mode == "IL":
-				states = get_uniform_samples(params)
-			else: 
-				states = get_self_play_samples(params)
-			
-			make_dataset(states,params,df_param)
+			if df_param.make_data_on: 
+				
+				params = get_params(df_param,training_team,iter_i)
+				# if iter_i == 0 or df_param.l_mode == "IL":
+				if df_param.l_mode == "IL":
+					states = get_uniform_samples(params)
+				else: 
+					states = get_self_play_samples(params)
+				
+				make_dataset(states,params,df_param)
 
 			train_model(df_param,\
 				glob.glob(df_param.l_labelled_fn.format(\
