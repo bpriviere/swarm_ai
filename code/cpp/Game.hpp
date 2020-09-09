@@ -23,23 +23,6 @@ Reward operator/(const Reward r, size_t scale) {
   return result;
 }
 
-template <class T>
-std::vector<std::vector<T>> cart_product(const std::vector<std::vector<T>>& v)
-{
-  std::vector<std::vector<T>> s = {{}};
-  for (const auto& u : v) {
-    std::vector<std::vector<T>> r;
-    for (const auto& x : s) {
-      for (const auto y : u) {
-        r.push_back(x);
-        r.back().push_back(y);
-      }
-    }
-    s = std::move(r);
-  }
-  return s;
-}
-
 
 template<class Robot>
 class Game {
@@ -240,49 +223,12 @@ class Game {
 
   std::vector<GameActionT> computeValidActions(const GameStateT& state)
   {
-    std::vector<GameActionT> actions;
     std::vector<std::vector<RobotActionT>> allActions;
-
-    size_t NumAttackers = state.attackers.size();
-    size_t NumDefenders = state.defenders.size();
-
-    // generate actions for active robots only
-    if (state.turn == GameStateT::Turn::Attackers) {
-      for (size_t i = 0; i < NumAttackers; ++i) {
-        allActions.push_back(computeValidActions(state.attackers[i], m_attackerTypes[i]));
-        if (allActions.back().empty()) {
-          allActions.back().push_back(m_attackerTypes[i].invalidAction);
-        }
-      }
-      for (size_t i = 0; i < NumDefenders; ++i) {
-        allActions.push_back({m_defenderTypes[i].invalidAction});
-      }
-    } else {
-      for (size_t i = 0; i < NumAttackers; ++i) {
-        allActions.push_back({m_attackerTypes[i].invalidAction});
-      }
-      for (size_t i = 0; i < NumDefenders; ++i) {
-        allActions.push_back(computeValidActions(state.defenders[i], m_defenderTypes[i]));
-        if (allActions.back().empty()) {
-          allActions.back().push_back(m_defenderTypes[i].invalidAction);
-        }
-      }
-    }
+    computeValidActionsPerRobot(state, allActions);
 
     // compute cartesian product
-    const auto& cartActions = cart_product(allActions);
-
-    // convert to std::vector<GameActionT>
-    actions.resize(cartActions.size());
-    for (size_t i = 0; i < actions.size(); ++i) {
-      assert(cartActions[i].size() == NumAttackers + NumDefenders);
-      actions[i].resize(cartActions[i].size());
-      for (size_t j = 0; j < NumAttackers + NumDefenders; ++j) {
-        actions[i][j] = cartActions[i][j];
-      }
-    }
-
-    return actions;
+    const auto cartActions = cart_product(allActions);
+    return cartActions;
   }
 
   Reward rollout(const GameStateT& state)
@@ -291,6 +237,7 @@ class Game {
     GameStateT nextState;
 
     std::uniform_real_distribution<float> dist(0.0,1.0);
+    std::vector<std::vector<RobotActionT>> actions;
 
     while (true) {
       bool valid = true;
@@ -299,6 +246,7 @@ class Game {
         assert(m_glas_a.valid() && m_glas_b.valid());
 
         const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator, false);
+        // TODO: need some logic here to only allow valid actions...
 
         // step twice (once for each player)
         valid &= step(s, action, nextState);
@@ -307,20 +255,20 @@ class Game {
         // use regular random rollout
 
         // compute and step for player1
-        const auto actions1 = computeValidActions(s);
+        computeValidActionsPerRobot(s, actions);
 
-        std::uniform_int_distribution<int> dist1(0, actions1.size() - 1);
+        std::uniform_int_distribution<int> dist1(0, cartProductSize(actions) - 1);
         int idx1 = dist1(m_generator);
-        const auto& action1 = actions1[idx1];
+        const auto& action1 = getCartProduct(actions, idx1);
 
         valid &= step(s, action1, nextState);
 
         // compute and step for player2
-        const auto actions2 = computeValidActions(nextState);
+        computeValidActionsPerRobot(nextState, actions);
 
-        std::uniform_int_distribution<int> dist2(0, actions2.size() - 1);
+        std::uniform_int_distribution<int> dist2(0, cartProductSize(actions) - 1);
         int idx2 = dist2(m_generator);
-        const auto& action2 = actions2[idx2];
+        const auto& action2 = getCartProduct(actions, idx2);
 
         valid &= step(nextState, action2, nextState);
       }
@@ -401,24 +349,91 @@ class Game {
 
 private:
 
-  std::vector<RobotActionT> computeValidActions(const RobotStateT& robotState, const RobotTypeT& robotType) const
+  void computeValidActions(const RobotStateT& robotState, const RobotTypeT& robotType, std::vector<RobotActionT>& result) const
   {
-    std::vector<RobotActionT> actions;
+    result.clear();
     RobotStateT nextRobotState;
 
     if (robotState.status == RobotStateT::Status::Active) {
       for (const auto& action : robotType.possibleActions) {
         robotType.step(robotState, action, m_dt, nextRobotState);
         if (robotType.isStateValid(nextRobotState)) {
-          actions.push_back(action);
+          result.push_back(action);
         }
       }
     }
-
-    return actions;
   }
 
+  void computeValidActionsPerRobot(const GameStateT& state, std::vector<std::vector<RobotActionT>>& result)
+  {
+    size_t NumAttackers = state.attackers.size();
+    size_t NumDefenders = state.defenders.size();
 
+    result.resize(NumAttackers+NumDefenders);
+
+    // generate valid actions
+    if (state.turn == GameStateT::Turn::Attackers) {
+      for (size_t i = 0; i < NumAttackers; ++i) {
+        computeValidActions(state.attackers[i], m_attackerTypes[i], result[i]);
+        if (result[i].empty()) {
+          result[i].push_back(m_attackerTypes[i].invalidAction);
+        }
+      }
+      for (size_t i = 0; i < NumDefenders; ++i) {
+        result[NumAttackers + i] = {m_defenderTypes[i].invalidAction};
+      }
+    } else {
+      for (size_t i = 0; i < NumAttackers; ++i) {
+        result[i].push_back(m_attackerTypes[i].invalidAction);
+      }
+      for (size_t i = 0; i < NumDefenders; ++i) {
+        computeValidActions(state.defenders[i], m_defenderTypes[i], result[NumAttackers + i]);
+        if (result[NumAttackers + i].empty()) {
+          result[NumAttackers + i].push_back(m_defenderTypes[i].invalidAction);
+        }
+      }
+    }
+  }
+
+  size_t cartProductSize(const std::vector<std::vector<RobotActionT>>& allActions)
+  {
+    size_t result = 1;
+    for (const auto& v : allActions) {
+      result *= v.size();
+    }
+    return result;
+  }
+
+  GameActionT getCartProduct(const std::vector<std::vector<RobotActionT>>& allActions, size_t idx)
+  {
+    size_t NumRobots = allActions.size();
+    GameActionT action(NumRobots);
+
+    // Example:
+    // num robots = 3. sizes: [[a,b,c], [i,ii], [1]] => num actions = 3*2*1 = 6
+    // [a,i,1], [b,i,1], [c,i,1], [a,ii,1], [b,ii,1], [c,ii,1]
+    for (size_t i = 0; i < NumRobots; ++i) {
+      action[i] = allActions[i][idx % allActions[i].size()];
+      idx /= allActions[i].size();
+    }
+    return action;
+  }
+
+  std::vector<GameActionT> cart_product(const std::vector<std::vector<RobotActionT>>& v)
+  {
+    std::vector<GameActionT> s = {{}};
+    for (const auto& u : v) {
+      std::vector<GameActionT> r;
+      for (const auto& x : s) {
+        for (const auto y : u) {
+          r.push_back(x);
+          r.back().push_back(y);
+        }
+      }
+      s = std::move(r);
+    }
+    return s;
+  }
 
 private:
   std::vector<RobotTypeT> m_attackerTypes;
