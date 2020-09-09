@@ -109,15 +109,15 @@ public:
   void init()
   {
     possibleActions.resize(9);
-    possibleActions[0] << -acceleration_limit, -acceleration_limit;
+    possibleActions[0] << -acceleration_limit / sqrtf(2), -acceleration_limit / sqrtf(2);
     possibleActions[1] << -acceleration_limit, 0;
-    possibleActions[2] << -acceleration_limit, acceleration_limit;
+    possibleActions[2] << -acceleration_limit / sqrtf(2), acceleration_limit / sqrtf(2);
     possibleActions[3] << 0, -acceleration_limit;
     possibleActions[4] << 0, 0;
     possibleActions[5] << 0, acceleration_limit;
-    possibleActions[6] << acceleration_limit, -acceleration_limit;
+    possibleActions[6] << acceleration_limit / sqrtf(2), -acceleration_limit / sqrtf(2);
     possibleActions[7] << acceleration_limit, 0;
-    possibleActions[8] << acceleration_limit, acceleration_limit;
+    possibleActions[8] << acceleration_limit / sqrtf(2), acceleration_limit / sqrtf(2);
 
     invalidAction << nanf("") , nanf("");
   }
