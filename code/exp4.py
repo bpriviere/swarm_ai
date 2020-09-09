@@ -4,9 +4,12 @@ import numpy as np
 import os, glob
 import copy
 import multiprocessing as mp 
+import torch 
 
 # custom 
 from param import Param 
+from mice import relative_state, format_data
+from learning.discrete_emptynet import DiscreteEmptyNet
 from cpp_interface import self_play, expected_value
 import plotter 
 import datahandler as dh
@@ -14,10 +17,32 @@ import datahandler as dh
 def eval_value(param):
 	print('{}/{}'.format(param.count,param.total))
 
-	if param.sim_mode == "GLAS" or "MCTS" in param.sim_mode:
+	# if param.sim_mode == "GLAS":
+
+	# 	state = np.array(param.state)
+	# 	robot_idx = 0 
+
+	# 	o_a, o_b, relative_goal = relative_state(state,param,robot_idx)
+	# 	o_a, o_b, relative_goal = format_data(o_a, o_b, relative_goal)
+
+	# 	model = DiscreteEmptyNet(param,param.device)
+	# 	model.load_state_dict(torch.load(param.path_glas_model_a))	
+
+	# 	value, policy = model(o_a,o_b,relative_goal) 
+	# 	sim_result = {
+	# 		"states" : np.array([param.state]),
+	# 		"rewards" : np.array([[value,1 - value]]),
+	# 		"param" : param.to_dict(),
+	# 	}
+
+	# elif "MCTS" in param.sim_mode:
+	# 	sim_result = self_play(param)
+
+	if param.sim_mode in ["MCTS_RANDOM","MCTS_GLAS","GLAS"]:
 		sim_result = self_play(param)
+
 	elif param.sim_mode == "EXPECTED_VALUE": 
-		value = expected_value(param)
+		value = expected_value(param) # query tree 
 		sim_result = {
 			"states" : np.array([param.state]),
 			"rewards" : np.array([[value[0],value[1]]]),
@@ -95,17 +120,17 @@ def format_dir(df_param):
 
 
 def main():
-	run_on = False
+	run_on = True
 	df_param = Param()
 
 	if run_on: 
 
-		df_param.num_trials = 3
-		df_param.sim_modes = ["EXPECTED_VALUE","MCTS_RANDOM","GLAS"] #["GLAS"]
-		df_param.path_glas_model_a = '../saved/IL/models/a4.pt'
-		df_param.path_glas_model_b = '../saved/IL/models/b4.pt'
+		df_param.num_trials = 1
+		df_param.sim_modes = ["EXPECTED_VALUE","GLAS"] #["GLAS"]
+		df_param.path_glas_model_a = '../saved/value_fnc_test/a3.pt'
+		df_param.path_glas_model_b = '../saved/value_fnc_test/b3.pt'
 		df_param.mcts_tree_size = 10000
-		dx = 0.05
+		dx = 0.1
 		df_param.dss, df_param.X, df_param.Y = discretize_state_space(df_param,dx,dx)
 		pos = {
 			1 : np.array((0.35,0.3))
