@@ -108,7 +108,7 @@ class Param:
 		self.l_psi_network_architecture = [
 			["Linear", 2*p+n, h],
 			["Linear", h, h],
-			["Linear", h, 9]
+			["Linear", h, 1+9]
 		]
 
 		self.l_network_activation = "relu"
