@@ -170,7 +170,7 @@ class MonteCarloTreeSearch {
   {
     // if this node was never attempted to be expanded, query potential actions first
     if (!nodePtr->gotActions) {
-      m_env.getPossibleActions(nodePtr->state, nodePtr->untried_actions);
+      nodePtr->untried_actions = m_env.computeValidActions(nodePtr->state);
       nodePtr->gotActions = true;
     }
 

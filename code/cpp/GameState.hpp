@@ -21,29 +21,16 @@ public:
     const std::vector<RobotStateT>& defenders)
     : turn(turn)
     , attackers(attackers)
-    , attackersReward(0)
     , defenders(defenders)
-    , defendersReward(0)
     , depth(0)
-    , activeMask(0)
   {
-    // update activeMask
-    for (size_t i = 0; i < attackers.size(); ++i) {
-      if (attackers[i].status == RobotStateT::Status::Active) {
-        activeMask |= (1<<i);
-      }
-    }
   }
 
   Turn turn;
   std::vector<RobotStateT> attackers;
-  float attackersReward;
   std::vector<RobotStateT> defenders;
-  float defendersReward;
 
   size_t depth;
-  // WARNING: this assumes we have less than 32 attackers
-  uint32_t activeMask;
 
   friend std::ostream& operator<<(std::ostream& out, const GameState& s)
   {
@@ -66,6 +53,7 @@ public:
     for(const auto& defender : s.defenders) {
       out << defender << ",";
     }
+    out <<"depth=" << s.depth;
     out << ")";
     return out;
   }

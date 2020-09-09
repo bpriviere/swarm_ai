@@ -81,8 +81,6 @@ if __name__ == '__main__':
 
 	result = []
 	for d in range(max_depth):
-		gs.attackersReward = 0;
-		gs.defendersReward = 0;
 		gs.depth = 0;
 		# print(gs)
 		result.append([
