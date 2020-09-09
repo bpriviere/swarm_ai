@@ -134,6 +134,13 @@ def self_play(param):
 	if param.sim_mode in ["GLAS","MCTS_RANDOM","MCTS_GLAS"]:
 		param.policy_a_dict["path_glas_model_a"] = param.path_glas_model_a
 		param.policy_b_dict["path_glas_model_b"] = param.path_glas_model_b
+	if param.sim_mode in ["MCTS_RANDOM","MCTS_GLAS"]:
+		param.policy_a_dict["mcts_tree_size"] = param.mcts_tree_size
+		param.policy_a_dict["mcts_rollout_beta"] = param.mcts_rollout_beta
+		param.policy_a_dict["mcts_c_param"] = param.mcts_c_param
+		param.policy_b_dict["mcts_tree_size"] = param.mcts_tree_size
+		param.policy_b_dict["mcts_rollout_beta"] = param.mcts_rollout_beta
+		param.policy_b_dict["mcts_c_param"] = param.mcts_c_param
 
 	return play_game(param)
 
