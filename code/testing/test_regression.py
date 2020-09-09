@@ -32,8 +32,6 @@ def state_to_cpp_game_state(state,team_1_idxs,turn):
 
 	game_state = mctscpp.GameState(turn,attackers,defenders)
 
-	game_state.attackersReward = 0
-	game_state.defendersReward = 0
 	game_state.depth = 0
 
 	return game_state 
