@@ -227,8 +227,8 @@ def find_nominal_soln(param,robot,state):
 	times = np.arange(0,T,param.sim_dt)	
 	states = integrate(robot,th,np.array(robot["x0"]),times,param.sim_dt)
 	if np.linalg.norm(states[-1,0:2] - param.goal[0:2]) > robot["radius"]:
-		exit('bad nominal solution')
-		# print('bad nominal solution')
+		# exit('bad nominal solution')
+		print('bad nominal solution')
 
 	return th,T
 

@@ -122,122 +122,32 @@ def expected_value(param):
 	mctsresult = mctscpp.search(g, gs, generator, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
 	return mctsresult.expectedReward
 
+def self_play(param):
 
-def rollout(param): # self-play
+	param.policy_a_dict = {
+		"sim_mode" : param.sim_mode, 
+	} 
+	param.policy_b_dict = {
+		"sim_mode" : param.sim_mode, 
+	} 
 
-	generator = mctscpp.createRandomGenerator(param.seed)
-	g = param_to_cpp_game(param,generator) 
+	if param.sim_mode in ["GLAS","MCTS_RANDOM","MCTS_GLAS"]:
+		param.policy_a_dict["path_glas_model_a"] = param.path_glas_model_a
+		param.policy_b_dict["path_glas_model_b"] = param.path_glas_model_b
 
-	if param.sim_mode == "PANAGOU":
-		pp = PanagouPolicy(param)
-		pp.init_sim(param.state)
-
-	deterministic = True
-
-	results = []
-	action = []
-	count = 0 
-
-	state = param.state
-	gs = state_to_cpp_game_state(param,state,"a")
-	next_state = state_to_cpp_game_state(param,state,"a")
-
-	if g.isValid(gs):
-		while count < param.mcts_rollout_horizon:
-		# while True:
-
-			if "MCTS" in param.sim_mode:
-				
-				next_state.attackersReward = 0
-				next_state.defendersReward = 0
-				next_state.depth = 0
-
-				mctsresult = mctscpp.search(g, next_state, generator, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
-				if mctsresult.success: 
-					team_action = mctsresult.bestAction
-					if next_state.turn == mctscpp.GameState.Turn.Attackers:
-						for idx in param.team_1_idxs: 
-							action.append(team_action[idx])
-					elif next_state.turn == mctscpp.GameState.Turn.Defenders:
-						for idx in param.team_2_idxs: 
-							action.append(team_action[idx])
-					success = g.step(next_state, team_action, next_state)
-
-					if success and next_state.turn == mctscpp.GameState.Turn.Attackers:
-						# print(action)
-						results.append(game_state_to_cpp_result(gs,action))
-						action = []
-						gs = next_state
-				else:
-					success = False
-
-			elif param.sim_mode == "GLAS":
-
-				gs.attackersReward = 0
-				gs.defendersReward = 0
-				gs.depth = 0
-
-				action = mctscpp.eval(g, gs, generator, deterministic)
-
-				# step twice (once per team)
-				success = g.step(gs, action, next_state)
-				if success:
-					next_state.attackersReward = 0
-					next_state.defendersReward = 0
-					next_state.depth = 0
-					success = g.step(next_state, action, next_state)
-
-				if not success:
-					break
-
-				results.append(game_state_to_cpp_result(gs,action))
-				gs = next_state
-
-			elif param.sim_mode == "PANAGOU":
-
-				pstate = cpp_state_to_pstate(gs)
-				action = pp.eval(pstate)
-
-				# step twice (once per team)
-				success = g.step(gs, action, next_state)
-				if success:
-					next_state.attackersReward = 0
-					next_state.defendersReward = 0
-					next_state.depth = 0
-					success = g.step(next_state, action, next_state)
-
-				if not success:
-					break
-
-				results.append(game_state_to_cpp_result(gs,action))
-				gs = next_state
-
-			count += 1
-
-			if success:
-				if g.isTerminal(next_state):
-					results.append(game_state_to_cpp_result(next_state,None))
-					break 
-			else:
-				break
-	else:
-		print("Warning: Initial state {} is not valid!".format(gs))
-
-	if len(results) == 0:
-		results.append(game_state_to_cpp_result(gs,None))
-		
-	sim_result = dh.convert_cpp_data_to_sim_result(np.array(results),param)
-	return sim_result	
+	return play_game(param)
 
 def play_game(param): 
 
-	print('playing game {}/{}'.format(param.count,param.total))	
-
-	# assign glas
-	if param.policy_a_dict["sim_mode"] == "GLAS" or "MCTS_GLAS" or "MCTS_RANDOM":
+	if param.policy_a_dict["sim_mode"] in ["GLAS" , "MCTS_GLAS" , "MCTS_RANDOM"]:
 		param.path_glas_model_a = param.policy_a_dict["path_glas_model_a"]
-	if param.policy_b_dict["sim_mode"] == "GLAS" or "MCTS_GLAS" or "MCTS_RANDOM":
+
+	if param.policy_b_dict["sim_mode"] in ["GLAS" , "MCTS_GLAS" , "MCTS_RANDOM"]:
 		param.path_glas_model_b = param.policy_b_dict["path_glas_model_b"]
+
+	if param.policy_a_dict["sim_mode"] == "PANAGOU" or param.policy_b_dict["sim_mode"] == "PANAGOU":
+		pp = PanagouPolicy(param)
+		pp.init_sim(param.state)
 
 	# similar to rollout 
 	generator = mctscpp.createRandomGenerator(param.seed)
@@ -246,17 +156,19 @@ def play_game(param):
 	deterministic = True
 
 	results = []
+	actions = [] 
 
 	state = param.state
 	gs = state_to_cpp_game_state(param,state,"a")
 	count = 0 
-	while count < param.mcts_rollout_horizon:
+	while count/2 < param.mcts_rollout_horizon:
 	# while True:
 		gs.attackersReward = 0
 		gs.defendersReward = 0
 		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
+			action = [] 
 			policy_dict = param.policy_a_dict
 			idxs = param.team_1_idxs
 		elif gs.turn == mctscpp.GameState.Turn.Defenders:
@@ -271,20 +183,26 @@ def play_game(param):
 				team_action = mctsresult.bestAction
 				success = g.step(gs, team_action, gs)
 			else:
-				success = False
+				success = False		
 
 		elif policy_dict["sim_mode"] == "GLAS":
 
 			action = mctscpp.eval(g, gs, generator, deterministic)
 			success = g.step(gs, action, gs)
 
-
 		elif policy_dict["sim_mode"] == "PANAGOU":
-			# todo 
-			exit('todo') 
+
+			pstate = cpp_state_to_pstate(gs)
+			pp.init_sim(pstate)
+			action = pp.eval(pstate)
+			success = g.step(gs, action, gs)
 
 		else: 
 			exit('sim mode {} not recognized'.format(policy_dict["sim_mode"]))
+
+
+		# for idx in idxs: 
+		# 	action.append(team_action[idx])
 		
 		results.append(game_state_to_cpp_result(gs,None))
 		count += 1 
@@ -300,8 +218,7 @@ def play_game(param):
 		results.append(game_state_to_cpp_result(gs,None))
 		
 	sim_result = dh.convert_cpp_data_to_sim_result(np.array(results),param)
-	dh.write_sim_result(sim_result,param.dataset_fn)
-
+	return sim_result
 
 
 def game_state_to_cpp_result(gs,action):
@@ -340,6 +257,7 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 	sim_result = {
 		'states' : [],
 		'actions' : [],
+		'values' : [],
 		'param' : param.to_dict()
 		}
 
@@ -348,8 +266,10 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 		mctsresult = mctscpp.search(game, game_state, generator, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
 		if mctsresult.success: 
 			action = value_to_dist(param,mctsresult.valuePerAction) # 
+			value = mctsresult.expectedReward[0]
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["actions"].append(action) # total number of robots x action dimension per robot 
+			sim_result["values"].append(value)
 
 	sim_result["states"] = np.array(sim_result["states"])
 	sim_result["actions"] = np.array(sim_result["actions"])

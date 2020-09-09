@@ -10,7 +10,13 @@ import datahandler as dh
 import plotter 
 from plotter import policy_to_label
 from param import Param
-from cpp_interface import rollout , play_game
+from cpp_interface import play_game
+
+def wrap_play_game(param):
+	print('playing game {}/{}'.format(param.count,param.total))
+	sim_result = play_game(param)
+	dh.write_sim_result(sim_result,param.dataset_fn)
+
 
 def read_games_file(games_file):
 
@@ -99,63 +105,27 @@ if __name__ == '__main__':
 	df_param.attackerPolicyDicts = [
 		{
 			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_a" : "../saved/IL/models/a4.pt",
-			"mcts_tree_size" : 1000,
-			"mcts_rollout_beta" : 0.75,
+			"path_glas_model_a" : "../saved/IL_4/models/a0.pt",
+			"mcts_tree_size" : 10000,
+			"mcts_rollout_beta" : 0.5,
 			"mcts_c_param" : 1.4,
-		},
+		},	
 		{
-			"sim_mode" : "MCTS_GLAS",
-			"path_glas_model_a" : "../saved/IL/models/a4.pt",
-			"mcts_tree_size" : 1000,
-			"mcts_rollout_beta" : 0.01,
-			"mcts_c_param" : 1.4,
-		},		
+			"sim_mode" : "PANAGOU",
+		},				
+	]
+
+	df_param.defenderPolicyDicts = [				
 		{
-			"sim_mode" : "MCTS_GLAS",
-			"path_glas_model_a" : "../saved/IL/models/a4.pt",
-			"mcts_tree_size" : 1000,
-			"mcts_rollout_beta" : 0.25,
-			"mcts_c_param" : 1.4,
-		},
-		{
-			"sim_mode" : "MCTS_GLAS",
-			"path_glas_model_a" : "../saved/IL/models/a4.pt",
-			"mcts_tree_size" : 1000,
+			"sim_mode" : "MCTS_RANDOM",
+			"path_glas_model_b" : "../saved/IL_4/models/b0.pt",
+			"mcts_tree_size" : 10000,
 			"mcts_rollout_beta" : 0.5,
 			"mcts_c_param" : 1.4,
 		},
 		{
-			"sim_mode" : "MCTS_GLAS",
-			"path_glas_model_a" : "../saved/IL/models/a4.pt",
-			"mcts_tree_size" : 1000,
-			"mcts_rollout_beta" : 0.99,
-			"mcts_c_param" : 1.4,
-		},
-	]
-
-	df_param.defenderPolicyDicts = [
-		{
-			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_b" : "../saved/IL/models/b0.pt",
-			"mcts_tree_size" : 1000,
-			"mcts_rollout_beta" : 0.0,
-			"mcts_c_param" : 1.4,
-		},
-		{
-			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_b" : "../saved/IL/models/b0.pt",
-			"mcts_tree_size" : 2000,
-			"mcts_rollout_beta" : 0.0,
-			"mcts_c_param" : 1.4,
+			"sim_mode" : "PANAGOU",
 		},		
-		{
-			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_b" : "../saved/IL/models/b0.pt",
-			"mcts_tree_size" : 5000,
-			"mcts_rollout_beta" : 0.0,
-			"mcts_c_param" : 1.4,
-		},
 	]
 
 	parser = argparse.ArgumentParser()
@@ -165,7 +135,7 @@ if __name__ == '__main__':
 	if not args.game_file is None: 
 		initial_conditions,robot_team_compositions = read_games_file(args.game_file)
 	else: 
-		df_param.num_trials = 10
+		df_param.num_trials = 1
 		df_param.robot_team_compositions = [
 			{
 			'a': {'standard_robot':1,'evasive_robot':0},
@@ -190,11 +160,11 @@ if __name__ == '__main__':
 
 		if df_param.sim_parallel_on: 	
 			pool = mp.Pool(mp.cpu_count()-1)
-			for _ in pool.imap_unordered(play_game, params):
+			for _ in pool.imap_unordered(wrap_play_game, params):
 				pass 
 		else:
 			for param in params: 
-				play_game(param) 
+				wrap_play_game(param) 
 
 	sim_results = [] 
 	for sim_result_dir in glob.glob(df_param.path_current_results + '/*'):

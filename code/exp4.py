@@ -7,7 +7,7 @@ import multiprocessing as mp
 
 # custom 
 from param import Param 
-from cpp_interface import rollout, expected_value
+from cpp_interface import self_play, expected_value
 import plotter 
 import datahandler as dh
 
@@ -15,7 +15,7 @@ def eval_value(param):
 	print('{}/{}'.format(param.count,param.total))
 
 	if param.sim_mode == "GLAS" or "MCTS" in param.sim_mode:
-		sim_result = rollout(param)
+		sim_result = self_play(param)
 	elif param.sim_mode == "EXPECTED_VALUE": 
 		value = expected_value(param)
 		sim_result = {
