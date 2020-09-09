@@ -146,15 +146,15 @@ public:
     , m_gen(gen)
   {
     m_actions.resize(9);
-    m_actions[0] << -1, -1;
+    m_actions[0] << -1/sqrtf(2), -1/sqrtf(2);
     m_actions[1] << -1,  0;
-    m_actions[2] << -1,  1;
+    m_actions[2] << -1/sqrtf(2),  1/sqrtf(2);
     m_actions[3] <<  0, -1;
     m_actions[4] <<  0,  0;
     m_actions[5] <<  0,  1;
-    m_actions[6] <<  1, -1;
+    m_actions[6] <<  1/sqrtf(2), -1/sqrtf(2);
     m_actions[7] <<  1,  0;
-    m_actions[8] <<  1,  1;
+    m_actions[8] <<  1/sqrtf(2),  1/sqrtf(2);
   }
 
   void load(const YAML::Node& node)
