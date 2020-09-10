@@ -9,13 +9,7 @@ from math import cos, sin
 
 class Param:
 
-	def __init__(self,seed=None):
-
-		if seed is None: 
-			seed = int.from_bytes(os.urandom(4), sys.byteorder)
-
-		self.seed = seed
-		# random.seed(self.seed)
+	def __init__(self):
 
 		# sim param 
 		self.sim_num_trials = 2

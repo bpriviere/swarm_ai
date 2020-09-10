@@ -32,7 +32,6 @@ def loadGLAS(glas, file):
 	return glas
 
 if __name__ == '__main__':
-	seed = 10
 	mode = "MCTS_RANDOM" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
 	num_nodes = 10000
 
@@ -55,8 +54,6 @@ if __name__ == '__main__':
 	# rt.tag_radiusSquared = 0.025**2
 	# rt.r_senseSquared = 1.0**2
 
-	generator = mctscpp.createRandomGenerator(seed)
-
 	# test Game
 	attackerTypes = [rt]
 	defenderTypes = [rt]
@@ -65,7 +62,7 @@ if __name__ == '__main__':
 	max_depth = 1000
 	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS
 	Cp = 1.4
-	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator)
+	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	if "GLAS" in mode:
 		loadGLAS(g.glasA, "../../current/models/a1.pt")
 		loadGLAS(g.glasB, "../../current/models/b1.pt")
@@ -87,7 +84,7 @@ if __name__ == '__main__':
 			[rs.state[0:2].copy() for rs in gs.attackers],
 			[rs.state[0:2].copy() for rs in gs.defenders]])
 		if "MCTS" in mode:
-			mctsresult = mctscpp.search(g, gs, generator, num_nodes, rollout_beta, Cp)
+			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp)
 			if mctsresult.success:
 				print(mctsresult.expectedReward)
 				# print(mctsresult.valuePerAction)
@@ -115,7 +112,7 @@ if __name__ == '__main__':
 				break
 		elif mode == "GLAS":
 			deterministic = True
-			action = mctscpp.eval(g, gs, generator, deterministic)
+			action = mctscpp.eval(g, gs, deterministic)
 			# step twice (once per team)
 			success = g.step(gs, action, gs)
 			if success:

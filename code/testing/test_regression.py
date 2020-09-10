@@ -98,9 +98,9 @@ if __name__ == '__main__':
 	path_glas_model_b = 'test_b.pt'
 	goal = np.array([0.375,0.375,0,0])
 
-	# random generator 
-	seed = 1 
-	generator = mctscpp.createRandomGenerator(seed)
+	# use a fixed seed
+	seed = 1
+	mctscpp.seed(seed)
 
 	# robot team information 
 	team_1_idxs = [0]
@@ -124,7 +124,7 @@ if __name__ == '__main__':
 	# make game 
 	attackerTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"a") 
 	defenderTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"b") 
-	game = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator)
+	game = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	loadGLAS(game.glasA, path_glas_model_a)
 	loadGLAS(game.glasB, path_glas_model_b)	
 
@@ -147,7 +147,7 @@ if __name__ == '__main__':
 				game_state = state_to_cpp_game_state(state,team_1_idxs,"a")
 
 				start = time.time()
-				mctscpp.search(game, game_state, generator, tree_size, beta, ecc)
+				mctscpp.search(game, game_state, tree_size, beta, ecc)
 				elapsed = time.time() - start 
 				results[i_tree_size,i_beta,i_trial] = elapsed 
 
