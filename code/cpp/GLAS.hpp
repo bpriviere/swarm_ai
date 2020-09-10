@@ -102,7 +102,11 @@ public:
     X.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), 4) = goal;
 
     auto res = m_psi.eval(X);
-    return softmax(res);
+    auto block = res.rightCols(res.cols()-1);
+    // auto& block = res(Eigen::all,{1,2,3,4,5,6,7,8,9});
+    // auto& block = res(seq(1,9));
+    block = softmax(block);
+    return res;
   }
 
   DeepSetNN<StateDim>& deepSetA()

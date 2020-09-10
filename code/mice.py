@@ -19,13 +19,13 @@ from cpp_interface import evaluate_expert, self_play
 from param import Param 
 from learning.discrete_emptynet import DiscreteEmptyNet
 
-# def my_loss(value, policy, target_value, target_policy):
-# 	# https://www.nature.com/articles/nature24270
+def my_loss(value, policy, target_value, target_policy):
+	# https://www.nature.com/articles/nature24270
 
-# 	dist_loss = torch.nn.MultiLabelSoftMarginLoss()  
-# 	mse_loss = torch.nn.MSELoss() 
+	dist_loss = torch.nn.MultiLabelSoftMarginLoss()  
+	mse_loss = torch.nn.MSELoss() 
 
-# 	return mse_loss(value,target_value) + dist_loss(policy,target_policy)
+	return mse_loss(value,target_value) + dist_loss(policy,target_policy)
 
 def relative_state(states,param,idx):
 
@@ -77,46 +77,46 @@ def format_data(o_a,o_b,goal):
 
 def train(model,optimizer,loader):
 	
-	loss_func = torch.nn.MultiLabelSoftMarginLoss()  
-	epoch_loss = 0
-	for step, (o_a,o_b,goal,action) in enumerate(loader): 
-		prediction = model(o_a,o_b,goal,training=True)
-		loss = loss_func(prediction, action)
-		optimizer.zero_grad()   
-		loss.backward()         
-		optimizer.step()        
-		epoch_loss += float(loss)
-	return epoch_loss/(step+1)
-
+	# loss_func = torch.nn.MultiLabelSoftMarginLoss()  
 	# epoch_loss = 0
-	# for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
-	# 	value,policy = model(o_a,o_b,goal,training=True)
-	# 	loss = my_loss(value, policy, target_value, target_policy)
+	# for step, (o_a,o_b,goal,action) in enumerate(loader): 
+	# 	prediction = model(o_a,o_b,goal,training=True)
+	# 	loss = loss_func(prediction, action)
 	# 	optimizer.zero_grad()   
 	# 	loss.backward()         
 	# 	optimizer.step()        
 	# 	epoch_loss += float(loss)
-	# return epoch_loss/(step+1)	
+	# return epoch_loss/(step+1)
+
+	epoch_loss = 0
+	for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
+		value,policy = model(o_a,o_b,goal,training=True)
+		loss = my_loss(value, policy, target_value, target_policy)
+		optimizer.zero_grad()   
+		loss.backward()         
+		optimizer.step()        
+		epoch_loss += float(loss)
+	return epoch_loss/(step+1)	
 
 
 
 
 def test(model,optimizer,loader):
 
-	loss_func = torch.nn.MultiLabelSoftMarginLoss()  
-	epoch_loss = 0
-	for step, (o_a,o_b,goal,action) in enumerate(loader): 
-		prediction = model(o_a,o_b,goal,training=True)     
-		loss = loss_func(prediction, action) 
-		epoch_loss += float(loss)
-	return epoch_loss/(step+1)
-
+	# loss_func = torch.nn.MultiLabelSoftMarginLoss()  
 	# epoch_loss = 0
-	# for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
-	# 	value,policy = model(o_a,o_b,goal,training=True)
-	# 	loss = my_loss(value, policy, target_value, target_policy)
+	# for step, (o_a,o_b,goal,action) in enumerate(loader): 
+	# 	prediction = model(o_a,o_b,goal,training=True)     
+	# 	loss = loss_func(prediction, action) 
 	# 	epoch_loss += float(loss)
-	# return epoch_loss/(step+1)	
+	# return epoch_loss/(step+1)
+
+	epoch_loss = 0
+	for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
+		value,policy = model(o_a,o_b,goal,training=True)
+		loss = my_loss(value, policy, target_value, target_policy)
+		epoch_loss += float(loss)
+	return epoch_loss/(step+1)	
 
 
 def uniform_sample(param,n):
@@ -143,7 +143,8 @@ def get_self_play_samples(params):
 	for param in params: 
 		states_per_file = [] 
 		while len(states_per_file) < param.l_num_points_per_file:
-			sim_result = self_play(param)
+			param.state = param.make_initial_condition()
+			sim_result = self_play(param,deterministic=False)
 			if len(sim_result["states"]) > param.l_num_points_per_file:
 				sim_result["states"] = sim_result["states"][0:param.l_num_points_per_file]
 			states_per_file.extend(sim_result["states"])
@@ -168,17 +169,17 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 	elif param.training_team == "b":
 		robot_idxs = param.team_2_idxs
 
-	for timestep,(state,action) in enumerate(zip(states,actions)):
-		for robot_idx in robot_idxs:
-			o_a, o_b, goal = relative_state(state,param,robot_idx)
-			key = (param.training_team,len(o_a),len(o_b))
-			oa_pairs_by_size[key].append((o_a, o_b, goal, action[robot_idx,:]))
-
-	# for timestep,(state,action,value) in enumerate(zip(states,actions,values)):
+	# for timestep,(state,action) in enumerate(zip(states,actions)):
 	# 	for robot_idx in robot_idxs:
 	# 		o_a, o_b, goal = relative_state(state,param,robot_idx)
 	# 		key = (param.training_team,len(o_a),len(o_b))
-	# 		oa_pairs_by_size[key].append((o_a, o_b, goal, value, action[robot_idx,:]))
+	# 		oa_pairs_by_size[key].append((o_a, o_b, goal, action[robot_idx,:]))
+
+	for timestep,(state,action,value) in enumerate(zip(states,actions,values)):
+		for robot_idx in robot_idxs:
+			o_a, o_b, goal = relative_state(state,param,robot_idx)
+			key = (param.training_team,len(o_a),len(o_b))
+			oa_pairs_by_size[key].append((o_a, o_b, goal, value, action[robot_idx,:]))
 
 	return oa_pairs_by_size
 
@@ -188,10 +189,13 @@ def write_labelled_data(df_param,oa_pairs_by_size):
 	for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
 		batch_num = 0 
 		batched_dataset = [] 
-		for (o_a, o_b, goal, action) in oa_pairs:
-			data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
-		# for (o_a, o_b, goal, value, action) in oa_pairs:
-			# data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(value).flatten(),np.array(action).flatten()))
+
+		# for (o_a, o_b, goal, action) in oa_pairs:
+		# 	data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
+
+		for (o_a, o_b, goal, value, action) in oa_pairs:
+			data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(value).flatten(),np.array(action).flatten()))
+
 			batched_dataset.append(data)
 			if len(batched_dataset) >= df_param.l_batch_size:
 				batch_fn = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,TEAM=team,NUM_A=num_a,NUM_B=num_b,IDX_TRIAL=batch_num)
@@ -206,9 +210,10 @@ def write_labelled_data(df_param,oa_pairs_by_size):
 def get_dataset_size(df_param,batched_files):
 	n_points = 0 
 	for batched_file in batched_files:
-		# print('batched_file',batched_file)
-		o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
-		# o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)
+
+		# o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
+		o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)
+
 		n_points += action.shape[0]
 	n_points = np.min((n_points, df_param.l_max_dataset_size))
 	return n_points
@@ -220,37 +225,41 @@ def make_loaders(df_param,batched_files,n_points):
 	test_loader = [] 
 	curr_points, train_dataset_size, test_dataset_size = 0,0,0
 	for batched_file in batched_files: 
-		o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
-		# o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)
+
+		# o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
+		o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)
+		
 		if curr_points < df_param.l_test_train_ratio * n_points: 
-			train_loader.append([
-				torch.from_numpy(o_a).float().to(df_param.device),
-				torch.from_numpy(o_b).float().to(df_param.device),
-				torch.from_numpy(goal).float().to(df_param.device),
-				torch.from_numpy(action).float().to(df_param.device)])
 
 			# train_loader.append([
 			# 	torch.from_numpy(o_a).float().to(df_param.device),
 			# 	torch.from_numpy(o_b).float().to(df_param.device),
 			# 	torch.from_numpy(goal).float().to(df_param.device),
-			# 	torch.from_numpy(value).float().to(df_param.device),
 			# 	torch.from_numpy(action).float().to(df_param.device)])
+
+			train_loader.append([
+				torch.from_numpy(o_a).float().to(df_param.device),
+				torch.from_numpy(o_b).float().to(df_param.device),
+				torch.from_numpy(goal).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device),
+				torch.from_numpy(action).float().to(df_param.device)])
 				
 			train_dataset_size += action.shape[0]
 
 		elif curr_points < n_points:
-			test_loader.append([
-				torch.from_numpy(o_a).float().to(df_param.device),
-				torch.from_numpy(o_b).float().to(df_param.device),
-				torch.from_numpy(goal).float().to(df_param.device),
-				torch.from_numpy(action).float().to(df_param.device)]) 
 
 			# test_loader.append([
 			# 	torch.from_numpy(o_a).float().to(df_param.device),
 			# 	torch.from_numpy(o_b).float().to(df_param.device),
 			# 	torch.from_numpy(goal).float().to(df_param.device),
-			# 	torch.from_numpy(value).float().to(df_param.device),
-			# 	torch.from_numpy(action).float().to(df_param.device)]) 			
+			# 	torch.from_numpy(action).float().to(df_param.device)]) 
+
+			test_loader.append([
+				torch.from_numpy(o_a).float().to(df_param.device),
+				torch.from_numpy(o_b).float().to(df_param.device),
+				torch.from_numpy(goal).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device),
+				torch.from_numpy(action).float().to(df_param.device)]) 			
 
 			test_dataset_size += action.shape[0]
 		curr_points += action.shape[0]	

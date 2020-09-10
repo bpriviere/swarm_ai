@@ -76,12 +76,12 @@ def read_oa_batch(fn):
 	o_b = data[:,num_a*state_dim_per_agent:(num_a+num_b)*state_dim_per_agent]
 	goal = data[:,(num_a+num_b)*state_dim_per_agent:(num_a+num_b)*state_dim_per_agent+state_dim_per_agent]
 
-	action = data[:,(num_a+num_b)*state_dim_per_agent+state_dim_per_agent:]
-	return o_a,o_b,goal,action 
+	# action = data[:,(num_a+num_b)*state_dim_per_agent+state_dim_per_agent:]
+	# return o_a,o_b,goal,action 
 
-	# value = data[:,(num_a+num_b)*state_dim_per_agent+state_dim_per_agent]
-	# action = data[:,((num_a+num_b)*state_dim_per_agent+state_dim_per_agent+1):]
-	# return o_a,o_b,goal,value,action 
+	value = data[:,(num_a+num_b)*state_dim_per_agent+state_dim_per_agent]
+	action = data[:,((num_a+num_b)*state_dim_per_agent+state_dim_per_agent+1):]
+	return o_a,o_b,goal,value,action 
 	
 
 

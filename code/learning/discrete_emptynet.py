@@ -59,5 +59,6 @@ class DiscreteEmptyNet(nn.Module):
 
 		if not training: 
 			x[:,1:] = F.softmax(x[:,1:],dim=1)
-		return x
+			
+		return x[:,0], x[:,1:]
 

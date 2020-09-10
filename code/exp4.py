@@ -122,21 +122,12 @@ def main():
 	df_param = Param()
 
 	if run_on: 
-
-<<<<<<< HEAD
-		df_param.num_trials = 3
-		df_param.sim_modes = ["EXPECTED_VALUE","GLAS"] # "MCTS_RANDOM"] #["GLAS"]
-		# df_param.path_glas_model_a = '../saved/IL/models/a4.pt'
-		# df_param.path_glas_model_b = '../saved/IL/models/b4.pt'
-		df_param.mcts_tree_size = 1000
-=======
 		df_param.num_trials = 1
 		df_param.sim_modes = ["EXPECTED_VALUE","GLAS"] #["GLAS"]
 		df_param.path_glas_model_a = '../saved/value_fnc_test/a3.pt'
 		df_param.path_glas_model_b = '../saved/value_fnc_test/b3.pt'
 		df_param.mcts_tree_size = 10000
->>>>>>> ben_dev
-		dx = 0.1
+		dx = 0.05
 		df_param.dss, df_param.X, df_param.Y = discretize_state_space(df_param,dx,dx)
 		pos = {
 			1 : np.array((0.35,0.3))
