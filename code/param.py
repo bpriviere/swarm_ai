@@ -44,19 +44,12 @@ class Param:
 		}
 		
 		# environment
-		l = 0.5 
-		self.env_xlim = [0,l]
-		self.env_ylim = [0,l]
-		self.reset_xlim_A = [0.1*l,0.9*l]
-		self.reset_ylim_A = [0.1*l,0.9*l]
-		self.reset_xlim_B = [0.1*l,0.9*l]
-		self.reset_ylim_B = [0.1*l,0.9*l]
-		self.goal = np.array([0.75*l,0.75*l,0,0])
+		self.env_l = 0.5 
 
 		# mcts parameters 
 		self.mcts_tree_size = 50000
 		self.mcts_rollout_horizon = 1000
-		self.mcts_rollout_beta = 0.0 # 0 -> 1 : random -> GLAS
+		self.mcts_rollout_beta = 0.5 # 0 -> 1 : random -> GLAS
 		self.mcts_c_param = 1.4
 
 		# learning (l) parameters 
@@ -135,6 +128,15 @@ class Param:
 		for key,value in some_dict.items():
 			setattr(self,key,value)
 
+	def make_environment(self):
+		self.env_xlim = [0,self.env_l]
+		self.env_ylim = [0,self.env_l]
+		self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
+		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
+		self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
+		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
+		self.goal = np.array([0.75*self.env_l,0.75*self.env_l,0,0])
+
 	def make_initial_condition(self):
 
 		state = [] 
@@ -198,6 +200,8 @@ class Param:
 
 
 	def update(self,initial_condition=None):
+
+		self.make_environment()
 
 		self.make_robot_teams()
 

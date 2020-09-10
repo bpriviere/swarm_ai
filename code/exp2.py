@@ -88,6 +88,7 @@ def get_params(df_param):
 						param = Param()
 
 						# global param 
+						param.env_l = df_param.env_l
 						param.path_glas_model_a = df_param.path_glas_model_a
 						param.path_glas_model_b = df_param.path_glas_model_b
 						param.mcts_tree_sizes = df_param.mcts_tree_sizes 
@@ -132,10 +133,11 @@ if __name__ == '__main__':
 
 	df_param = Param()
 	df_param.num_trials = 1
+	df_param.env_l = 1.0 # from 0.5 
 	df_param.modes = ["GLAS", "MCTS 0.0", "MCTS 0.5", "MCTS 1.0"]
-	df_param.mcts_tree_sizes = [1000,5000,10000] #,50000,100000,500000] 
-	# df_param.path_glas_model_a = "../saved/IL_4/models/a8.pt"
-	# df_param.path_glas_model_b = "../saved/IL_4/models/b8.pt"
+	df_param.mcts_tree_sizes = [1000,5000,10000,50000,100000,500000] 
+	df_param.path_glas_model_a = "../saved/new_value_policy_glas_IL/a7.pt"
+	df_param.path_glas_model_b = "../saved/new_value_policy_glas_IL/b7.pt"
 	df_param.robot_team_compositions = [
 		{
 		'a': {'standard_robot':2,'evasive_robot':0},
