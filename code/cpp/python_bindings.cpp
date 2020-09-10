@@ -20,6 +20,7 @@
 #include "monte_carlo_tree_search.hpp"
 
 namespace py = pybind11;
+using namespace pybind11::literals;
 
 typedef DoubleIntegrator2D RobotT;
 typedef RobotT::State RobotStateT;
@@ -30,6 +31,10 @@ typedef DeepSetNN<RobotT::StateDim> DeepSetNNT;
 typedef DiscreteEmptyNet<RobotT::StateDim> DiscreteEmptyNetT;
 typedef GLAS<RobotT::StateDim> GLAST;
 
+// global variables
+std::random_device g_r;
+std::default_random_engine g_generator(g_r());
+
 template<class T>
 std::string toString(const T& x) 
 {
@@ -38,9 +43,9 @@ std::string toString(const T& x)
   return sstr.str();
 }
 
-std::default_random_engine createRandomGenerator(size_t seed)
+void seed(size_t seed)
 {
-  return std::default_random_engine(seed);
+  g_generator = std::default_random_engine(seed);
 }
 
 class MCTSResult
@@ -55,14 +60,13 @@ public:
 MCTSResult search(
   GameT& game,
   const GameT::GameStateT& startState,
-  std::default_random_engine& generator,
   size_t num_nodes,
   float rollout_beta,
   float Cp)
 {
   game.setRolloutBeta(rollout_beta);
   MCTSResult result;
-  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(game, generator, num_nodes, Cp);
+  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(game, g_generator, num_nodes, Cp);
   result.success = mcts.search(startState, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
@@ -74,10 +78,9 @@ MCTSResult search(
 GameT::GameActionT eval(
   GameT& game,
   const GameT::GameStateT& startState,
-  std::default_random_engine& generator,
   bool deterministic)
 {
-  return computeActionsWithGLAS(game.glasA(), game.glasB(), startState, game.goal(), game.attackerTypes(), game.defenderTypes(), generator, deterministic);
+  return computeActionsWithGLAS(game.glasA(), game.glasB(), startState, game.goal(), game.attackerTypes(), game.defenderTypes(), g_generator, deterministic);
 }
 
 
@@ -85,7 +88,7 @@ PYBIND11_MODULE(mctscpp, m) {
 
 
   // helper functions
-  m.def("createRandomGenerator", &createRandomGenerator);
+  m.def("seed", &seed);
   m.def("search", &search);
   m.def("eval", &eval);
 
@@ -172,7 +175,7 @@ PYBIND11_MODULE(mctscpp, m) {
 
   // GLAS
   py::class_<GLAST> (m, "GLAS")
-    .def(py::init<std::default_random_engine&>())
+    .def(py::init<std::default_random_engine&>(), "generator"_a = g_generator)
     .def("computeAction", &GLAST::computeAction)
     .def_property_readonly("discreteEmptyNet", &GLAST::discreteEmptyNet);
 
@@ -184,7 +187,13 @@ PYBIND11_MODULE(mctscpp, m) {
       float,
       const Eigen::Vector4f&,
       size_t,
-      std::default_random_engine&>())
+      std::default_random_engine&>(),
+      "attackerTypes"_a,
+      "defenderTypes"_a,
+      "dt"_a,
+      "goal"_a,
+      "maxDepth"_a,
+      "generator"_a = g_generator)
     .def("step", &GameT::step)
     .def("isTerminal", &GameT::isTerminal)
     .def("isValid", &GameT::isValid)
@@ -194,11 +203,3 @@ PYBIND11_MODULE(mctscpp, m) {
     .def_property_readonly("attackerTypes", &GameT::attackerTypes)
     .def_property_readonly("defenderTypes", &GameT::defenderTypes);
 }
-
-// PYBIND11_MODULE(mctscpp, m) {
-//     py::class_<QuadrotorCppEnv>(m, "QuadrotorCppEnv")
-//         .def(py::init())
-//         .def("step", &QuadrotorCppEnv::step)
-//         .def("get_state", &QuadrotorCppEnv::get_state, py::return_value_policy::reference_internal)
-//         .def("set_state", &QuadrotorCppEnv::set_state);
-// }

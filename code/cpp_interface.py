@@ -30,7 +30,7 @@ def robot_composition_to_cpp_robot_types(param,team):
 			types.append(rt)
 	return types
 
-def param_to_cpp_game(param,generator):
+def param_to_cpp_game(param):
 	
 	attackerTypes = robot_composition_to_cpp_robot_types(param,"a") 
 	defenderTypes = robot_composition_to_cpp_robot_types(param,"b") 
@@ -39,9 +39,8 @@ def param_to_cpp_game(param,generator):
 
 	goal = param.goal 
 	max_depth = param.mcts_rollout_horizon
-	generator = generator
 
-	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth, generator)
+	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	loadGLAS(g.glasA, param.path_glas_model_a)
 	loadGLAS(g.glasB, param.path_glas_model_b)
 
@@ -113,11 +112,10 @@ def state_to_cpp_game_state(param,state,turn):
 	return game_state 
 
 def expected_value(param):
-	generator = mctscpp.createRandomGenerator(param.seed)
-	g = param_to_cpp_game(param,generator) 
+	g = param_to_cpp_game(param) 
 	state = np.array(param.state)
 	gs = state_to_cpp_game_state(param,state,"a")
-	mctsresult = mctscpp.search(g, gs, generator, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
+	mctsresult = mctscpp.search(g, gs, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
 	return mctsresult.expectedReward
 
 def self_play(param):
@@ -155,8 +153,7 @@ def play_game(param):
 		pp.init_sim(param.state)
 
 	# similar to rollout 
-	generator = mctscpp.createRandomGenerator(param.seed)
-	g = param_to_cpp_game(param,generator) 
+	g = param_to_cpp_game(param) 
 
 	deterministic = True
 
@@ -180,7 +177,7 @@ def play_game(param):
 
 		if "MCTS" in policy_dict["sim_mode"]:
 			
-			mctsresult = mctscpp.search(g, gs, generator, \
+			mctsresult = mctscpp.search(g, gs, \
 				policy_dict["mcts_tree_size"], policy_dict["mcts_rollout_beta"], policy_dict["mcts_c_param"])
 			if mctsresult.success: 
 				team_action = mctsresult.bestAction
@@ -190,7 +187,7 @@ def play_game(param):
 
 		elif policy_dict["sim_mode"] == "GLAS":
 
-			action = mctscpp.eval(g, gs, generator, deterministic)
+			action = mctscpp.eval(g, gs, deterministic)
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "PANAGOU":
@@ -254,8 +251,7 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 	else:
 		enumeration = states
 
-	generator = mctscpp.createRandomGenerator(param.seed)
-	game = param_to_cpp_game(param,generator) 
+	game = param_to_cpp_game(param)
 
 	sim_result = {
 		'states' : [],
@@ -266,7 +262,7 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 
 	for state in enumeration:
 		game_state = state_to_cpp_game_state(param,state,param.training_team)
-		mctsresult = mctscpp.search(game, game_state, generator, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
+		mctsresult = mctscpp.search(game, game_state, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
 		if mctsresult.success: 
 			action = value_to_dist(param,mctsresult.valuePerAction) # 
 			value = mctsresult.expectedReward[0]
