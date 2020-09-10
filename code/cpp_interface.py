@@ -108,8 +108,6 @@ def state_to_cpp_game_state(param,state,turn):
 
 	game_state = mctscpp.GameState(turn,attackers,defenders)
 
-	game_state.attackersReward = 0
-	game_state.defendersReward = 0
 	game_state.depth = 0
 
 	return game_state 
@@ -170,8 +168,6 @@ def play_game(param):
 	count = 0 
 	while count/2 < param.mcts_rollout_horizon:
 	# while True:
-		gs.attackersReward = 0
-		gs.defendersReward = 0
 		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
@@ -211,24 +207,24 @@ def play_game(param):
 		# for idx in idxs: 
 		# 	action.append(team_action[idx])
 		
-		results.append(game_state_to_cpp_result(gs,None))
+		results.append(game_state_to_cpp_result(g,gs,None))
 		count += 1 
 
 		if success:
 			if g.isTerminal(gs):
-				results.append(game_state_to_cpp_result(gs,None))
+				results.append(game_state_to_cpp_result(g,gs,None))
 				break 
 		else:
 			break
 
 	if len(results) == 0:
-		results.append(game_state_to_cpp_result(gs,None))
+		results.append(game_state_to_cpp_result(g,gs,None))
 		
 	sim_result = dh.convert_cpp_data_to_sim_result(np.array(results),param)
 	return sim_result
 
 
-def game_state_to_cpp_result(gs,action):
+def game_state_to_cpp_result(g,gs,action):
 
 	if action is None:
 		action = np.nan*np.ones((len(gs.attackers) + len(gs.defenders),2))
@@ -243,8 +239,8 @@ def game_state_to_cpp_result(gs,action):
 		result[idx*6+0:idx*6+4] = rs.state
 		result[idx*6+4:idx*6+6] = action[idx]
 		idx += 1
-	result[idx*6+0] = gs.attackersReward
-	result[idx*6+1] = gs.defendersReward
+	result[idx*6+0] = g.computeReward(gs)
+	result[idx*6+1] = 1 - result[idx*6+0]
 	return result
 
 def evaluate_expert(states,param,quiet_on=True,progress=None):

@@ -69,6 +69,8 @@ if __name__ == '__main__':
 	if "GLAS" in mode:
 		loadGLAS(g.glasA, "../../current/models/a1.pt")
 		loadGLAS(g.glasB, "../../current/models/b1.pt")
+	if "RANDOM" in mode:
+		rollout_beta = 0.0
 	print(g)
 
 	next_state = mctscpp.GameState()
@@ -81,8 +83,6 @@ if __name__ == '__main__':
 
 	result = []
 	for d in range(max_depth):
-		gs.attackersReward = 0;
-		gs.defendersReward = 0;
 		gs.depth = 0;
 		# print(gs)
 		result.append([

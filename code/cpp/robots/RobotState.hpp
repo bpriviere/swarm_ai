@@ -10,6 +10,7 @@ public:
     Active      = 0,
     Captured    = 1,
     ReachedGoal = 2,
+    Invalid     = 3, // collided or attempted to execute any invalid action
   };
 
   RobotState() = default;
@@ -27,6 +28,9 @@ public:
         break;
       case RobotState::Status::ReachedGoal:
         out << "ReachedGoal";
+        break;
+      case RobotState::Status::Invalid:
+        out << "Invalid";
         break;
     }
     return out;

@@ -104,7 +104,8 @@ PYBIND11_MODULE(mctscpp, m) {
   py::enum_<RobotState::Status>(robotState, "Status")
     .value("Active", RobotState::Status::Active)
     .value("Captured", RobotState::Status::Captured)
-    .value("ReachedGoal", RobotState::Status::ReachedGoal);
+    .value("ReachedGoal", RobotState::Status::ReachedGoal)
+    .value("Invalid", RobotState::Status::Invalid);
 
   robotState.def(py::init())
     .def(py::init<const Eigen::Vector4f&>())
@@ -128,9 +129,7 @@ PYBIND11_MODULE(mctscpp, m) {
       const std::vector<RobotStateT>&>())
     .def_readwrite("turn", &GameStateT::turn)
     .def_readwrite("attackers", &GameStateT::attackers)
-    .def_readwrite("attackersReward", &GameStateT::attackersReward)
     .def_readwrite("defenders", &GameStateT::defenders)
-    .def_readwrite("defendersReward", &GameStateT::defendersReward)
     .def_readwrite("depth", &GameStateT::depth)
     .def("__repr__", &toString<GameStateT>);
 
@@ -189,6 +188,7 @@ PYBIND11_MODULE(mctscpp, m) {
     .def("step", &GameT::step)
     .def("isTerminal", &GameT::isTerminal)
     .def("isValid", &GameT::isValid)
+    .def("computeReward", &GameT::computeReward)
     .def_property_readonly("glasA", &GameT::glasA)
     .def_property_readonly("glasB", &GameT::glasB)
     .def_property_readonly("attackerTypes", &GameT::attackerTypes)

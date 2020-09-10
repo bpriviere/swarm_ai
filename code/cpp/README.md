@@ -38,7 +38,7 @@ In general, use `run.py` in the code folder to automatically use the Python bind
 This uses the bindings in `buildRelease` and has some examples on how to use the bindings.
 
 ```
-python3 test_python_bindings.py
+python3 test_python_binding.py
 ```
 
 ### Notes
@@ -61,7 +61,8 @@ mkdir buildProfile
 cd buildProfile
 cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo ..
 make
-perf record --call-graph dwarf ./swarmgame -i ../config.yaml -o output.csv
+cd ..
+perf record --call-graph dwarf python3 test_python_binding.py
 ~/sw/hotspot-v1.2.0-x86_64.AppImage perf.data
 ```
 

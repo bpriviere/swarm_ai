@@ -3,7 +3,7 @@
 #include "RobotType.hpp"
 
 // Uncomment the following line to clip the environment, rather than executing a validity check
-#define CLIP_ENVIRONMENT
+// #define CLIP_ENVIRONMENT
 
 struct RobotStateSingleIntegrator2D
   : public RobotState
@@ -91,15 +91,15 @@ public:
   void init()
   {
     possibleActions.resize(9);
-    possibleActions[0] << -velocity_limit, -velocity_limit;
+    possibleActions[0] << -velocity_limit / sqrtf(2), -velocity_limit / sqrtf(2);
     possibleActions[1] << -velocity_limit, 0;
-    possibleActions[2] << -velocity_limit, velocity_limit;
+    possibleActions[2] << -velocity_limit / sqrtf(2), velocity_limit / sqrtf(2);
     possibleActions[3] << 0, -velocity_limit;
     possibleActions[4] << 0, 0;
     possibleActions[5] << 0, velocity_limit;
-    possibleActions[6] << velocity_limit, -velocity_limit;
+    possibleActions[6] << velocity_limit / sqrtf(2), -velocity_limit / sqrtf(2);
     possibleActions[7] << velocity_limit, 0;
-    possibleActions[8] << velocity_limit, velocity_limit;
+    possibleActions[8] << velocity_limit / sqrtf(2), velocity_limit / sqrtf(2);
 
     invalidAction << nanf("") , nanf("");
   }
