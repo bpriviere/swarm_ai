@@ -9,21 +9,15 @@ from math import cos, sin
 
 class Param:
 
-	def __init__(self,seed=None):
-
-		if seed is None: 
-			seed = int.from_bytes(os.urandom(4), sys.byteorder)
-
-		self.seed = seed
-		# random.seed(self.seed)
+	def __init__(self):
 
 		# sim param 
-		self.sim_num_trials = 1
+		self.sim_num_trials = 2
 		self.sim_t0 = 0
 		self.sim_tf = 20
 		self.sim_dt = 0.25
 		self.sim_parallel_on = True
-		self.sim_mode = "GLAS" # MCTS_GLAS, MCTS_RANDOM, GLAS
+		self.sim_mode = "GLAS" # MCTS_GLAS, MCTS_RANDOM, GLAS, PANAGOU (not implemented)
 
 		# robot types 
 		self.standard_robot = {
@@ -60,9 +54,9 @@ class Param:
 		self.goal = np.array([0.75*l,0.75*l,0,0])
 
 		# mcts parameters 
-		self.mcts_tree_size = 50000
+		self.mcts_tree_size = 10000
 		self.mcts_rollout_horizon = 1000
-		self.mcts_rollout_beta = 0.5 # 0 -> 1 : random -> GLAS
+		self.mcts_rollout_beta = 0.0 # 0 -> 1 : random -> GLAS
 		self.mcts_c_param = 1.4
 
 		# learning (l) parameters 
@@ -70,8 +64,8 @@ class Param:
 		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 5
-		self.l_num_file_per_iteration = 7 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 700
+		self.l_num_file_per_iteration = 2 # optimized for num cpu on ben's laptop 
+		self.l_num_points_per_file = 20
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -108,14 +102,14 @@ class Param:
 		self.l_psi_network_architecture = [
 			["Linear", 2*p+n, h],
 			["Linear", h, h],
-			["Linear", h, 1+9]
+			["Linear", h, 9]
 		]
 
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 1000000 # n_points 
-		self.l_batch_size = 2000
-		self.l_n_epoch = 100
+		self.l_batch_size = 20
+		self.l_n_epoch = 10
 		self.l_lr = 1e-3
 		self.l_wd = 0 
 		self.l_log_interval = 1

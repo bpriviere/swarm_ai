@@ -3,7 +3,9 @@
 #include "RobotType.hpp"
 
 // Uncomment the following line to clip the environment, rather than executing a validity check
-#define CLIP_ENVIRONMENT
+// #define CLIP_ENVIRONMENT
+// Uncomment the following line to scale the velocity
+// #define SCALE_VELOCITY
 
 struct RobotStateDoubleIntegrator2D
   : public RobotState
@@ -90,20 +92,33 @@ public:
     result.position() = state.position() + state.velocity() * dt;
 #endif
 
+#ifdef SCALE_VELOCITY
     auto velocity = state.velocity() + action * dt;
     float alpha = velocity.norm() / velocity_limit;
     result.velocity() = velocity / std::max(alpha, 1.0f);
-    // result.velocity = clip(velocity, -velocity_limit, velocity_limit);
-    // result.velocity = velocity.cwiseMin(velocity_limit).cwiseMax(-velocity_limit);
+#else
+    result.velocity() = state.velocity() + action * dt;
+#endif
   }
 
   bool isStateValid(const RobotStateDoubleIntegrator2D& state) const
   {
+    bool positionValid;
+    bool velocityValid;
 #ifdef CLIP_ENVIRONMENT
-    return true;
+    positionValid = true;
 #else
-    return (state.position().array() >= p_min.array()).all() && (state.position().array() <= p_max.array()).all();
+    positionValid = (state.position().array() >= p_min.array()).all() && (state.position().array() <= p_max.array()).all();
+    // positionValid = true;
 #endif
+
+#ifdef SCALE_VELOCITY
+    velocityValid = true;
+#else
+    velocityValid = state.velocity().norm() < velocity_limit;
+#endif
+
+    return positionValid && velocityValid;
   }
 
   void init()

@@ -65,7 +65,6 @@ def evaluate_stochastic_policy(param):
 def get_params(df_param):
 
 	params = []
-	seed = int.from_bytes(os.urandom(4), sys.byteorder) 
 	curr_ic = -1
 	count = 0 
 	total = df_param.num_trials*len(df_param.robot_team_compositions)*len(df_param.mcts_tree_sizes)*\
@@ -86,7 +85,7 @@ def get_params(df_param):
 				for training_team in df_param.training_teams:
 					for mode in df_param.modes: 
 
-						param = Param(seed=seed)
+						param = Param()
 
 						# global param 
 						param.path_glas_model_a = df_param.path_glas_model_a

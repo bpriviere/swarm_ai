@@ -40,7 +40,7 @@ def eval_value(param):
 		sim_result = self_play(param)
 
 	elif param.sim_mode == "EXPECTED_VALUE": 
-		value = expected_value(param)
+		value = expected_value(param) # query tree 
 		sim_result = {
 			"states" : np.array([param.state]),
 			"rewards" : np.array([[value[0],value[1]]]),
@@ -123,11 +123,19 @@ def main():
 
 	if run_on: 
 
+<<<<<<< HEAD
 		df_param.num_trials = 3
 		df_param.sim_modes = ["EXPECTED_VALUE","GLAS"] # "MCTS_RANDOM"] #["GLAS"]
 		# df_param.path_glas_model_a = '../saved/IL/models/a4.pt'
 		# df_param.path_glas_model_b = '../saved/IL/models/b4.pt'
 		df_param.mcts_tree_size = 1000
+=======
+		df_param.num_trials = 1
+		df_param.sim_modes = ["EXPECTED_VALUE","GLAS"] #["GLAS"]
+		df_param.path_glas_model_a = '../saved/value_fnc_test/a3.pt'
+		df_param.path_glas_model_b = '../saved/value_fnc_test/b3.pt'
+		df_param.mcts_tree_size = 10000
+>>>>>>> ben_dev
 		dx = 0.1
 		df_param.dss, df_param.X, df_param.Y = discretize_state_space(df_param,dx,dx)
 		pos = {
