@@ -177,6 +177,7 @@ public:
     bool deterministic) const
   {
     auto output = m_glas.eval(input_a, input_b, goal);
+    output.rightCols(output.cols()-1);
     int idx;
     if (deterministic) {
       output.maxCoeff(&idx);
