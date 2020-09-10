@@ -111,6 +111,13 @@ if __name__ == '__main__':
 			"mcts_c_param" : 1.4,
 		},	
 		{
+			"sim_mode" : "GLAS",
+			"path_glas_model_a" : "../current/models/a4.pt",
+			"mcts_tree_size" : 10000,
+			"mcts_rollout_beta" : 0.5,
+			"mcts_c_param" : 1.4,
+		},
+		{
 			"sim_mode" : "PANAGOU",
 		},				
 	]
@@ -123,6 +130,13 @@ if __name__ == '__main__':
 			"mcts_rollout_beta" : 0.5,
 			"mcts_c_param" : 1.4,
 		},
+		{
+			"sim_mode" : "GLAS",
+			"path_glas_model_b" : "../current/models/b4.pt",
+			"mcts_tree_size" : 10000,
+			"mcts_rollout_beta" : 0.5,
+			"mcts_c_param" : 1.4,
+		},		
 		{
 			"sim_mode" : "PANAGOU",
 		},		
