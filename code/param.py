@@ -65,7 +65,7 @@ class Param:
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 10
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 5000
+		self.l_num_points_per_file = 2500
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{

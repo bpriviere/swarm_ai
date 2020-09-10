@@ -120,7 +120,7 @@ def expected_value(param):
 	mctsresult = mctscpp.search(g, gs, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
 	return mctsresult.expectedReward
 
-def self_play(param):
+def self_play(param,deterministic=True):
 
 	param.policy_a_dict = {
 		"sim_mode" : param.sim_mode, 
@@ -140,7 +140,7 @@ def self_play(param):
 		param.policy_b_dict["mcts_rollout_beta"] = param.mcts_rollout_beta
 		param.policy_b_dict["mcts_c_param"] = param.mcts_c_param
 
-	return play_game(param)
+	return play_game(param,deterministic=deterministic)
 
 def play_game(param,deterministic=True): 
 
@@ -168,8 +168,8 @@ def play_game(param,deterministic=True):
 	gs = state_to_cpp_game_state(param,state,"a")
 	count = 0 
 	while True:
-		gs.attackersReward = 0
-		gs.defendersReward = 0
+		# gs.attackersReward = 0
+		# gs.defendersReward = 0
 		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
@@ -197,7 +197,7 @@ def play_game(param,deterministic=True):
 
 		elif policy_dict["sim_mode"] == "GLAS":
 
-			action = mctscpp.eval(g, gs, generator, deterministic)
+			action = mctscpp.eval(g, gs, deterministic)
 
 			# pstate = cpp_state_to_pstate(gs)
 			# action = np.zeros((len(param.robots),2))
