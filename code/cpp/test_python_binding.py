@@ -34,6 +34,7 @@ def loadGLAS(glas, file):
 if __name__ == '__main__':
 	mode = "MCTS_RANDOM" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
 	num_nodes = 10000
+	export_dot = None # or "mcts.dot"
 
 	# test RobotState
 	rs = mctscpp.RobotState([0,1,2,3])
@@ -86,7 +87,10 @@ if __name__ == '__main__':
 			[rs.state[0:2].copy() for rs in gs.attackers],
 			[rs.state[0:2].copy() for rs in gs.defenders]])
 		if "MCTS" in mode:
-			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp)
+			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp, export_dot)
+			if export_dot:
+				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
+				exit()
 			if mctsresult.success:
 				print(mctsresult.expectedReward)
 				# print(mctsresult.valuePerAction)

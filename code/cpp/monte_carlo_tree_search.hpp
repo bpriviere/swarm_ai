@@ -120,6 +120,45 @@ class MonteCarloTreeSearch {
     return result;
   }
 
+  void exportToDot(std::ostream& stream) const
+  {
+    stream << "digraph MCTS {\n";
+    stream << "\tnode[label=\"\"];\n";
+    stream << "\tnode[shape=point];\n";
+
+    // compute depth -> {idx} lookup table
+    std::map<size_t, std::vector<size_t>> depthToIdx;
+    for (size_t i = 0; i < m_nodes.size(); ++i) {
+      size_t depth = m_nodes[i].computeDepth();
+      depthToIdx[depth].push_back(i);
+    }
+
+    // output nodes with the same rank (depth)
+    for (const auto& iter : depthToIdx) {
+      stream << "\t# rank " << iter.first << " with " << iter.second.size() << " nodes\n";
+      stream << "\t{rank=same";
+      for (size_t i : iter.second) {
+        stream << ";n" << i;
+      }
+      stream << "}\n";
+    }
+
+    // output node value
+    for (size_t i = 1; i < m_nodes.size(); ++i) {
+      float value = m_env.rewardToFloat(m_nodes[i].parent->state, m_nodes[i].reward) / m_nodes[i].number_of_visits;
+      stream << "\tn" << i << " [width=" << value << "]\n";
+    }
+
+    // output nodes
+    for (size_t i = 0; i < m_nodes.size(); ++i) {
+      if (m_nodes[i].parent) {
+        size_t j = m_nodes[i].parent - &m_nodes[0];
+        stream << "\tn" << j << " -> n" << i << "\n";
+      }
+    }
+    stream << "}\n";
+  }
+
 
  private:
   struct Node {
@@ -145,6 +184,17 @@ class MonteCarloTreeSearch {
     std::vector<Node*> children;
     bool gotActions;
     std::vector<Action> untried_actions;
+
+    size_t computeDepth() const {
+      size_t depth = 0;
+      const Node* ptr = parent;
+      while(ptr) {
+        ptr = ptr->parent;
+        ++depth;
+      }
+      return depth;
+    }
+
   };
 
   Node* treePolicy(Node& node)
