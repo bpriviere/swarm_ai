@@ -90,7 +90,8 @@ class MonteCarloTreeSearch {
       backpropagation(node, reward);
     }
     // std::cout << "R " << root.reward.first << " " << root.reward.second << std::endl;
-    const Node* node = bestChild(&root, 0);
+    auto bestChildResult = bestChild(&root, 0);
+    const Node* node = std::get<0>(bestChildResult);
     if (node != nullptr) {
       result = node->action_to_node;
       return true;
@@ -201,17 +202,28 @@ class MonteCarloTreeSearch {
   {
     Node* nodePtr = &node;
     while (nodePtr && !m_env.isTerminal(nodePtr->state)) {
-      // try to expand this node
-      Node* child = expand(nodePtr);
-      if (child != nullptr) {
-        return child;
-      } else {
-        child = bestChild(nodePtr, m_Cp);
-        if (child == nullptr) {
-          return nodePtr;
+
+      // compute the value of any potential unexpanded child
+      float baseValue = m_env.rewardToFloat(nodePtr->state, nodePtr->reward) / nodePtr->number_of_visits 
+                    + m_Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / 1);
+
+      // find best child and its value
+      auto childResult = bestChild(nodePtr, m_Cp);
+
+      // if the baseValue is higher than the best child, try expanding this node
+      if (baseValue > std::get<1>(childResult)) {
+        Node* child = expand(nodePtr);
+        if (child != nullptr) {
+          return child;
         }
-        nodePtr = child;
       }
+
+      // expansion not successful or baseValue too low
+      Node* child = std::get<0>(childResult);
+      if (child == nullptr) {
+        return nodePtr;
+      }
+      nodePtr = child;
     }
     return nodePtr;
   }
@@ -249,7 +261,7 @@ class MonteCarloTreeSearch {
     return nullptr;
   }
 
-  Node* bestChild(const Node* nodePtr, float Cp)
+  std::tuple<Node*, float> bestChild(const Node* nodePtr, float Cp)
   {
 #if 0
     // static to avoid dynamic allocation every call
@@ -296,7 +308,7 @@ class MonteCarloTreeSearch {
         result = c;
       }
     }
-    return result;
+    return std::make_tuple(result, bestValue);
 #endif
   }
 
