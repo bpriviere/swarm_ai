@@ -63,11 +63,15 @@ class MonteCarloTreeSearch {
     Environment& environment,
     URNG& generator,
     size_t num_nodes,
-    float Cp)
+    float Cp,
+    float pw_C,
+    float pw_alpha)
     : m_env(environment)
     , m_generator(generator)
     , m_num_nodes(num_nodes)
     , m_Cp(Cp)
+    , m_pw_C(pw_C)
+    , m_pw_alpha(pw_alpha)
     {}
 
   bool search(const State& startState, Action& result) {
@@ -201,17 +205,20 @@ class MonteCarloTreeSearch {
   {
     Node* nodePtr = &node;
     while (nodePtr && !m_env.isTerminal(nodePtr->state)) {
-      // try to expand this node
-      Node* child = expand(nodePtr);
-      if (child != nullptr) {
-        return child;
-      } else {
-        child = bestChild(nodePtr, m_Cp);
-        if (child == nullptr) {
-          return nodePtr;
+
+      // Use progressive widening, see https://hal.archives-ouvertes.fr/hal-00542673v1/document
+      size_t maxChildren = ceil(m_pw_C * powf(nodePtr->number_of_visits, m_pw_alpha));
+      if (nodePtr->children.size() < maxChildren) {
+        Node* child = expand(nodePtr);
+        if (child != nullptr) {
+          return child;
         }
-        nodePtr = child;
       }
+      Node* child = bestChild(nodePtr, m_Cp);
+      if (child == nullptr) {
+        return nodePtr;
+      }
+      nodePtr = child;
     }
     return nodePtr;
   }
@@ -317,6 +324,8 @@ class MonteCarloTreeSearch {
   std::vector<Node> m_nodes;
   size_t m_num_nodes;
   float m_Cp;
+  float m_pw_C;
+  float m_pw_alpha;
 };
 
 }  // namespace libMultiRobotPlanning
