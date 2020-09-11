@@ -1,5 +1,6 @@
 #include <sstream>
 #include <random>
+#include <fstream>
 
 #include <Eigen/Geometry>
 
@@ -62,7 +63,8 @@ MCTSResult search(
   const GameT::GameStateT& startState,
   size_t num_nodes,
   float rollout_beta,
-  float Cp)
+  float Cp,
+  const char* export_dot = nullptr)
 {
   game.setRolloutBeta(rollout_beta);
   MCTSResult result;
@@ -71,6 +73,10 @@ MCTSResult search(
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
     result.valuePerAction = mcts.valuePerAction();
+  }
+  if (export_dot) {
+    std::ofstream stream(export_dot);
+    mcts.exportToDot(stream);
   }
   return result;
 }
@@ -89,7 +95,13 @@ PYBIND11_MODULE(mctscpp, m) {
 
   // helper functions
   m.def("seed", &seed);
-  m.def("search", &search);
+  m.def("search", &search,
+    "game"_a,
+    "start_state"_a,
+    "num_nodes"_a,
+    "rollout_beta"_a,
+    "Cp"_a,
+    "export_dot"_a = nullptr);
   m.def("eval", &eval);
 
   // helper classes
