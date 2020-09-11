@@ -69,7 +69,10 @@ MCTSResult search(
   game.setRolloutBeta(rollout_beta);
   MCTSResult result;
   libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(game, g_generator, num_nodes, Cp);
-  result.success = mcts.search(startState, result.bestAction);
+  GameT::GameStateT s = startState;
+  s.depth = 0;
+  s.cumulativeReward = 0;
+  result.success = mcts.search(s, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
     result.valuePerAction = mcts.valuePerAction();
