@@ -125,9 +125,14 @@ def get_self_play_samples(params):
 		while len(states_per_file) < param.l_num_points_per_file:
 			param.state = param.make_initial_condition()
 			sim_result = self_play(param,deterministic=False)
-			if len(sim_result["states"]) > param.l_num_points_per_file:
-				sim_result["states"] = sim_result["states"][0:param.l_num_points_per_file]
-			states_per_file.extend(sim_result["states"])
+
+			# clean data 
+			states = sim_result["states"][np.logical_not(np.isnan(sim_result["states"]))]
+
+			if len(states) > param.l_num_points_per_file:
+				states = states[0:param.l_num_points_per_file]
+			
+			states_per_file.extend(states)
 		states.append(states_per_file)
 	print('self-play sample collection completed.')
 	return states
