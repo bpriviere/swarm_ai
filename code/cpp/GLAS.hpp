@@ -179,8 +179,8 @@ public:
     const StateVector& goal,
     bool deterministic) const
   {
-    auto output = m_glas.eval(input_a, input_b, goal);
-	output = output.tail(output.size()-1);
+    auto nn = m_glas.eval(input_a, input_b, goal);
+    auto output = nn.tail(nn.size()-1);
 
     // mask actions that are invalid by setting their weight to 0
     bool anyValid = false;
