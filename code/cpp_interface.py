@@ -120,7 +120,7 @@ def expected_value(param):
 		param.mcts_pw_C, param.mcts_pw_alpha)
 	return mctsresult.expectedReward
 
-def self_play(param):
+def self_play(param,deterministic=True):
 
 	param.policy_a_dict = {
 		"sim_mode" : param.sim_mode, 
@@ -145,9 +145,9 @@ def self_play(param):
 		param.policy_b_dict["mcts_pw_C"] = param.mcts_pw_C
 		param.policy_b_dict["mcts_pw_alpha"] = param.mcts_pw_alpha
 
-	return play_game(param)
+	return play_game(param,deterministic=deterministic)
 
-def play_game(param): 
+def play_game(param,deterministic=True): 
 
 	if param.policy_a_dict["sim_mode"] in ["GLAS" , "MCTS_GLAS" , "MCTS_RANDOM"]:
 		param.path_glas_model_a = param.policy_a_dict["path_glas_model_a"]
@@ -162,16 +162,13 @@ def play_game(param):
 	# similar to rollout 
 	g = param_to_cpp_game(param) 
 
-	deterministic = True
-
 	results = []
 	actions = [] 
 
 	state = param.state
 	gs = state_to_cpp_game_state(param,state,"a")
 	count = 0 
-	while count/2 < param.mcts_rollout_horizon:
-	# while True:
+	while True:
 		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:

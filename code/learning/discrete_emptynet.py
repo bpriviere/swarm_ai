@@ -58,7 +58,7 @@ class DiscreteEmptyNet(nn.Module):
 		x = self.psi(x)
 
 		if not training: 
-			x = F.softmax(x,dim=1)
-	
-		# return x[:,0],x[:,1:]
-		return x
+			x[:,1:] = F.softmax(x[:,1:],dim=1)
+			
+		return (torch.tanh(x[:,0])+1)/2, x[:,1:]
+

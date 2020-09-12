@@ -44,19 +44,12 @@ class Param:
 		}
 		
 		# environment
-		l = 0.5 
-		self.env_xlim = [0,l]
-		self.env_ylim = [0,l]
-		self.reset_xlim_A = [0.1*l,0.9*l]
-		self.reset_ylim_A = [0.1*l,0.9*l]
-		self.reset_xlim_B = [0.1*l,0.9*l]
-		self.reset_ylim_B = [0.1*l,0.9*l]
-		self.goal = np.array([0.75*l,0.75*l,0,0])
+		self.env_l = 0.5 
 
 		# mcts parameters 
-		self.mcts_tree_size = 10000
+		self.mcts_tree_size = 50000
 		self.mcts_rollout_horizon = 1000
-		self.mcts_rollout_beta = 0.0 # 0 -> 1 : random -> GLAS
+		self.mcts_rollout_beta = 0.5 # 0 -> 1 : random -> GLAS
 		self.mcts_c_param = 1.4
 		self.mcts_pw_C = 1.0		# Progressive Widening scalar
 		self.mcts_pw_alpha = 0.25	# Progressive Widening exponent
@@ -65,9 +58,9 @@ class Param:
 		self.device = 'cpu'
 		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
-		self.l_num_iterations = 5
-		self.l_num_file_per_iteration = 2 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 20
+		self.l_num_iterations = 10
+		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
+		self.l_num_points_per_file = 2500
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -104,14 +97,14 @@ class Param:
 		self.l_psi_network_architecture = [
 			["Linear", 2*p+n, h],
 			["Linear", h, h],
-			["Linear", h, 9]
+			["Linear", h, 9+1]
 		]
 
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 1000000 # n_points 
-		self.l_batch_size = 20
-		self.l_n_epoch = 10
+		self.l_batch_size = 2000
+		self.l_n_epoch = 100
 		self.l_lr = 1e-3
 		self.l_wd = 0 
 		self.l_log_interval = 1
@@ -136,6 +129,15 @@ class Param:
 	def from_dict(self,some_dict):
 		for key,value in some_dict.items():
 			setattr(self,key,value)
+
+	def make_environment(self):
+		self.env_xlim = [0,self.env_l]
+		self.env_ylim = [0,self.env_l]
+		self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
+		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
+		self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
+		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
+		self.goal = np.array([0.75*self.env_l,0.75*self.env_l,0,0])
 
 	def make_initial_condition(self):
 
@@ -200,6 +202,8 @@ class Param:
 
 
 	def update(self,initial_condition=None):
+
+		self.make_environment()
 
 		self.make_robot_teams()
 

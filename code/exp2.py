@@ -28,16 +28,15 @@ def evaluate_stochastic_policy(param):
 
 	elif param.sim_mode == 'GLAS':
 		
-		state = param.state
-		model = DiscreteEmptyNet(param, "cpu")
-		action = np.zeros((param.num_nodes,9))
-
 		sim_result = {
 			'states' : [],
 			'actions' : [],
 			'param' : param.to_dict()
 			}
+		state = param.state
+		action = np.zeros((param.num_nodes,9))
 
+		model = DiscreteEmptyNet(param, "cpu")
 		if param.training_team == "a" : 
 			model.load_state_dict(torch.load(param.path_glas_model_a))
 			idxs = param.team_1_idxs
@@ -48,7 +47,8 @@ def evaluate_stochastic_policy(param):
 		for robot_idx in idxs: 
 			o_a,o_b,goal = relative_state(np.array(state),param,robot_idx)
 			o_a,o_b,goal = format_data(o_a,o_b,goal)
-			action[robot_idx, :] = model(o_a,o_b,goal).detach().numpy().flatten()
+			value, policy = model(o_a,o_b,goal)
+			action[robot_idx, :] = policy.detach().numpy().flatten()
 
 		sim_result["states"].append(state) # total number of robots x state dimension per robot 
 		sim_result["actions"].append(action) # total number of robots x action dimension per robot 
@@ -88,6 +88,7 @@ def get_params(df_param):
 						param = Param()
 
 						# global param 
+						param.env_l = df_param.env_l
 						param.path_glas_model_a = df_param.path_glas_model_a
 						param.path_glas_model_b = df_param.path_glas_model_b
 						param.mcts_tree_sizes = df_param.mcts_tree_sizes 
@@ -132,6 +133,7 @@ if __name__ == '__main__':
 
 	df_param = Param()
 	df_param.num_trials = 1
+	df_param.env_l = 1.0 # from 0.5 
 	df_param.modes = ["GLAS", "MCTS 0.0", "MCTS 0.5", "MCTS 1.0"]
 	df_param.mcts_tree_sizes = [1000,5000,10000,50000,100000,500000] 
 	df_param.path_glas_model_a = "../saved/IL/models/a4.pt"

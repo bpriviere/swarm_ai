@@ -102,7 +102,11 @@ public:
     X.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), 4) = goal;
 
     auto res = m_psi.eval(X);
-    return softmax(res);
+    auto block = res.tail(res.size()-1);
+    block = softmax(block);
+    res(0) = (tanh(res(0))+1)/2;
+
+    return res;
   }
 
   DeepSetNN<StateDim>& deepSetA()
@@ -176,6 +180,7 @@ public:
     bool deterministic) const
   {
     auto output = m_glas.eval(input_a, input_b, goal);
+	output = output.tail(output.size()-1);
 
     // mask actions that are invalid by setting their weight to 0
     bool anyValid = false;

@@ -74,6 +74,10 @@ class PanagouPolicy:
 
 			done.append(i_robot)
 
+		# proactively clip acceleration 
+		for i_robot, (robot_state,robot_action,robot) in enumerate(zip(state,actions,self.robots)):
+			actions[i_robot,:] = scale_action(robot_state,robot_action,robot["speed_limit"],self.param.sim_dt) 
+
 		return actions 
 
 	def rollout(self,initial_condition):
@@ -88,6 +92,24 @@ class PanagouPolicy:
 			states.append(state)
 		states = np.array(states)
 		return states 
+
+def scale_action(robot_state,robot_action,speed_limit,dt):
+
+	def equations(alpha):
+		eqns = (
+			np.linalg.norm(robot_state[2:] + alpha* dt * robot_action) - (speed_limit-eps)
+		)
+		return eqns
+
+	eps = 1e-6
+	next_speed = np.linalg.norm(robot_state[2:] + dt * robot_action) 
+	alpha = next_speed / speed_limit
+	if alpha > (1-eps): 
+		alpha = fsolve(equations, 0.5)
+		robot_action = alpha * robot_action
+
+	return robot_action 
+
 
 def calculate_matching_policies(param,I,R):
 	# calculate attacker policies (and resulting defender policy) for each possible defender matchup

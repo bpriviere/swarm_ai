@@ -75,6 +75,7 @@ def get_params(df_param,initial_conditions,robot_team_compositions):
 			for policy_b_dict in df_param.defenderPolicyDicts:
 
 				param = Param() 
+				param.env_l = df_param.env_l
 				param.policy_a_dict = policy_a_dict
 				param.policy_b_dict = policy_b_dict
 				param.attackerPolicyDicts = df_param.attackerPolicyDicts
@@ -102,14 +103,23 @@ if __name__ == '__main__':
 
 	df_param = Param()
 
+	df_param.env_l = 0.5 
+
 	df_param.attackerPolicyDicts = [
 		{
 			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_a" : "../saved/IL_4/models/a0.pt",
+			"path_glas_model_a" : "../saved/new_value_policy_glas_IL/a7.pt",
 			"mcts_tree_size" : 10000,
 			"mcts_rollout_beta" : 0.5,
 			"mcts_c_param" : 1.4,
 		},	
+		{
+			"sim_mode" : "MCTS_GLAS",
+			"path_glas_model_a" : "../saved/new_value_policy_glas_IL/a7.pt",
+			"mcts_tree_size" : 10000,
+			"mcts_rollout_beta" : 0.5,
+			"mcts_c_param" : 1.4,
+		},
 		{
 			"sim_mode" : "PANAGOU",
 		},				
@@ -118,11 +128,18 @@ if __name__ == '__main__':
 	df_param.defenderPolicyDicts = [				
 		{
 			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_b" : "../saved/IL_4/models/b0.pt",
+			"path_glas_model_b" : "../saved/new_value_policy_glas_IL/b7.pt",
 			"mcts_tree_size" : 10000,
 			"mcts_rollout_beta" : 0.5,
 			"mcts_c_param" : 1.4,
 		},
+		{
+			"sim_mode" : "MCTS_GLAS",
+			"path_glas_model_b" : "../saved/new_value_policy_glas_IL/b7.pt",
+			"mcts_tree_size" : 10000,
+			"mcts_rollout_beta" : 0.5,
+			"mcts_c_param" : 1.4,
+		},		
 		{
 			"sim_mode" : "PANAGOU",
 		},		
@@ -135,20 +152,20 @@ if __name__ == '__main__':
 	if not args.game_file is None: 
 		initial_conditions,robot_team_compositions = read_games_file(args.game_file)
 	else: 
-		df_param.num_trials = 1
+		df_param.num_trials = 10
 		df_param.robot_team_compositions = [
 			{
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
-			# {
-			# 'a': {'standard_robot':5,'evasive_robot':0},
-			# 'b': {'standard_robot':5,'evasive_robot':0}
-			# },
-			# {
-			# 'a': {'standard_robot':1,'evasive_robot':0},
-			# 'b': {'standard_robot':2,'evasive_robot':0}
-			# },						
+			{
+			'a': {'standard_robot':2,'evasive_robot':0},
+			'b': {'standard_robot':1,'evasive_robot':0}
+			},
+			{
+			'a': {'standard_robot':1,'evasive_robot':0},
+			'b': {'standard_robot':2,'evasive_robot':0}
+			},						
 		]		
 		initial_conditions,robot_team_compositions = make_games(df_param)
 
