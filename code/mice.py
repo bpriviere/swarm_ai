@@ -227,7 +227,7 @@ def make_loaders(df_param,batched_files,n_points):
 	for batched_file in batched_files: 
 
 		# o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
-		o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)
+		o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)									
 		
 		if curr_points < df_param.l_test_train_ratio * n_points: 
 
@@ -316,26 +316,28 @@ def evaluate_expert_wrapper(arg):
 def make_dataset(states,params,df_param):
 	print('making dataset...')
 
-	if df_param.l_mode == "IL" or df_param.l_mode == "DAgger":
-		params = set_params_sim_mode(params,"MCTS_RANDOM")
-	elif df_param.l_mode == "ExIt" or df_param.l_mode == "Mice":
-		params = set_params_sim_mode(params,"MCTS_GLAS")
+	temp = True 
 
-	if not df_param.l_parallel_on:
-		for states_per_file, param in zip(states, params): 
-			evaluate_expert(states_per_file, param, quiet_on=False)
-	else:
-		global pool_count
-		freeze_support()
-		ncpu = cpu_count()
-		print('ncpu: ', ncpu)
-		num_workers = min(ncpu-1, len(params))
-		with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
-			args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
-			r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
-			# p.starmap(evaluate_expert, states, params)
-			# p.starmap(evaluate_expert, list(zip(states, params)))
-		pool_count += num_workers
+	if not temp:
+
+		if df_param.l_mode == "IL" or df_param.l_mode == "DAgger":
+			params = set_params_sim_mode(params,"MCTS_RANDOM")
+		elif df_param.l_mode == "ExIt" or df_param.l_mode == "Mice":
+			params = set_params_sim_mode(params,"MCTS_GLAS")
+
+		if not df_param.l_parallel_on:
+			for states_per_file, param in zip(states, params): 
+				evaluate_expert(states_per_file, param, quiet_on=False)
+		else:
+			global pool_count
+			freeze_support()
+			ncpu = cpu_count()
+			print('ncpu: ', ncpu)
+			num_workers = min(ncpu-1, len(params))
+			with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
+				args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
+				r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
+			pool_count += num_workers
 
 	# labelled dataset 
 	print('cleaning labelled data...')
@@ -421,7 +423,7 @@ if __name__ == '__main__':
 	pool_count = 0
 
 	df_param = Param() 
-	df_param.clean_data_on = True
+	df_param.clean_data_on = False	
 	df_param.make_data_on = True
 
 	print('Clean old data on: {}'.format(df_param.clean_data_on))
