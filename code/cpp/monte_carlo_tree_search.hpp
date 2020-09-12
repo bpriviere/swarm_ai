@@ -63,11 +63,15 @@ class MonteCarloTreeSearch {
     Environment& environment,
     URNG& generator,
     size_t num_nodes,
-    float Cp)
+    float Cp,
+    float pw_C,
+    float pw_alpha)
     : m_env(environment)
     , m_generator(generator)
     , m_num_nodes(num_nodes)
     , m_Cp(Cp)
+    , m_pw_C(pw_C)
+    , m_pw_alpha(pw_alpha)
     {}
 
   bool search(const State& startState, Action& result) {
@@ -120,6 +124,45 @@ class MonteCarloTreeSearch {
     return result;
   }
 
+  void exportToDot(std::ostream& stream) const
+  {
+    stream << "digraph MCTS {\n";
+    stream << "\tnode[label=\"\"];\n";
+    stream << "\tnode[shape=point];\n";
+
+    // compute depth -> {idx} lookup table
+    std::map<size_t, std::vector<size_t>> depthToIdx;
+    for (size_t i = 0; i < m_nodes.size(); ++i) {
+      size_t depth = m_nodes[i].computeDepth();
+      depthToIdx[depth].push_back(i);
+    }
+
+    // output nodes with the same rank (depth)
+    for (const auto& iter : depthToIdx) {
+      stream << "\t# rank " << iter.first << " with " << iter.second.size() << " nodes\n";
+      stream << "\t{rank=same";
+      for (size_t i : iter.second) {
+        stream << ";n" << i;
+      }
+      stream << "}\n";
+    }
+
+    // output node value
+    for (size_t i = 1; i < m_nodes.size(); ++i) {
+      float value = m_env.rewardToFloat(m_nodes[i].parent->state, m_nodes[i].reward) / m_nodes[i].number_of_visits;
+      stream << "\tn" << i << " [width=" << value << "]\n";
+    }
+
+    // output nodes
+    for (size_t i = 0; i < m_nodes.size(); ++i) {
+      if (m_nodes[i].parent) {
+        size_t j = m_nodes[i].parent - &m_nodes[0];
+        stream << "\tn" << j << " -> n" << i << "\n";
+      }
+    }
+    stream << "}\n";
+  }
+
 
  private:
   struct Node {
@@ -145,23 +188,37 @@ class MonteCarloTreeSearch {
     std::vector<Node*> children;
     bool gotActions;
     std::vector<Action> untried_actions;
+
+    size_t computeDepth() const {
+      size_t depth = 0;
+      const Node* ptr = parent;
+      while(ptr) {
+        ptr = ptr->parent;
+        ++depth;
+      }
+      return depth;
+    }
+
   };
 
   Node* treePolicy(Node& node)
   {
     Node* nodePtr = &node;
     while (nodePtr && !m_env.isTerminal(nodePtr->state)) {
-      // try to expand this node
-      Node* child = expand(nodePtr);
-      if (child != nullptr) {
-        return child;
-      } else {
-        child = bestChild(nodePtr, m_Cp);
-        if (child == nullptr) {
-          return nodePtr;
+
+      // Use progressive widening, see https://hal.archives-ouvertes.fr/hal-00542673v1/document
+      size_t maxChildren = ceil(m_pw_C * powf(nodePtr->number_of_visits, m_pw_alpha));
+      if (nodePtr->children.size() < maxChildren) {
+        Node* child = expand(nodePtr);
+        if (child != nullptr) {
+          return child;
         }
-        nodePtr = child;
       }
+      Node* child = bestChild(nodePtr, m_Cp);
+      if (child == nullptr) {
+        return nodePtr;
+      }
+      nodePtr = child;
     }
     return nodePtr;
   }
@@ -267,6 +324,8 @@ class MonteCarloTreeSearch {
   std::vector<Node> m_nodes;
   size_t m_num_nodes;
   float m_Cp;
+  float m_pw_C;
+  float m_pw_alpha;
 };
 
 }  // namespace libMultiRobotPlanning

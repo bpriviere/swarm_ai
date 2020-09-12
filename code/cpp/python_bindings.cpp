@@ -1,5 +1,6 @@
 #include <sstream>
 #include <random>
+#include <fstream>
 
 #include <Eigen/Geometry>
 
@@ -29,7 +30,7 @@ typedef GameState<RobotT> GameStateT;
 typedef Game<RobotT> GameT;
 typedef DeepSetNN<RobotT::StateDim> DeepSetNNT;
 typedef DiscreteEmptyNet<RobotT::StateDim> DiscreteEmptyNetT;
-typedef GLAS<RobotT::StateDim> GLAST;
+typedef GLAS<RobotT> GLAST;
 
 // global variables
 std::random_device g_r;
@@ -62,15 +63,23 @@ MCTSResult search(
   const GameT::GameStateT& startState,
   size_t num_nodes,
   float rollout_beta,
-  float Cp)
+  float Cp,
+  float pw_C,
+  float pw_alpha,
+  const char* export_dot = nullptr)
 {
   game.setRolloutBeta(rollout_beta);
   MCTSResult result;
-  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(game, g_generator, num_nodes, Cp);
+  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(
+    game, g_generator, num_nodes, Cp, pw_C, pw_alpha);
   result.success = mcts.search(startState, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
     result.valuePerAction = mcts.valuePerAction();
+  }
+  if (export_dot) {
+    std::ofstream stream(export_dot);
+    mcts.exportToDot(stream);
   }
   return result;
 }
@@ -80,7 +89,7 @@ GameT::GameActionT eval(
   const GameT::GameStateT& startState,
   bool deterministic)
 {
-  return computeActionsWithGLAS(game.glasA(), game.glasB(), startState, game.goal(), game.attackerTypes(), game.defenderTypes(), g_generator, deterministic);
+  return computeActionsWithGLAS(game.glasA(), game.glasB(), startState, game.goal(), game.attackerTypes(), game.defenderTypes(), game.dt(), deterministic);
 }
 
 
@@ -89,7 +98,15 @@ PYBIND11_MODULE(mctscpp, m) {
 
   // helper functions
   m.def("seed", &seed);
-  m.def("search", &search);
+  m.def("search", &search,
+    "game"_a,
+    "start_state"_a,
+    "num_nodes"_a,
+    "rollout_beta"_a,
+    "Cp"_a,
+    "pw_C"_a,
+    "pw_alpha"_a,
+    "export_dot"_a = nullptr);
   m.def("eval", &eval);
 
   // helper classes
