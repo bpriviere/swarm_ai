@@ -3,7 +3,7 @@
 ### Dependencies
 
 ```
-sudo apt install libeigen3-dev
+sudo apt install -y libeigen3-dev libyaml-cpp-dev
 ```
 
 This relies on pybind11, which is a submodule, so don't forget to

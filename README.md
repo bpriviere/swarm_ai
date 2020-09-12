@@ -10,14 +10,18 @@ These instructions were developed on a virtual machine on Windows running Xubunt
 ### Setting up (X)ubuntu 20.04
 Install dependencies for VM Addons (reboot required)
 ```
-sudo apt-get install build-essential gcc make perl dkms
+sudo apt-get install -y build-essential gcc make cmake python3-dev libyaml-cpp-dev libeigen3-dev ffmpeg
 ```
 
+Additional dependencies for if running as a VM (reboot requried)
+```
+sudo apt-get install -y perl dkms
+```
 
 ### Python3
 Requires python3.X (X>=6 should be ok)
 ```
-sudo apt install ffmpeg python3-pip -y
+sudo apt install python3-pip -y
 pip3 install wheel
 pip3 install numpy gym pandas matplotlib opencv-python cvxpy
 ```
@@ -66,6 +70,18 @@ sudo snap install --classic code
 Upon opening a python file in VS Code, should be prompted to install a python add-on.
 Install the python add-on and then make sure `Python 3.X.X 64-bit (/usr/bin/python3)` is selected
 Also should install pylint (used for debugging) as well.
+
+### Swarm Code
+Clone the repo with (submodules should automatically update)
+```
+git clone --recurse-submodules https://github.com/bpriviere/swarm_ai.git 
+```
+
+### Compiling the cpp Components
+Follow the instructions at 
+```
+https://github.com/bpriviere/swarm_ai/tree/master/code/cpp
+```
 
 ## Running the software
 ### Before First Run
@@ -123,3 +139,64 @@ Batch processing can be invoked by specifying the folder (remember the trailing 
 ```
 code$ python3 plotter.py ../current_results/ --outputPDF ../plots/test.pdf --outputMP4 ../plots/test.mp4
 ```
+
+## Implementing on RaspberryPi 4
+Readme file for getting the code to execute on an embedded environment.  Tested on a RaspberryPi 4 (2GB)
+
+### Setting up RaspberryPi 4
+From the Ubuntu Website (https://ubuntu.com/download/raspberry-pi), and use the 64-bit version of Ubuntu 20.04.1
+```
+ubuntu-20.04.1-preinstalled-server-arm64+raspi.img
+```
+Follow the instruction at 
+```
+https://ubuntu.com/tutorials/how-to-install-ubuntu-on-your-raspberry-pi
+```
+to set the system up.  Don't forget to add a file `ssh` (no extension, empty file) to the boot directory to enable ssh into the system.  This step isn't mentioned in the walkthrough but ssh is disabled unless this file is present.
+
+Other things during first log in
+```
+hostnamectl set-hostname swarm
+sudo adduser swarm
+sudo adduser swarm sudo
+```
+
+Restart RPi (`sudo reboot`), and log back in as `swarm`.  
+```
+sudo userdel -r ubuntu
+
+sudo apt update
+sudo apt upgrade -y
+```
+
+Install a desktop environment
+```
+sudo apt install -y xubuntu-desktop
+sudo reboot
+```
+
+### Software Requirements
+Requires python3.X (X>=6 should be ok)
+```
+sudo apt install -y build-essential gcc make cmake python3-dev libyaml-cpp-dev libeigen3-dev
+sudo apt install python3-pip -y
+pip3 install wheel
+pip3 install numpy matplotlib
+```
+
+### Download the code
+```
+git clone --recurse-submodules https://github.com/bpriviere/swarm_ai.git 
+```
+
+### Running the code
+Follow the instruction at
+```
+https://github.com/bpriviere/swarm_ai/tree/master/code/cpp
+```
+and where you run the test script
+```
+python3 test_python_binding.py
+```
+just make sure to comment out the parts that need torch.
+
