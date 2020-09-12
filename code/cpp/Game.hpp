@@ -245,7 +245,7 @@ class Game {
         // Use NN if rollout_beta is > 0 probabilistically
         assert(m_glas_a.valid() && m_glas_b.valid());
 
-        const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator, false);
+        const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_dt, false);
         // TODO: need some logic here to only allow valid actions...
 
         // step twice (once for each player)
@@ -322,12 +322,12 @@ class Game {
     m_rollout_beta = rollout_beta;
   }
 
-  GLAS<Robot::StateDim>& glasA()
+  GLAS<Robot>& glasA()
   {
     return m_glas_a;
   }
 
-  GLAS<Robot::StateDim>& glasB()
+  GLAS<Robot>& glasB()
   {
     return m_glas_b;
   }
@@ -345,6 +345,11 @@ class Game {
   const auto& goal() const
   {
     return m_goal;
+  }
+
+  float dt() const
+  {
+    return m_dt;
   }
 
 private:
@@ -442,7 +447,7 @@ private:
   Eigen::Matrix<float, Robot::StateDim, 1> m_goal;
   size_t m_maxDepth;
   std::default_random_engine& m_generator;
-  GLAS<Robot::StateDim> m_glas_a;
-  GLAS<Robot::StateDim> m_glas_b;
+  GLAS<Robot> m_glas_a;
+  GLAS<Robot> m_glas_b;
   float m_rollout_beta;
 };
