@@ -136,11 +136,11 @@ if __name__ == '__main__':
 	df_param.env_l = 1.0 # from 0.5 
 	df_param.modes = ["GLAS", "MCTS 0.0", "MCTS 0.5", "MCTS 1.0"]
 	df_param.mcts_tree_sizes = [1000,5000,10000,50000,100000,500000] 
-	df_param.path_glas_model_a = "../saved/new_value_policy_glas_IL/a7.pt"
-	df_param.path_glas_model_b = "../saved/new_value_policy_glas_IL/b7.pt"
+	df_param.path_glas_model_a = "../saved/IL/models/a4.pt"
+	df_param.path_glas_model_b = "../saved/IL/models/b4.pt"
 	df_param.robot_team_compositions = [
 		{
-		'a': {'standard_robot':2,'evasive_robot':0},
+		'a': {'standard_robot':1,'evasive_robot':0},
 		'b': {'standard_robot':1,'evasive_robot':0}
 		},
 		]

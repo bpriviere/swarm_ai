@@ -23,7 +23,7 @@ class PanagouPolicy:
 		self.theta_noms, self.terminal_times = find_nominal_solns(self.param,self.robots)
 
 		# discretize
-		num_theta = 200
+		num_theta = 50
 		self.thetas = 2*np.pi/num_theta * np.arange(num_theta)
 		self.times = np.arange(0,1.5*max(self.terminal_times),self.param.sim_dt)
 

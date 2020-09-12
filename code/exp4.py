@@ -127,8 +127,8 @@ def main():
 		df_param.env_l = 1.0
 		df_param.make_environment()
 		df_param.sim_modes = ["EXPECTED_VALUE","GLAS"] #["GLAS"]
-		df_param.path_glas_model_a = '../saved/new_value_policy_glas_IL/a7.pt'
-		df_param.path_glas_model_b = '../saved/new_value_policy_glas_IL/b7.pt'
+		df_param.path_glas_model_a = '../saved/value_fnc_test/a3.pt'
+		df_param.path_glas_model_b = '../saved/value_fnc_test/b3.pt'
 		df_param.mcts_tree_size = 10000
 		dx = 0.05
 		df_param.dss, df_param.X, df_param.Y = discretize_state_space(df_param,dx,dx)

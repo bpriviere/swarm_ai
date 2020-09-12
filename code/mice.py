@@ -77,17 +77,6 @@ def format_data(o_a,o_b,goal):
 
 def train(model,optimizer,loader):
 	
-	# loss_func = torch.nn.MultiLabelSoftMarginLoss()  
-	# epoch_loss = 0
-	# for step, (o_a,o_b,goal,action) in enumerate(loader): 
-	# 	prediction = model(o_a,o_b,goal,training=True)
-	# 	loss = loss_func(prediction, action)
-	# 	optimizer.zero_grad()   
-	# 	loss.backward()         
-	# 	optimizer.step()        
-	# 	epoch_loss += float(loss)
-	# return epoch_loss/(step+1)
-
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
 		value,policy = model(o_a,o_b,goal,training=True)
@@ -102,15 +91,6 @@ def train(model,optimizer,loader):
 
 
 def test(model,optimizer,loader):
-
-	# loss_func = torch.nn.MultiLabelSoftMarginLoss()  
-	# epoch_loss = 0
-	# for step, (o_a,o_b,goal,action) in enumerate(loader): 
-	# 	prediction = model(o_a,o_b,goal,training=True)     
-	# 	loss = loss_func(prediction, action) 
-	# 	epoch_loss += float(loss)
-	# return epoch_loss/(step+1)
-
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
 		value,policy = model(o_a,o_b,goal,training=True)
@@ -169,12 +149,6 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 	elif param.training_team == "b":
 		robot_idxs = param.team_2_idxs
 
-	# for timestep,(state,action) in enumerate(zip(states,actions)):
-	# 	for robot_idx in robot_idxs:
-	# 		o_a, o_b, goal = relative_state(state,param,robot_idx)
-	# 		key = (param.training_team,len(o_a),len(o_b))
-	# 		oa_pairs_by_size[key].append((o_a, o_b, goal, action[robot_idx,:]))
-
 	for timestep,(state,action,value) in enumerate(zip(states,actions,values)):
 		for robot_idx in robot_idxs:
 			o_a, o_b, goal = relative_state(state,param,robot_idx)
@@ -189,9 +163,6 @@ def write_labelled_data(df_param,oa_pairs_by_size):
 	for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
 		batch_num = 0 
 		batched_dataset = [] 
-
-		# for (o_a, o_b, goal, action) in oa_pairs:
-		# 	data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(action).flatten()))
 
 		for (o_a, o_b, goal, value, action) in oa_pairs:
 			data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(value).flatten(),np.array(action).flatten()))
@@ -211,7 +182,6 @@ def get_dataset_size(df_param,batched_files):
 	n_points = 0 
 	for batched_file in batched_files:
 
-		# o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
 		o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)
 
 		n_points += action.shape[0]
@@ -226,17 +196,9 @@ def make_loaders(df_param,batched_files,n_points):
 	curr_points, train_dataset_size, test_dataset_size = 0,0,0
 	for batched_file in batched_files: 
 
-		# o_a,o_b,goal,action = dh.read_oa_batch(batched_file)
 		o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)									
 		
 		if curr_points < df_param.l_test_train_ratio * n_points: 
-
-			# train_loader.append([
-			# 	torch.from_numpy(o_a).float().to(df_param.device),
-			# 	torch.from_numpy(o_b).float().to(df_param.device),
-			# 	torch.from_numpy(goal).float().to(df_param.device),
-			# 	torch.from_numpy(action).float().to(df_param.device)])
-
 			train_loader.append([
 				torch.from_numpy(o_a).float().to(df_param.device),
 				torch.from_numpy(o_b).float().to(df_param.device),
@@ -247,13 +209,6 @@ def make_loaders(df_param,batched_files,n_points):
 			train_dataset_size += action.shape[0]
 
 		elif curr_points < n_points:
-
-			# test_loader.append([
-			# 	torch.from_numpy(o_a).float().to(df_param.device),
-			# 	torch.from_numpy(o_b).float().to(df_param.device),
-			# 	torch.from_numpy(goal).float().to(df_param.device),
-			# 	torch.from_numpy(action).float().to(df_param.device)]) 
-
 			test_loader.append([
 				torch.from_numpy(o_a).float().to(df_param.device),
 				torch.from_numpy(o_b).float().to(df_param.device),
@@ -316,28 +271,26 @@ def evaluate_expert_wrapper(arg):
 def make_dataset(states,params,df_param):
 	print('making dataset...')
 
-	temp = True 
+	if df_param.l_mode == "IL" or df_param.l_mode == "DAgger":
+		params = set_params_sim_mode(params,"MCTS_RANDOM")
+	elif df_param.l_mode == "ExIt" or df_param.l_mode == "Mice":
+		params = set_params_sim_mode(params,"MCTS_GLAS")
 
-	if not temp:
-
-		if df_param.l_mode == "IL" or df_param.l_mode == "DAgger":
-			params = set_params_sim_mode(params,"MCTS_RANDOM")
-		elif df_param.l_mode == "ExIt" or df_param.l_mode == "Mice":
-			params = set_params_sim_mode(params,"MCTS_GLAS")
-
-		if not df_param.l_parallel_on:
-			for states_per_file, param in zip(states, params): 
-				evaluate_expert(states_per_file, param, quiet_on=False)
-		else:
-			global pool_count
-			freeze_support()
-			ncpu = cpu_count()
-			print('ncpu: ', ncpu)
-			num_workers = min(ncpu-1, len(params))
-			with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
-				args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
-				r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
-			pool_count += num_workers
+	if not df_param.l_parallel_on:
+		for states_per_file, param in zip(states, params): 
+			evaluate_expert(states_per_file, param, quiet_on=False)
+	else:
+		global pool_count
+		freeze_support()
+		ncpu = cpu_count()
+		print('ncpu: ', ncpu)
+		num_workers = min(ncpu-1, len(params))
+		with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
+			args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
+			r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
+			# p.starmap(evaluate_expert, states, params)
+			# p.starmap(evaluate_expert, list(zip(states, params)))
+		pool_count += num_workers
 
 	# labelled dataset 
 	print('cleaning labelled data...')
@@ -423,7 +376,7 @@ if __name__ == '__main__':
 	pool_count = 0
 
 	df_param = Param() 
-	df_param.clean_data_on = False	
+	df_param.clean_data_on = True
 	df_param.make_data_on = True
 
 	print('Clean old data on: {}'.format(df_param.clean_data_on))

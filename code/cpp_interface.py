@@ -7,8 +7,6 @@ from collections import defaultdict
 from multiprocessing import current_process
 
 # ours
-# from learning.discrete_emptynet import DiscreteEmptyNet
-# from mice import format_data, relative_state
 from cpp.buildRelease import mctscpp
 from benchmark.panagou import PanagouPolicy
 import datahandler as dh
@@ -153,13 +151,9 @@ def play_game(param,deterministic=True):
 
 	if param.policy_a_dict["sim_mode"] in ["GLAS" , "MCTS_GLAS" , "MCTS_RANDOM"]:
 		param.path_glas_model_a = param.policy_a_dict["path_glas_model_a"]
-		# glas_model_a = DiscreteEmptyNet(param, "cpu")
-		# glas_model_a.load_state_dict(torch.load(param.path_glas_model_a))
 
 	if param.policy_b_dict["sim_mode"] in ["GLAS" , "MCTS_GLAS" , "MCTS_RANDOM"]:
 		param.path_glas_model_b = param.policy_b_dict["path_glas_model_b"]
-		# glas_model_b = DiscreteEmptyNet(param, "cpu")
-		# glas_model_b.load_state_dict(torch.load(param.path_glas_model_b))		
 
 	if param.policy_a_dict["sim_mode"] == "PANAGOU" or param.policy_b_dict["sim_mode"] == "PANAGOU":
 		pp = PanagouPolicy(param)
@@ -175,22 +169,15 @@ def play_game(param,deterministic=True):
 	gs = state_to_cpp_game_state(param,state,"a")
 	count = 0 
 	while True:
-		# gs.attackersReward = 0
-		# gs.defendersReward = 0
 		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
 			action = [] 
 			policy_dict = param.policy_a_dict
 			idxs = param.team_1_idxs
-			# if param.policy_a_dict["sim_mode"] in ["GLAS" , "MCTS_GLAS" , "MCTS_RANDOM"]:
-			# 	model = glas_model_a 
-
 		elif gs.turn == mctscpp.GameState.Turn.Defenders:
 			policy_dict = param.policy_b_dict
 			idxs = param.team_2_idxs 
-			# if param.policy_b_dict["sim_mode"] in ["GLAS" , "MCTS_GLAS" , "MCTS_RANDOM"]:
-			# 	model = glas_model_b 
 
 		if "MCTS" in policy_dict["sim_mode"]:
 			
@@ -209,14 +196,6 @@ def play_game(param,deterministic=True):
 		elif policy_dict["sim_mode"] == "GLAS":
 
 			action = mctscpp.eval(g, gs, deterministic)
-
-			# pstate = cpp_state_to_pstate(gs)
-			# action = np.zeros((len(param.robots),2))
-			# for idx in idxs: 
-			# 	o_a,o_b,goal = relative_state(state,param,idx)
-			# 	o_a,o_b,goal = format_data(o_a,o_b,goal)
-			# 	value,action[idx,:] = model(o_a,o_b,goal)
-
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "PANAGOU":

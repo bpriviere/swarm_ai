@@ -106,11 +106,6 @@ public:
     block = softmax(block);
     res(0) = (tanh(res(0))+1)/2;
 
-    // std::cout << 0 << std::endl;
-    // std::cout << res << std::endl;
-    // std::cout << 1 << std::endl;
-    // std::cout << res << std::endl;
-    
     return res;
   }
 
@@ -212,8 +207,6 @@ public:
       std::discrete_distribution<> dist(output.data(), output.data() + output.size());
       idx = dist(m_gen);
     }
-    // std::cout << 2 << std::endl;
-    // std::cout << m_actions[idx] << std::endl;    
     return m_actions[idx] * robotType.actionLimit();
   }
 

@@ -17,7 +17,7 @@ class Param:
 		self.sim_tf = 20
 		self.sim_dt = 0.25
 		self.sim_parallel_on = True
-		self.sim_mode = "MCTS_RANDOM" # MCTS_GLAS, MCTS_RANDOM, GLAS, PANAGOU (not implemented)
+		self.sim_mode = "GLAS" # MCTS_GLAS, MCTS_RANDOM, GLAS, PANAGOU (not implemented)
 
 		# robot types 
 		self.standard_robot = {
