@@ -118,7 +118,7 @@ def get_uniform_samples(params):
 
 def get_self_play_samples(params):
 	print('getting self-play samples...')
-	states = []
+	self_play_states = []
 	params = set_params_sim_mode(params,"GLAS")
 	for param in params: 
 		states_per_file = [] 
@@ -126,16 +126,17 @@ def get_self_play_samples(params):
 			param.state = param.make_initial_condition()
 			sim_result = self_play(param,deterministic=False)
 
-			# clean data 
-			states = sim_result["states"][np.logical_not(np.isnan(sim_result["states"]))]
+			# clean data
+			idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
+			states = sim_result["states"][idxs]
 
 			if len(states) > param.l_num_points_per_file:
 				states = states[0:param.l_num_points_per_file]
 			
 			states_per_file.extend(states)
-		states.append(states_per_file)
+		self_play_states.append(states_per_file)
 	print('self-play sample collection completed.')
-	return states
+	return self_play_states
 	
 
 def increment():
