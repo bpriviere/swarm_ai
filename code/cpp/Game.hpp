@@ -8,6 +8,12 @@
 
 #include "GLAS.hpp"
 
+#define REWARD_MODEL_BASIC_TERMINAL         1
+#define REWARD_MODEL_TIME_EXPANDED_TERMINAL 2
+#define REWARD_MODEL_CUMULATIVE             3
+
+#define REWARD_MODEL REWARD_MODEL_BASIC_TERMINAL
+
 typedef std::pair<float, float> Reward;
 
 Reward& operator+=(Reward& r1, const Reward& r2) {
@@ -144,6 +150,8 @@ class Game {
     }
 
     nextState.depth += 1;
+
+    nextState.cumulativeReward += computeReward(nextState);
 
     return true;
   }
@@ -282,8 +290,32 @@ class Game {
         break;
       }
     }
-    float r = computeReward(s);
-    return Reward(r, 1 - r);
+
+#if REWARD_MODEL == REWARD_MODEL_CUMULATIVE
+     // propagate reward for remaining timesteps
+    float reward = s.cumulativeReward;
+    assert(s.depth <= m_maxDepth + 1);
+    size_t remainingTimesteps = m_maxDepth + 1 - s.depth;
+    if (remainingTimesteps > 0) {
+      float r = computeReward(s);
+      reward += remainingTimesteps * r;
+    }
+    reward /= m_maxDepth;
+#endif
+
+#if REWARD_MODEL == REWARD_MODEL_TIME_EXPANDED_TERMINAL
+    // Option 2: accumulate terminal reward
+    assert(s.depth <= m_maxDepth + 1);
+    size_t remainingTimesteps = m_maxDepth + 1 - s.depth;
+    float reward = computeReward(s) * (remainingTimesteps + 1);
+    reward /= m_maxDepth;
+#endif
+
+#if REWARD_MODEL == REWARD_MODEL_BASIC_TERMINAL
+    float reward = computeReward(s);
+#endif
+
+    return Reward(reward, 1 - reward);
   }
 
 // private:

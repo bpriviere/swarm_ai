@@ -23,6 +23,7 @@ public:
     , attackers(attackers)
     , defenders(defenders)
     , depth(0)
+    , cumulativeReward(0)
   {
   }
 
@@ -31,6 +32,7 @@ public:
   std::vector<RobotStateT> defenders;
 
   size_t depth;
+  float cumulativeReward;
 
   friend std::ostream& operator<<(std::ostream& out, const GameState& s)
   {
@@ -54,6 +56,7 @@ public:
       out << defender << ",";
     }
     out <<"depth=" << s.depth;
+    out <<",cumReward=" << s.cumulativeReward;
     out << ")";
     return out;
   }
