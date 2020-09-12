@@ -102,10 +102,15 @@ public:
     X.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), 4) = goal;
 
     auto res = m_psi.eval(X);
-    auto block = res.rightCols(res.cols()-1);
-    // auto& block = res(Eigen::all,{1,2,3,4,5,6,7,8,9});
-    // auto& block = res(seq(1,9));
+    auto block = res.tail(res.size()-1);
     block = softmax(block);
+    res(0) = (tanh(res(0))+1)/2;
+
+    // std::cout << 0 << std::endl;
+    // std::cout << res << std::endl;
+    // std::cout << 1 << std::endl;
+    // std::cout << res << std::endl;
+    
     return res;
   }
 
@@ -177,7 +182,11 @@ public:
     bool deterministic) const
   {
     auto output = m_glas.eval(input_a, input_b, goal);
-    output.rightCols(output.cols()-1);
+    // std::cout << 0 << std::endl;
+    // std::cout << output << std::endl;    
+    output = output.tail(output.size()-1);
+    // std::cout << 1 << std::endl;
+    // std::cout << output << std::endl;    
     int idx;
     if (deterministic) {
       output.maxCoeff(&idx);
@@ -186,6 +195,8 @@ public:
       std::discrete_distribution<> dist(output.data(), output.data() + output.size());
       idx = dist(m_gen);
     }
+    // std::cout << 2 << std::endl;
+    // std::cout << m_actions[idx] << std::endl;    
     return m_actions[idx];
   }
 
