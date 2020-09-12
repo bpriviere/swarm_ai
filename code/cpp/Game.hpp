@@ -8,6 +8,12 @@
 
 #include "GLAS.hpp"
 
+#define REWARD_MODEL_BASIC_TERMINAL         1
+#define REWARD_MODEL_TIME_EXPANDED_TERMINAL 2
+#define REWARD_MODEL_CUMULATIVE             3
+
+#define REWARD_MODEL REWARD_MODEL_BASIC_TERMINAL
+
 typedef std::pair<float, float> Reward;
 
 Reward& operator+=(Reward& r1, const Reward& r2) {
@@ -145,6 +151,8 @@ class Game {
 
     nextState.depth += 1;
 
+    nextState.cumulativeReward += computeReward(nextState);
+
     return true;
   }
 
@@ -245,7 +253,7 @@ class Game {
         // Use NN if rollout_beta is > 0 probabilistically
         assert(m_glas_a.valid() && m_glas_b.valid());
 
-        const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_generator, false);
+        const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_dt, false);
         // TODO: need some logic here to only allow valid actions...
 
         // step twice (once for each player)
@@ -282,8 +290,32 @@ class Game {
         break;
       }
     }
-    float r = computeReward(s);
-    return Reward(r, 1 - r);
+
+#if REWARD_MODEL == REWARD_MODEL_CUMULATIVE
+     // propagate reward for remaining timesteps
+    float reward = s.cumulativeReward;
+    assert(s.depth <= m_maxDepth + 1);
+    size_t remainingTimesteps = m_maxDepth + 1 - s.depth;
+    if (remainingTimesteps > 0) {
+      float r = computeReward(s);
+      reward += remainingTimesteps * r;
+    }
+    reward /= m_maxDepth;
+#endif
+
+#if REWARD_MODEL == REWARD_MODEL_TIME_EXPANDED_TERMINAL
+    // Option 2: accumulate terminal reward
+    assert(s.depth <= m_maxDepth + 1);
+    size_t remainingTimesteps = m_maxDepth + 1 - s.depth;
+    float reward = computeReward(s) * (remainingTimesteps + 1);
+    reward /= m_maxDepth;
+#endif
+
+#if REWARD_MODEL == REWARD_MODEL_BASIC_TERMINAL
+    float reward = computeReward(s);
+#endif
+
+    return Reward(reward, 1 - reward);
   }
 
 // private:
@@ -322,12 +354,12 @@ class Game {
     m_rollout_beta = rollout_beta;
   }
 
-  GLAS<Robot::StateDim>& glasA()
+  GLAS<Robot>& glasA()
   {
     return m_glas_a;
   }
 
-  GLAS<Robot::StateDim>& glasB()
+  GLAS<Robot>& glasB()
   {
     return m_glas_b;
   }
@@ -345,6 +377,11 @@ class Game {
   const auto& goal() const
   {
     return m_goal;
+  }
+
+  float dt() const
+  {
+    return m_dt;
   }
 
 private:
@@ -442,7 +479,7 @@ private:
   Eigen::Matrix<float, Robot::StateDim, 1> m_goal;
   size_t m_maxDepth;
   std::default_random_engine& m_generator;
-  GLAS<Robot::StateDim> m_glas_a;
-  GLAS<Robot::StateDim> m_glas_b;
+  GLAS<Robot> m_glas_a;
+  GLAS<Robot> m_glas_b;
   float m_rollout_beta;
 };

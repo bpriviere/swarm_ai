@@ -134,11 +134,11 @@ private:
   FeedForwardNN m_psi;
 };
 
-template<int StateDim>
+template<class Robot>
 class GLAS
 {
 public:
-  typedef Eigen::Matrix<float, StateDim, 1> StateVector;
+  typedef Eigen::Matrix<float, Robot::StateDim, 1> StateVector;
 
   GLAS(std::default_random_engine& gen)
     : m_glas()
@@ -166,13 +166,34 @@ public:
     m_glas.psi().load(node, "psi");
   }
 
-  const Eigen::Vector2f& computeAction(
+  Eigen::Vector2f computeAction(
+    const typename Robot::State& state,
+    const typename Robot::Type& robotType,
+    float dt,
     const std::vector<StateVector>& input_a,
     const std::vector<StateVector>& input_b,
     const StateVector& goal,
     bool deterministic) const
   {
     auto output = m_glas.eval(input_a, input_b, goal);
+
+    // mask actions that are invalid by setting their weight to 0
+    bool anyValid = false;
+    typename Robot::State nextState;
+    for (size_t i = 0; i < m_actions.size(); ++i) {
+      auto a = m_actions[i] * robotType.actionLimit();
+      robotType.step(state, a, dt, nextState);
+      if (!robotType.isStateValid(nextState)) {
+        output(i) = 0;
+      } else {
+        anyValid = true;
+      }
+    }
+
+    if (!anyValid) {
+      return robotType.invalidAction;
+    }
+
     int idx;
     if (deterministic) {
       output.maxCoeff(&idx);
@@ -181,10 +202,10 @@ public:
       std::discrete_distribution<> dist(output.data(), output.data() + output.size());
       idx = dist(m_gen);
     }
-    return m_actions[idx];
+    return m_actions[idx] * robotType.actionLimit();
   }
 
-  DiscreteEmptyNet<StateDim>& discreteEmptyNet()
+  DiscreteEmptyNet<Robot::StateDim>& discreteEmptyNet()
   {
     return m_glas;
   }
@@ -195,7 +216,7 @@ public:
   }
 
 private:
-  DiscreteEmptyNet<StateDim> m_glas;
+  DiscreteEmptyNet<Robot::StateDim> m_glas;
 
   std::vector<Eigen::Vector2f> m_actions;
 
@@ -205,13 +226,13 @@ private:
 
 template<class Robot>
 std::vector<typename Robot::Action> computeActionsWithGLAS(
-  const GLAS<Robot::StateDim>& glas_a,
-  const GLAS<Robot::StateDim>& glas_b,
+  const GLAS<Robot>& glas_a,
+  const GLAS<Robot>& glas_b,
   const GameState<Robot>& state,
   const Eigen::Matrix<float, Robot::StateDim, 1>& goal,
   const std::vector<typename Robot::Type>& attackerTypes,
   const std::vector<typename Robot::Type>& defenderTypes,
-  std::default_random_engine& generator,
+  float dt,
   bool deterministic)
 {
   typedef Eigen::Matrix<float, Robot::StateDim, 1> StateVector;
@@ -252,8 +273,7 @@ std::vector<typename Robot::Action> computeActionsWithGLAS(
     relGoal.template head<2>() = relGoal.template head<2>() / std::max(alpha, 1.0f);
 
     // evaluate GLAS
-    auto a = glas_a.computeAction(input_a, input_b, relGoal, deterministic);
-    action[j] = a * attackerTypes[j].actionLimit();
+    action[j] = glas_a.computeAction(state.attackers[j].state, attackerTypes[j], dt, input_a, input_b, relGoal, deterministic);
   }
 
   // evaluate glas for all team members of b
@@ -284,8 +304,7 @@ std::vector<typename Robot::Action> computeActionsWithGLAS(
     relGoal.segment(0,2) = relGoal.segment(0,2) / std::max(alpha, 1.0f);
 
     // evaluate GLAS
-    auto a = glas_b.computeAction(input_a, input_b, relGoal, deterministic);
-    action[NumAttackers + j] = a * defenderTypes[j].actionLimit();
+    action[NumAttackers + j] = glas_b.computeAction(state.defenders[j].state, defenderTypes[j], dt, input_a, input_b, relGoal, deterministic);
   }
 
   return action;

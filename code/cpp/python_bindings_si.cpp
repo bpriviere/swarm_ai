@@ -30,7 +30,7 @@ typedef GameState<RobotT> GameStateT;
 typedef Game<RobotT> GameT;
 typedef DeepSetNN<RobotT::StateDim> DeepSetNNT;
 typedef DiscreteEmptyNet<RobotT::StateDim> DiscreteEmptyNetT;
-typedef GLAS<RobotT::StateDim> GLAST;
+typedef GLAS<RobotT> GLAST;
 
 // global variables
 std::random_device g_r;
@@ -89,7 +89,7 @@ GameT::GameActionT eval(
   const GameT::GameStateT& startState,
   bool deterministic)
 {
-  return computeActionsWithGLAS(game.glasA(), game.glasB(), startState, game.goal(), game.attackerTypes(), game.defenderTypes(), g_generator, deterministic);
+  return computeActionsWithGLAS(game.glasA(), game.glasB(), startState, game.goal(), game.attackerTypes(), game.defenderTypes(), game.dt(), deterministic);
 }
 
 PYBIND11_MODULE(mctscppsi, m) {
