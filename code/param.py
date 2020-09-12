@@ -58,6 +58,8 @@ class Param:
 		self.mcts_rollout_horizon = 1000
 		self.mcts_rollout_beta = 0.0 # 0 -> 1 : random -> GLAS
 		self.mcts_c_param = 1.4
+		self.mcts_pw_C = 1.0		# Progressive Widening scalar
+		self.mcts_pw_alpha = 0.25	# Progressive Widening exponent
 
 		# learning (l) parameters 
 		self.device = 'cpu'

@@ -115,7 +115,9 @@ def expected_value(param):
 	g = param_to_cpp_game(param) 
 	state = np.array(param.state)
 	gs = state_to_cpp_game_state(param,state,"a")
-	mctsresult = mctscpp.search(g, gs, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
+	mctsresult = mctscpp.search(g, gs,
+		param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param,
+		param.mcts_pw_C, param.mcts_pw_alpha)
 	return mctsresult.expectedReward
 
 def self_play(param):
@@ -134,9 +136,14 @@ def self_play(param):
 		param.policy_a_dict["mcts_tree_size"] = param.mcts_tree_size
 		param.policy_a_dict["mcts_rollout_beta"] = param.mcts_rollout_beta
 		param.policy_a_dict["mcts_c_param"] = param.mcts_c_param
+		param.policy_a_dict["mcts_pw_C"] = param.mcts_pw_C
+		param.policy_a_dict["mcts_pw_alpha"] = param.mcts_pw_alpha
+		
 		param.policy_b_dict["mcts_tree_size"] = param.mcts_tree_size
 		param.policy_b_dict["mcts_rollout_beta"] = param.mcts_rollout_beta
 		param.policy_b_dict["mcts_c_param"] = param.mcts_c_param
+		param.policy_b_dict["mcts_pw_C"] = param.mcts_pw_C
+		param.policy_b_dict["mcts_pw_alpha"] = param.mcts_pw_alpha
 
 	return play_game(param)
 
@@ -178,7 +185,11 @@ def play_game(param):
 		if "MCTS" in policy_dict["sim_mode"]:
 			
 			mctsresult = mctscpp.search(g, gs, \
-				policy_dict["mcts_tree_size"], policy_dict["mcts_rollout_beta"], policy_dict["mcts_c_param"])
+				policy_dict["mcts_tree_size"],
+				policy_dict["mcts_rollout_beta"],
+				policy_dict["mcts_c_param"],
+				policy_dict["mcts_pw_C"],
+				policy_dict["mcts_pw_alpha"])
 			if mctsresult.success: 
 				team_action = mctsresult.bestAction
 				success = g.step(gs, team_action, gs)
@@ -262,7 +273,9 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 
 	for state in enumeration:
 		game_state = state_to_cpp_game_state(param,state,param.training_team)
-		mctsresult = mctscpp.search(game, game_state, param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param)
+		mctsresult = mctscpp.search(game, game_state,
+			param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param,
+			param.mcts_pw_C, param.mcts_pw_alpha)
 		if mctsresult.success: 
 			action = value_to_dist(param,mctsresult.valuePerAction) # 
 			value = mctsresult.expectedReward[0]
