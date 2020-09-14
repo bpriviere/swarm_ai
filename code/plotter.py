@@ -12,6 +12,8 @@ from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from collections import defaultdict
 
+import seaborn as sns
+
 import matplotlib.transforms as mtransforms
 import cv2
 import imutils
@@ -325,10 +327,23 @@ def plot_tree_results(sim_result,title=None):
 		gamma = reward_1 * 2 - 1 
 		return gamma 
 
-	times = sim_result["times"]
-	states = sim_result["states"]
-	actions = sim_result["actions"]
-	rewards = sim_result["rewards"]
+	states = sim_result["states"][0:137]
+	actions = sim_result["actions"][0:137]
+
+	# states = sim_result["states"]
+	# actions = sim_result["actions"]	
+
+	nt, nrobots, state_dim = states.shape 
+
+	if "times" in sim_result.keys():
+		times = sim_result["times"]
+	else: 
+		times = range(nt)
+	if "rewards" in sim_result.keys():
+		rewards = sim_result["rewards"]
+	else: 
+		rewards = np.nan*np.ones((nt,2))
+
 	team_1_idxs = sim_result["param"]["team_1_idxs"]
 	num_nodes = sim_result["param"]["num_nodes"]
 	goal = sim_result["param"]["goal"]
@@ -667,6 +682,50 @@ def policy_to_label(policy):
 	
 	return label
 
+# def plot_exp3_results(all_sim_results):
+	
+# 	results = defaultdict(list)
+# 	for sim_result in all_sim_results:
+# 		key = (\
+# 			policy_to_label(sim_result["param"]["policy_a_dict"]),
+# 			policy_to_label(sim_result["param"]["policy_b_dict"]))
+# 		results[key].append(sim_result["rewards"][-1,0])
+
+# 	attackerPolicies = all_sim_results[0]["param"]["attackerPolicyDicts"]
+# 	defenderPolicies = all_sim_results[0]["param"]["defenderPolicyDicts"]
+
+# 	mean_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+# 	std_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+# 	for a_idx, policy_a_dict in enumerate(attackerPolicies):
+# 		for b_idx, policy_b_dict in enumerate(defenderPolicies):
+# 			# key = (sim_mode_a, path_glas_model_a,sim_mode_b,path_glas_model_b)
+# 			key = (\
+# 				policy_to_label(policy_a_dict),
+# 				policy_to_label(policy_b_dict))			
+# 			mean_result[a_idx,b_idx] = np.mean(results[key])
+# 			std_result[a_idx,b_idx] = np.std(results[key])
+
+# 	xticklabels = []
+# 	for policy_b_dict in defenderPolicies:
+# 		xticklabels.append(policy_to_label(policy_b_dict))
+
+# 	b_idxs = np.arange(len(defenderPolicies))
+
+# 	fig,ax = plt.subplots()
+# 	# colors = get_n_colors(len(attackerPolicies))
+
+# 	for a_idx, policy_a_dict in enumerate(attackerPolicies):
+
+# 		label = policy_to_label(policy_a_dict)
+# 		line = ax.plot(b_idxs,mean_result[a_idx,:],marker='o',label=label)
+# 		ax.errorbar(b_idxs,mean_result[a_idx,:],std_result[a_idx,:],color=line[0].get_color(),alpha=0.2)
+
+# 	ax.set_xticks(range(len(defenderPolicies)))
+# 	ax.set_xticklabels(xticklabels,rotation=0)
+# 	ax.set_ylim([-0.05,1.05])
+# 	ax.legend()
+# 	ax.grid(True)
+
 def plot_exp3_results(all_sim_results):
 	
 	results = defaultdict(list)
@@ -691,25 +750,27 @@ def plot_exp3_results(all_sim_results):
 			std_result[a_idx,b_idx] = np.std(results[key])
 
 	xticklabels = []
-	for policy_b_dict in defenderPolicies:
-		xticklabels.append(policy_to_label(policy_b_dict))
+	for policy_a_dict in attackerPolicies:
+		xticklabels.append(policy_to_label(policy_a_dict))
 
-	b_idxs = np.arange(len(defenderPolicies))
+	yticklabels = []
+	for policy_b_dict in defenderPolicies:
+		yticklabels.append(policy_to_label(policy_b_dict))
 
 	fig,ax = plt.subplots()
-	# colors = get_n_colors(len(attackerPolicies))
-
-	for a_idx, policy_a_dict in enumerate(attackerPolicies):
-
-		label = policy_to_label(policy_a_dict)
-		line = ax.plot(b_idxs,mean_result[a_idx,:],marker='o',label=label)
-		ax.errorbar(b_idxs,mean_result[a_idx,:],std_result[a_idx,:],color=line[0].get_color(),alpha=0.2)
-
-	ax.set_xticks(range(len(defenderPolicies)))
-	ax.set_xticklabels(xticklabels,rotation=0)
-	ax.set_ylim([-0.05,1.05])
-	ax.legend()
-	ax.grid(True)
+	# im = ax.imshow(mean_result,origin='lower',vmin=0,vmax=1,cmap=cm.seaborn)
+	ax = sns.heatmap(mean_result,vmin=0,vmax=1)
+	# fig.colorbar(im)
+	# ax.set_xticks(range(len(attackerPolicies)))
+	# ax.set_yticks(range(len(defenderPolicies)))
+	ax.set_xticklabels(xticklabels,rotation=45)
+	ax.set_yticklabels(yticklabels,rotation=45)
+	ax.tick_params(axis='both',labelsize=5)
+	ax.set_xlabel('attackers')
+	ax.set_ylabel('defenders')
+	fig.tight_layout()
+	# ax.legend()
+	# ax.grid(True)
 
 
 def plot_convergence(all_sim_results):
@@ -1062,7 +1123,12 @@ if __name__ == '__main__':
 		o_a,o_b,goal,actions = dh.read_oa_batch(args.file)
 		oa_pairs = list(zip(o_a,o_b,goal,actions))
 		sampled_oa_pairs = random.sample(oa_pairs,num_points_per_file)
-		plot_oa_pairs(sampled_oa_pairs,abs_goal,training_team,rsense,action_list,env_length)		
+		plot_oa_pairs(sampled_oa_pairs,abs_goal,training_team,rsense,action_list,env_length)
+
+	if args.plot_type == "plot_sim_result" and not args.file is None: 	
+
+		sim_result = dh.load_sim_result(args.file)
+		plot_tree_results(sim_result)
 
 	save_figs('temp_plot.pdf')
 	open_figs('temp_plot.pdf')

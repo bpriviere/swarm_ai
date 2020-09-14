@@ -179,6 +179,7 @@ public:
     const StateVector& goal,
     bool deterministic) const
   {
+
     auto nn = m_glas.eval(input_a, input_b, goal);
     auto output = nn.tail(nn.size()-1);
 
