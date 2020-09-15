@@ -515,7 +515,7 @@ def plot_exp4_results(all_sim_results):
 
 	for sim_result in all_sim_results:
 		pos,i_x,i_y = get_initial_condition(sim_result["param"],X,Y)
-		sim_mode = sim_result["param"]["sim_mode"]
+		sim_mode = sim_result["param"]["policy_dict"]["sim_mode"]
 		results[sim_mode][i_x,i_y,sim_result["param"]["i_trial"]] = sim_result["rewards"][-1,0]
 
 	# values = np.zeros((X.shape[0],Y.shape[0],num_trials)) 
@@ -559,6 +559,7 @@ def plot_exp2_results(all_sim_results):
 	tree_sizes = all_sim_results[0]["param"]["mcts_tree_sizes"]
 	num_trials = all_sim_results[0]["param"]["sim_num_trials"]
 	team_comps = all_sim_results[0]["param"]["robot_team_compositions"]
+	mcts_rollout_betas = all_sim_results[0]["param"]["mcts_rollout_betas"]
 
 	# put into easy-to-use dict! 
 	results = dict()
@@ -566,10 +567,11 @@ def plot_exp2_results(all_sim_results):
 	for sim_result in all_sim_results:
 
 		team_comp = sim_result["param"]["robot_team_composition"]
-		tree_size = sim_result["param"]["mcts_tree_size"]
 		training_team = sim_result["param"]["training_team"]
 		trial = sim_result["param"]["sim_trial"]
-		mode = sim_result["param"]["mode"]
+		tree_size = sim_result["param"]["policy_dict"]["mcts_tree_size"]
+		mode = sim_result["param"]["policy_dict"]["sim_mode"]
+		beta = sim_result["param"]["policy_dict"]["mcts_rollout_beta"]
 
 		num_nodes_A, num_nodes_B = 0,0
 		for robot_type, robot_number in team_comp["a"].items():
@@ -577,9 +579,17 @@ def plot_exp2_results(all_sim_results):
 		for robot_Type, robot_number in team_comp["b"].items():
 			num_nodes_B += robot_number 
 
-		key = (num_nodes_A,num_nodes_B,tree_size,training_team,mode,trial)
-		# key = (tree_size,mode)
+		key = (num_nodes_A,num_nodes_B,tree_size,training_team,mode,beta,trial)
 		results[key] = sim_result
+
+	num_ims_per_ic = 0
+	for mode in modes: 
+		if mode == "GLAS":
+			betas = [0]
+		elif mode == "MCTS":
+			betas = mcts_rollout_betas
+		for beta in betas:  
+			num_ims_per_ic += 1
 
 	# make figs! 
 	for team_comp in team_comps: 
@@ -594,7 +604,7 @@ def plot_exp2_results(all_sim_results):
 
 			# plot initial condition
 			fig,ax = plt.subplots()
-			key = (num_nodes_A,num_nodes_B,tree_sizes[0],training_team,modes[0],i_trial)
+			key = (num_nodes_A,num_nodes_B,tree_sizes[0],training_team,modes[0],mcts_rollout_betas[0],i_trial)
 			fig.suptitle('Trial {}'.format(results[key]["param"]["curr_ic"]))
 			colors = get_colors(results[key]["param"])
 			ax.scatter(results[key]["param"]["goal"][0],results[key]["param"]["goal"][1],color='green',marker='o',label='goal')
@@ -618,53 +628,62 @@ def plot_exp2_results(all_sim_results):
 				for robot_idx in robot_idxs: 
 	
 					# plot policy distribution
-					fig, axs = plt.subplots(nrows=1,ncols=len(modes))
+					fig, axs = plt.subplots(nrows=1,ncols=num_ims_per_ic)
 					fig.suptitle('Trial {} Robot {}'.format(results[key]["param"]["curr_ic"],robot_idx))
+					count_ims_per_ic = 0
 
 					for i_mode, mode in enumerate(modes): 
 
-						im = np.nan*np.ones((len(tree_sizes),9))
+						if mode == "GLAS":
+							betas = [0]
+						elif mode == "MCTS":
+							betas = mcts_rollout_betas
+												
+						for beta in betas: 
 
-						for i_tree, tree_size in enumerate(tree_sizes): 
+							if mode == "MCTS":
+								title = "MCTS \n b = {}".format(beta)
+							elif mode == "GLAS":
+								title = "GLAS"
 
-							key = (num_nodes_A,num_nodes_B,tree_size,training_team,mode,i_trial)
-							# key = (tree_size,mode)
+							im = np.nan*np.ones((len(tree_sizes),9))
 
-							if len(modes) > 1:
-								ax = axs[i_mode]
+							if num_ims_per_ic > 1:
+								ax = axs[count_ims_per_ic]
+								count_ims_per_ic += 1
 							else:
 								ax = axs 
 
-							# results[key]["actions"] in num_points x nagents x action_dim 
+							for i_tree, tree_size in enumerate(tree_sizes): 
 
-							im[i_tree,:] = results[key]["actions"][0,robot_idx,:] 
-							# imobj = ax.imshow(im.T,vmin=0,vmax=0.5,cmap=cm.coolwarm)
-							imobj = ax.imshow(im.T,vmin=0,vmax=1.0,cmap=cm.coolwarm)
-							# imobj = ax.imshow(im.T,cmap=cm.coolwarm)
+								key = (num_nodes_A,num_nodes_B,tree_size,training_team,mode,beta,i_trial)
 
-							ax.set_xticks([])
-							ax.set_yticks([])
+								im[i_tree,:] = results[key]["actions"][0,robot_idx,:] 
+								imobj = ax.imshow(im.T,vmin=0,vmax=1.0,cmap=cm.coolwarm)
 
-						if i_mode == 0:
-							ax.set_ylabel('Action Distribution')
-							ax.set_yticks(np.arange(len(results[key]["param"]["actions"]))) # throws future warning 
-							ax.set_yticklabels(results[key]["param"]["actions"])
+								ax.set_xticks([])
+								ax.set_yticks([])
 
-						if i_mode == len(modes)-1 :
-							fig.subplots_adjust(right=0.8)
-							cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
-							fig.colorbar(imobj, cax=cbar_ax) 
+							if i_mode == 0:
+								ax.set_ylabel('Action Distribution')
+								ax.set_yticks(np.arange(len(results[key]["param"]["actions"]))) # throws future warning 
+								ax.set_yticklabels(results[key]["param"]["actions"])
 
-						ax.set_title(mode)
-						ax.set_xticks(np.arange(len(tree_sizes)))
-						ax.set_xticklabels(np.array(tree_sizes,dtype=int)/1000,rotation=45)
+							if i_mode == len(modes)-1 :
+								fig.subplots_adjust(right=0.8)
+								cbar_ax = fig.add_axes([0.85, 0.15, 0.05, 0.7])
+								fig.colorbar(imobj, cax=cbar_ax) 
+
+							ax.set_title(title)
+							ax.set_xticks(np.arange(len(tree_sizes)))
+							ax.set_xticklabels(np.array(tree_sizes,dtype=int)/1000,rotation=45)
 
 def policy_to_label(policy):
 	# keys = ["mcts_tree_size"]
 	# keys = ["sim_mode","path","mcts_tree_size"]
 	# keys = ["sim_mode","path","mcts_rollout_beta"] 
 	# keys = ["sim_mode","mcts_rollout_beta"] 
-	keys = ["sim_mode","mcts_rollout_beta","mcts_tree_size"] 
+	keys = ["sim_mode","mcts_rollout_beta","mcts_tree_size","mcts_c_param"] 
 	# keys = ["path"]
 	label = '' 
 	for key, value in policy.items():
@@ -675,56 +694,14 @@ def policy_to_label(policy):
 				label += ', b: {}'.format(value)
 		elif key == "mcts_tree_size":
 			label += ', |n|: {}'.format(value)
+		elif key == "mcts_c_param":
+			label += ', c: {}'.format(value)			
 		elif key == "sim_mode":
 			label += '{} '.format(value)
 		elif key in keys:  
 			label += ', {}'.format(value)
 	
 	return label
-
-# def plot_exp3_results(all_sim_results):
-	
-# 	results = defaultdict(list)
-# 	for sim_result in all_sim_results:
-# 		key = (\
-# 			policy_to_label(sim_result["param"]["policy_a_dict"]),
-# 			policy_to_label(sim_result["param"]["policy_b_dict"]))
-# 		results[key].append(sim_result["rewards"][-1,0])
-
-# 	attackerPolicies = all_sim_results[0]["param"]["attackerPolicyDicts"]
-# 	defenderPolicies = all_sim_results[0]["param"]["defenderPolicyDicts"]
-
-# 	mean_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
-# 	std_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
-# 	for a_idx, policy_a_dict in enumerate(attackerPolicies):
-# 		for b_idx, policy_b_dict in enumerate(defenderPolicies):
-# 			# key = (sim_mode_a, path_glas_model_a,sim_mode_b,path_glas_model_b)
-# 			key = (\
-# 				policy_to_label(policy_a_dict),
-# 				policy_to_label(policy_b_dict))			
-# 			mean_result[a_idx,b_idx] = np.mean(results[key])
-# 			std_result[a_idx,b_idx] = np.std(results[key])
-
-# 	xticklabels = []
-# 	for policy_b_dict in defenderPolicies:
-# 		xticklabels.append(policy_to_label(policy_b_dict))
-
-# 	b_idxs = np.arange(len(defenderPolicies))
-
-# 	fig,ax = plt.subplots()
-# 	# colors = get_n_colors(len(attackerPolicies))
-
-# 	for a_idx, policy_a_dict in enumerate(attackerPolicies):
-
-# 		label = policy_to_label(policy_a_dict)
-# 		line = ax.plot(b_idxs,mean_result[a_idx,:],marker='o',label=label)
-# 		ax.errorbar(b_idxs,mean_result[a_idx,:],std_result[a_idx,:],color=line[0].get_color(),alpha=0.2)
-
-# 	ax.set_xticks(range(len(defenderPolicies)))
-# 	ax.set_xticklabels(xticklabels,rotation=0)
-# 	ax.set_ylim([-0.05,1.05])
-# 	ax.legend()
-# 	ax.grid(True)
 
 def plot_exp3_results(all_sim_results):
 	
@@ -759,7 +736,7 @@ def plot_exp3_results(all_sim_results):
 
 	fig,ax = plt.subplots()
 	# im = ax.imshow(mean_result,origin='lower',vmin=0,vmax=1,cmap=cm.seaborn)
-	ax = sns.heatmap(mean_result,vmin=0,vmax=1)
+	ax = sns.heatmap(mean_result.T,vmin=0,vmax=1,annot=True)
 	# fig.colorbar(im)
 	# ax.set_xticks(range(len(attackerPolicies)))
 	# ax.set_yticks(range(len(defenderPolicies)))
