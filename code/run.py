@@ -60,9 +60,9 @@ if __name__ == '__main__':
 	# run sim 
 	print('running sims...')
 	if df_param.sim_parallel_on: 
-		pool = mp.Pool(min((mp.cpu_count()-1,df_param.sim_num_trials)))
-		for _ in pool.imap_unordered(run_sim, params):
-			pass 
+		with mp.Pool(min((mp.cpu_count()-1,df_param.sim_num_trials))) as pool:
+			for _ in pool.imap_unordered(run_sim, params):
+				pass 
 	else: 
 		df_param.trial = 0 
 		run_sim(df_param)
