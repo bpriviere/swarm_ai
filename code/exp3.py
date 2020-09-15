@@ -14,7 +14,7 @@ from cpp_interface import play_game
 
 def wrap_play_game(param):
 	print('playing game {}/{}'.format(param.count,param.total))
-	sim_result = play_game(param)
+	sim_result = play_game(param,param.policy_a_dict,param.policy_b_dict)
 	dh.write_sim_result(sim_result,param.dataset_fn)
 
 
@@ -107,42 +107,102 @@ if __name__ == '__main__':
 
 	df_param.attackerPolicyDicts = [
 		{
-			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_a" : "../saved/new_value_policy_glas_IL/a7.pt",
-			"mcts_tree_size" : 10000,
-			"mcts_rollout_beta" : 0.5,
-			"mcts_c_param" : 1.4,
-		},	
+			'sim_mode' : 				"MCTS",
+			'path_glas_model_a' : 		'../current/models/a0.pt',
+			'path_glas_model_b' : 		'../current/models/b0.pt', 
+			'mcts_tree_size' : 			50000,
+			'mcts_rollout_horizon' : 	100,	
+			'mcts_rollout_beta' : 		0.0,
+			'mcts_c_param' : 			0.25,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,
+		},			
 		{
-			"sim_mode" : "MCTS_GLAS",
-			"path_glas_model_a" : "../saved/new_value_policy_glas_IL/a7.pt",
-			"mcts_tree_size" : 10000,
-			"mcts_rollout_beta" : 0.5,
-			"mcts_c_param" : 1.4,
+			'sim_mode' : 				"MCTS",
+			'path_glas_model_a' : 		'../current/models/a0.pt',
+			'path_glas_model_b' : 		'../current/models/b0.pt', 
+			'mcts_tree_size' : 			50000,
+			'mcts_rollout_horizon' : 	100,	
+			'mcts_rollout_beta' : 		0.0,
+			'mcts_c_param' : 			0.5,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,		
 		},
 		{
-			"sim_mode" : "PANAGOU",
-		},				
+			'sim_mode' : 				"MCTS",
+			'path_glas_model_a' : 		'../current/models/a0.pt',
+			'path_glas_model_b' : 		'../current/models/b0.pt', 
+			'mcts_tree_size' : 			50000,
+			'mcts_rollout_horizon' : 	100,	
+			'mcts_rollout_beta' : 		0.0,
+			'mcts_c_param' : 			0.75,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,		
+		},	
+		# {
+		# 	'sim_mode' : 				"MCTS",
+		# 	'path_glas_model_a' : 		'../current/models/a0.pt',
+		# 	'path_glas_model_b' : 		'../current/models/b0.pt', 
+		# 	'mcts_tree_size' : 			50000,
+		# 	'mcts_rollout_horizon' : 	100,	
+		# 	'mcts_rollout_beta' : 		0.0,
+		# 	'mcts_c_param' : 			0.5,
+		# 	'mcts_pw_C' : 				1.0,
+		# 	'mcts_pw_alpha' : 			0.25,		
+		# },				
+		# {
+		# 	"sim_mode" : "PANAGOU",
+		# },		
 	]
 
 	df_param.defenderPolicyDicts = [				
 		{
-			"sim_mode" : "MCTS_RANDOM",
-			"path_glas_model_b" : "../saved/new_value_policy_glas_IL/b7.pt",
-			"mcts_tree_size" : 10000,
-			"mcts_rollout_beta" : 0.5,
-			"mcts_c_param" : 1.4,
+			'sim_mode' : 				"MCTS",
+			'path_glas_model_a' : 		'../current/models/a0.pt',
+			'path_glas_model_b' : 		'../current/models/b0.pt', 
+			'mcts_tree_size' : 			50000,
+			'mcts_rollout_horizon' : 	100,	
+			'mcts_rollout_beta' : 		0.0,
+			'mcts_c_param' : 			0.25,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,
+		},			
+		{
+			'sim_mode' : 				"MCTS",
+			'path_glas_model_a' : 		'../current/models/a0.pt',
+			'path_glas_model_b' : 		'../current/models/b0.pt', 
+			'mcts_tree_size' : 			50000,
+			'mcts_rollout_horizon' : 	100,	
+			'mcts_rollout_beta' : 		0.0,
+			'mcts_c_param' : 			0.5,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,		
 		},
 		{
-			"sim_mode" : "MCTS_GLAS",
-			"path_glas_model_b" : "../saved/new_value_policy_glas_IL/b7.pt",
-			"mcts_tree_size" : 10000,
-			"mcts_rollout_beta" : 0.5,
-			"mcts_c_param" : 1.4,
+			'sim_mode' : 				"MCTS",
+			'path_glas_model_a' : 		'../current/models/a0.pt',
+			'path_glas_model_b' : 		'../current/models/b0.pt', 
+			'mcts_tree_size' : 			50000,
+			'mcts_rollout_horizon' : 	100,	
+			'mcts_rollout_beta' : 		0.0,
+			'mcts_c_param' : 			0.75,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,		
 		},		
-		{
-			"sim_mode" : "PANAGOU",
-		},		
+		# {
+		# 	'sim_mode' : 				"MCTS",
+		# 	'path_glas_model_a' : 		'../current/models/a0.pt',
+		# 	'path_glas_model_b' : 		'../current/models/b0.pt', 
+		# 	'mcts_tree_size' : 			50000,
+		# 	'mcts_rollout_horizon' : 	100,	
+		# 	'mcts_rollout_beta' : 		0.0,
+		# 	'mcts_c_param' : 			0.5,
+		# 	'mcts_pw_C' : 				1.0,
+		# 	'mcts_pw_alpha' : 			0.25,		
+		# },				
+		# {
+		# 	"sim_mode" : "PANAGOU",
+		# },
 	]
 
 	parser = argparse.ArgumentParser()

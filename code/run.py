@@ -13,6 +13,7 @@ import datahandler
 import plotter 
 
 def run_sim(param):
+
 	sim_result = self_play(param)
 	results_fn = os.path.join(param.path_current_results,'sim_result_{}'.format(param.trial))
 	datahandler.write_sim_result(sim_result,results_fn)
@@ -21,9 +22,9 @@ def get_params(df_param):
 	params = [] 
 	for trial in range(df_param.sim_num_trials):
 		param = Param()
-		param.sim_mode = df_param.sim_mode
-		param.path_glas_model_a = df_param.path_glas_model_a
-		param.path_glas_model_b = df_param.path_glas_model_b
+		param.policy_dict["sim_mode"] = df_param.policy_dict["sim_mode"]
+		param.policy_dict["path_glas_model_a"] = df_param.policy_dict["path_glas_model_a"]
+		param.policy_dict["path_glas_model_b"] = df_param.policy_dict["path_glas_model_b"]
 		param.trial = trial
 		param.update()
 		params.append(param)
@@ -47,11 +48,11 @@ if __name__ == '__main__':
 	df_param = Param() 
 
 	if not args.sim_mode is None: 
-		df_param.sim_mode = args.sim_mode
+		df_param.policy_dict["sim_mode"] = args.sim_mode
 	if not args.path_glas_model_a is None: 
-		df_param.path_glas_model_a = args.path_glas_model_a
+		df_param.policy_dict["path_glas_model_a"] = args.path_glas_model_a
 	if not args.path_glas_model_b is None: 
-		df_param.path_glas_model_b = args.path_glas_model_b				
+		df_param.policy_dict["path_glas_model_b"] = args.path_glas_model_b
 
 	format_dir(df_param)
 	params = get_params(df_param)
