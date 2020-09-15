@@ -48,8 +48,8 @@ class Param:
 
 		# mcts parameters 
 		self.mcts_tree_size = 50000
-		self.mcts_rollout_horizon = 1000
-		self.mcts_rollout_beta = 0.5 # 0 -> 1 : random -> GLAS
+		self.mcts_rollout_horizon = 100
+		self.mcts_rollout_beta = 0.0 # 0 -> 1 : random -> GLAS
 		self.mcts_c_param = 1.4
 		self.mcts_pw_C = 1.0		# Progressive Widening scalar
 		self.mcts_pw_alpha = 0.25	# Progressive Widening exponent
@@ -60,7 +60,7 @@ class Param:
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 10
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 2500
+		self.l_num_points_per_file = 800
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -81,7 +81,7 @@ class Param:
 			# },			
 		]
 
-		n,m,h,l,p = 4,2,16,8,8 # state dim, action dim, hidden layer, output phi, output rho
+		n,m,h,l,p,z = 4,2,8,8,8,4 # state dim, action dim, hidden layer, output phi, output rho, latent gaussian
 		self.l_phi_network_architecture = [
 			["Linear", n, h],
 			["Linear", h, h],
@@ -95,10 +95,23 @@ class Param:
 		]
 
 		self.l_psi_network_architecture = [
-			["Linear", 2*p+n, h],
+			["Linear", 2*p+n, h], # accepts two deepsets and state dim
 			["Linear", h, h],
-			["Linear", h, 9+1]
+			["Linear", h, 1] # outputs value 
 		]
+
+		self.l_encoder_network_architecture = [
+			["Linear", 2*p+n, h], # accepts two deepsets and state dim 
+			["Linear", h, h],
+			["Linear", h, 2*z] # outputs mean and std of latend distribution 
+		]
+
+		self.l_decoder_network_architecture = [
+			["Linear", z, h],
+			["Linear", h, h],
+			["Linear", h, 1] # outputs policy 
+		]
+
 
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8

@@ -17,15 +17,20 @@ import plotter
 import datahandler as dh
 from cpp_interface import evaluate_expert, self_play
 from param import Param 
-from learning.discrete_emptynet import DiscreteEmptyNet
+# from learning.discrete_emptynet import DiscreteEmptyNet
+from learning.continuous_emptynet import ContinuousEmptyNet
 
-def my_loss(value, policy, target_value, target_policy):
-	# https://www.nature.com/articles/nature24270
+def my_loss(value, policy, target_value, target_policy, z_mu, z_logvar):
+	# value \& policy network : https://www.nature.com/articles/nature24270
+	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 
-	dist_loss = torch.nn.MultiLabelSoftMarginLoss()  
-	mse_loss = torch.nn.MSELoss() 
+	mse_loss = torch.nn.MSELoss()
+	value_loss = mse_loss(value,target_value)
+	policy_recon_loss = mse_loss(policy,target_policy)
+	policy_kl_loss = torch.sum(0.5 * torch.sum(torch.exp(z_logvar) + torch.square(z_mu) - (1. + z_logvar), axis=1),axis=0)
+	policy_loss = policy_recon_loss + policy_kl_loss
 
-	return mse_loss(value,target_value) + dist_loss(policy,target_policy)
+	return value_loss + policy_loss
 
 def relative_state(states,param,idx):
 
@@ -79,8 +84,8 @@ def train(model,optimizer,loader):
 	
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
-		value,policy = model(o_a,o_b,goal,training=True)
-		loss = my_loss(value, policy, target_value, target_policy)
+		value, policy, z_mu, z_logvar = model(o_a,o_b,goal,training=True)		
+		loss = my_loss(value, policy, target_value, target_policy, z_mu, z_logvar)
 		optimizer.zero_grad()   
 		loss.backward()         
 		optimizer.step()        
@@ -93,8 +98,8 @@ def train(model,optimizer,loader):
 def test(model,optimizer,loader):
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
-		value,policy = model(o_a,o_b,goal,training=True)
-		loss = my_loss(value, policy, target_value, target_policy)
+		value, policy, z_mu, z_logvar = model(o_a,o_b,goal,training=True)		
+		loss = my_loss(value, policy, target_value, target_policy, z_mu, z_logvar)
 		epoch_loss += float(loss)
 	return epoch_loss/(step+1)	
 
@@ -238,7 +243,7 @@ def train_model(df_param,batched_files,training_team,model_fn):
 	print('train dataset size: ', train_dataset_size)
 	print('test dataset size: ', test_dataset_size)
 
-	model = DiscreteEmptyNet(df_param,df_param.device)
+	model = ContinuousEmptyNet(df_param,df_param.device)
 	optimizer = torch.optim.Adam(model.parameters(), lr=df_param.l_lr, weight_decay=df_param.l_wd)
 	
 	# train 
@@ -391,7 +396,7 @@ if __name__ == '__main__':
 	format_dir(df_param)
 
 	# create randomly initialized models for use in the first iteration
-	model = DiscreteEmptyNet(df_param,'cpu')
+	model = ContinuousEmptyNet(df_param,'cpu')
 	for training_team in df_param.l_training_teams:
 		torch.save(model.state_dict(), df_param.l_model_fn.format(\
 						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=0))

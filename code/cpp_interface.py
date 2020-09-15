@@ -274,7 +274,8 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 			param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param,
 			param.mcts_pw_C, param.mcts_pw_alpha)
 		if mctsresult.success: 
-			action = value_to_dist(param,mctsresult.valuePerAction) # 
+			# action = value_to_dist(param,mctsresult.valuePerAction) # 
+			action = value_to_sample(param,mctsresult) # 
 			value = mctsresult.expectedReward[0]
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["actions"].append(action) # total number of robots x action dimension per robot 
@@ -324,3 +325,18 @@ def value_to_dist(param,valuePerAction):
 			dist[robot_idx,action_idx] = np.sum(values[robot_idx,action_idx])
 
 	return dist	
+
+def value_to_sample(param,mctsresult):
+	# sample in [n_robots_on_team x action_dim]
+
+	if param.training_team == "a":
+		num_robots = param.num_nodes_A
+		robot_idxs = param.team_1_idxs
+	elif param.training_team == "b":
+		num_robots = param.num_nodes_B
+		robot_idxs = param.team_2_idxs
+
+	# TEMP: HERE THERE NEEDS TO BE A SAMPLING BASED ON WEIGHT OF ACTION
+	sample = mctsresult.bestAction
+
+	return sample 
