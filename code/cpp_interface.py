@@ -51,13 +51,9 @@ def param_to_cpp_game(param, policy_dict_a, policy_dict_b):
 	
 	if policy_dict_a["sim_mode"] in ["GLAS","MCTS"]:
 		loadGLAS(g.glasA, policy_dict_a["path_glas_model_a"])
-	else: 
-		loadGLAS(g.glasA, param.df_path_glas_model_a)
 
 	if policy_dict_b["sim_mode"] in ["GLAS","MCTS"]:
 		loadGLAS(g.glasB, policy_dict_b["path_glas_model_b"])
-	else: 
-		loadGLAS(g.glasB, param.df_path_glas_model_b)
 
 	return g
 
