@@ -113,7 +113,7 @@ class Param:
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 1000000 # n_points 
 		self.l_batch_size = 2000
-		self.l_n_epoch = 1000
+		self.l_n_epoch = 100
 		self.l_lr = 1e-3
 		self.l_wd = 0 
 		self.l_log_interval = 1
