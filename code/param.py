@@ -3,7 +3,7 @@ import numpy as np
 import itertools, copy
 import random
 import os,sys
-from math import cos, sin
+from math import cos, sin, sqrt
 
 # todo: make rel-path to abs-path func 
 
@@ -257,5 +257,5 @@ class Param:
 	def get_random_velocity_inside(self,speed_lim):
 
 		th = random.random()*2*np.pi 
-		r  = random.random()*speed_lim
+		r  = sqrt(random.random())*speed_lim
 		return r*cos(th), r*sin(th)	
