@@ -154,25 +154,30 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		pp = PanagouPolicy(param)
 		pp.init_sim(param.state)
 
-	# similar to rollout 
 	g = param_to_cpp_game(param,policy_dict_a,policy_dict_b) 
 
-	results = []
-	actions = [] 
+	sim_result = {
+		'param' : param.to_dict(),
+		'states' : [],
+		'actions' : [],
+		'times' : None,
+		'rewards' : []
+	}
 
-	state = param.state
-	gs = state_to_cpp_game_state(param,state,"a")
-	count = 0 
-	while True:
+	gs = state_to_cpp_game_state(param,param.state,"a")
+	count = 0
+	finished = False
+	invalid_team_action = [np.nan*np.ones(2) for _ in range(param.num_nodes)]
+	team_action = list(invalid_team_action)
+	while not finished:
 		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
-			action = [] 
 			policy_dict = policy_dict_a
-			idxs = param.team_1_idxs
+			team_idx = param.team_1_idxs
 		elif gs.turn == mctscpp.GameState.Turn.Defenders:
 			policy_dict = policy_dict_b
-			idxs = param.team_2_idxs 
+			team_idx = param.team_2_idxs
 
 		if policy_dict["sim_mode"] == "MCTS":
 			
@@ -183,10 +188,10 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				policy_dict["mcts_pw_C"],
 				policy_dict["mcts_pw_alpha"])
 			if mctsresult.success: 
-				team_action = mctsresult.bestAction
-				success = g.step(gs, team_action, gs)
+				action = mctsresult.bestAction
+				success = g.step(gs, action, gs)
 			else:
-				success = False		
+				success = False
 
 		elif policy_dict["sim_mode"] == "GLAS":
 
@@ -203,41 +208,37 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		else: 
 			exit('sim mode {} not recognized'.format(policy_dict["sim_mode"]))
 
-		results.append(game_state_to_cpp_result(g,gs,None))
-		count += 1 
-
+		isTerminal = g.isTerminal(gs)
 		if success:
-			if g.isTerminal(gs):
-				results.append(game_state_to_cpp_result(g,gs,None))
-				break 
-		else:
-			break
+			if count % 2 == 0 or isTerminal:
+				# update sim_result
+				sim_result['states'].append([rs.state.copy() for rs in gs.attackers + gs.defenders])
+				sim_result['actions'].append(team_action.copy())
+				r = g.computeReward(gs)
+				sim_result['rewards'].append([r, 1 - r])
+				# prepare for next update
+				team_action = invalid_team_action
 
-	if len(results) == 0:
-		results.append(game_state_to_cpp_result(g,gs,None))
-		
-	sim_result = dh.convert_cpp_data_to_sim_result(np.array(results),param)
+		finished = not success or isTerminal
+
+		for idx in team_idx:
+			team_action[idx] = action[idx].copy()
+
+		count += 1
+
+	# delete the first (nan) action pair and add it at the end.
+	# This way the action is the action that needs to be taken to reach the next state
+	# and action and state arrays will have the same dimension
+	del sim_result['actions'][0]
+	sim_result['actions'].append(invalid_team_action)
+	# convert sim_result to numpy arrays
+	sim_result['states'] = np.array(sim_result['states'], dtype=np.float32)
+	sim_result['actions'] = np.array(sim_result['actions'], dtype=np.float32)
+	sim_result['times'] = param.sim_dt*np.arange(sim_result['states'].shape[0])
+	sim_result['rewards'] = np.array(sim_result['rewards'], dtype=np.float32)
+
 	return sim_result
 
-
-def game_state_to_cpp_result(g,gs,action):
-
-	if action is None:
-		action = np.nan*np.ones((len(gs.attackers) + len(gs.defenders),2))
-		
-	idx = 0 
-	result = np.empty((len(gs.attackers) + len(gs.defenders))*6+2, dtype=np.float32)
-	for rs in gs.attackers:
-		result[idx*6+0:idx*6+4] = rs.state
-		result[idx*6+4:idx*6+6] = action[idx]
-		idx += 1
-	for rs in gs.defenders:
-		result[idx*6+0:idx*6+4] = rs.state
-		result[idx*6+4:idx*6+6] = action[idx]
-		idx += 1
-	result[idx*6+0] = g.computeReward(gs)
-	result[idx*6+1] = 1 - result[idx*6+0]
-	return result
 
 def evaluate_expert(states,param,quiet_on=True,progress=None):
 	
