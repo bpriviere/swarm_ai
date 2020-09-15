@@ -11,6 +11,8 @@ from cpp.buildRelease import mctscpp
 from benchmark.panagou import PanagouPolicy
 import datahandler as dh
 
+from learning.continuous_emptynet import ContinuousEmptyNet
+
 def create_cpp_robot_type(param, robot_type):
 	p_min = [param.env_xlim[0], param.env_ylim[0]]
 	p_max = [param.env_xlim[1], param.env_ylim[1]]
@@ -147,6 +149,54 @@ def self_play(param,deterministic=True):
 
 	return play_game(param,deterministic=deterministic)
 
+def relative_state(states,param,idx):
+
+	n_robots, n_state_dim = states.shape
+
+	goal = np.array([param.goal[0],param.goal[1],0,0])
+
+	o_a = []
+	o_b = [] 
+	relative_goal = goal - states[idx,:]
+
+	# projecting goal to radius of sensing 
+	alpha = np.linalg.norm(relative_goal[0:2]) / param.robots[idx]["r_sense"]
+	relative_goal[2:] = relative_goal[2:] / np.max((alpha,1))	
+
+	for idx_j in range(n_robots): 
+		if idx_j != idx and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]: 
+			if idx_j in param.team_1_idxs:  
+				o_a.append(states[idx_j,:] - states[idx,:])
+			elif idx_j in param.team_2_idxs:
+				o_b.append(states[idx_j,:] - states[idx,:])
+
+	return np.array(o_a),np.array(o_b),np.array(relative_goal)
+
+
+def format_data(o_a,o_b,goal):
+	# input: [num_a/b, dim_state_a/b] np array 
+	# output: 1 x something torch float tensor
+
+	# make 0th dim (this matches batch dim in training)
+	if o_a.shape[0] == 0:
+		o_a = np.expand_dims(o_a,axis=0)
+	if o_b.shape[0] == 0:
+		o_b = np.expand_dims(o_b,axis=0)
+	goal = np.expand_dims(goal,axis=0)
+
+	# reshape if more than one element in set
+	if o_a.shape[0] > 1: 
+		o_a = np.reshape(o_a,(1,np.size(o_a)))
+	if o_b.shape[0] > 1: 
+		o_b = np.reshape(o_b,(1,np.size(o_b)))
+
+	o_a = torch.from_numpy(o_a).float() 
+	o_b = torch.from_numpy(o_b).float()
+	goal = torch.from_numpy(goal).float()
+
+	return o_a,o_b,goal
+
+
 def play_game(param,deterministic=True): 
 
 	if param.policy_a_dict["sim_mode"] in ["GLAS" , "MCTS_GLAS" , "MCTS_RANDOM"]:
@@ -195,7 +245,24 @@ def play_game(param,deterministic=True):
 
 		elif policy_dict["sim_mode"] == "GLAS":
 
-			action = mctscpp.eval(g, gs, deterministic)
+			# action = mctscpp.eval(g, gs, deterministic)
+			
+			# temp 
+			# use python to eval model 
+			state = cpp_state_to_pstate(gs)
+			action = np.nan*np.ones((param.num_nodes,2))
+			model = ContinuousEmptyNet(param, "cpu")
+			if gs.turn == mctscpp.GameState.Turn.Attackers: 
+				model.load_state_dict(torch.load(param.path_glas_model_a))
+			else: 
+				model.load_state_dict(torch.load(param.path_glas_model_b))
+
+			for robot_idx in idxs: 
+				o_a,o_b,goal = relative_state(state,param,robot_idx)
+				o_a,o_b,goal = format_data(o_a,o_b,goal)
+				value, policy = model(o_a,o_b,goal)
+				action[robot_idx, :] = policy.detach().numpy().flatten()
+
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "PANAGOU":
