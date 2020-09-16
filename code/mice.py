@@ -289,7 +289,47 @@ def load_param(some_dict):
 	return param 
 
 def evaluate_expert_wrapper(arg):
-	evaluate_expert(*arg)
+	test_evaluate_expert(*arg)
+	# evaluate_expert(*arg)
+
+def test_evaluate_expert(states,param,quiet_on=True,progress=None):
+	
+	if not quiet_on:
+		print('   running expert for instance {}'.format(param.dataset_fn))
+
+	if progress is not None:
+		progress_pos = current_process()._identity[0] - progress
+		enumeration = tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos)
+	else:
+		enumeration = states
+
+	game = param_to_cpp_game(param)
+
+	sim_result = {
+		'states' : [],
+		'policy_dists' : [],
+		'values' : [],
+		'param' : param.to_dict()
+		}
+
+	for state in enumeration:
+		game_state = state_to_cpp_game_state(param,state,param.training_team)
+		mctsresult = mctscpp.search(game, game_state,
+			param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param,
+			param.mcts_pw_C, param.mcts_pw_alpha)
+		if mctsresult.success: 
+			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction) # 
+			value = mctsresult.expectedReward[0]
+			sim_result["states"].append(state) # total number of robots x state dimension per robot 
+			sim_result["policy_dists"].append(policy_dist)  
+			sim_result["values"].append(value)
+
+	sim_result["states"] = np.array(sim_result["states"])
+	sim_result["policy_dists"] = np.array(sim_result["policy_dists"])
+	dh.write_sim_result(sim_result,param.dataset_fn)
+
+	if not quiet_on:
+		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))	
 
 def make_dataset(states,params,df_param):
 	print('making dataset...')
