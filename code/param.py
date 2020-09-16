@@ -103,13 +103,13 @@ class Param:
 		self.l_encoder_network_architecture = [
 			["Linear", 2*p+n, h], # accepts two deepsets and state dim 
 			["Linear", h, h],
-			["Linear", h, 2*z] # outputs mean and std of latend distribution 
+			["Linear", h, 2*z] # outputs mean and std of latent distribution 
 		]
 
 		self.l_decoder_network_architecture = [
-			["Linear", z, h],
+			["Linear", z, h], # inputs sample from latent dist 
 			["Linear", h, h],
-			["Linear", h, 1] # outputs policy 
+			["Linear", h, 2] # outputs policy 
 		]
 
 
