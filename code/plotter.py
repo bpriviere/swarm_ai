@@ -392,6 +392,7 @@ def plot_tree_results(sim_result,title=None):
 	for i in range(num_nodes):
 		ax.axhline(sim_result["param"]["robots"][i]["speed_limit"],color=colors[i],linestyle='--')
 		ax.plot(times,np.linalg.norm(states[:,i,2:],axis=1),color=colors[i])
+	ax.set_ylim(bottom=0)
 
 	# time varying acc
 	ax = axs[1,1]
@@ -400,6 +401,7 @@ def plot_tree_results(sim_result,title=None):
 	for i in range(num_nodes):
 		ax.axhline(sim_result["param"]["robots"][i]["acceleration_limit"],color=colors[i],linestyle='--')
 		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=colors[i])
+	ax.set_ylim(bottom=0)
 
 	if title is not None: 
 		fig.suptitle(title)
