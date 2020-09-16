@@ -13,8 +13,6 @@ class Param:
 
 		# sim param 
 		self.sim_num_trials = 10
-		self.sim_t0 = 0
-		self.sim_tf = 20
 		self.sim_dt = 0.25
 		self.sim_parallel_on = True
 
@@ -31,10 +29,8 @@ class Param:
 			'mcts_pw_alpha' : 			0.25,
 		}
 
-		# default
+		# max timesteps until the game terminates
 		self.df_mcts_rollout_horizon = 100
-		self.df_path_glas_model_a = '../current/models/a0.pt'
-		self.df_path_glas_model_b = '../current/models/b0.pt'
 
 		# robot types 
 		self.standard_robot = {
@@ -238,10 +234,6 @@ class Param:
 				self.team_1_idxs.append(i) 
 			else:
 				self.team_2_idxs.append(i) 
-
-		# times 
-		self.sim_times = np.arange(self.sim_t0,self.sim_tf,self.sim_dt)
-		self.sim_nt = len(self.sim_times)
 
 		# actions 
 		self.actions = np.asarray(list(itertools.product(*[[-1,0,1],[-1,0,1]])))
