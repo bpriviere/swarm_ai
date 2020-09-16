@@ -277,8 +277,7 @@ class Game {
         // Use NN if rollout_beta is > 0 probabilistically
         assert(m_glas_a.valid() && m_glas_b.valid());
 
-        const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_dt, false);
-        // TODO: need some logic here to only allow valid actions...
+        const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, false);
 
         // step twice (once for each player)
         valid &= step(s, action, nextState);
