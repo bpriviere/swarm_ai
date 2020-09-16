@@ -64,12 +64,13 @@ def robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,team
 def loadGLAS(glas, file):
 	state_dict = torch.load(file)
 
-	den = glas.discreteEmptyNet
-	loadFeedForwardNNWeights(den.deepSetA.phi, state_dict, "model_team_a.phi")
-	loadFeedForwardNNWeights(den.deepSetA.rho, state_dict, "model_team_a.rho")
-	loadFeedForwardNNWeights(den.deepSetB.phi, state_dict, "model_team_b.phi")
-	loadFeedForwardNNWeights(den.deepSetB.rho, state_dict, "model_team_b.rho")
-	loadFeedForwardNNWeights(den.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(glas.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(glas.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(glas.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
+	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
 
 	return glas
 

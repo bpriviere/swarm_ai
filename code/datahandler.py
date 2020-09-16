@@ -28,37 +28,6 @@ def write_mcts_config_file(param, config_fn):
 	with open(config_fn,'w') as f:
 		yaml.dump(config,f)
 
-def convert_cpp_data_to_sim_result(data,param):
-
-	num_a = param.num_nodes_A 
-	num_b = param.num_nodes_B
-	
-	times = param.sim_dt*np.arange(data.shape[0])
-	states = np.zeros((times.shape[0],param.num_nodes,4))
-	actions = np.zeros((times.shape[0],param.num_nodes,2))
-	rewards = np.zeros((times.shape[0],2))
-
-	for node_idx in range(param.num_nodes):
-
-		state_idx = 0 + 6 * node_idx + np.arange(4) 
-		action_idx = 4 + 6 * node_idx + np.arange(2) 
-
-		states[:,node_idx,:] = data[:,state_idx]
-		actions[:,node_idx,:] = data[:,action_idx]
-
-	rewards[:,0] = data[:,-2]
-	rewards[:,1] = data[:,-1]
-
-	sim_result = {
-		'param' : param.to_dict(),
-		'states' : states,
-		'actions' : actions,
-		'times' : times,
-		'rewards' : rewards
-	}
-
-	return sim_result 
-
 def write_oa_batch(batched_dataset,batch_fn):
 	np.save(batch_fn, batched_dataset)
 

@@ -79,6 +79,7 @@ class Game {
           m_attackerTypes[i].step(nextState.attackers[i], action[i], m_dt, nextState.attackers[i]);
           if (!m_attackerTypes[i].isStateValid(nextState.attackers[i])) {
             nextState.attackers[i].status = RobotStateT::Status::Invalid;
+            nextState.attackers[i].state.fill(nanf(""));
           }
         }
       }
@@ -89,6 +90,7 @@ class Game {
           m_defenderTypes[i].step(nextState.defenders[i], action[NumAttackers + i], m_dt, nextState.defenders[i]);
           if (!m_defenderTypes[i].isStateValid(nextState.defenders[i])) {
             nextState.defenders[i].status = RobotStateT::Status::Invalid;
+            nextState.defenders[i].state.fill(nanf(""));
           }
         }
       }
@@ -126,7 +128,9 @@ class Game {
             if (dist < maxDist) {
               // mark both involved robot as collided
               nextState.attackers[i].status = RobotStateT::Status::Invalid;
+              nextState.attackers[i].state.fill(nanf(""));
               nextState.attackers[j].status = RobotStateT::Status::Invalid;
+              nextState.attackers[j].state.fill(nanf(""));
             }
           }
         }
@@ -142,7 +146,9 @@ class Game {
             if (dist < maxDist) {
               // mark both involved robot as collided
               nextState.defenders[i].status = RobotStateT::Status::Invalid;
+              nextState.defenders[i].state.fill(nanf(""));
               nextState.defenders[j].status = RobotStateT::Status::Invalid;
+              nextState.defenders[j].state.fill(nanf(""));
             }
           }
         }
@@ -277,8 +283,7 @@ class Game {
         // Use NN if rollout_beta is > 0 probabilistically
         assert(m_glas_a.valid() && m_glas_b.valid());
 
-        const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, m_dt, false);
-        // TODO: need some logic here to only allow valid actions...
+        const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, false);
 
         // step twice (once for each player)
         valid &= step(s, action, nextState);

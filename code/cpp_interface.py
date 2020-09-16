@@ -32,7 +32,7 @@ def robot_composition_to_cpp_robot_types(param,team):
 			types.append(rt)
 	return types
 
-def param_to_cpp_game(param):
+def param_to_cpp_game(param, policy_dict_a, policy_dict_b):
 	
 	attackerTypes = robot_composition_to_cpp_robot_types(param,"a") 
 	defenderTypes = robot_composition_to_cpp_robot_types(param,"b") 
@@ -40,23 +40,35 @@ def param_to_cpp_game(param):
 	dt = param.sim_dt 
 
 	goal = param.goal 
-	max_depth = param.mcts_rollout_horizon
+
+	# ideally, max_depth should be a policy parameter, not a game parameter 
+	if policy_dict_a["sim_mode"] == "MCTS":
+		max_depth = policy_dict_a["mcts_rollout_horizon"]
+	elif policy_dict_b["sim_mode"] == "MCTS":
+		max_depth = policy_dict_b["mcts_rollout_horizon"]
+	else: 
+		max_depth = param.df_mcts_rollout_horizon
 
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
-	loadGLAS(g.glasA, param.path_glas_model_a)
-	loadGLAS(g.glasB, param.path_glas_model_b)
+	
+	if policy_dict_a["sim_mode"] in ["GLAS","MCTS"]:
+		loadGLAS(g.glasA, policy_dict_a["path_glas_model_a"])
+
+	if policy_dict_b["sim_mode"] in ["GLAS","MCTS"]:
+		loadGLAS(g.glasB, policy_dict_b["path_glas_model_b"])
 
 	return g
 
 def loadGLAS(glas, file):
 	state_dict = torch.load(file)
 
-	den = glas.discreteEmptyNet
-	loadFeedForwardNNWeights(den.deepSetA.phi, state_dict, "model_team_a.phi")
-	loadFeedForwardNNWeights(den.deepSetA.rho, state_dict, "model_team_a.rho")
-	loadFeedForwardNNWeights(den.deepSetB.phi, state_dict, "model_team_b.phi")
-	loadFeedForwardNNWeights(den.deepSetB.rho, state_dict, "model_team_b.rho")
-	loadFeedForwardNNWeights(den.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(glas.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(glas.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(glas.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
+	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
 
 	return glas
 
@@ -113,41 +125,27 @@ def state_to_cpp_game_state(param,state,turn):
 
 	return game_state 
 
-def expected_value(param):
-	g = param_to_cpp_game(param) 
-	state = np.array(param.state)
+def expected_value(param,state,policy_dict):
+	g = param_to_cpp_game(param,policy_dict,policy_dict) 
 	gs = state_to_cpp_game_state(param,state,"a")
 	mctsresult = mctscpp.search(g, gs,
-		param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param,
-		param.mcts_pw_C, param.mcts_pw_alpha)
+		policy_dict["mcts_tree_size"],
+		policy_dict["mcts_rollout_beta"],
+		policy_dict["mcts_c_param"],
+		policy_dict["mcts_pw_C"],
+		policy_dict["mcts_pw_alpha"])
 	return mctsresult.expectedReward
 
 def self_play(param,deterministic=True):
 
-	param.policy_a_dict = {
-		"sim_mode" : param.sim_mode, 
-	} 
-	param.policy_b_dict = {
-		"sim_mode" : param.sim_mode, 
-	} 
+	if is_valid_policy_dict(param.policy_dict):
+		policy_dict_a = param.policy_dict
+		policy_dict_b = param.policy_dict 
+	else: 
+		print('bad policy dict')
+		exit()
 
-	if param.sim_mode in ["GLAS","MCTS_RANDOM","MCTS_GLAS"]:
-		param.policy_a_dict["path_glas_model_a"] = param.path_glas_model_a
-		param.policy_b_dict["path_glas_model_b"] = param.path_glas_model_b
-	if param.sim_mode in ["MCTS_RANDOM","MCTS_GLAS"]:
-		param.policy_a_dict["mcts_tree_size"] = param.mcts_tree_size
-		param.policy_a_dict["mcts_rollout_beta"] = param.mcts_rollout_beta
-		param.policy_a_dict["mcts_c_param"] = param.mcts_c_param
-		param.policy_a_dict["mcts_pw_C"] = param.mcts_pw_C
-		param.policy_a_dict["mcts_pw_alpha"] = param.mcts_pw_alpha
-		
-		param.policy_b_dict["mcts_tree_size"] = param.mcts_tree_size
-		param.policy_b_dict["mcts_rollout_beta"] = param.mcts_rollout_beta
-		param.policy_b_dict["mcts_c_param"] = param.mcts_c_param
-		param.policy_b_dict["mcts_pw_C"] = param.mcts_pw_C
-		param.policy_b_dict["mcts_pw_alpha"] = param.mcts_pw_alpha
-
-	return play_game(param,deterministic=deterministic)
+	return play_game(param,policy_dict_a,policy_dict_b,deterministic=deterministic)
 
 def relative_state(states,param,idx):
 
@@ -197,39 +195,38 @@ def format_data(o_a,o_b,goal):
 	return o_a,o_b,goal
 
 
-def play_game(param,deterministic=True): 
+def play_game(param,policy_dict_a,policy_dict_b,deterministic=True): 
 
-	if param.policy_a_dict["sim_mode"] in ["GLAS" , "MCTS_GLAS" , "MCTS_RANDOM"]:
-		param.path_glas_model_a = param.policy_a_dict["path_glas_model_a"]
-
-	if param.policy_b_dict["sim_mode"] in ["GLAS" , "MCTS_GLAS" , "MCTS_RANDOM"]:
-		param.path_glas_model_b = param.policy_b_dict["path_glas_model_b"]
-
-	if param.policy_a_dict["sim_mode"] == "PANAGOU" or param.policy_b_dict["sim_mode"] == "PANAGOU":
+	if policy_dict_a["sim_mode"] == "PANAGOU" or policy_dict_b["sim_mode"] == "PANAGOU":
 		pp = PanagouPolicy(param)
 		pp.init_sim(param.state)
 
-	# similar to rollout 
-	g = param_to_cpp_game(param) 
+	g = param_to_cpp_game(param,policy_dict_a,policy_dict_b) 
 
-	results = []
-	actions = [] 
+	sim_result = {
+		'param' : param.to_dict(),
+		'states' : [],
+		'actions' : [],
+		'times' : None,
+		'rewards' : []
+	}
 
-	state = param.state
-	gs = state_to_cpp_game_state(param,state,"a")
-	count = 0 
-	while True:
+	gs = state_to_cpp_game_state(param,param.state,"a")
+	count = 0
+	finished = False
+	invalid_team_action = [np.nan*np.ones(2) for _ in range(param.num_nodes)]
+	team_action = list(invalid_team_action)
+	while not finished:
 		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
-			action = [] 
-			policy_dict = param.policy_a_dict
-			idxs = param.team_1_idxs
+			policy_dict = policy_dict_a
+			team_idx = param.team_1_idxs
 		elif gs.turn == mctscpp.GameState.Turn.Defenders:
-			policy_dict = param.policy_b_dict
-			idxs = param.team_2_idxs 
+			policy_dict = policy_dict_b
+			team_idx = param.team_2_idxs
 
-		if "MCTS" in policy_dict["sim_mode"]:
+		if policy_dict["sim_mode"] == "MCTS":
 			
 			mctsresult = mctscpp.search(g, gs, \
 				policy_dict["mcts_tree_size"],
@@ -238,10 +235,10 @@ def play_game(param,deterministic=True):
 				policy_dict["mcts_pw_C"],
 				policy_dict["mcts_pw_alpha"])
 			if mctsresult.success: 
-				team_action = mctsresult.bestAction
-				success = g.step(gs, team_action, gs)
+				action = mctsresult.bestAction
+				success = g.step(gs, action, gs)
 			else:
-				success = False		
+				success = False
 
 		elif policy_dict["sim_mode"] == "GLAS":
 
@@ -275,45 +272,37 @@ def play_game(param,deterministic=True):
 		else: 
 			exit('sim mode {} not recognized'.format(policy_dict["sim_mode"]))
 
-
-		# for idx in idxs: 
-		# 	action.append(team_action[idx])
-		
-		results.append(game_state_to_cpp_result(g,gs,None))
-		count += 1 
-
+		isTerminal = g.isTerminal(gs)
 		if success:
-			if g.isTerminal(gs):
-				results.append(game_state_to_cpp_result(g,gs,None))
-				break 
-		else:
-			break
+			if count % 2 == 0 or isTerminal:
+				# update sim_result
+				sim_result['states'].append([rs.state.copy() for rs in gs.attackers + gs.defenders])
+				sim_result['actions'].append(team_action.copy())
+				r = g.computeReward(gs)
+				sim_result['rewards'].append([r, 1 - r])
+				# prepare for next update
+				team_action = invalid_team_action
 
-	if len(results) == 0:
-		results.append(game_state_to_cpp_result(g,gs,None))
-		
-	sim_result = dh.convert_cpp_data_to_sim_result(np.array(results),param)
+		finished = not success or isTerminal
+
+		for idx in team_idx:
+			team_action[idx] = action[idx].copy()
+
+		count += 1
+
+	# delete the first (nan) action pair and add it at the end.
+	# This way the action is the action that needs to be taken to reach the next state
+	# and action and state arrays will have the same dimension
+	del sim_result['actions'][0]
+	sim_result['actions'].append(invalid_team_action)
+	# convert sim_result to numpy arrays
+	sim_result['states'] = np.array(sim_result['states'], dtype=np.float32)
+	sim_result['actions'] = np.array(sim_result['actions'], dtype=np.float32)
+	sim_result['times'] = param.sim_dt*np.arange(sim_result['states'].shape[0])
+	sim_result['rewards'] = np.array(sim_result['rewards'], dtype=np.float32)
+
 	return sim_result
 
-
-def game_state_to_cpp_result(g,gs,action):
-
-	if action is None:
-		action = np.nan*np.ones((len(gs.attackers) + len(gs.defenders),2))
-		
-	idx = 0 
-	result = np.empty((len(gs.attackers) + len(gs.defenders))*6+2, dtype=np.float32)
-	for rs in gs.attackers:
-		result[idx*6+0:idx*6+4] = rs.state
-		result[idx*6+4:idx*6+6] = action[idx]
-		idx += 1
-	for rs in gs.defenders:
-		result[idx*6+0:idx*6+4] = rs.state
-		result[idx*6+4:idx*6+6] = action[idx]
-		idx += 1
-	result[idx*6+0] = g.computeReward(gs)
-	result[idx*6+1] = 1 - result[idx*6+0]
-	return result
 
 def evaluate_expert(states,param,quiet_on=True,progress=None):
 	
@@ -326,7 +315,13 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 	else:
 		enumeration = states
 
-	game = param_to_cpp_game(param)
+	if is_valid_policy_dict(param.policy_dict):
+		policy_dict = param.policy_dict
+	else: 
+		print('bad policy dict')
+		exit()
+
+	game = param_to_cpp_game(param,policy_dict,policy_dict)
 
 	sim_result = {
 		'states' : [],
@@ -338,8 +333,11 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 	for state in enumeration:
 		game_state = state_to_cpp_game_state(param,state,param.training_team)
 		mctsresult = mctscpp.search(game, game_state,
-			param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param,
-			param.mcts_pw_C, param.mcts_pw_alpha)
+			policy_dict["mcts_tree_size"],
+			policy_dict["mcts_rollout_beta"],
+			policy_dict["mcts_c_param"],
+			policy_dict["mcts_pw_C"],
+			policy_dict["mcts_pw_alpha"])
 		if mctsresult.success: 
 			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction) # 
 			value = mctsresult.expectedReward[0]
@@ -379,4 +377,35 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 
 	return dist	
 
+def bad_key(some_dict,some_key):
+	if some_key not in some_dict.keys():
+		print('no {} specified'.format(some_key))
+		return True
+	return False
 
+def is_valid_policy_dict(policy_dict):
+
+	if policy_dict["sim_mode"] == "GLAS":
+		if bad_key(policy_dict,"path_glas_model_a") or \
+			bad_key(policy_dict,"path_glas_model_b"):
+			return False 
+
+	elif policy_dict["sim_mode"] == "MCTS":
+		if bad_key(policy_dict,"path_glas_model_a") or \
+			bad_key(policy_dict,"path_glas_model_b") or \
+			bad_key(policy_dict,"mcts_tree_size") or \
+			bad_key(policy_dict,"mcts_rollout_horizon") or \
+			bad_key(policy_dict,"mcts_rollout_beta") or \
+			bad_key(policy_dict,"mcts_c_param") or \
+			bad_key(policy_dict,"mcts_pw_C") or \
+			bad_key(policy_dict,"mcts_pw_alpha"): 
+			return False
+
+	elif policy_dict["sim_mode"] == "PANAGOU":
+		pass 
+
+	else: 
+		print('sim_mode not recognized')
+		return False
+
+	return True 	
