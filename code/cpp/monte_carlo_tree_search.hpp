@@ -150,7 +150,8 @@ class MonteCarloTreeSearch {
     // output node value
     for (size_t i = 1; i < m_nodes.size(); ++i) {
       float value = m_env.rewardToFloat(m_nodes[i].parent->state, m_nodes[i].reward) / m_nodes[i].number_of_visits;
-      stream << "\tn" << i << " [width=" << value << "]\n";
+      stream << "\tn" << i << " [width=" << 0 << "]\n";
+      // stream << "\tn" << i << " [width=" << value << "]\n";
     }
 
     // output nodes
