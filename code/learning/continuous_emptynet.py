@@ -17,8 +17,9 @@ class ContinuousEmptyNet(nn.Module):
 	def __init__(self,param,device):
 		super(ContinuousEmptyNet, self).__init__()
 
-		self.device = device
-		self.param = param 
+		self.device = torch.device(device)
+
+		self.acceleration_limit = param.standard_robot["acceleration_limit"]
 
 		self.model_team_a = DeepSet(
 			param.l_phi_network_architecture,
@@ -44,8 +45,6 @@ class ContinuousEmptyNet(nn.Module):
 			param.l_decoder_network_architecture,
 			param.l_network_activation,device)
 
-		self.param = param
-		self.device = torch.device('cpu')
 
 
 	def to(self, device):
@@ -74,7 +73,18 @@ class ContinuousEmptyNet(nn.Module):
 		z = z_mu + torch.exp(z_logvar / 2) * eps
 		policy = self.decoder(z)
 
+		# scale policy 
+		policy = self.torch_scale(policy,self.acceleration_limit)
+
 		if training:
 			return value, policy, z_mu, z_logvar
 		else:
 			return value, policy
+
+	def torch_scale(self,action,max_action):
+		action_norm = action.norm(p=2,dim=1)
+		index = action_norm > 0
+		scale = torch.ones(action.shape[0],device=self.device)
+		scale[index] = 1.0 / torch.clamp(action_norm[index]/max_action,min=1)
+		action = torch.mul(scale.unsqueeze(1), action)
+		return action

@@ -20,13 +20,16 @@ from param import Param
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
 
-def my_loss(value, policy, target_value, target_policy, z_mu, z_logvar):
+def my_loss(value, policy, target_value, target_policy, weight, z_mu, z_logvar):
 	# value \& policy network : https://www.nature.com/articles/nature24270
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
+	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
 
-	mse_loss = torch.nn.MSELoss()
-	value_loss = mse_loss(value,target_value)
-	policy_recon_loss = mse_loss(policy,target_policy)
+	def weighted_mse_loss(x, target, weight):
+		return (weight * (x - target) ** 2).mean()
+
+	value_loss = weighted_mse_loss(value,target_value,weight)
+	policy_recon_loss = weighted_mse_loss(policy,target_policy,weight.unsqueeze(1))
 	policy_kl_loss = torch.sum(0.5 * torch.sum(torch.exp(z_logvar) + torch.square(z_mu) - (1. + z_logvar), axis=1),axis=0)
 	policy_loss = policy_recon_loss + policy_kl_loss
 
@@ -83,9 +86,9 @@ def format_data(o_a,o_b,goal):
 def train(model,optimizer,loader):
 	
 	epoch_loss = 0
-	for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
+	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
 		value, policy, z_mu, z_logvar = model(o_a,o_b,goal,training=True)		
-		loss = my_loss(value, policy, target_value, target_policy, z_mu, z_logvar)
+		loss = my_loss(value, policy, target_value, target_policy, weight, z_mu, z_logvar)
 		optimizer.zero_grad()   
 		loss.backward()         
 		optimizer.step()        
@@ -97,9 +100,9 @@ def train(model,optimizer,loader):
 
 def test(model,optimizer,loader):
 	epoch_loss = 0
-	for step, (o_a,o_b,goal,target_value,target_policy) in enumerate(loader): 
+	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
 		value, policy, z_mu, z_logvar = model(o_a,o_b,goal,training=True)		
-		loss = my_loss(value, policy, target_value, target_policy, z_mu, z_logvar)
+		loss = my_loss(value, policy, target_value, target_policy, weight, z_mu, z_logvar)
 		epoch_loss += float(loss)
 	return epoch_loss/(step+1)	
 
@@ -152,7 +155,7 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 
 	param = load_param(sim_result["param"])
 	states = sim_result["states"] # nt x nrobots x nstate_per_robot
-	actions = sim_result["actions"] # nt x nrobots x 9 
+	policy_dists = sim_result["policy_dists"]  
 	values = sim_result["values"] # nt 
 
 	if param.training_team == "a":
@@ -160,11 +163,13 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 	elif param.training_team == "b":
 		robot_idxs = param.team_2_idxs
 
-	for timestep,(state,action,value) in enumerate(zip(states,actions,values)):
+	for timestep,(state,policy_dist,value) in enumerate(zip(states,policy_dists,values)):
 		for robot_idx in robot_idxs:
 			o_a, o_b, goal = relative_state(state,param,robot_idx)
 			key = (param.training_team,len(o_a),len(o_b))
-			oa_pairs_by_size[key].append((o_a, o_b, goal, value, action[robot_idx,:]))
+
+			for action, weight in zip(policy_dist[robot_idx][:,0],policy_dist[robot_idx][:,1]):
+				oa_pairs_by_size[key].append((o_a, o_b, goal, value, action, weight))
 
 	return oa_pairs_by_size
 
@@ -175,27 +180,30 @@ def write_labelled_data(df_param,oa_pairs_by_size):
 		batch_num = 0 
 		batched_dataset = [] 
 
-		for (o_a, o_b, goal, value, action) in oa_pairs:
-			data = np.concatenate((np.array(o_a).flatten(),np.array(o_b).flatten(),np.array(goal).flatten(),np.array(value).flatten(),np.array(action).flatten()))
+		for (o_a, o_b, goal, value, action, weight) in oa_pairs:
+			data = np.concatenate((np.array(o_a).flatten(),\
+				np.array(o_b).flatten(),np.array(goal).flatten(),np.array(value).flatten(),\
+				np.array(action).flatten(),np.array(weight).flatten()))
 
 			batched_dataset.append(data)
 			if len(batched_dataset) >= df_param.l_batch_size:
-				batch_fn = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,TEAM=team,NUM_A=num_a,NUM_B=num_b,IDX_TRIAL=batch_num)
+				batch_fn = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,\
+					TEAM=team,NUM_A=num_a,NUM_B=num_b,IDX_TRIAL=batch_num)
 				dh.write_oa_batch(batched_dataset,batch_fn) 
 				batch_num += 1 
 				batched_dataset = [] 
+
 		if len(batched_dataset) > 0:
-			batch_fn = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,TEAM=team,NUM_A=num_a,NUM_B=num_b,IDX_TRIAL=batch_num)
+			batch_fn = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,\
+				TEAM=team,NUM_A=num_a,NUM_B=num_b,IDX_TRIAL=batch_num)
 			dh.write_oa_batch(batched_dataset,batch_fn) 	
 
 
 def get_dataset_size(df_param,batched_files):
 	n_points = 0 
 	for batched_file in batched_files:
-
-		o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)
-
-		n_points += action.shape[0]
+		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file)
+		n_points += value.shape[0]
 	n_points = np.min((n_points, df_param.l_max_dataset_size))
 	return n_points
 
@@ -207,7 +215,7 @@ def make_loaders(df_param,batched_files,n_points):
 	curr_points, train_dataset_size, test_dataset_size = 0,0,0
 	for batched_file in batched_files: 
 
-		o_a,o_b,goal,value,action = dh.read_oa_batch(batched_file)									
+		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file)									
 		
 		if curr_points < df_param.l_test_train_ratio * n_points: 
 			train_loader.append([
@@ -215,9 +223,11 @@ def make_loaders(df_param,batched_files,n_points):
 				torch.from_numpy(o_b).float().to(df_param.device),
 				torch.from_numpy(goal).float().to(df_param.device),
 				torch.from_numpy(value).float().to(df_param.device),
-				torch.from_numpy(action).float().to(df_param.device)])
+				torch.from_numpy(action).float().to(df_param.device),
+				torch.from_numpy(weight).float().to(df_param.device),
+				])
 				
-			train_dataset_size += action.shape[0]
+			train_dataset_size += value.shape[0]
 
 		elif curr_points < n_points:
 			test_loader.append([
@@ -225,10 +235,12 @@ def make_loaders(df_param,batched_files,n_points):
 				torch.from_numpy(o_b).float().to(df_param.device),
 				torch.from_numpy(goal).float().to(df_param.device),
 				torch.from_numpy(value).float().to(df_param.device),
-				torch.from_numpy(action).float().to(df_param.device)]) 			
+				torch.from_numpy(action).float().to(df_param.device), 			
+				torch.from_numpy(weight).float().to(df_param.device),
+				])
 
-			test_dataset_size += action.shape[0]
-		curr_points += action.shape[0]	
+			test_dataset_size += value.shape[0]
+		curr_points += value.shape[0]	
 
 	return train_loader,test_loader, train_dataset_size, test_dataset_size
 

@@ -330,7 +330,7 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 
 	sim_result = {
 		'states' : [],
-		'actions' : [],
+		'policy_dists' : [],
 		'values' : [],
 		'param' : param.to_dict()
 		}
@@ -341,22 +341,21 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 			param.mcts_tree_size, param.mcts_rollout_beta, param.mcts_c_param,
 			param.mcts_pw_C, param.mcts_pw_alpha)
 		if mctsresult.success: 
-			# action = value_to_dist(param,mctsresult.valuePerAction) # 
-			action = value_to_sample(param,mctsresult) # 
+			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction) # 
 			value = mctsresult.expectedReward[0]
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
-			sim_result["actions"].append(action) # total number of robots x action dimension per robot 
+			sim_result["policy_dists"].append(policy_dist)  
 			sim_result["values"].append(value)
 
 	sim_result["states"] = np.array(sim_result["states"])
-	sim_result["actions"] = np.array(sim_result["actions"])
+	sim_result["policy_dists"] = np.array(sim_result["policy_dists"])
 	dh.write_sim_result(sim_result,param.dataset_fn)
 
 	if not quiet_on:
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 	
 
-def value_to_dist(param,valuePerAction):
+def valuePerAction_to_policy_dist(param,valuePerAction):
 
 	if param.training_team == "a":
 		num_robots = param.num_nodes_A
@@ -365,45 +364,19 @@ def value_to_dist(param,valuePerAction):
 		num_robots = param.num_nodes_B
 		robot_idxs = param.team_2_idxs
 
-	dist = np.zeros((param.num_nodes,9))
-	values = defaultdict(list) 
-	for value_action,value in valuePerAction:
+	dist = defaultdict(list)
+	for action,value in valuePerAction:
 
-		value_action = np.array(value_action)
-		value_action = value_action.flatten()
+		action = np.array(action)
+		action = action.flatten()
 
 		for robot_idx in robot_idxs:
+			action_idx = robot_idx * 2 + np.arange(2)
+			dist[robot_idx].append([action[action_idx],value])
 
-			class_action = np.zeros(2)
-			if value_action[robot_idx*2] > 0: 
-				class_action[0] = 1 
-			elif value_action[robot_idx*2] < 0: 
-				class_action[0] = -1 
-			if value_action[robot_idx*2+1] > 0: 
-				class_action[1] = 1 
-			elif value_action[robot_idx*2+1] < 0: 
-				class_action[1] = -1 
-
-			action_idx = np.where(np.all(param.actions == class_action,axis=1))[0][0]
-			values[robot_idx,action_idx].append(value) 
-
-	for robot_idx in robot_idxs: 
-		for action_idx, robot_action in enumerate(param.actions):
-			dist[robot_idx,action_idx] = np.sum(values[robot_idx,action_idx])
+	for key in dist.keys():
+		dist[key] = np.array(dist[key])
 
 	return dist	
 
-def value_to_sample(param,mctsresult):
-	# sample in [n_robots_on_team x action_dim]
 
-	if param.training_team == "a":
-		num_robots = param.num_nodes_A
-		robot_idxs = param.team_1_idxs
-	elif param.training_team == "b":
-		num_robots = param.num_nodes_B
-		robot_idxs = param.team_2_idxs
-
-	# TEMP: HERE THERE NEEDS TO BE A SAMPLING BASED ON WEIGHT OF ACTION
-	sample = mctsresult.bestAction
-
-	return sample 
