@@ -174,8 +174,6 @@ class MonteCarloTreeSearch {
         , number_of_visits(0)
         , reward()
         , children()
-        , gotActions(false)
-        , untried_actions()
     {
     }
 
@@ -187,8 +185,6 @@ class MonteCarloTreeSearch {
     Reward reward;
 
     std::vector<Node*> children;
-    bool gotActions;
-    std::vector<Action> untried_actions;
 
     size_t computeDepth() const {
       size_t depth = 0;
@@ -226,32 +222,19 @@ class MonteCarloTreeSearch {
 
   Node* expand(Node* nodePtr)
   {
-    // if this node was never attempted to be expanded, query potential actions first
-    if (!nodePtr->gotActions) {
-      nodePtr->untried_actions = m_env.computeValidActions(nodePtr->state);
-      nodePtr->gotActions = true;
-    }
-
-    // try to expand until we either found a valid action or have no more valid actions
+    // sample a new action and add it if valid
     m_nodes.resize(m_nodes.size() + 1);
     auto& newNode = m_nodes[m_nodes.size()-1];
-    while (nodePtr->untried_actions.size() > 0) {
-      // shuffle on demand
-      std::uniform_int_distribution<int> dist(0, nodePtr->untried_actions.size() - 1);
-      int idx = dist(m_generator);
-      std::swap(nodePtr->untried_actions.back(), nodePtr->untried_actions.begin()[idx]);
 
-      const auto& action = nodePtr->untried_actions.back();
-      bool success = m_env.step(nodePtr->state, action, newNode.state);
-      if (success) {
-        newNode.parent = nodePtr;
-        newNode.action_to_node = action;
-        nodePtr->untried_actions.pop_back();
-        nodePtr->children.push_back(&newNode);
-        return &newNode;
-      }
-      nodePtr->untried_actions.pop_back();
+    const auto action = m_env.sampleAction(nodePtr->state);
+    bool success = m_env.step(nodePtr->state, action, newNode.state);
+    if (success) {
+      newNode.parent = nodePtr;
+      newNode.action_to_node = action;
+      nodePtr->children.push_back(&newNode);
+      return &newNode;
     }
+
     // there was no valid expansion
     m_nodes.pop_back();
     return nullptr;

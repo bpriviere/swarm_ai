@@ -60,7 +60,7 @@ if __name__ == '__main__':
 	defenderTypes = [rt]
 	dt = 0.25
 	goal = [0.25,0.25]
-	max_depth = 1000
+	max_depth = 100
 	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS
 	Cp = 1.4
 	pw_C = 1.0
@@ -69,6 +69,8 @@ if __name__ == '__main__':
 	if "GLAS" in mode:
 		loadGLAS(g.glasA, "../../current/models/a1.pt")
 		loadGLAS(g.glasB, "../../current/models/b1.pt")
+	if "RANDOM" in mode:
+		rollout_beta = 0.0
 	print(g)
 
 	next_state = mctscpp.GameState()
