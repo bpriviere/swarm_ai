@@ -30,6 +30,12 @@ public:
     return state.segment<2>(0);
   }
 
+  bool isApprox(const RobotStateSingleIntegrator2D& other) const
+  {
+    const float epsilon = 1e-3;
+    return status == other.status && (state - other.state).squaredNorm() < epsilon*epsilon;
+  }
+
   friend std::ostream& operator<<(std::ostream& out, const RobotStateSingleIntegrator2D& s)
   {
     Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");

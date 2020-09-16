@@ -5,7 +5,7 @@
 // Uncomment the following line to clip the environment, rather than executing a validity check
 // #define CLIP_ENVIRONMENT
 // Uncomment the following line to scale the velocity
-// #define SCALE_VELOCITY
+#define SCALE_VELOCITY
 
 struct RobotStateDoubleIntegrator2D
   : public RobotState
@@ -38,6 +38,12 @@ public:
 
   auto velocity() {
     return state.segment<2>(2);
+  }
+
+  bool isApprox(const RobotStateDoubleIntegrator2D& other) const
+  {
+    const float epsilon = 1e-3;
+    return status == other.status && (state - other.state).squaredNorm() < epsilon*epsilon;
   }
 
   friend std::ostream& operator<<(std::ostream& out, const RobotStateDoubleIntegrator2D& s)

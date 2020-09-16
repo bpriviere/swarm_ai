@@ -237,6 +237,10 @@ class Game {
 
   RobotActionT sampleAction(const RobotStateT& state, const RobotTypeT& robotType)
   {
+    if (state.status != RobotState::Status::Active) {
+      return robotType.invalidAction;
+    }
+
     std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
     std::uniform_real_distribution<float> distMag(0.0, 1.0);
     float theta = distTheta(m_generator);
