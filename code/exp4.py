@@ -5,6 +5,7 @@ import os, glob
 import copy
 import multiprocessing as mp 
 import torch 
+import time 
 
 # custom 
 from param import Param 
@@ -17,7 +18,7 @@ import datahandler as dh
 def eval_value(param):
 	print('{}/{}'.format(param.count,param.total))
 
-	if param.sim_mode == "GLAS":
+	if param.policy_dict["sim_mode"] == "GLAS":
 
 		state = np.array(param.state)
 		robot_idx = 0 
@@ -26,7 +27,7 @@ def eval_value(param):
 		o_a,o_b,goal = format_data(o_a,o_b,goal)
 
 		model = DiscreteEmptyNet(param, "cpu")
-		model.load_state_dict(torch.load(param.path_glas_model_a))
+		model.load_state_dict(torch.load(param.policy_dict["path_glas_model_a"]))
 
 		value,action = model(o_a,o_b,goal)
 
@@ -36,11 +37,12 @@ def eval_value(param):
 			"param" : param.to_dict(),
 		}
 
-	elif "MCTS" in param.sim_mode:
+	elif param.policy_dict["sim_mode"] == "MCTS":
 		sim_result = self_play(param)
 
-	elif param.sim_mode == "EXPECTED_VALUE": 
-		value = expected_value(param) # query tree 
+	elif param.policy_dict["sim_mode"] == "EXPECTED_VALUE": 
+		state = np.array(param.state)
+		value = expected_value(param,state,param.policy_dict) # query tree 
 		sim_result = {
 			"states" : np.array([param.state]),
 			"rewards" : np.array([[value[0],value[1]]]),
@@ -86,11 +88,12 @@ def get_params(df_param):
 				param.total = total
 				param.mcts_tree_size = df_param.mcts_tree_size
 				param.sim_modes = df_param.sim_modes
-				param.path_glas_model_a = df_param.path_glas_model_a
-				param.path_glas_model_b = df_param.path_glas_model_b		
+
+				param.policy_dict["sim_mode"] = sim_mode
+				param.policy_dict["path_glas_model_a"] = df_param.path_glas_model_a
+				param.policy_dict["path_glas_model_b"] = df_param.path_glas_model_b
 				
 				param.i_trial = i_trial 
-				param.sim_mode = sim_mode
 				param.dataset_fn = df_param.path_current_results + 'sim_result_{}'.format(count)
 				param.count = count 
 				param.update(initial_condition=initial_condition)
@@ -124,16 +127,16 @@ def main():
 
 	if run_on: 
 		df_param.num_trials = 1
-		df_param.env_l = 1.0
+		df_param.env_l = 0.5
 		df_param.make_environment()
-		df_param.sim_modes = ["EXPECTED_VALUE","GLAS"] #["GLAS"]
+		df_param.sim_modes = ["EXPECTED_VALUE"] # ["EXPECTED_VALUE","GLAS"] #["GLAS"]
 		df_param.path_glas_model_a = '../saved/value_fnc_test/a3.pt'
 		df_param.path_glas_model_b = '../saved/value_fnc_test/b3.pt'
 		df_param.mcts_tree_size = 10000
 		dx = 0.05
 		df_param.dss, df_param.X, df_param.Y = discretize_state_space(df_param,dx,dx)
 		pos = {
-			1 : np.array((0.35,0.3))
+			1 : df_param.env_l*np.array((0.35,0.3))
 		}
 		df_param.state = make_initial_condition(df_param,pos)
 

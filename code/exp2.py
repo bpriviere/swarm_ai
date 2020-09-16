@@ -23,10 +23,10 @@ def evaluate_stochastic_policy(param):
 
 	print('running param {}/{}'.format(param.count,param.total))
 
-	if 'MCTS' in param.sim_mode:
+	if param.policy_dict["sim_mode"] == 'MCTS':
 		evaluate_expert([param.state],param)
 
-	elif param.sim_mode == 'GLAS':
+	elif param.policy_dict["sim_mode"] == 'GLAS':
 		
 		sim_result = {
 			'states' : [],
@@ -38,10 +38,10 @@ def evaluate_stochastic_policy(param):
 
 		model = DiscreteEmptyNet(param, "cpu")
 		if param.training_team == "a" : 
-			model.load_state_dict(torch.load(param.path_glas_model_a))
+			model.load_state_dict(torch.load(param.policy_dict["path_glas_model_a"]))
 			idxs = param.team_1_idxs
 		else: 
-			model.load_state_dict(torch.load(param.path_glas_model_b))
+			model.load_state_dict(torch.load(param.policy_dict["path_glas_model_b"]))
 			idxs = param.team_2_idxs
 
 		for robot_idx in idxs: 
@@ -59,7 +59,7 @@ def evaluate_stochastic_policy(param):
 		dh.write_sim_result(sim_result,param.dataset_fn)
 
 	else:
-		exit('mode not recognized',param.sim_mode)
+		exit('mode not recognized',param.policy_dict["sim_mode"])
 
 
 def get_params(df_param):
@@ -68,7 +68,7 @@ def get_params(df_param):
 	curr_ic = -1
 	count = 0 
 	total = df_param.num_trials*len(df_param.robot_team_compositions)*len(df_param.mcts_tree_sizes)*\
-		len(df_param.training_teams)*len(df_param.modes)
+		len(df_param.training_teams)*len(df_param.mcts_rollout_betas)*len(df_param.sim_modes)
 	num_ics = df_param.num_trials*len(df_param.robot_team_compositions)
 
 	for robot_team_composition in df_param.robot_team_compositions:
@@ -83,43 +83,46 @@ def get_params(df_param):
 
 			for tree_size in df_param.mcts_tree_sizes: 
 				for training_team in df_param.training_teams:
-					for mode in df_param.modes: 
+					for sim_mode in df_param.sim_modes: 
 
-						param = Param()
+						betas = df_param.mcts_rollout_betas
+						# if sim_mode == "MCTS":
+						# 	betas = df_param.mcts_rollout_betas
+						# else: 
+						# 	betas = [0.0]
 
-						# global param 
-						param.env_l = df_param.env_l
-						param.path_glas_model_a = df_param.path_glas_model_a
-						param.path_glas_model_b = df_param.path_glas_model_b
-						param.mcts_tree_sizes = df_param.mcts_tree_sizes 
-						param.robot_team_compositions = df_param.robot_team_compositions
-						param.modes = df_param.modes
-						param.training_teams = df_param.training_teams
-						param.l_num_points_per_file = 1 
-						param.sim_num_trials = df_param.num_trials
-						param.num_ics = num_ics
+						for beta in betas: 
 
-						# local param 
-						if mode == "GLAS":
-							param.mcts_rollout_beta = 0.0
-							param.sim_mode = "GLAS"
-						elif "MCTS" in mode:
-							param.mcts_rollout_beta = float(mode.split("MCTS ")[-1])
-							param.sim_mode = "MCTS"
+							param = Param()
 
-						param.mode = mode  
-						param.robot_team_composition = robot_team_composition 
-						param.sim_trial = trial
-						param.mcts_tree_size = tree_size
-						param.training_team = training_team
-						param.dataset_fn = '{}sim_result_{}'.format(df_param.path_current_results,count)
-						param.count = count 
-						param.total = total
-						param.curr_ic = curr_ic
-						count += 1 
+							# global param 
+							param.env_l = df_param.env_l
+							param.mcts_tree_sizes = df_param.mcts_tree_sizes 
+							param.robot_team_compositions = df_param.robot_team_compositions
+							param.modes = df_param.sim_modes
+							param.training_teams = df_param.training_teams
+							param.l_num_points_per_file = 1 
+							param.sim_num_trials = df_param.num_trials
+							param.num_ics = num_ics
+							param.mcts_rollout_betas = df_param.mcts_rollout_betas
 
-						param.update(initial_condition=initial_condition) 
-						params.append(param)
+							param.policy_dict["path_glas_model_a"] = df_param.policy_dict["path_glas_model_a"]
+							param.policy_dict["path_glas_model_b"] = df_param.policy_dict["path_glas_model_b"]
+							param.policy_dict["mcts_rollout_beta"] = beta
+							param.policy_dict["sim_mode"] = sim_mode
+							param.policy_dict["mcts_tree_size"] = tree_size
+
+							param.robot_team_composition = robot_team_composition 
+							param.sim_trial = trial
+							param.training_team = training_team
+							param.dataset_fn = '{}sim_result_{}'.format(df_param.path_current_results,count)
+							param.count = count 
+							param.total = total
+							param.curr_ic = curr_ic
+							count += 1 
+
+							param.update(initial_condition=initial_condition) 
+							params.append(param)
 
 	return params
 
@@ -134,10 +137,11 @@ if __name__ == '__main__':
 	df_param = Param()
 	df_param.num_trials = 1
 	df_param.env_l = 1.0 # from 0.5 
-	df_param.modes = ["GLAS", "MCTS 0.0", "MCTS 0.5", "MCTS 1.0"]
-	df_param.mcts_tree_sizes = [1000,5000,10000,50000,100000,500000] 
-	df_param.path_glas_model_a = "../saved/IL/models/a4.pt"
-	df_param.path_glas_model_b = "../saved/IL/models/b4.pt"
+	df_param.sim_modes = ["GLAS","MCTS"]
+	df_param.mcts_rollout_betas = [0,0.5,1.0]
+	df_param.mcts_tree_sizes = [1000,5000,10000,50000] 
+	df_param.policy_dict["path_glas_model_a"] = "../current/models/a1.pt"
+	df_param.policy_dict["path_glas_model_b"] = "../current/models/b1.pt"
 	df_param.robot_team_compositions = [
 		{
 		'a': {'standard_robot':1,'evasive_robot':0},
