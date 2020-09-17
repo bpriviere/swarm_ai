@@ -92,7 +92,7 @@ if __name__ == '__main__':
 			[rs.state[0:2].copy() for rs in gs.attackers],
 			[rs.state[0:2].copy() for rs in gs.defenders]])
 		if "MCTS" in mode:
-			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp, pw_C, pw_alpha, export_dot)
+			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp, pw_C, pw_alpha, vf_beta, export_dot)
 			if export_dot:
 				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
 				exit()
