@@ -263,11 +263,11 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			action = np.nan*np.ones((param.num_nodes,2))
 			model = ContinuousEmptyNet(param, "cpu")
 			if gs.turn == mctscpp.GameState.Turn.Attackers: 
-				model.load_state_dict(torch.load(param.path_glas_model_a))
+				model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
 			else: 
-				model.load_state_dict(torch.load(param.path_glas_model_b))
+				model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
 
-			for robot_idx in idxs: 
+			for robot_idx in team_idx: 
 				o_a,o_b,goal = relative_state(state,param,robot_idx)
 				o_a,o_b,goal = format_data(o_a,o_b,goal)
 				value, policy = model(o_a,o_b,goal)
