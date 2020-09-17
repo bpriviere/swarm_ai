@@ -358,16 +358,19 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 	if not quiet_on:
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 
-def test_evaluate_expert(states,param,quiet_on=True,progress=None):
+def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
+	
+	alphas = np.random.randint(low=0,high=len(testing),size=len(states))
 	
 	if not quiet_on:
 		print('   running expert for instance {}'.format(param.dataset_fn))
 
 	if progress is not None:
 		progress_pos = current_process()._identity[0] - progress
-		enumeration = tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos)
+		# enumeration = tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos)
+		enumeration = tqdm.tqdm(zip(alphas,states), desc=param.dataset_fn, leave=False, position=progress_pos)
 	else:
-		enumeration = states
+		enumeration = zip(alphas,states)
 
 	if is_valid_policy_dict(param.policy_dict):
 		policy_dict = param.policy_dict
@@ -384,21 +387,23 @@ def test_evaluate_expert(states,param,quiet_on=True,progress=None):
 		'param' : param.to_dict()
 		}
 
-	test_state = np.array([
-		[0.1, 0.1, 0.0, 0.0],
-		[0.3, 0.3, 0.0, 0.0]
-		])
+	for alpha, state in enumeration:
 
-	test_valuePerAction = [
-		([np.array([0.0375, 0.025], dtype=float), np.array([np.nan, np.nan], dtype=float)], 0.5), 
-		([np.array([-0.025, -0.0125], dtype=float), np.array([np.nan, np.nan], dtype=float)], 0.5), 
-		]
+		test_state = np.array(testing[alpha]["test_state"])
+		test_value = testing[alpha]["test_value"]
 
-	test_policy_dist = valuePerAction_to_policy_dist(param,test_valuePerAction) # 
-	test_value = 1.0 
+		test_valuePerAction = [
+			([np.array([testing[alpha]["test_valuePerAction"][0][0], testing[alpha]["test_valuePerAction"][0][1]], dtype=float), \
+				np.array([np.nan, np.nan], dtype=float)], \
+				testing[alpha]["test_valuePerAction"][0][4]), 
+			([np.array([testing[alpha]["test_valuePerAction"][1][0], testing[alpha]["test_valuePerAction"][1][1]], dtype=float), \
+				np.array([np.nan, np.nan], dtype=float)], \
+				testing[alpha]["test_valuePerAction"][1][4])
+			]
 
-	for state in enumeration:
-		sim_result["states"].append(state)
+		test_policy_dist = valuePerAction_to_policy_dist(param,test_valuePerAction) # 
+
+		sim_result["states"].append(test_state)
 		sim_result["policy_dists"].append(test_policy_dist)  		
 		sim_result["values"].append(test_value)
 

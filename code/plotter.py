@@ -754,20 +754,26 @@ def plot_exp3_results(all_sim_results):
 
 def plot_test_model(stats):
 
-	fig,ax = plt.subplots()
+	for alpha,stats_per_test in stats.items():
 
-	value = stats["values"][0].detach().numpy().flatten()
-	print('value',value)
+		print('test num: ', alpha)
 
-	for policy in stats["policies"]: 
-		policy = policy.detach().numpy().flatten()
-		ax.scatter(policy[0],policy[1],color='gray',alpha=0.25)
+		value = stats_per_test["values"][0].detach().numpy().flatten()
+		print('   value: ',value)
 
-	ax.scatter(0.0375, 0.025,marker='*',color='green')
-	ax.scatter(-0.025, -0.0125,marker='*',color='green')
-	ax.set_xlim([-0.01,0.15])
-	ax.set_ylim([-0.01,0.15])
-	ax.grid(True)
+		print('   valuePerAction: ', stats_per_test["test_valuePerAction"])
+
+		fig,ax = plt.subplots()
+
+		for policy in stats_per_test["policies"]: 
+			policy = policy.detach().numpy().flatten()
+			ax.scatter(policy[0],policy[1],color='gray',alpha=0.25)
+
+		for action in stats_per_test["actions"]:
+			ax.scatter(action[0], action[1], marker='*',color='green')
+		
+		ax.set_title('test num: {}'.format(alpha))
+		ax.grid(True)
 
 def plot_convergence(all_sim_results):
 

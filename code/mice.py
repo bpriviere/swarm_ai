@@ -6,11 +6,13 @@ import time
 import torch 
 import argparse
 from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch import nn 
 from collections import defaultdict
 from itertools import repeat
 from multiprocessing import cpu_count, Pool, freeze_support
 from tqdm import tqdm
 import itertools
+import yaml 
 
 # custom 
 import plotter
@@ -25,15 +27,10 @@ def my_loss(value, policy, target_value, target_policy, weight, z_mu, z_logvar):
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
 
-	def weighted_mse_loss(x, target, weight):
-		return (weight * (x - target) ** 2).mean()
-
-	value_loss = weighted_mse_loss(value,target_value,weight)
-	policy_recon_loss = weighted_mse_loss(policy,target_policy,weight.unsqueeze(1))
-	policy_kl_loss = (1/value.shape[0]) * torch.sum(0.5 * torch.sum(torch.exp(z_logvar) + torch.square(z_mu) - (1. + z_logvar), axis=1),axis=0)
-	policy_loss = policy_recon_loss + policy_kl_loss
-
-	return value_loss + policy_loss
+	criterion = nn.MSELoss(reduce=False)
+	loss = (weight*criterion(value, target_value)).mean()
+	loss += (weight.unsqueeze(1)*criterion(policy, target_policy)).mean()
+	return loss
 
 def relative_state(states,param,idx):
 
@@ -258,7 +255,7 @@ def train_model(df_param,batched_files,training_team,model_fn):
 	print('train dataset size: ', train_dataset_size)
 	print('test dataset size: ', test_dataset_size)
 
-	print(df_param.device)
+	print('device: ',df_param.device)
 	model = ContinuousEmptyNet(df_param,df_param.device)
 	optimizer = torch.optim.Adam(model.parameters(), lr=df_param.l_lr, weight_decay=df_param.l_wd)
 	
@@ -298,7 +295,7 @@ def evaluate_expert_wrapper(arg):
 def test_evaluate_expert_wrapper(arg):
 	test_evaluate_expert(*arg)
 
-def make_dataset(states,params,df_param):
+def make_dataset(states,params,df_param,testing=None):
 	print('making dataset...')
 
 	for param in params:
@@ -314,10 +311,11 @@ def make_dataset(states,params,df_param):
 		print('ncpu: ', ncpu)
 		num_workers = min(ncpu-1, len(params))
 		with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
-			args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
 			if df_param.mice_testing_on:
+				args = list(zip(states, params, itertools.repeat(testing), itertools.repeat(True), itertools.repeat(pool_count)))
 				r = list(tqdm(p.imap_unordered(test_evaluate_expert_wrapper, args), total=len(args), position=0))
 			else:
+				args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
 				r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
 			# p.starmap(evaluate_expert, states, params)
 			# p.starmap(evaluate_expert, list(zip(states, params)))
@@ -401,33 +399,51 @@ def format_dir(df_param):
 				os.remove(file)
 		os.makedirs(modeldir,exist_ok=True)	
 
-def test_model(param,model_fn):
+def test_model(param,model_fn,testing):
 
-	stats = {
-		'values' : [],
-		'policies' : [],
-	}
-
-	test_state = np.array([
-		[0.1, 0.1, 0.0, 0.0],
-		[0.3, 0.3, 0.0, 0.0]
-		])
+	stats = {} 
+	model = ContinuousEmptyNet(param, "cpu")
+	model.load_state_dict(torch.load(model_fn))
 
 	robot_idx = 0 
 	n_samples = 100 
 
-	model = ContinuousEmptyNet(param, "cpu")
-	model.load_state_dict(torch.load(model_fn))
+	for alpha in range(len(testing)):
+		
+		stats_per_test = {
+			'values' : [],
+			'policies' : [],
+			'actions' : [],
+		}
 
-	o_a,o_b,goal = relative_state(test_state,param,robot_idx)
-	o_a,o_b,goal = format_data(o_a,o_b,goal)
+		stats_per_test["test_valuePerAction"] = testing[alpha]["test_valuePerAction"]
 
-	for i_sample in range(n_samples):
-		value, policy = model(o_a,o_b,goal)
-		stats["values"].append(value)
-		stats["policies"].append(policy)
+		for action in testing[alpha]["test_valuePerAction"]:
+			stats_per_test["actions"].append(np.array((action[0],action[1])))
+
+		test_state = np.array(testing[alpha]["test_state"])
+
+		o_a,o_b,goal = relative_state(test_state,param,robot_idx)
+		o_a,o_b,goal = format_data(o_a,o_b,goal)
+
+		for i_sample in range(n_samples):
+			value, policy = model(o_a,o_b,goal)
+			stats_per_test["values"].append(value)
+			stats_per_test["policies"].append(policy)
+
+		stats[alpha] = stats_per_test
 
 	return stats
+
+def read_testing_yaml(fn):
+	
+	with open(fn) as f:
+		testing_cfg = yaml.load(f, Loader=yaml.FullLoader)
+
+	testing = []
+	for test in testing_cfg["test_continuous_glas"]:
+		testing.append(test)
+	return testing
 
 if __name__ == '__main__':
 
@@ -439,6 +455,11 @@ if __name__ == '__main__':
 	df_param.make_data_on = True
 	df_param.mice_testing_on = True
 
+	if df_param.mice_testing_on:
+		testing = read_testing_yaml("testing/test_continuous_glas.yaml")
+	else:
+		testing = None 
+
 	print('Clean old data on: {}'.format(df_param.clean_data_on))
 	print('Make new data on: {}'.format(df_param.make_data_on))
 
@@ -447,8 +468,9 @@ if __name__ == '__main__':
 	# create randomly initialized models for use in the first iteration
 	model = ContinuousEmptyNet(df_param,df_param.device)
 	for training_team in df_param.l_training_teams:
-		torch.save(model.to('cpu').state_dict(), df_param.l_model_fn.format(\
-						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=0))
+		model_fn = df_param.l_model_fn.format(\
+			DATADIR=df_param.path_current_models,TEAM=training_team,ITER=0)
+		torch.save(model.to('cpu').state_dict(), model_fn)
 	del model
 
 	# training loop 
@@ -466,18 +488,20 @@ if __name__ == '__main__':
 				else: 
 					states = get_self_play_samples(params)
 				
-				make_dataset(states,params,df_param)
+				make_dataset(states,params,df_param,testing=testing)
+
+			model_fn = df_param.l_model_fn.format(\
+					DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i+1)
+			batched_fns = glob.glob(df_param.l_labelled_fn.format(\
+					DATADIR=df_param.path_current_data,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM=training_team,ITER='**'))
 
 			train_model(df_param,\
-				glob.glob(df_param.l_labelled_fn.format(\
-					DATADIR=df_param.path_current_data,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM=training_team,ITER='**')), \
+				batched_fns, \
 				training_team,\
-				df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i+1))
+				model_fn)
 
 			if df_param.mice_testing_on: 
-				stats = test_model(df_param,df_param.l_model_fn.format(
-						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i+1))
+				stats = test_model(df_param,model_fn,testing)
 				plotter.plot_test_model(stats)
 				plotter.save_figs('plots/model.pdf')
 				plotter.open_figs('plots/model.pdf')
@@ -485,5 +509,8 @@ if __name__ == '__main__':
 
 			if df_param.l_mode == "Mice":
 				increment(df_param)
+
+		if not df_param.make_data_on:
+			break 
 
 	print('done!')

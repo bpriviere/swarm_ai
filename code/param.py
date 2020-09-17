@@ -61,7 +61,7 @@ class Param:
 		self.env_l = 0.5 
 
 		# learning (l) parameters 
-		self.device = 'cpu'
+		self.device = 'cuda' # cpu, cuda 
 		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 10
@@ -87,7 +87,7 @@ class Param:
 			# },			
 		]
 
-		n,m,h,l,p,z = 4,2,8,8,8,4 # state dim, action dim, hidden layer, output phi, output rho, latent gaussian
+		n,m,h,l,p,z = 4,2,8,8,8,2 # state dim, action dim, hidden layer, output phi, output rho, latent gaussian
 		self.l_phi_network_architecture = [
 			["Linear", n, h],
 			["Linear", h, h],
@@ -103,7 +103,8 @@ class Param:
 		self.l_psi_network_architecture = [
 			["Linear", 2*p+n, h], # accepts two deepsets and state dim
 			["Linear", h, h],
-			["Linear", h, 1] # outputs value 
+			# ["Linear", h, 1] # outputs value 
+			["Linear", h, 1+4] # outputs value 
 		]
 
 		self.l_encoder_network_architecture = [
