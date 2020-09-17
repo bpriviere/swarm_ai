@@ -235,17 +235,27 @@ class Game {
     return reward.second;
   }
 
-  RobotActionT sampleAction(const RobotStateT& state, const RobotTypeT& robotType)
+  RobotActionT sampleAction(const RobotStateT& state, const RobotTypeT& robotType, bool teamAttacker, size_t idx, const GameStateT& gameState)
   {
     if (state.status != RobotState::Status::Active) {
       return robotType.invalidAction;
     }
 
-    std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
-    std::uniform_real_distribution<float> distMag(0.0, 1.0);
-    float theta = distTheta(m_generator);
-    float mag = sqrtf(distMag(m_generator)) * robotType.actionLimit();
-    return RobotActionT(cosf(theta) * mag, sinf(theta) * mag);
+    std::uniform_real_distribution<float> dist(0.0,1.0);
+
+    if (m_rollout_beta > 0 && dist(m_generator) < m_rollout_beta) {
+      // Use NN if rollout_beta is > 0 probabilistically
+      const auto& glas = teamAttacker ? m_glas_a : m_glas_b;
+      auto result = glas.eval(gameState, m_goal, robotType, teamAttacker, idx, false);
+      return std::get<1>(result);
+    } else {
+      // use uniform random sample
+      std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
+      std::uniform_real_distribution<float> distMag(0.0, 1.0);
+      float theta = distTheta(m_generator);
+      float mag = sqrtf(distMag(m_generator)) * robotType.actionLimit();
+      return RobotActionT(cosf(theta) * mag, sinf(theta) * mag);
+    }
   }
 
   GameActionT sampleAction(const GameStateT& state)
@@ -257,7 +267,7 @@ class Game {
 
     if (state.turn == GameStateT::Turn::Attackers) {
       for (size_t i = 0; i < NumAttackers; ++i) {
-        result[i] = sampleAction(state.attackers[i], m_attackerTypes[i]);
+        result[i] = sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state);
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
         result[NumAttackers + i] = m_defenderTypes[i].invalidAction;
@@ -267,7 +277,7 @@ class Game {
         result[i] = m_attackerTypes[i].invalidAction;
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
-        result[NumAttackers + i] = sampleAction(state.defenders[i], m_defenderTypes[i]);
+        result[NumAttackers + i] = sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state);
       }
     }
     return result;
