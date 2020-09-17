@@ -258,6 +258,7 @@ def train_model(df_param,batched_files,training_team,model_fn):
 	print('train dataset size: ', train_dataset_size)
 	print('test dataset size: ', test_dataset_size)
 
+	print(df_param.device)
 	model = ContinuousEmptyNet(df_param,df_param.device)
 	optimizer = torch.optim.Adam(model.parameters(), lr=df_param.l_lr, weight_decay=df_param.l_wd)
 	
@@ -277,8 +278,8 @@ def train_model(df_param,batched_files,training_team,model_fn):
 			if epoch%df_param.l_log_interval==0:
 				if test_epoch_loss < best_test_loss:
 					best_test_loss = test_epoch_loss
-					pbar.set_description("Best Test Loss: {:.2f}".format(best_test_loss))
-					torch.save(model.state_dict(), model_fn)
+					pbar.set_description("Best Test Loss: {:.5f}".format(best_test_loss))
+					torch.save(model.to('cpu').state_dict(), model_fn)
 					model.to(df_param.device)
 			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
 	plotter.plot_loss(losses,training_team)
@@ -436,7 +437,7 @@ if __name__ == '__main__':
 	df_param.clean_data_on = True
 	df_param.clean_models_on = True
 	df_param.make_data_on = True
-	df_param.mice_testing_on = False
+	df_param.mice_testing_on = True
 
 	print('Clean old data on: {}'.format(df_param.clean_data_on))
 	print('Make new data on: {}'.format(df_param.make_data_on))
@@ -446,7 +447,7 @@ if __name__ == '__main__':
 	# create randomly initialized models for use in the first iteration
 	model = ContinuousEmptyNet(df_param,df_param.device)
 	for training_team in df_param.l_training_teams:
-		torch.save(model.state_dict(), df_param.l_model_fn.format(\
+		torch.save(model.to('cpu').state_dict(), df_param.l_model_fn.format(\
 						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=0))
 	del model
 

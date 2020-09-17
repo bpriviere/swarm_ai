@@ -17,6 +17,7 @@ class DeepSet(nn.Module):
 		self.phi = FeedForward(phi_layers,activation,device)
 		self.rho = FeedForward(rho_layers,activation,device)
 		self.device = torch.device(device)
+		self.to(device)
 
 
 	def to(self, device):

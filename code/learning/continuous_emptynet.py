@@ -45,6 +45,7 @@ class ContinuousEmptyNet(nn.Module):
 			param.l_decoder_network_architecture,
 			param.l_network_activation,device)
 
+		self.to(self.device)
 
 
 	def to(self, device):
@@ -52,6 +53,8 @@ class ContinuousEmptyNet(nn.Module):
 		self.model_team_a.to(device)
 		self.model_team_b.to(device)
 		self.psi.to(device)
+		self.encoder.to(device)
+		self.decoder.to(device)
 		return super().to(device)
 
 	def __call__(self,o_a,o_b,goal,training=False):
@@ -69,7 +72,7 @@ class ContinuousEmptyNet(nn.Module):
 		z_dim = int(x.shape[1]/2)
 		z_mu = x[:,0:z_dim]
 		z_logvar = x[:,z_dim:]
-		eps = torch.randn(size=(batch_size,z_dim))
+		eps = torch.randn(size=(batch_size,z_dim),device=self.device)
 		z = z_mu + torch.exp(z_logvar / 2) * eps
 		policy = self.decoder(z)
 
