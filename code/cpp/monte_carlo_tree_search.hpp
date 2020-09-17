@@ -13,6 +13,9 @@
 // #include "neighbor.hpp"
 // #include "planresult.hpp"
 
+#define CHECK_ACTION_DUPLICATES 0
+#define CHECK_STATE_DUPLICATES 1
+
 namespace libMultiRobotPlanning {
 
 /*!
@@ -222,12 +225,31 @@ class MonteCarloTreeSearch {
 
   Node* expand(Node* nodePtr)
   {
+    const auto action = m_env.sampleAction(nodePtr->state);
+#if CHECK_ACTION_DUPLICATES
+    // std::cout << "a " << action[0] << " " << action[1] << std::endl;
+    for (const auto c : nodePtr->children) {
+      if (c->action_to_node == action) {
+        // std::cout << "ACTION DUPLICATE!" << std::endl;
+        return nullptr;
+      }
+    }
+#endif
     // sample a new action and add it if valid
     m_nodes.resize(m_nodes.size() + 1);
     auto& newNode = m_nodes[m_nodes.size()-1];
-
-    const auto action = m_env.sampleAction(nodePtr->state);
     bool success = m_env.step(nodePtr->state, action, newNode.state);
+#if CHECK_STATE_DUPLICATES
+    if (success) {
+      for (const auto c : nodePtr->children) {
+        if (c->state.isApprox(newNode.state)) {
+          // std::cout << "STATE DUPLICATE!" << c->state << newNode.state << std::endl;
+          success = false;
+          break;
+        }
+      }
+    }
+#endif
     if (success) {
       newNode.parent = nodePtr;
       newNode.action_to_node = action;

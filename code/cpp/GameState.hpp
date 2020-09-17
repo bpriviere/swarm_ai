@@ -34,6 +34,26 @@ public:
   size_t depth;
   float cumulativeReward;
 
+  bool isApprox(const GameState<Robot>& other) const
+  {
+    if (turn != other.turn) { 
+      return false;
+    }
+
+    for (size_t i = 0; i < attackers.size(); ++i) {
+      if (!attackers[i].isApprox(other.attackers[i])) {
+        return false;
+      }
+    }
+
+    for (size_t i = 0; i < defenders.size(); ++i) {
+      if (!defenders[i].isApprox(other.defenders[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   friend std::ostream& operator<<(std::ostream& out, const GameState& s)
   {
     Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");

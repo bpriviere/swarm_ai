@@ -213,10 +213,9 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 
 	gs = state_to_cpp_game_state(param,param.state,"a")
 	count = 0
-	finished = False
 	invalid_team_action = [np.nan*np.ones(2) for _ in range(param.num_nodes)]
 	team_action = list(invalid_team_action)
-	while not finished:
+	while True:
 		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
@@ -225,6 +224,20 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		elif gs.turn == mctscpp.GameState.Turn.Defenders:
 			policy_dict = policy_dict_b
 			team_idx = param.team_2_idxs
+
+		# output result
+		isTerminal = g.isTerminal(gs)
+		if count % 2 == 0 or isTerminal:
+			# update sim_result
+			sim_result['states'].append([rs.state.copy() for rs in gs.attackers + gs.defenders])
+			sim_result['actions'].append(team_action.copy())
+			r = g.computeReward(gs)
+			sim_result['rewards'].append([r, 1 - r])
+			# prepare for next update
+			team_action = list(invalid_team_action)
+
+		if isTerminal:
+			break
 
 		if policy_dict["sim_mode"] == "MCTS":
 			
@@ -272,18 +285,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		else: 
 			exit('sim mode {} not recognized'.format(policy_dict["sim_mode"]))
 
-		isTerminal = g.isTerminal(gs)
-		if success:
-			if count % 2 == 0 or isTerminal:
-				# update sim_result
-				sim_result['states'].append([rs.state.copy() for rs in gs.attackers + gs.defenders])
-				sim_result['actions'].append(team_action.copy())
-				r = g.computeReward(gs)
-				sim_result['rewards'].append([r, 1 - r])
-				# prepare for next update
-				team_action = invalid_team_action
-
-		finished = not success or isTerminal
+		if not success:
+			break
 
 		for idx in team_idx:
 			team_action[idx] = action[idx].copy()
