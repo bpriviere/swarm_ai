@@ -379,6 +379,33 @@ class Game {
     return 0.5;
   }
 
+  float estimateValue(const GameStateT& state)
+  {
+    assert(m_glas_a.valid() && m_glas_b.valid());
+
+    if (state.turn == GameStateT::Turn::Defenders)
+    {
+      // we check the turn on the child node, so in this case compute the reward
+      // from the perspective of attackers
+      float value_sum = 0;
+      for (size_t j = 0; j < state.attackers.size(); ++j) {
+        auto result_a = m_glas_a.eval(state, m_goal, m_attackerTypes[j], true, j, true);
+        float value = std::get<0>(result_a);
+        value_sum += value;
+      }
+      return value_sum / state.attackers.size();
+    } else {
+
+      float value_sum = 0;
+      for (size_t j = 0; j < state.defenders.size(); ++j) {
+        auto result_b = m_glas_b.eval(state, m_goal, m_defenderTypes[j], false, j, true);
+        float value = std::get<0>(result_b);
+        value_sum += value;
+      }
+      return 1.0 - value_sum / state.defenders.size();
+    }
+  }
+
   float rolloutBeta() const {
     return m_rollout_beta;
   }

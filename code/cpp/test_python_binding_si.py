@@ -22,12 +22,13 @@ def loadFeedForwardNNWeights(ff, state_dict, name):
 def loadGLAS(glas, file):
 	state_dict = torch.load(file)
 
-	den = glas.discreteEmptyNet
-	loadFeedForwardNNWeights(den.deepSetA.phi, state_dict, "model_team_a.phi")
-	loadFeedForwardNNWeights(den.deepSetA.rho, state_dict, "model_team_a.rho")
-	loadFeedForwardNNWeights(den.deepSetB.phi, state_dict, "model_team_b.phi")
-	loadFeedForwardNNWeights(den.deepSetB.rho, state_dict, "model_team_b.rho")
-	loadFeedForwardNNWeights(den.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(glas.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(glas.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(glas.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
+	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
 
 	return glas
 
@@ -65,12 +66,14 @@ if __name__ == '__main__':
 	Cp = 1.4
 	pw_C = 1.0
 	pw_alpha = 0.25
+	vf_beta = 0
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	if "GLAS" in mode:
 		loadGLAS(g.glasA, "../../current/models/a1.pt")
 		loadGLAS(g.glasB, "../../current/models/b1.pt")
 	if "RANDOM" in mode:
 		rollout_beta = 0.0
+		vf_beta = 0
 	print(g)
 
 	next_state = mctscpp.GameState()
@@ -89,7 +92,7 @@ if __name__ == '__main__':
 			[rs.state[0:2].copy() for rs in gs.attackers],
 			[rs.state[0:2].copy() for rs in gs.defenders]])
 		if "MCTS" in mode:
-			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp, pw_C, pw_alpha, export_dot)
+			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp, pw_C, pw_alpha, vf_beta, export_dot)
 			if export_dot:
 				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
 				exit()

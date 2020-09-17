@@ -91,7 +91,10 @@ if __name__ == '__main__':
 	
 	tree_sizes = [100,1000,10000]
 	betas = [0.0, 0.25, 0.5]
-	ecc = 1.4 
+	ecc = 1.4
+	pw_C = 1.0
+	pw_alpha = 0.25
+	vf_beta = 0.0
 	num_trials = 5 
 	dt = 0.1
 	max_depth = 1000
@@ -148,7 +151,7 @@ if __name__ == '__main__':
 				game_state = state_to_cpp_game_state(state,team_1_idxs,"a")
 
 				start = time.time()
-				mctscpp.search(game, game_state, tree_size, beta, ecc)
+				mctscpp.search(game, game_state, tree_size, beta, ecc, pw_C, pw_alpha, vf_beta)
 				elapsed = time.time() - start 
 				results[i_tree_size,i_beta,i_trial] = elapsed 
 

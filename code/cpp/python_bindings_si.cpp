@@ -66,12 +66,13 @@ MCTSResult search(
   float Cp,
   float pw_C,
   float pw_alpha,
+  float vf_beta,
   const char* export_dot = nullptr)
 {
   game.setRolloutBeta(rollout_beta);
   MCTSResult result;
   libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(
-    game, g_generator, num_nodes, Cp, pw_C, pw_alpha);
+    game, g_generator, num_nodes, Cp, pw_C, pw_alpha, vf_beta);
   result.success = mcts.search(startState, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
@@ -96,6 +97,7 @@ GameT::GameActionT eval(
 	deterministic);
 }
 
+
 PYBIND11_MODULE(mctscppsi, m) {
 
 
@@ -109,6 +111,7 @@ PYBIND11_MODULE(mctscppsi, m) {
     "Cp"_a,
     "pw_C"_a,
     "pw_alpha"_a,
+    "vf_beta"_a,
     "export_dot"_a = nullptr);
   m.def("eval", &eval);
 
