@@ -7,13 +7,13 @@
 // Uncomment the following line to scale the velocity
 // #define SCALE_VELOCITY
 
-struct RobotStateDoubleIntegrator2D
+struct RobotStateDubins2D
   : public RobotState
 {
 public:
-  RobotStateDoubleIntegrator2D() = default;
+  RobotStateDubins2D() = default;
 
-  RobotStateDoubleIntegrator2D(
+  RobotStateDubins2D(
     const Eigen::Vector4f& s)
     : RobotState()
     , state(s)
@@ -40,7 +40,7 @@ public:
     return state.segment<2>(2);
   }
 
-  friend std::ostream& operator<<(std::ostream& out, const RobotStateDoubleIntegrator2D& s)
+  friend std::ostream& operator<<(std::ostream& out, const RobotStateDubins2D& s)
   {
     Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");
 
@@ -51,16 +51,16 @@ public:
   }
 };
 
-typedef Eigen::Vector2f RobotActionDoubleIntegrator2D; // m/s^2
+typedef Eigen::Vector2f RobotActionDubins2D; // m/s^2
 
-class RobotTypeDoubleIntegrator2D
+class RobotTypeDubins2D
   : public RobotType
 {
 public:
 
-  RobotTypeDoubleIntegrator2D() = default;
+  RobotTypeDubins2D() = default;
 
-  RobotTypeDoubleIntegrator2D(
+  RobotTypeDubins2D(
     const Eigen::Vector2f& p_min,
     const Eigen::Vector2f& p_max,
     float v_max,
@@ -77,13 +77,13 @@ public:
 
   float velocity_limit;
   float acceleration_limit;
-  std::vector<RobotActionDoubleIntegrator2D> possibleActions;
-  RobotActionDoubleIntegrator2D invalidAction;
+  std::vector<RobotActionDubins2D> possibleActions;
+  RobotActionDubins2D invalidAction;
 
-  void step(const RobotStateDoubleIntegrator2D& state,
-    const RobotActionDoubleIntegrator2D& action,
+  void step(const RobotStateDubins2D& state,
+    const RobotActionDubins2D& action,
     float dt,
-    RobotStateDoubleIntegrator2D& result) const
+    RobotStateDubins2D& result) const
   {
 #ifdef CLIP_ENVIRONMENT
     auto position = state.position() + state.velocity() * dt;
@@ -101,7 +101,7 @@ public:
 #endif
   }
 
-  bool isStateValid(const RobotStateDoubleIntegrator2D& state) const
+  bool isStateValid(const RobotStateDubins2D& state) const
   {
     bool positionValid;
     bool velocityValid;
@@ -141,11 +141,11 @@ public:
     return acceleration_limit;
   }
 
-  friend std::ostream& operator<<(std::ostream& out, const RobotTypeDoubleIntegrator2D& rt)
+  friend std::ostream& operator<<(std::ostream& out, const RobotTypeDubins2D& rt)
   {
     Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");
 
-    out << "RobotTypeDI2D(p_min=" << rt.p_min.format(fmt)
+    out << "RobotTypeDubins2D(p_min=" << rt.p_min.format(fmt)
         << ",p_max=" << rt.p_max.format(fmt)
         << ",v_max=" << rt.velocity_limit
         << ",a_max=" << rt.acceleration_limit
@@ -157,13 +157,13 @@ public:
 
 };
 
-class DoubleIntegrator2D
+class Dubins2D
 {
 public:
-  typedef RobotStateDoubleIntegrator2D State;
-  typedef RobotActionDoubleIntegrator2D Action;
-  typedef RobotTypeDoubleIntegrator2D Type;
+  typedef RobotStateDubins2D State;
+  typedef RobotActionDubins2D Action;
+  typedef RobotTypeDubins2D Type;
 
-  static constexpr int StateDim = 4;
-  static constexpr int ActionDim = 2;
+  static constexpr int StateDim = 4;   // May need to change this
+  static constexpr int ActionDim = 2;  // May need to change this
 };

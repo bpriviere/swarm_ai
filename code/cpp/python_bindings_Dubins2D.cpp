@@ -8,7 +8,7 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include "robots/SingleIntegrator2D.hpp"
+#include "robots/Dubins2D.hpp"
 
 // #include "robots/RobotState.hpp"
 #include "GameState.hpp"
@@ -23,7 +23,7 @@
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-typedef SingleIntegrator2D RobotT;
+typedef Dubins2D RobotT;
 typedef RobotT::State RobotStateT;
 typedef RobotT::Type RobotTypeT;
 typedef GameState<RobotT> GameStateT;
@@ -92,7 +92,8 @@ GameT::GameActionT eval(
   return computeActionsWithGLAS(game.glasA(), game.glasB(), startState, game.goal(), game.attackerTypes(), game.defenderTypes(), game.dt(), deterministic);
 }
 
-PYBIND11_MODULE(mctscppsi, m) {
+
+PYBIND11_MODULE(mctscppdubins2D, m) {
 
 
   // helper functions
@@ -127,7 +128,7 @@ PYBIND11_MODULE(mctscppsi, m) {
     .value("Invalid", RobotState::Status::Invalid);
 
   robotState.def(py::init())
-    .def(py::init<const Eigen::Vector2f&>())
+    .def(py::init<const Eigen::Vector4f&>())                          // This might need to change
     // .def_property_readonly("position", &RobotStateT::position)
     // .def_property_readonly("velocity", &RobotStateT::velocity)
     .def_readwrite("state", &RobotStateT::state)
@@ -157,11 +158,11 @@ PYBIND11_MODULE(mctscppsi, m) {
     .def(py::init<
       const Eigen::Vector2f&,
       const Eigen::Vector2f&,
-      float, float, float, float>())
+      float, float, float, float, float>())                            // Changes between SI (4f) and DI (5f)
     .def_readwrite("p_min", &RobotTypeT::p_min)
     .def_readwrite("p_max", &RobotTypeT::p_max)
     .def_readwrite("velocity_limit", &RobotTypeT::velocity_limit)
-    // .def_readonly("acceleration_limit", &RobotTypeT::acceleration_limit)
+    .def_readonly("acceleration_limit", &RobotTypeT::acceleration_limit) // Commented in SI
     .def_readwrite("tag_radiusSquared", &RobotTypeT::tag_radiusSquared)
     .def_readwrite("r_senseSquared", &RobotTypeT::r_senseSquared)
     .def_readwrite("radius", &RobotTypeT::radius)
@@ -201,7 +202,7 @@ PYBIND11_MODULE(mctscppsi, m) {
       const std::vector<RobotTypeT>&,
       const std::vector<RobotTypeT>&,
       float,
-      const Eigen::Vector2f&,
+      const Eigen::Vector4f&,                        // This might need to change
       size_t,
       std::default_random_engine&>(),
       "attackerTypes"_a,

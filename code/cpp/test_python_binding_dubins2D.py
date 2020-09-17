@@ -1,11 +1,9 @@
-#!/usr/bin/env python3
-
 import numpy as np
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
-from buildRelease import mctscpp
+from buildRelease import mctscppdubins2D as mctscpp
 
 def loadFeedForwardNNWeights(ff, state_dict, name):
 	l = 0
