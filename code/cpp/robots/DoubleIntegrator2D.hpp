@@ -5,7 +5,7 @@
 // Uncomment the following line to clip the environment, rather than executing a validity check
 // #define CLIP_ENVIRONMENT
 // Uncomment the following line to scale the velocity
-// #define SCALE_VELOCITY
+#define SCALE_VELOCITY
 
 struct RobotStateDoubleIntegrator2D
   : public RobotState
