@@ -156,7 +156,7 @@ public:
     const std::vector<StateVector>& input_b,
     const StateVector& goal,
     float action_limit,
-	bool deterministic) const
+    bool deterministic) const
   {
     // evaluate deep sets
     Eigen::VectorXf X(m_psi.sizeIn());
@@ -193,6 +193,54 @@ public:
     }
 
     return std::make_tuple(value, action);
+  }
+
+  std::tuple<float, Eigen::VectorXf> eval(
+    const GameState<Robot>& state,
+    const StateVector& goal,
+    const typename Robot::Type& robotType,
+    bool teamAttacker,
+    size_t idx,
+    bool deterministic) const
+  {
+
+    const size_t NumAttackers = state.attackers.size();
+    const size_t NumDefenders = state.defenders.size();
+
+    std::vector<StateVector> input_a;
+    std::vector<StateVector> input_b;
+    StateVector relGoal;
+
+    const auto& my_state = teamAttacker ? state.attackers[idx].state : state.defenders[idx].state;
+
+    // compute input_a
+    for (size_t i = 0; i < NumAttackers; ++i) {
+      if (!teamAttacker || i != idx) {
+        auto relState = state.attackers[i].state - my_state;
+        if (relState.template head<2>().squaredNorm() <= robotType.r_senseSquared) {
+          input_a.push_back(relState);
+        }
+      }
+    }
+    // compute input_b
+    for (size_t i = 0; i < NumDefenders; ++i) {
+      if (teamAttacker || i != idx) {
+        auto relState = state.defenders[i].state - my_state;
+        if (relState.template head<2>().squaredNorm() <= robotType.r_senseSquared) {
+          input_b.push_back(relState);
+        }
+      }
+    }
+    // compute relGoal
+    relGoal = goal - my_state;
+
+    // projecting goal to radius of sensing
+    float alpha = sqrtf(relGoal.template head<2>().squaredNorm() / robotType.r_senseSquared);
+    relGoal.template head<2>() = relGoal.template head<2>() / std::max(alpha, 1.0f);
+
+    // evaluate GLAS
+    auto result = eval(input_a, input_b, relGoal, robotType.actionLimit(), deterministic);
+    return result;
   }
 
   auto& deepSetA()
@@ -333,77 +381,20 @@ std::vector<typename Robot::Action> computeActionsWithGLAS(
   const std::vector<typename Robot::Type>& defenderTypes,
   bool deterministic)
 {
-  typedef Eigen::Matrix<float, Robot::StateDim, 1> StateVector;
-
   size_t NumAttackers = state.attackers.size();
   size_t NumDefenders = state.defenders.size();
 
   std::vector<typename Robot::Action> action(NumAttackers + NumDefenders);
-  std::vector<StateVector> input_a;
-  std::vector<StateVector> input_b;
-  StateVector relGoal;
 
   // evaluate glas for all team members of a
   for (size_t j = 0; j < NumAttackers; ++j) {
-    // compute input_a
-    input_a.clear();
-    for (size_t j2 = 0; j2 < NumAttackers; ++j2) {
-      if (j != j2) {
-        auto relState = state.attackers[j2].state - state.attackers[j].state;
-        if (relState.template head<2>().squaredNorm() <= attackerTypes[j].r_senseSquared) {
-          input_a.push_back(relState);
-        }
-      }
-    }
-    // compute input_b
-    input_b.clear();
-    for (size_t j2 = 0; j2 < NumDefenders; ++j2) {
-      auto relState = state.defenders[j2].state - state.attackers[j].state;
-      if (relState.template head<2>().squaredNorm() <= attackerTypes[j].r_senseSquared) {
-        input_b.push_back(relState);
-      }
-    }
-    // compute relGoal
-    relGoal = goal - state.attackers[j].state;
-
-    // projecting goal to radius of sensing
-    float alpha = sqrtf(relGoal.template head<2>().squaredNorm() / attackerTypes[j].r_senseSquared);
-    relGoal.template head<2>() = relGoal.template head<2>() / std::max(alpha, 1.0f);
-
-    // evaluate GLAS
-    auto result_a = glas_a.eval(input_a, input_b, relGoal, attackerTypes[j].actionLimit(), deterministic);
+    auto result_a = glas_a.eval(state, goal, attackerTypes[j], true, j, deterministic);
     action[j] = std::get<1>(result_a);
   }
 
   // evaluate glas for all team members of b
   for (size_t j = 0; j < NumDefenders; ++j) {
-    // compute input_a
-    input_a.clear();
-    for (size_t j2 = 0; j2 < NumAttackers; ++j2) {
-      auto relState = state.attackers[j2].state - state.defenders[j].state;
-      if (relState.segment(0,2).squaredNorm() <= defenderTypes[j].r_senseSquared) {
-        input_a.push_back(relState);
-      }
-    }
-    // compute input_b
-    input_b.clear();
-    for (size_t j2 = 0; j2 < NumDefenders; ++j2) {
-      if (j != j2) {
-        auto relState = state.defenders[j2].state - state.defenders[j].state;
-        if (relState.segment(0,2).squaredNorm() <= defenderTypes[j].r_senseSquared) {
-          input_b.push_back(relState);
-        }
-      }
-    }
-    // compute relGoal
-    relGoal = goal - state.defenders[j].state;
-
-    // projecting goal to radius of sensing
-    float alpha = sqrtf(relGoal.segment(0,2).squaredNorm() / defenderTypes[j].r_senseSquared);
-    relGoal.segment(0,2) = relGoal.segment(0,2) / std::max(alpha, 1.0f);
-
-    // evaluate GLAS
-    auto result_b = glas_b.eval(input_a, input_b, relGoal, defenderTypes[j].actionLimit(), deterministic);
+    auto result_b = glas_b.eval(state, goal, defenderTypes[j], false, j, deterministic);
     action[NumAttackers + j] = std::get<1>(result_b);
   }
 
