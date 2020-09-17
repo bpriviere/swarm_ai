@@ -15,7 +15,7 @@ import itertools
 # custom 
 import plotter
 import datahandler as dh
-from cpp_interface import evaluate_expert, self_play
+from cpp_interface import evaluate_expert, test_evaluate_expert, self_play
 from param import Param 
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
@@ -30,7 +30,7 @@ def my_loss(value, policy, target_value, target_policy, weight, z_mu, z_logvar):
 
 	value_loss = weighted_mse_loss(value,target_value,weight)
 	policy_recon_loss = weighted_mse_loss(policy,target_policy,weight.unsqueeze(1))
-	policy_kl_loss = torch.sum(0.5 * torch.sum(torch.exp(z_logvar) + torch.square(z_mu) - (1. + z_logvar), axis=1),axis=0)
+	policy_kl_loss = (1/value.shape[0]) * torch.sum(0.5 * torch.sum(torch.exp(z_logvar) + torch.square(z_mu) - (1. + z_logvar), axis=1),axis=0)
 	policy_loss = policy_recon_loss + policy_kl_loss
 
 	return value_loss + policy_loss
@@ -294,6 +294,9 @@ def load_param(some_dict):
 def evaluate_expert_wrapper(arg):
 	evaluate_expert(*arg)
 
+def test_evaluate_expert_wrapper(arg):
+	test_evaluate_expert(*arg)
+
 def make_dataset(states,params,df_param):
 	print('making dataset...')
 
@@ -311,7 +314,10 @@ def make_dataset(states,params,df_param):
 		num_workers = min(ncpu-1, len(params))
 		with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
 			args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
-			r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
+			if df_param.mice_testing_on:
+				r = list(tqdm(p.imap_unordered(test_evaluate_expert_wrapper, args), total=len(args), position=0))
+			else:
+				r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
 			# p.starmap(evaluate_expert, states, params)
 			# p.starmap(evaluate_expert, list(zip(states, params)))
 		pool_count += num_workers
@@ -387,12 +393,40 @@ def format_dir(df_param):
 				os.remove(file)
 		os.makedirs(datadir,exist_ok=True)
 
-	modeldir = df_param.path_current_models
-	if os.path.exists(modeldir):
-		for file in glob.glob(modeldir + "/*"):
-			os.remove(file)
-	os.makedirs(modeldir,exist_ok=True)	
+	if df_param.clean_models_on:
+		modeldir = df_param.path_current_models
+		if os.path.exists(modeldir):
+			for file in glob.glob(modeldir + "/*"):
+				os.remove(file)
+		os.makedirs(modeldir,exist_ok=True)	
 
+def test_model(param,model_fn):
+
+	stats = {
+		'values' : [],
+		'policies' : [],
+	}
+
+	test_state = np.array([
+		[0.1, 0.1, 0.0, 0.0],
+		[0.3, 0.3, 0.0, 0.0]
+		])
+
+	robot_idx = 0 
+	n_samples = 100 
+
+	model = ContinuousEmptyNet(param, "cpu")
+	model.load_state_dict(torch.load(model_fn))
+
+	o_a,o_b,goal = relative_state(test_state,param,robot_idx)
+	o_a,o_b,goal = format_data(o_a,o_b,goal)
+
+	for i_sample in range(n_samples):
+		value, policy = model(o_a,o_b,goal)
+		stats["values"].append(value)
+		stats["policies"].append(policy)
+
+	return stats
 
 if __name__ == '__main__':
 
@@ -400,7 +434,9 @@ if __name__ == '__main__':
 
 	df_param = Param() 
 	df_param.clean_data_on = True
+	df_param.clean_models_on = True
 	df_param.make_data_on = True
+	df_param.mice_testing_on = False
 
 	print('Clean old data on: {}'.format(df_param.clean_data_on))
 	print('Make new data on: {}'.format(df_param.make_data_on))
@@ -408,7 +444,7 @@ if __name__ == '__main__':
 	format_dir(df_param)
 
 	# create randomly initialized models for use in the first iteration
-	model = ContinuousEmptyNet(df_param,'cpu')
+	model = ContinuousEmptyNet(df_param,df_param.device)
 	for training_team in df_param.l_training_teams:
 		torch.save(model.state_dict(), df_param.l_model_fn.format(\
 						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=0))
@@ -438,7 +474,15 @@ if __name__ == '__main__':
 				df_param.l_model_fn.format(\
 					DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i+1))
 
+			if df_param.mice_testing_on: 
+				stats = test_model(df_param,df_param.l_model_fn.format(
+						DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i+1))
+				plotter.plot_test_model(stats)
+				plotter.save_figs('plots/model.pdf')
+				plotter.open_figs('plots/model.pdf')
+				exit()
+
 			if df_param.l_mode == "Mice":
 				increment(df_param)
-	
+
 	print('done!')

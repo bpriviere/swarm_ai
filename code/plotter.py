@@ -752,6 +752,23 @@ def plot_exp3_results(all_sim_results):
 	# ax.grid(True)
 
 
+def plot_test_model(stats):
+
+	fig,ax = plt.subplots()
+
+	value = stats["values"][0].detach().numpy().flatten()
+	print('value',value)
+
+	for policy in stats["policies"]: 
+		policy = policy.detach().numpy().flatten()
+		ax.scatter(policy[0],policy[1],color='gray',alpha=0.25)
+
+	ax.scatter(0.0375, 0.025,marker='*',color='green')
+	ax.scatter(-0.025, -0.0125,marker='*',color='green')
+	ax.set_xlim([-0.01,0.15])
+	ax.set_ylim([-0.01,0.15])
+	ax.grid(True)
+
 def plot_convergence(all_sim_results):
 
 	def extract_reward(sim_result,longest_rollout):

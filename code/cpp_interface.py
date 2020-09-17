@@ -357,7 +357,57 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 
 	if not quiet_on:
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
+
+def test_evaluate_expert(states,param,quiet_on=True,progress=None):
 	
+	if not quiet_on:
+		print('   running expert for instance {}'.format(param.dataset_fn))
+
+	if progress is not None:
+		progress_pos = current_process()._identity[0] - progress
+		enumeration = tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos)
+	else:
+		enumeration = states
+
+	if is_valid_policy_dict(param.policy_dict):
+		policy_dict = param.policy_dict
+	else: 
+		print('bad policy dict')
+		exit()
+
+	game = param_to_cpp_game(param,policy_dict,policy_dict)
+
+	sim_result = {
+		'states' : [],
+		'policy_dists' : [],
+		'values' : [],
+		'param' : param.to_dict()
+		}
+
+	test_state = np.array([
+		[0.1, 0.1, 0.0, 0.0],
+		[0.3, 0.3, 0.0, 0.0]
+		])
+
+	test_valuePerAction = [
+		([np.array([0.0375, 0.025], dtype=float), np.array([np.nan, np.nan], dtype=float)], 0.5), 
+		([np.array([-0.025, -0.0125], dtype=float), np.array([np.nan, np.nan], dtype=float)], 0.5), 
+		]
+
+	test_policy_dist = valuePerAction_to_policy_dist(param,test_valuePerAction) # 
+	test_value = 1.0 
+
+	for state in enumeration:
+		sim_result["states"].append(state)
+		sim_result["policy_dists"].append(test_policy_dist)  		
+		sim_result["values"].append(test_value)
+
+	sim_result["states"] = np.array(sim_result["states"])
+	sim_result["policy_dists"] = np.array(sim_result["policy_dists"])
+	dh.write_sim_result(sim_result,param.dataset_fn)
+
+	if not quiet_on:
+		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))	
 
 def valuePerAction_to_policy_dist(param,valuePerAction):
 
