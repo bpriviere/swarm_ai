@@ -20,7 +20,7 @@ class ContinuousEmptyNet(nn.Module):
 		self.device = torch.device(device)
 
 		self.acceleration_limit = param.standard_robot["acceleration_limit"]
-		# self.K = param.K 
+		self.z_dim = param.l_z_dim
 
 		self.model_team_a = DeepSet(
 			param.l_phi_network_architecture,
@@ -35,8 +35,9 @@ class ContinuousEmptyNet(nn.Module):
 			device)
 
 		self.psi = FeedForward(
-			param.l_psi_network_architecture,
-			param.l_network_activation,device)
+			param.l_conditional_network_architecture,
+			param.l_network_activation,
+			device)
 
 		self.encoder = FeedForward(
 			param.l_encoder_network_architecture,
@@ -48,6 +49,11 @@ class ContinuousEmptyNet(nn.Module):
 			param.l_network_activation,
 			device)
 
+		self.value = FeedForward(
+			param.l_value_network_architecture,
+			param.l_network_activation,
+			device)		
+
 		self.to(self.device)
 
 
@@ -58,38 +64,49 @@ class ContinuousEmptyNet(nn.Module):
 		self.psi.to(device)
 		self.encoder.to(device)
 		self.decoder.to(device)
+		self.value.to(device)
 		return super().to(device)
 
-	def __call__(self,o_a,o_b,goal,training=False):
+	def __call__(self,o_a,o_b,goal,x=None):
 
+		batch_size = o_a.shape[0]
+
+		# condition on game state 
 		output_rho_team_a = self.model_team_a(o_a)
 		output_rho_team_b = self.model_team_b(o_b)
-		x = torch.cat((output_rho_team_a, output_rho_team_b, goal),1)
-		x = self.psi(x)
+		y = torch.cat((output_rho_team_a, output_rho_team_b, goal),1)
+		y = self.psi(y) 
 
-		value = (torch.tanh(x[:,0])+1) / 2 
+		if x is None: 
+			# simple sample 
+			mu = 0.0 
+			sd = 1.0 
 
-		batch_size = x.shape[0]
-		z_dim = int((x.shape[1]-1)/2) 
-		eps = torch.randn(size=(batch_size,z_dim),device=self.device)
-
-		mu_idx = 1 + np.arange(z_dim)
-		var_idx = 1 + z_dim + np.arange(z_dim)
-		z_mu = x[:,mu_idx]
-		z_logvar = x[:,var_idx]
-		z = z_mu + torch.exp(z_logvar / 2) * eps
-
-		policy = self.decoder(z)
-
-		if training:
-			return value, policy, z_mu, z_logvar
 		else:
-			return value, policy
+			# encode action 
+			dist = self.encoder(torch.cat((x,y),1))
+			mu = dist[:,0:self.z_dim]
+			sd = dist[:,self.z_dim:]
 
-	def torch_scale(self,action,max_action):
-		action_norm = action.norm(p=2,dim=1)
-		index = action_norm > 0
-		scale = torch.ones(action.shape[0],device=self.device)
-		scale[index] = 1.0 / torch.clamp(action_norm[index]/max_action,min=1)
-		action = torch.mul(scale.unsqueeze(1), action)
-		return action
+		eps = torch.randn(size=(batch_size,self.z_dim),device=self.device)
+		z = mu + sd * eps
+
+		# decode 
+		policy = self.decoder(torch.cat((z,y),1))
+
+		# value uses game state condition
+		value = (torch.tanh(self.value(y))+1) / 2 
+
+		if x is None:
+			return value, policy
+		else: 
+			return value, policy, mu, sd
+
+
+	# def torch_scale(self,action,max_action):
+	# 	action_norm = action.norm(p=2,dim=1)
+	# 	index = action_norm > 0
+	# 	scale = torch.ones(action.shape[0],device=self.device)
+	# 	scale[index] = 1.0 / torch.clamp(action_norm[index]/max_action,min=1)
+	# 	action = torch.mul(scale.unsqueeze(1), action)
+	# 	return action
