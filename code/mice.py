@@ -27,9 +27,17 @@ def my_loss(value, policy, target_value, target_policy, weight, z_mu, z_logvar):
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
 
-	criterion = nn.MSELoss(reduce=False)
-	loss = (weight*criterion(value, target_value)).mean()
-	loss += (weight.unsqueeze(1)*criterion(policy, target_policy)).mean()
+	criterion = nn.MSELoss()
+	# criterion = nn.L1Loss()
+	loss = criterion(policy,target_policy)
+	# loss += 100 * torch.sum(0.5 * torch.sum(torch.exp(z_logvar) + torch.square(z_mu) - (1. + z_logvar), axis=1),axis=0)
+
+	loss += 1e-4 * -0.5 * torch.sum(1 + z_logvar - z_mu.pow(2) - z_logvar.exp())
+
+
+	# criterion = nn.MSELoss(reduce=False)
+	# loss = (weight*criterion(value, target_value)).mean()
+	# loss += (weight.unsqueeze(1)*criterion(policy, target_policy)).mean()
 	return loss
 
 def relative_state(states,param,idx):

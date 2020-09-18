@@ -257,23 +257,23 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 
 		elif policy_dict["sim_mode"] == "GLAS":
 
-			# action = mctscpp.eval(g, gs, deterministic)
+			action = mctscpp.eval(g, gs, deterministic)
 			
 			# temp 
 			# use python to eval model 
-			state = cpp_state_to_pstate(gs)
-			action = np.nan*np.ones((param.num_nodes,2))
-			model = ContinuousEmptyNet(param, "cpu")
-			if gs.turn == mctscpp.GameState.Turn.Attackers: 
-				model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
-			else: 
-				model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
+			# state = cpp_state_to_pstate(gs)
+			# action = np.nan*np.ones((param.num_nodes,2))
+			# model = ContinuousEmptyNet(param, "cpu")
+			# if gs.turn == mctscpp.GameState.Turn.Attackers: 
+			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
+			# else: 
+			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
 
-			for robot_idx in team_idx: 
-				o_a,o_b,goal = relative_state(state,param,robot_idx)
-				o_a,o_b,goal = format_data(o_a,o_b,goal)
-				value, policy = model(o_a,o_b,goal)
-				action[robot_idx, :] = policy.detach().numpy().flatten()
+			# for robot_idx in team_idx: 
+			# 	o_a,o_b,goal = relative_state(state,param,robot_idx)
+			# 	o_a,o_b,goal = format_data(o_a,o_b,goal)
+			# 	value, policy = model(o_a,o_b,goal)
+			# 	action[robot_idx, :] = policy.detach().numpy().flatten()
 
 			success = g.step(gs, action, gs)
 
@@ -392,14 +392,10 @@ def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
 		test_state = np.array(testing[alpha]["test_state"])
 		test_value = testing[alpha]["test_value"]
 
-		test_valuePerAction = [
-			([np.array([testing[alpha]["test_valuePerAction"][0][0], testing[alpha]["test_valuePerAction"][0][1]], dtype=float), \
-				np.array([np.nan, np.nan], dtype=float)], \
-				testing[alpha]["test_valuePerAction"][0][4]), 
-			([np.array([testing[alpha]["test_valuePerAction"][1][0], testing[alpha]["test_valuePerAction"][1][1]], dtype=float), \
-				np.array([np.nan, np.nan], dtype=float)], \
-				testing[alpha]["test_valuePerAction"][1][4])
-			]
+		test_valuePerAction = []
+		for valuePerAction in testing[alpha]["test_valuePerAction"]:
+			x = ((np.array((valuePerAction[0],valuePerAction[1]),dtype=float),np.array((np.nan,np.nan),dtype=float)),valuePerAction[-1])
+			test_valuePerAction.append(x)
 
 		test_policy_dist = valuePerAction_to_policy_dist(param,test_valuePerAction) # 
 

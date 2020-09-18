@@ -20,6 +20,7 @@ class ContinuousEmptyNet(nn.Module):
 		self.device = torch.device(device)
 
 		self.acceleration_limit = param.standard_robot["acceleration_limit"]
+		# self.K = param.K 
 
 		self.model_team_a = DeepSet(
 			param.l_phi_network_architecture,
@@ -61,61 +62,24 @@ class ContinuousEmptyNet(nn.Module):
 
 	def __call__(self,o_a,o_b,goal,training=False):
 
-		# print('o_a',o_a)
-		# print('o_b',o_b)
-		# print('goal',goal)
-
 		output_rho_team_a = self.model_team_a(o_a)
 		output_rho_team_b = self.model_team_b(o_b)
-
-		# print('output_rho_team_a',output_rho_team_a)
-		# print('output_rho_team_b',output_rho_team_b)
-
-
 		x = torch.cat((output_rho_team_a, output_rho_team_b, goal),1)
-
-		# print('x',x)
-
-		# new 
 		x = self.psi(x)
+
 		value = (torch.tanh(x[:,0])+1) / 2 
 
 		batch_size = x.shape[0]
-		z_dim = int((x.shape[1]-1)/2)
-		z_mu = x[:,1:z_dim+1]
-		z_logvar = x[:,z_dim+1:]
+		z_dim = int((x.shape[1]-1)/2) 
 		eps = torch.randn(size=(batch_size,z_dim),device=self.device)
-		# policy = z_mu + torch.exp(z_logvar / 2) * eps
+
+		mu_idx = 1 + np.arange(z_dim)
+		var_idx = 1 + z_dim + np.arange(z_dim)
+		z_mu = x[:,mu_idx]
+		z_logvar = x[:,var_idx]
 		z = z_mu + torch.exp(z_logvar / 2) * eps
+
 		policy = self.decoder(z)
-
-		# old 
-		# value = (torch.tanh(self.psi(x))+1) / 2 
-
-		# # print('value',value)
-		
-		# # 'reparameterization trick' : https://towardsdatascience.com/reparameterization-trick-126062cfd3c3
-		# x = self.encoder(x)
-
-		# # print('x',x)
-
-		# batch_size = x.shape[0]
-		# z_dim = int(x.shape[1]/2)
-		# z_mu = x[:,0:z_dim]
-		# z_logvar = x[:,z_dim:]
-		# eps = torch.randn(size=(batch_size,z_dim),device=self.device)
-		# z = z_mu + torch.exp(z_logvar / 2) * eps
-		# policy = self.decoder(z)
-
-		# print('z_mu',z_mu)
-		# print('z_logvar',z_logvar)
-		# print('policy',policy)
-
-		# scale policy 
-		# policy = self.torch_scale(policy,self.acceleration_limit)
-
-		# print('policy',policy)
-		# exit()
 
 		if training:
 			return value, policy, z_mu, z_logvar
