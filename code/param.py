@@ -61,7 +61,7 @@ class Param:
 		self.env_l = 0.5 
 
 		# learning (l) parameters 
-		self.device = 'cpu' # cpu, cuda 
+		self.device = 'cuda' # cpu, cuda 
 		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 10
@@ -87,37 +87,51 @@ class Param:
 			# },			
 		]
 
-		n,m,h,l,p,z = 4,2,16,16,16,32 # state dim, action dim, hidden layer, output phi, output rho, latent gaussian
+		self.l_num_subsamples = 5
+
+		self.l_state_dim = 4 
+		self.l_action_dim = 2 
+		self.l_z_dim = 16
+		self.l_hidden_dim = 12
+
+		n,m,h,z = self.l_state_dim,self.l_action_dim,self.l_hidden_dim,self.l_z_dim
 
 		self.l_phi_network_architecture = [
 			["Linear", n, h],
 			["Linear", h, h],
-			["Linear", h, l]
+			["Linear", h, h]
 		]
 
 		self.l_rho_network_architecture = [
-			["Linear", l, h],
 			["Linear", h, h],
-			["Linear", h, p]
+			["Linear", h, h],
+			["Linear", h, h]
 		]
 
-		self.l_psi_network_architecture = [
-			["Linear", 2*p+n, h], # accepts two deepsets and state dim
+		self.l_conditional_network_architecture = [
+			["Linear", 2*h+n, h], 
 			["Linear", h, h],
-			# ["Linear", h, 1] # outputs value 
-			["Linear", h, 1+2*z] # outputs value 
+			["Linear", h, h] 
 		]
 
 		self.l_encoder_network_architecture = [
-			["Linear", 2*p+n, h], # accepts two deepsets and state dim 
+			["Linear", m+h, h],
 			["Linear", h, h],
-			["Linear", h, 2*z] # outputs mean and std of latent distribution 
+			["Linear", h, h],
+			["Linear", h, 2*z] 
 		]
 
 		self.l_decoder_network_architecture = [
-			["Linear", z, h], # inputs sample from latent dist 
+			["Linear", z+h, h], 
 			["Linear", h, h],
-			["Linear", h, m] # outputs policy 
+			["Linear", h, h],
+			["Linear", h, m] 
+		]
+
+		self.l_value_network_architecture = [
+			["Linear", h, h], 
+			["Linear", h, h],
+			["Linear", h, 1] 
 		]
 
 
@@ -125,7 +139,7 @@ class Param:
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 1000000 # n_points 
 		self.l_batch_size = 2000
-		self.l_n_epoch = 25
+		self.l_n_epoch = 50
 		self.l_lr = 1e-3
 		self.l_wd = 0 
 		self.l_log_interval = 1

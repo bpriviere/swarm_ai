@@ -22,18 +22,33 @@ from param import Param
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
 
-def my_loss(value, policy, target_value, target_policy, weight, z_mu, z_logvar):
+def my_loss(value, policy, target_value, target_policy, weight, mu, sd):
 	# value \& policy network : https://www.nature.com/articles/nature24270
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
 
+	# print('value[0:3]',value[0:3])
+	# print('policy[0:3]',policy[0:3])
+	# print('target_value[0:5]',target_value[0:5])
+	# print('target_policy[0:5]',target_policy[0:5])
+	# print('weight[0:5]',weight[0:5])
+	# exit()
+	# print('mu[0:3]',mu[0:3])
+	# print('sd[0:3]',sd[0:3])
+
+
 	criterion = nn.MSELoss()
 	# criterion = nn.L1Loss()
-	loss = criterion(policy,target_policy)
-	# loss += 100 * torch.sum(0.5 * torch.sum(torch.exp(z_logvar) + torch.square(z_mu) - (1. + z_logvar), axis=1),axis=0)
+	mse = criterion(policy,target_policy)
+	
+	kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) * 1e-8
+	
+	# print('mse',mse)
+	# print('kldiv',kldiv)
 
-	loss += 1e-4 * -0.5 * torch.sum(1 + z_logvar - z_mu.pow(2) - z_logvar.exp())
+	loss = mse + kldiv
 
+	# exit()
 
 	# criterion = nn.MSELoss(reduce=False)
 	# loss = (weight*criterion(value, target_value)).mean()
@@ -92,8 +107,8 @@ def train(model,optimizer,loader):
 	
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
-		value, policy, z_mu, z_logvar = model(o_a,o_b,goal,training=True)		
-		loss = my_loss(value, policy, target_value, target_policy, weight, z_mu, z_logvar)
+		value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)		
+		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd)
 		optimizer.zero_grad()   
 		loss.backward()         
 		optimizer.step()        
@@ -101,13 +116,11 @@ def train(model,optimizer,loader):
 	return epoch_loss/(step+1)	
 
 
-
-
 def test(model,optimizer,loader):
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
-		value, policy, z_mu, z_logvar = model(o_a,o_b,goal,training=True)		
-		loss = my_loss(value, policy, target_value, target_policy, weight, z_mu, z_logvar)
+		value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)		
+		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd)
 		epoch_loss += float(loss)
 	return epoch_loss/(step+1)	
 
@@ -177,7 +190,18 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 			key = (param.training_team,len(o_a),len(o_b))
 
 			for action, weight in zip(policy_dist[robot_idx][:,0],policy_dist[robot_idx][:,1]):
-				oa_pairs_by_size[key].append((o_a, o_b, goal, value, action, weight))
+
+				eps_s = 1e-2
+				eps_a = 1e-2 
+
+				o_a2 = o_a + eps_s * np.random.normal(size=o_a.shape)
+				o_b2 = o_b + eps_s * np.random.normal(size=o_b.shape)
+				goal2 = goal + eps_s * np.random.normal(size=goal.shape)
+
+				action2 = action + eps_a * np.random.normal(size=action.shape)
+
+				# oa_pairs_by_size[key].append((o_a, o_b, goal, value, action, weight))
+				oa_pairs_by_size[key].append((o_a2, o_b2, goal2, value, action2, weight))
 
 	return oa_pairs_by_size
 
@@ -273,12 +297,12 @@ def train_model(df_param,batched_files,training_team,model_fn):
 		log_file.write("time,epoch,train_loss,test_loss\n")
 		start_time = time.time()
 		best_test_loss = np.Inf
-		scheduler = ReduceLROnPlateau(optimizer, 'min')
+		# scheduler = ReduceLROnPlateau(optimizer, 'min')
 		pbar = tqdm(range(1,df_param.l_n_epoch+1))
 		for epoch in pbar:
 			train_epoch_loss = train(model,optimizer,train_loader)
 			test_epoch_loss = test(model,optimizer,test_loader)
-			scheduler.step(test_epoch_loss)
+			# scheduler.step(test_epoch_loss)
 			losses.append((train_epoch_loss,test_epoch_loss))
 			if epoch%df_param.l_log_interval==0:
 				if test_epoch_loss < best_test_loss:
@@ -310,8 +334,12 @@ def make_dataset(states,params,df_param,testing=None):
 		param.policy_dict["sim_mode"] = "MCTS"
 
 	if not df_param.l_parallel_on:
-		for states_per_file, param in zip(states, params): 
-			evaluate_expert(states_per_file, param, quiet_on=False)
+		if df_param.mice_testing_on:
+			for states_per_file, param in zip(states, params): 
+				test_evaluate_expert(states_per_file,param,testing,quiet_on=True,progress=None) 				
+		else:
+			for states_per_file, param in zip(states, params): 
+				evaluate_expert(states_per_file, param, quiet_on=False)
 	else:
 		global pool_count
 		freeze_support()
@@ -409,12 +437,14 @@ def format_dir(df_param):
 
 def test_model(param,model_fn,testing):
 
+	print('testing model: {}'.format(model_fn))
+
 	stats = {} 
 	model = ContinuousEmptyNet(param, "cpu")
 	model.load_state_dict(torch.load(model_fn))
 
 	robot_idx = 0 
-	n_samples = 100 
+	n_samples = 1000
 
 	for alpha in range(len(testing)):
 		
