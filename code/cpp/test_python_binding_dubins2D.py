@@ -1,4 +1,5 @@
 import numpy as np
+import math
 
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -28,8 +29,8 @@ if __name__ == '__main__':
 	print(rs)
 
 	# test GameState
-	attackers = [mctscpp.RobotState([0.05,0.25,0.00,0.10])]        ## Initial condition attacker   [ XE, YE, theta, V ]
-	defenders = [mctscpp.RobotState([0.30,0.25,0.00,0.30])]        ## Initial condition defender   [ XE, YE, theta, V ]
+	attackers = [mctscpp.RobotState([0.05, 0.05, math.pi/2, 0.30])]              ## Initial condition attacker   [ XE, YE, theta, V ]
+	defenders = [mctscpp.RobotState([0.30, 0.25, math.pi  , 0.00])]              ## Initial condition defender   [ XE, YE, theta, V ]
 	gs = mctscpp.GameState(mctscpp.GameState.Turn.Attackers,attackers,defenders)
 	print(gs)
 
@@ -44,9 +45,9 @@ if __name__ == '__main__':
 	# rt.r_senseSquared = 1.0**2
 
 	# test Game
-	attackerTypes = [rt]
-	defenderTypes = [rt]
-	dt = 0.25
+	attackerTypes = [rt]                 ## Attacker robot performance
+	defenderTypes = [rt]                 ## Defender robot performance
+	dt = 0.1
 	goal = [0.25,0.25,0,0]
 	max_depth = 100
 	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS

@@ -105,11 +105,8 @@ public:
   // Iterate a timestep
   void step(const RobotStateDubins2D& state, const RobotActionDubins2D& action, float dt, RobotStateDubins2D& result) const
   {
-    //result.position_X() = state.position_X() + state.velocity()*state.theta().cos() * dt;
-    //result.position_Y() = state.position_Y() + state.velocity()*state.theta().sin() * dt;
-
-    result.position_X() = state.position_X() + dt * state.velocity()*state.theta() * dt;  // Missing the cos() and sin() parts, but at least it compiles...
-    result.position_Y() = state.position_Y() + dt * state.velocity()*state.theta() * dt;
+    result.position_X() = state.position_X() + state.velocity()*cos(state.theta()(0)) * dt;
+    result.position_Y() = state.position_Y() + state.velocity()*sin(state.theta()(0)) * dt;
 
     result.theta()      = state.theta()    + dt * action.segment<1>(0) / std::max(state.velocity().norm(), 0.1f);
     result.velocity()   = state.velocity() + dt * action.segment<1>(1);
@@ -141,18 +138,19 @@ public:
     //    - turning: +- accel_lim / min(0.1,V) -> The velocity limiting is applied in step() 
     //    - accel: +- accel_limit 
     possibleActions.resize(9);
+    float accel_limit_turning = acceleration_limit*2.0f;
 
-    possibleActions[0] << -acceleration_limit*0.1f, -acceleration_limit;
-    possibleActions[1] << -acceleration_limit*0.1f,                 0.0;
-    possibleActions[2] << -acceleration_limit*0.1f,  acceleration_limit;
+    possibleActions[0] << -accel_limit_turning, -acceleration_limit;
+    possibleActions[1] << -accel_limit_turning,                 0.0;
+    possibleActions[2] << -accel_limit_turning,  acceleration_limit;
     
     possibleActions[3] << 0.0, -acceleration_limit;
     possibleActions[4] << 0.0,                 0.0;
     possibleActions[5] << 0.0,  acceleration_limit;
     
-    possibleActions[6] << acceleration_limit*0.1f, -acceleration_limit;
-    possibleActions[7] << acceleration_limit*0.1f,                 0.0;
-    possibleActions[8] << acceleration_limit*0.1f,  acceleration_limit;
+    possibleActions[6] <<  accel_limit_turning, -acceleration_limit;
+    possibleActions[7] <<  accel_limit_turning,                 0.0;
+    possibleActions[8] <<  accel_limit_turning,  acceleration_limit;
 
     invalidAction << nanf("") , nanf("");
   }
