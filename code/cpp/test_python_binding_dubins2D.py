@@ -28,13 +28,14 @@ if __name__ == '__main__':
 	print(rs)
 
 	# test GameState
-	attackers = [mctscpp.RobotState([0.05,0.25,0,0])]
-	defenders = [mctscpp.RobotState([0.3,0.25,0,0])]
+	attackers = [mctscpp.RobotState([0.05,0.25,0.00,0.10])]        ## Initial condition attacker   [ XE, YE, theta, V ]
+	defenders = [mctscpp.RobotState([0.30,0.25,0.00,0.30])]        ## Initial condition defender   [ XE, YE, theta, V ]
 	gs = mctscpp.GameState(mctscpp.GameState.Turn.Attackers,attackers,defenders)
 	print(gs)
 
 	# test RobotType
-	rt = mctscpp.RobotType([0.0, 0.0], [0.5, 0.5], 0.125, 0.125, 0.025, 1.0, 0.025)
+	#                       X/Y_min,    X/Y_max,   v_max    a_max  tag_radius, r_sense, radius
+	rt = mctscpp.RobotType([0.0, 0.0], [0.5, 0.5], 1.00  , 0.500,   0.025   ,   1.0,    0.025 )
 	# rt.p_min = [0.0, 0.0]
 	# rt.p_max = [0.5, 0.5]
 	# rt.velocity_limit = 0.125
@@ -68,7 +69,7 @@ if __name__ == '__main__':
 
 	result = []
 	for d in range(max_depth):
-		gs.depth = 0;
+		gs.depth = 0
 		# print(gs)
 		result.append([
 			[rs.state[0:2].copy() for rs in gs.attackers],
