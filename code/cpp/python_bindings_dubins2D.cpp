@@ -29,7 +29,7 @@ typedef RobotT::Type RobotTypeT;
 typedef GameState<RobotT> GameStateT;
 typedef Game<RobotT> GameT;
 typedef DeepSetNN<RobotT::StateDim> DeepSetNNT;
-typedef DiscreteEmptyNet<RobotT::StateDim> DiscreteEmptyNetT;
+// typedef DiscreteEmptyNet<RobotT::StateDim> DiscreteEmptyNetT;
 typedef GLAS<RobotT> GLAST;
 
 // global variables
@@ -66,12 +66,13 @@ MCTSResult search(
   float Cp,
   float pw_C,
   float pw_alpha,
+  float vf_beta,
   const char* export_dot = nullptr)
 {
   game.setRolloutBeta(rollout_beta);
   MCTSResult result;
   libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(
-    game, g_generator, num_nodes, Cp, pw_C, pw_alpha);
+    game, g_generator, num_nodes, Cp, pw_C, pw_alpha, vf_beta);
   result.success = mcts.search(startState, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
@@ -89,7 +90,11 @@ GameT::GameActionT eval(
   const GameT::GameStateT& startState,
   bool deterministic)
 {
-  return computeActionsWithGLAS(game.glasA(), game.glasB(), startState, game.goal(), game.attackerTypes(), game.defenderTypes(), game.dt(), deterministic);
+  return computeActionsWithGLAS(
+    game.glasA(), game.glasB(),
+    startState, game.goal(),
+    game.attackerTypes(), game.defenderTypes(),
+	deterministic);
 }
 
 
@@ -106,6 +111,7 @@ PYBIND11_MODULE(mctscppdubins2D, m) {
     "Cp"_a,
     "pw_C"_a,
     "pw_alpha"_a,
+    "vf_beta"_a,
     "export_dot"_a = nullptr);
   m.def("eval", &eval);
 
@@ -182,19 +188,23 @@ PYBIND11_MODULE(mctscppdubins2D, m) {
     .def_property_readonly("phi", &DeepSetNNT::phi)
     .def_property_readonly("rho", &DeepSetNNT::rho);
 
-  // DiscreteEmptyNet
-  py::class_<DiscreteEmptyNetT> (m, "DiscreteEmptyNet")
-    .def("eval", &DiscreteEmptyNetT::eval)
-    .def_property_readonly("deepSetA", &DiscreteEmptyNetT::deepSetA)
-    .def_property_readonly("deepSetB", &DiscreteEmptyNetT::deepSetB)
-    .def_property_readonly("psi", &DiscreteEmptyNetT::psi);
+  // // DiscreteEmptyNet
+  // py::class_<DiscreteEmptyNetT> (m, "DiscreteEmptyNet")
+  //   .def("eval", &DiscreteEmptyNetT::eval)
+  //   .def_property_readonly("deepSetA", &DiscreteEmptyNetT::deepSetA)
+  //   .def_property_readonly("deepSetB", &DiscreteEmptyNetT::deepSetB)
+  //   .def_property_readonly("psi", &DiscreteEmptyNetT::psi);
 
 
   // GLAS
   py::class_<GLAST> (m, "GLAS")
-    .def(py::init<std::default_random_engine&>(), "generator"_a = g_generator)
-    .def("computeAction", &GLAST::computeAction)
-    .def_property_readonly("discreteEmptyNet", &GLAST::discreteEmptyNet);
+    // .def(py::init<std::default_random_engine&>(), "generator"_a = g_generator)
+    // .def("computeAction", &GLAST::computeAction)
+    .def_property_readonly("deepSetA", &GLAST::deepSetA)
+    .def_property_readonly("deepSetB", &GLAST::deepSetB)
+    .def_property_readonly("psi", &GLAST::psi)
+    .def_property_readonly("encoder", &GLAST::encoder)
+    .def_property_readonly("decoder", &GLAST::decoder);
 
   // Game
   py::class_<GameT> (m, "Game")
