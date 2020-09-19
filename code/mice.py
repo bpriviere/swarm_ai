@@ -27,32 +27,12 @@ def my_loss(value, policy, target_value, target_policy, weight, mu, sd):
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
 
-	# print('value[0:3]',value[0:3])
-	# print('policy[0:3]',policy[0:3])
-	# print('target_value[0:5]',target_value[0:5])
-	# print('target_policy[0:5]',target_policy[0:5])
-	# print('weight[0:5]',weight[0:5])
-	# exit()
-	# print('mu[0:3]',mu[0:3])
-	# print('sd[0:3]',sd[0:3])
-
-
-	criterion = nn.MSELoss()
-	# criterion = nn.L1Loss()
-	mse = criterion(policy,target_policy)
-	
-	kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) * 1e-8
-	
-	# print('mse',mse)
-	# print('kldiv',kldiv)
-
+	criterion = nn.MSELoss(reduction='sum')
+	mse = criterion(policy,target_policy) + criterion(value,target_value)
+	kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) * 1e-4
 	loss = mse + kldiv
+	loss = loss / value.shape[0]
 
-	# exit()
-
-	# criterion = nn.MSELoss(reduce=False)
-	# loss = (weight*criterion(value, target_value)).mean()
-	# loss += (weight.unsqueeze(1)*criterion(policy, target_policy)).mean()
 	return loss
 
 def relative_state(states,param,idx):
@@ -191,17 +171,13 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 
 			for action, weight in zip(policy_dist[robot_idx][:,0],policy_dist[robot_idx][:,1]):
 
-				eps_s = 1e-2
-				eps_a = 1e-2 
+				# o_a2 = o_a + cov_s * np.random.normal(size=o_a.shape)
+				# o_b2 = o_b + cov_s * np.random.normal(size=o_b.shape)
+				# goal2 = goal + cov_s * np.random.normal(size=goal.shape)
+				# action2 = action + cov_a * np.random.normal(size=action.shape)
+				# oa_pairs_by_size[key].append((o_a2, o_b2, goal2, value, action2, weight))
 
-				o_a2 = o_a + eps_s * np.random.normal(size=o_a.shape)
-				o_b2 = o_b + eps_s * np.random.normal(size=o_b.shape)
-				goal2 = goal + eps_s * np.random.normal(size=goal.shape)
-
-				action2 = action + eps_a * np.random.normal(size=action.shape)
-
-				# oa_pairs_by_size[key].append((o_a, o_b, goal, value, action, weight))
-				oa_pairs_by_size[key].append((o_a2, o_b2, goal2, value, action2, weight))
+				oa_pairs_by_size[key].append((o_a, o_b, goal, value, action, weight))
 
 	return oa_pairs_by_size
 
@@ -254,7 +230,7 @@ def make_loaders(df_param,batched_files,n_points):
 				torch.from_numpy(o_a).float().to(df_param.device),
 				torch.from_numpy(o_b).float().to(df_param.device),
 				torch.from_numpy(goal).float().to(df_param.device),
-				torch.from_numpy(value).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
 				torch.from_numpy(action).float().to(df_param.device),
 				torch.from_numpy(weight).float().to(df_param.device),
 				])
@@ -266,7 +242,7 @@ def make_loaders(df_param,batched_files,n_points):
 				torch.from_numpy(o_a).float().to(df_param.device),
 				torch.from_numpy(o_b).float().to(df_param.device),
 				torch.from_numpy(goal).float().to(df_param.device),
-				torch.from_numpy(value).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
 				torch.from_numpy(action).float().to(df_param.device), 			
 				torch.from_numpy(weight).float().to(df_param.device),
 				])
@@ -448,28 +424,47 @@ def test_model(param,model_fn,testing):
 
 	for alpha in range(len(testing)):
 		
-		stats_per_test = {
-			'values' : [],
-			'policies' : [],
-			'actions' : [],
+		stats_per_condition = {
+			'learned' : [],
+			'test' : [],
+			'latent' : [], 
 		}
 
-		stats_per_test["test_valuePerAction"] = testing[alpha]["test_valuePerAction"]
-
-		for action in testing[alpha]["test_valuePerAction"]:
-			stats_per_test["actions"].append(np.array((action[0],action[1])))
-
 		test_state = np.array(testing[alpha]["test_state"])
-
 		o_a,o_b,goal = relative_state(test_state,param,robot_idx)
 		o_a,o_b,goal = format_data(o_a,o_b,goal)
 
-		for i_sample in range(n_samples):
-			value, policy = model(o_a,o_b,goal)
-			stats_per_test["values"].append(value)
-			stats_per_test["policies"].append(policy)
+		value, _ = model(o_a,o_b,goal)
 
-		stats[alpha] = stats_per_test
+		print('test num: ', alpha)
+		print('   value: ',value)
+		print('   valuePerAction: ', testing[alpha]["test_valuePerAction"])
+
+		# learned distribution 
+		for i_sample in range(n_samples):
+			_, learned_sample = model(o_a,o_b,goal)
+			stats_per_condition["learned"].append(learned_sample.detach().numpy())
+
+		# test distribution 
+		weights = []
+		actions = [] 
+		for action in testing[alpha]["test_valuePerAction"]:
+			weights.append(action[-1])
+			actions.append(np.array((action[0],action[1])))
+
+		weights = np.array(weights)
+		actions = np.array(actions)
+		weights /= sum(weights) 
+		choice_idxs = np.random.choice(actions.shape[0],n_samples,p=weights)
+		for choice_idx in choice_idxs:
+			mu = actions[choice_idx,:]
+			test_sample = mu + cov_a * np.random.normal(size=(2,)) 
+			stats_per_condition["test"].append(test_sample)
+
+		stats_per_condition["learned"] = np.array(stats_per_condition["learned"]).squeeze()
+		stats_per_condition["test"] = np.array(stats_per_condition["test"]).squeeze()
+
+		stats[alpha] = stats_per_condition
 
 	return stats
 
@@ -485,13 +480,16 @@ def read_testing_yaml(fn):
 
 if __name__ == '__main__':
 
+	cov_a = 1e-2
+	cov_s = 1e-2
+
 	pool_count = 0
 
 	df_param = Param() 
 	df_param.clean_data_on = True
 	df_param.clean_models_on = True
 	df_param.make_data_on = True
-	df_param.mice_testing_on = True
+	df_param.mice_testing_on = False
 
 	if df_param.mice_testing_on:
 		testing = read_testing_yaml("testing/test_continuous_glas.yaml")
@@ -505,7 +503,7 @@ if __name__ == '__main__':
 
 	# create randomly initialized models for use in the first iteration
 	model = ContinuousEmptyNet(df_param,df_param.device)
-	for training_team in df_param.l_training_teams:
+	for training_team in ["a","b"]:
 		model_fn = df_param.l_model_fn.format(\
 			DATADIR=df_param.path_current_models,TEAM=training_team,ITER=0)
 		torch.save(model.to('cpu').state_dict(), model_fn)

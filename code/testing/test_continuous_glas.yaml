@@ -1,13 +1,32 @@
 test_continuous_glas:
   - test_state : 
-    - [0.1, 0.1, 0.0, 0.0]
-    - [0.3, 0.3, 0.0, 0.0]
+    - [0.0,-0.1, 0.0, 0.0]
+    - [0.0, 0.0, 0.0, 0.0]
     test_valuePerAction : 
-    - [0.0,-0.1, False, False, 0.33]
+    - [ 0.0,-0.1, False, False, 0.33]
     - [-0.1, 0.0, False, False, 0.33]
-    - [0.1, 0.1, False, False, 0.34]
+    # - [-0.1,-0.1, False, False, 0.34]
     # - [0.1, 0.1, False, False, 0.25]
-    test_value : 0.99 
+    test_value : 0.9 
+
+  - test_state : 
+    - [ 0.0,-0.1, 0.0, 0.0]
+    - [ 1.0, 0.0, 0.0, 0.0]
+    test_valuePerAction : 
+    - [-0.1,-0.1, False, False, 0.33]
+    - [ 0.1, 0.1, False, False, 0.33]
+    # - [0.1, 0.1, False, False, 0.25]
+    test_value : 0.5
+
+  # - test_state : 
+  #   - [ 0.0, 0.1, 0.0, 0.0]
+  #   - [ 0.0,-0.1, 0.0, 0.0]
+  #   test_valuePerAction : 
+  #   - [ 0.1,-0.1, False, False, 0.33]
+  #   - [ 0.0, 0.0, False, False, 0.33]
+  #   - [ 0.0, 0.1, False, False, 0.34]
+  #   # - [0.1, 0.1, False, False, 0.25]
+  #   test_value : 0.1    
 
   # - test_state : 
   #   - [0.3, 0.3, 0.0, 0.0]

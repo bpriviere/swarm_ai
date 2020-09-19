@@ -431,13 +431,14 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 
 	# for key in dist.keys():
 	# 	dist[key] = np.array(dist[key])
-	
+
 	# make distribution
 	weights = np.array([v for _,v in valuePerAction])
+	weights /= sum(weights)
 	dist = dict()
 	for robot_idx in robot_idxs: 
 		action_idx = robot_idx * 2 + np.arange(2)
-		actions = np.array([a[robot_idx][action_idx] for a,v in valuePerAction])
+		actions = np.array([np.array(a).flatten()[action_idx] for a,v in valuePerAction])
 		choice_idxs = np.random.choice(actions.shape[0],param.l_num_subsamples,p=weights)
 		dist[robot_idx] = np.array([(actions[choice_idx,:],weights[choice_idx]) for choice_idx in choice_idxs])
 	return dist	

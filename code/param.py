@@ -66,7 +66,7 @@ class Param:
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 10
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 800
+		self.l_num_points_per_file = 2000
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -137,9 +137,9 @@ class Param:
 
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
-		self.l_max_dataset_size = 1000000 # n_points 
+		self.l_max_dataset_size = 10000000000 # n_points 
 		self.l_batch_size = 2000
-		self.l_n_epoch = 50
+		self.l_n_epoch = 100
 		self.l_lr = 1e-3
 		self.l_wd = 0 
 		self.l_log_interval = 1

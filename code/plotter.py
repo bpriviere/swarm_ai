@@ -754,26 +754,18 @@ def plot_exp3_results(all_sim_results):
 
 def plot_test_model(stats):
 
-	for alpha,stats_per_test in stats.items():
-
-		print('test num: ', alpha)
-
-		value = stats_per_test["values"][0].detach().numpy().flatten()
-		print('   value: ',value)
-
-		print('   valuePerAction: ', stats_per_test["test_valuePerAction"])
+	for alpha,stats_per_condition in stats.items():
 
 		fig,ax = plt.subplots()
+		ax.hist2d(stats_per_condition["learned"][:,0],stats_per_condition["learned"][:,1])
+		ax.set_title('learned')
+		ax.set_aspect('equal')
 
-		for policy in stats_per_test["policies"]: 
-			policy = policy.detach().numpy().flatten()
-			ax.scatter(policy[0],policy[1],color='gray',alpha=0.25)
-
-		for action in stats_per_test["actions"]:
-			ax.scatter(action[0], action[1], marker='*',color='green')
+		fig,ax = plt.subplots()
+		ax.hist2d(stats_per_condition["test"][:,0],stats_per_condition["test"][:,1])
+		ax.set_title('test')
+		ax.set_aspect('equal')
 		
-		ax.set_title('test num: {}'.format(alpha))
-		ax.grid(True)
 
 def plot_convergence(all_sim_results):
 
