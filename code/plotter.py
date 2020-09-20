@@ -752,19 +752,43 @@ def plot_exp3_results(all_sim_results):
 	# ax.grid(True)
 
 
-def plot_test_model(stats):
+def plot_test_model(df_param,stats):
+
+	LIMS = df_param.standard_robot["acceleration_limit"]*np.array([[-1,1],[-1,1]])
+	nbins = 20
 
 	for alpha,stats_per_condition in stats.items():
 
-		fig,ax = plt.subplots()
-		ax.hist2d(stats_per_condition["learned"][:,0],stats_per_condition["learned"][:,1])
-		ax.set_title('learned')
-		ax.set_aspect('equal')
+		fig,axs = plt.subplots(ncols=2)
 
-		fig,ax = plt.subplots()
-		ax.hist2d(stats_per_condition["test"][:,0],stats_per_condition["test"][:,1])
-		ax.set_title('test')
-		ax.set_aspect('equal')
+		xedges = np.linspace(LIMS[0,0],LIMS[0,1],nbins) 
+		yedges = np.linspace(LIMS[1,0],LIMS[1,1],nbins) 
+
+		h_mcts, xedges, yedges = np.histogram2d(stats_per_condition["test"][:,0],stats_per_condition["test"][:,1],bins=(xedges,yedges),range=LIMS,density=True)
+		h_model, xedges, yedges = np.histogram2d(stats_per_condition["learned"][:,0],stats_per_condition["learned"][:,1],bins=(xedges,yedges),range=LIMS,density=True)
+
+		h_mcts = h_mcts.T 
+		h_model = h_model.T 
+
+		axs[0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
+		axs[1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
+
+		# - arrange 
+		axs[0].set_title('mcts: {}'.format(alpha))
+		axs[1].set_title('model: {}'.format(alpha))
+		axs[0].set_xlabel('x-action')
+		axs[1].set_xlabel('x-action')
+		axs[0].set_ylabel('y-action')
+
+		# fig,ax = plt.subplots()
+		# ax.hist2d(stats_per_condition["learned"][:,0],stats_per_condition["learned"][:,1])
+		# ax.set_title('learned')
+		# ax.set_aspect('equal')
+
+		# fig,ax = plt.subplots()
+		# ax.hist2d(stats_per_condition["test"][:,0],stats_per_condition["test"][:,1])
+		# ax.set_title('test')
+		# ax.set_aspect('equal')
 		
 
 def plot_convergence(all_sim_results):
