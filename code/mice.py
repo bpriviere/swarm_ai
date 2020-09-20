@@ -538,7 +538,7 @@ if __name__ == '__main__':
 
 			if df_param.mice_testing_on: 
 				stats = test_model(df_param,model_fn,testing)
-				plotter.plot_test_model(stats)
+				plotter.plot_test_model(df_param,stats)
 				plotter.save_figs('plots/model.pdf')
 				plotter.open_figs('plots/model.pdf')
 				exit()
