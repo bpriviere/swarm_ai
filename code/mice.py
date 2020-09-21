@@ -13,6 +13,7 @@ from multiprocessing import cpu_count, Pool, freeze_support
 from tqdm import tqdm
 import itertools
 import yaml 
+import random
 
 # custom 
 import plotter
@@ -30,12 +31,15 @@ def my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsamp
 	if l_subsample_on:
 		criterion = nn.MSELoss(reduction='sum')
 		mse = criterion(policy,target_policy) + criterion(value,target_value)
+		kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) 
 	else: 
 		criterion = nn.MSELoss(reduce=False)
-		mse = torch.sum(weight*criterion(value, target_value) + weight.unsqueeze(1)*criterion(policy, target_policy))
-	
-	kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) * 1e-4
-	loss = mse + kldiv
+		# mse = torch.sum(weight*criterion(value, target_value) + weight*criterion(policy, target_policy))
+		mse = torch.sum(weight*(criterion(value, target_value) + criterion(policy, target_policy)))
+		kldiv = 0.5 * torch.sum( weight * (- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2))) 
+
+	kld_weight = 1e-4
+	loss = mse + kld_weight * kldiv
 	loss = loss / value.shape[0]
 
 	return loss
@@ -278,12 +282,16 @@ def train_model(df_param,batched_files,training_team,model_fn):
 		log_file.write("time,epoch,train_loss,test_loss\n")
 		start_time = time.time()
 		best_test_loss = np.Inf
-		# scheduler = ReduceLROnPlateau(optimizer, 'min')
+		scheduler = ReduceLROnPlateau(optimizer, 'min')
 		pbar = tqdm(range(1,df_param.l_n_epoch+1))
 		for epoch in pbar:
+
+			random.shuffle(train_loader)
+			random.shuffle(test_loader)
+
 			train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on)
 			test_epoch_loss = test(model,optimizer,test_loader,df_param.l_subsample_on)
-			# scheduler.step(test_epoch_loss)
+			scheduler.step(test_epoch_loss)
 			losses.append((train_epoch_loss,test_epoch_loss))
 			if epoch%df_param.l_log_interval==0:
 				if test_epoch_loss < best_test_loss:
@@ -554,4 +562,6 @@ if __name__ == '__main__':
 		if not df_param.make_data_on:
 			break 
 
+	plotter.save_figs('plots/model.pdf')
+	plotter.open_figs('plots/model.pdf')
 	print('done!')
