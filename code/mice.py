@@ -22,13 +22,18 @@ from param import Param
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
 
-def my_loss(value, policy, target_value, target_policy, weight, mu, sd):
+def my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on):
 	# value \& policy network : https://www.nature.com/articles/nature24270
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
 
-	criterion = nn.MSELoss(reduction='sum')
-	mse = criterion(policy,target_policy) + criterion(value,target_value)
+	if l_subsample_on:
+		criterion = nn.MSELoss(reduction='sum')
+		mse = criterion(policy,target_policy) + criterion(value,target_value)
+	else: 
+		criterion = nn.MSELoss(reduce=False)
+		mse = torch.sum(weight*criterion(value, target_value) + weight.unsqueeze(1)*criterion(policy, target_policy))
+	
 	kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) * 1e-4
 	loss = mse + kldiv
 	loss = loss / value.shape[0]
@@ -83,12 +88,12 @@ def format_data(o_a,o_b,goal):
 	return o_a,o_b,goal
 
 
-def train(model,optimizer,loader):
+def train(model,optimizer,loader,l_subsample_on):
 	
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
 		value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)		
-		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd)
+		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on)
 		optimizer.zero_grad()   
 		loss.backward()         
 		optimizer.step()        
@@ -96,11 +101,11 @@ def train(model,optimizer,loader):
 	return epoch_loss/(step+1)	
 
 
-def test(model,optimizer,loader):
+def test(model,optimizer,loader,l_subsample_on):
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
 		value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)		
-		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd)
+		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on)
 		epoch_loss += float(loss)
 	return epoch_loss/(step+1)	
 
@@ -276,8 +281,8 @@ def train_model(df_param,batched_files,training_team,model_fn):
 		# scheduler = ReduceLROnPlateau(optimizer, 'min')
 		pbar = tqdm(range(1,df_param.l_n_epoch+1))
 		for epoch in pbar:
-			train_epoch_loss = train(model,optimizer,train_loader)
-			test_epoch_loss = test(model,optimizer,test_loader)
+			train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on)
+			test_epoch_loss = test(model,optimizer,test_loader,df_param.l_subsample_on)
 			# scheduler.step(test_epoch_loss)
 			losses.append((train_epoch_loss,test_epoch_loss))
 			if epoch%df_param.l_log_interval==0:

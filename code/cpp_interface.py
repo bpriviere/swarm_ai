@@ -419,28 +419,35 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 		num_robots = param.num_nodes_B
 		robot_idxs = param.team_2_idxs
 
-	# dist = defaultdict(list)
-	# for action,value in valuePerAction:
 
-	# 	action = np.array(action)
-	# 	action = action.flatten()
+	if param.l_subsample_on: 
 
-	# 	for robot_idx in robot_idxs:
-	# 		action_idx = robot_idx * 2 + np.arange(2)
-	# 		dist[robot_idx].append([action[action_idx],value])
+		# make distribution
+		weights = np.array([v for _,v in valuePerAction])
+		weights /= sum(weights)
+		dist = dict()
+		for robot_idx in robot_idxs: 
+			action_idx = robot_idx * 2 + np.arange(2)
+			actions = np.array([np.array(a).flatten()[action_idx] for a,v in valuePerAction])
+			choice_idxs = np.random.choice(actions.shape[0],param.l_num_subsamples,p=weights)
+			dist[robot_idx] = np.array([(actions[choice_idx,:],weights[choice_idx]) for choice_idx in choice_idxs])
 
-	# for key in dist.keys():
-	# 	dist[key] = np.array(dist[key])
+	else: 
 
-	# make distribution
-	weights = np.array([v for _,v in valuePerAction])
-	weights /= sum(weights)
-	dist = dict()
-	for robot_idx in robot_idxs: 
-		action_idx = robot_idx * 2 + np.arange(2)
-		actions = np.array([np.array(a).flatten()[action_idx] for a,v in valuePerAction])
-		choice_idxs = np.random.choice(actions.shape[0],param.l_num_subsamples,p=weights)
-		dist[robot_idx] = np.array([(actions[choice_idx,:],weights[choice_idx]) for choice_idx in choice_idxs])
+		dist = defaultdict(list)
+		for action,value in valuePerAction:
+
+			action = np.array(action)
+			action = action.flatten()
+
+			for robot_idx in robot_idxs:
+				action_idx = robot_idx * 2 + np.arange(2)
+				# dist[robot_idx].append(np.array([action[action_idx],value]))
+				dist[robot_idx].append([action[action_idx],value])
+
+		for robot_idx in dist.keys():
+			dist[robot_idx] = np.array(dist[robot_idx])
+
 	return dist	
 
 def bad_key(some_dict,some_key):
