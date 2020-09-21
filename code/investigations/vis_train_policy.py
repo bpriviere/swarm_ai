@@ -33,7 +33,7 @@ if __name__ == '__main__':
 	rsense = df_param.standard_robot["r_sense"]
 	env_xlim = df_param.env_xlim 
 	env_ylim = df_param.env_ylim 
-	num_vis = 1
+	num_vis = 2
 	n_samples = 100
 	eps = 0 # only take identical game conditions -> at least #subsamples 
 
@@ -135,14 +135,14 @@ if __name__ == '__main__':
 		xedges = np.linspace(LIMS[0,0],LIMS[0,1],nbins) 
 		yedges = np.linspace(LIMS[1,0],LIMS[1,1],nbins) 
 
-		h_mcts, xedges, yedges = np.histogram2d(dataset_actions[:,0],dataset_actions[:,1],bins=(xedges,yedges),range=LIMS,density=True)
-		h_model, xedges, yedges = np.histogram2d(model_actions[:,0],model_actions[:,1],bins=(xedges,yedges),range=LIMS,density=True)
+		h_mcts, xedges, yedges = np.histogram2d(dataset_actions[:,0],dataset_actions[:,1],bins=(xedges,yedges),range=LIMS) 
+		h_model, xedges, yedges = np.histogram2d(model_actions[:,0],model_actions[:,1],bins=(xedges,yedges),range=LIMS) 
 
-		h_mcts = h_mcts.T 
-		h_model = h_model.T 		
+		h_mcts = h_mcts.T / np.sum(np.sum(h_mcts))
+		h_model = h_model.T / np.sum(np.sum(h_model))
 
-		im1 = axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
-		im2 = axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
+		im1 = axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]],vmin=0,vmax=1)
+		im2 = axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]],vmin=0,vmax=1)
 
 		# - arrange 
 		axs[1][0].set_title('mcts: {}'.format(i_state))
