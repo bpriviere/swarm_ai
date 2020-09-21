@@ -237,7 +237,7 @@ def make_loaders(df_param,batched_files,n_points):
 				torch.from_numpy(goal).float().to(df_param.device),
 				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
 				torch.from_numpy(action).float().to(df_param.device),
-				torch.from_numpy(weight).float().to(df_param.device),
+				torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
 				])
 				
 			train_dataset_size += value.shape[0]
@@ -249,7 +249,7 @@ def make_loaders(df_param,batched_files,n_points):
 				torch.from_numpy(goal).float().to(df_param.device),
 				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
 				torch.from_numpy(action).float().to(df_param.device), 			
-				torch.from_numpy(weight).float().to(df_param.device),
+				torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
 				])
 
 			test_dataset_size += value.shape[0]
