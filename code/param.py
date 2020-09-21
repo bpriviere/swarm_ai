@@ -87,6 +87,7 @@ class Param:
 			# },			
 		]
 
+		self.l_subsample_on = False
 		self.l_num_subsamples = 5
 
 		self.l_state_dim = 4 
