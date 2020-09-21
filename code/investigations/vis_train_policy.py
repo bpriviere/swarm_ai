@@ -18,9 +18,11 @@ if __name__ == '__main__':
 	# - default
 	df_param = Param() 
 	# - model 
-	path_to_model = '../../saved/test_IL_09192020_models/models/a10.pt' # test_DAgger_09192020_models, test_IL_09192020_models
+	# path_to_model = '../../saved/test_IL_09192020_models/models/a10.pt' # test_DAgger_09192020_models, test_IL_09192020_models
+	path_to_model = '../../current/models/a1.pt' # test_DAgger_09192020_models, test_IL_09192020_models
 	# - dataset 
-	path_to_datadir = '../../saved/test_IL_09192020_data/data/' # test_DAgger_09192020_data, test_IL_09192020_data
+	# path_to_datadir = '../../saved/test_IL_09192020_data/data/' # test_DAgger_09192020_data, test_IL_09192020_data
+	path_to_datadir = '../../current/data/' # test_DAgger_09192020_data, test_IL_09192020_data
 	# - vis 
 	team_1_color = 'blue'
 	team_2_color = 'orange'
@@ -29,7 +31,9 @@ if __name__ == '__main__':
 	nbins = 20
 	LIMS = df_param.standard_robot["acceleration_limit"]*np.array([[-1,1],[-1,1]])
 	rsense = df_param.standard_robot["r_sense"]
-	num_vis = 10
+	env_xlim = df_param.env_xlim 
+	env_ylim = df_param.env_ylim 
+	num_vis = 1
 	n_samples = 100
 	eps = 0 # only take identical game conditions -> at least #subsamples 
 
@@ -39,11 +43,11 @@ if __name__ == '__main__':
 		DATADIR=path_to_datadir,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM="a",ITER='**'))
 	o_as,o_bs,goals,values,actions,weights = dh.read_oa_batch(batched_fns[0])
 
-	print('o_as',o_as)
-	print('o_bs',o_bs)
-	print('goals',goals)
-	print('values',values)
-	print('actions',actions)
+	# print('o_as',o_as)
+	# print('o_bs',o_bs)
+	# print('goals',goals)
+	# print('values',values)
+	# print('actions',actions)
 	
 	# load models
 	model = ContinuousEmptyNet(df_param,"cpu")
@@ -96,8 +100,10 @@ if __name__ == '__main__':
 		axs[0][1].set_axis_off()
 
 		# - self 
+		vx = -1*candidate[2][2]
+		vy = -1*candidate[2][3]
 		axs[0][0].scatter(0,0,color=self_color)
-		axs[0][0].arrow(0,0,-1*candidate[2][2],-1*candidate[2][3],color=self_color,alpha=0.5)	
+		axs[0][0].arrow(0,0,vx,vy,color=self_color,alpha=0.5)	
 
 		# - goal 
 		axs[0][0].scatter(candidate[2][0],candidate[2][1],color=goal_color,alpha=0.5)
@@ -107,16 +113,20 @@ if __name__ == '__main__':
 		num_b = int(len(candidate[1])/4)
 		for robot_idx in range(num_a):
 			axs[0][0].scatter(candidate[0][robot_idx*4],candidate[0][robot_idx*4+1],color=team_1_color)
-			axs[0][0].arrow(candidate[0][robot_idx*4],candidate[0][robot_idx*4+1],candidate[0][robot_idx*4+2],candidate[0][robot_idx*4+3],\
+			axs[0][0].arrow(candidate[0][robot_idx*4],candidate[0][robot_idx*4+1],\
+				vx+candidate[0][robot_idx*4+2],vy+candidate[0][robot_idx*4+3],\
 				color=team_1_color,alpha=0.5)
 		for robot_idx in range(num_b):
 			axs[0][0].scatter(candidate[1][robot_idx*4],candidate[1][robot_idx*4+1],color=team_2_color)
-			axs[0][0].arrow(candidate[1][robot_idx*4],candidate[1][robot_idx*4+1],candidate[1][robot_idx*4+2],candidate[1][robot_idx*4+3],\
+			axs[0][0].arrow(candidate[1][robot_idx*4],candidate[1][robot_idx*4+1],\
+				vx+candidate[1][robot_idx*4+2],vy+candidate[1][robot_idx*4+3],\
 				color=team_2_color,alpha=0.5)
 
 		# - arrange  
-		axs[0][0].set_xlim([-rsense,rsense])
-		axs[0][0].set_ylim([-rsense,rsense])
+		axs[0][0].set_xlim([np.max((-rsense,-env_xlim[1])),np.min((rsense,env_xlim[1]))])
+		axs[0][0].set_ylim([np.max((-rsense,-env_ylim[1])),np.min((rsense,env_ylim[1]))])
+		# axs[0][0].set_xlim([-rsense,rsense])
+		# axs[0][0].set_ylim([-rsense,rsense])
 		axs[0][0].set_title('game state: {}'.format(i_state))
 		axs[0][0].set_aspect('equal')
 		
@@ -131,8 +141,8 @@ if __name__ == '__main__':
 		h_mcts = h_mcts.T 
 		h_model = h_model.T 		
 
-		axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
-		axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
+		im1 = axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
+		im2 = axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
 
 		# - arrange 
 		axs[1][0].set_title('mcts: {}'.format(i_state))
@@ -142,6 +152,8 @@ if __name__ == '__main__':
 		axs[1][0].set_ylabel('y-action')
 
 		fig.tight_layout()
+		fig.colorbar(im1, ax=axs[1][0])
+		fig.colorbar(im2, ax=axs[1][1])
 
 
 	plotter.save_figs("../plots/vis_train.pdf")
