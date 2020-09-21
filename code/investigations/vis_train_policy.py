@@ -33,7 +33,7 @@ if __name__ == '__main__':
 	rsense = df_param.standard_robot["r_sense"]
 	env_xlim = df_param.env_xlim 
 	env_ylim = df_param.env_ylim 
-	num_vis = 2
+	num_vis = 10
 	n_samples = 100
 	eps = 0 # only take identical game conditions -> at least #subsamples 
 
@@ -62,31 +62,42 @@ if __name__ == '__main__':
 
 		# select candidate observations 
 		candidate = (o_as[idxs[i_state]],o_bs[idxs[i_state]],goals[idxs[i_state]])
-		print('candidate',candidate)
+		print('candidate {}/{}:'.format(i_state,num_vis,candidate))
 
 		# append all identical ones (should be # subsamples)
 		conditionals = [] 
 		dataset_actions = []
-		for o_a,o_b,goal,action in zip(o_as,o_bs,goals,actions):
+		dataset_weights = []
+		for o_a,o_b,goal,action,weight in zip(o_as,o_bs,goals,actions,weights):
 			if (np.linalg.norm(o_a - candidate[0]) <= eps) and \
 				(np.linalg.norm(o_b - candidate[1]) <= eps) and \
 				(np.linalg.norm(goal - candidate[2]) <= eps):
 
 				conditionals.append((o_a,o_b,goal))
 				dataset_actions.append(action)
+				dataset_weights.append(weight)
 
-		print('conditionals',conditionals)
-		print('dataset_actions',dataset_actions)
+		dataset_weights = dataset_weights / sum(dataset_weights)
+		choice_idxs = np.random.choice(len(dataset_actions),n_samples,p=dataset_weights)
+		weighted_dataset_actions = np.array([dataset_actions[choice_idx] for choice_idx in choice_idxs])
+		dataset_actions = weighted_dataset_actions
+		
+		# print('conditionals',conditionals)
+		# print('dataset_actions',dataset_actions)
 
 		# query model 
 		model_actions = [] 
-		for o_a,o_b,goal in conditionals:
-			o_a,o_b,goal = format_data(o_a,o_b,goal)
-			for _ in range(n_samples):
-				value, policy = model(o_a,o_b,goal)
-				model_actions.append(policy.detach().numpy())
+		# for o_a,o_b,goal in conditionals:
+		# 	o_a,o_b,goal = format_data(o_a,o_b,goal)
+		# 	for _ in range(n_samples):
+		# 		value, policy = model(o_a,o_b,goal)
+		# 		model_actions.append(policy.detach().numpy())
+		for _ in range(n_samples):
+			o_a,o_b,goal = format_data(candidate[0],candidate[1],candidate[2])
+			value, policy = model(o_a,o_b,goal)
+			model_actions.append(policy.detach().numpy())		
 
-		print('model_actions',model_actions)
+		# print('model_actions',model_actions)
 
 		# convert for easy plot
 		model_actions = np.array(model_actions).squeeze()
