@@ -204,7 +204,8 @@ PYBIND11_MODULE(mctscpp, m) {
     .def_property_readonly("deepSetB", &GLAST::deepSetB)
     .def_property_readonly("psi", &GLAST::psi)
     .def_property_readonly("encoder", &GLAST::encoder)
-    .def_property_readonly("decoder", &GLAST::decoder);
+    .def_property_readonly("decoder", &GLAST::decoder)
+    .def_property_readonly("value", &GLAST::value);
 
   // Game
   py::class_<GameT> (m, "Game")

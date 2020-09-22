@@ -159,38 +159,38 @@ public:
     bool deterministic) const
   {
     // evaluate deep sets
-    Eigen::VectorXf X(m_psi.sizeIn());
-    X.segment(0, m_ds_a.sizeOut()) = m_ds_a.eval(input_a);
-    X.segment(m_ds_a.sizeOut(), m_ds_b.sizeOut()) = m_ds_b.eval(input_b);
-    X.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), 4) = goal;
+    Eigen::VectorXf psi_input(m_psi.sizeIn());
+    psi_input.segment(0, m_ds_a.sizeOut()) = m_ds_a.eval(input_a);
+    psi_input.segment(m_ds_a.sizeOut(), m_ds_b.sizeOut()) = m_ds_b.eval(input_b);
+    psi_input.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), 4) = goal;
 
-    // compute value part using psi
-    auto res = m_psi.eval(X);
-    float value = (tanh(res(0))+1)/2;
+    // evaluate psi to compute condition y
+    auto y = m_psi.eval(psi_input);
 
-    // compute policy part
-    auto X_enc = m_encoder.eval(X);
-    int z_dim = m_encoder.sizeOut() / 2;
-    auto z_mu = X_enc.head(z_dim);
-    auto z_logvar = X.tail(z_dim);
-
-    auto z = z_mu;
-    if (!deterministic) {
+    // evaluate decoder to compute distribution
+    Eigen::VectorXf dec_input(m_decoder.sizeIn());
+    int z_dim = m_decoder.sizeIn() - m_psi.sizeOut();
+    auto z = dec_input.segment(0, z_dim);
+    if (deterministic) {
+      z.setZero();
+    } else {
       std::normal_distribution<float> dist(0.0,1.0);
-      Eigen::VectorXf eps(z_dim);
       for (int i = 0; i < z_dim; ++i) {
-        eps(i) = dist(m_gen);
+        z(i) = dist(m_gen);
       }
-      z += (z_logvar / 2).exp().cwiseProduct(eps);
     }
-
-    auto action = m_decoder.eval(z);
+    dec_input.segment(z_dim, y.size()) = y;
+    auto action = m_decoder.eval(dec_input);
 
     // scale action
     float action_norm = action.norm();
     if (action_norm > action_limit) {
       action = action / action_norm * action_limit;
     }
+
+    // evaluate value
+    auto val = m_value.eval(y);
+    float value = (tanh(val(0))+1)/2;
 
     return std::make_tuple(value, action);
   }
@@ -268,6 +268,11 @@ public:
     return m_decoder;
   }
 
+  auto& value()
+  {
+    return m_value;
+  }
+
 private:
   std::default_random_engine& m_gen;
 
@@ -276,6 +281,7 @@ private:
   FeedForwardNN m_psi;
   FeedForwardNN m_encoder;
   FeedForwardNN m_decoder;
+  FeedForwardNN m_value;
 
 };
 

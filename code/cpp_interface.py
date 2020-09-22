@@ -69,6 +69,7 @@ def loadGLAS(glas, file):
 	loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
 	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
 	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
+	loadFeedForwardNNWeights(glas.value, state_dict, "value")
 
 	return glas
 
@@ -256,24 +257,25 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				success = False
 
 		elif policy_dict["sim_mode"] == "GLAS":
+			action = mctscpp.eval(g, gs, deterministic)
+			# print('cpp', action)
 
-			# action = mctscpp.eval(g, gs, deterministic)
-			
-			# temp 
-			# use python to eval model 
-			state = cpp_state_to_pstate(gs)
-			action = np.nan*np.ones((param.num_nodes,2))
-			model = ContinuousEmptyNet(param, "cpu")
-			if gs.turn == mctscpp.GameState.Turn.Attackers: 
-				model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
-			else: 
-				model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
+			# # use python to eval model 
+			# state = cpp_state_to_pstate(gs)
+			# action = np.nan*np.ones((param.num_nodes,2))
+			# model = ContinuousEmptyNet(param, "cpu")
+			# if gs.turn == mctscpp.GameState.Turn.Attackers: 
+			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
+			# else: 
+			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
 
-			for robot_idx in team_idx: 
-				o_a,o_b,goal = relative_state(state,param,robot_idx)
-				o_a,o_b,goal = format_data(o_a,o_b,goal)
-				value, policy = model(o_a,o_b,goal)
-				action[robot_idx, :] = policy.detach().numpy().flatten()
+			# for robot_idx in team_idx: 
+			# 	o_a,o_b,goal = relative_state(state,param,robot_idx)
+			# 	o_a,o_b,goal = format_data(o_a,o_b,goal)
+			# 	value, policy = model(o_a,o_b,goal)
+			# 	action[robot_idx, :] = policy.detach().numpy().flatten()
+
+			# print('python', action)
 
 			success = g.step(gs, action, gs)
 
