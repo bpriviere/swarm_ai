@@ -287,6 +287,10 @@ def train_model(df_param,batched_files,training_team,model_fn):
 		scheduler = ReduceLROnPlateau(optimizer, 'min')
 		pbar = tqdm(range(1,df_param.l_n_epoch+1))
 		for epoch in pbar:
+
+			random.shuffle(train_loader)
+			random.shuffle(test_loader)
+
 			train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on)
 			test_epoch_loss = test(model,optimizer,test_loader,df_param.l_subsample_on)
 			scheduler.step(test_epoch_loss)
