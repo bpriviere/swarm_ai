@@ -33,7 +33,7 @@ def my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsamp
 		mse = criterion(policy,target_policy) + criterion(value,target_value)
 		kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) 
 	else: 
-		criterion = nn.MSELoss(reduce=False)
+		criterion = nn.MSELoss(reduction='none')
 		# mse = torch.sum(weight*criterion(value, target_value) + weight*criterion(policy, target_policy))
 		mse = torch.sum(weight*(criterion(value, target_value) + criterion(policy, target_policy)))
 		kldiv = 0.5 * torch.sum( weight * (- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2))) 
@@ -196,6 +196,8 @@ def write_labelled_data(df_param,oa_pairs_by_size):
 	for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
 		batch_num = 0 
 		batched_dataset = [] 
+
+		random.shuffle(oa_pairs)
 
 		for (o_a, o_b, goal, value, action, weight) in oa_pairs:
 			data = np.concatenate((np.array(o_a).flatten(),\
