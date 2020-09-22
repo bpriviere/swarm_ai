@@ -287,10 +287,6 @@ def train_model(df_param,batched_files,training_team,model_fn):
 		scheduler = ReduceLROnPlateau(optimizer, 'min')
 		pbar = tqdm(range(1,df_param.l_n_epoch+1))
 		for epoch in pbar:
-
-			random.shuffle(train_loader)
-			random.shuffle(test_loader)
-
 			train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on)
 			test_epoch_loss = test(model,optimizer,test_loader,df_param.l_subsample_on)
 			scheduler.step(test_epoch_loss)
@@ -395,8 +391,20 @@ def get_params(df_param,training_team,iter_i):
 			param.iter_i = iter_i 
 
 			param.policy_dict["sim_mode"] = "MCTS"
-			param.policy_dict["path_glas_model_a"] = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
-			param.policy_dict["path_glas_model_b"] = df_param.l_model_fn.format(DATADIR=df_param.path_current_models,TEAM="b",ITER=iter_i)
+
+			if "a" in df_param.l_training_teams:
+				param.policy_dict["path_glas_model_a"] = df_param.l_model_fn.format(\
+					DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
+			else: 
+				param.policy_dict["path_glas_model_a"] = df_param.l_model_fn.format(\
+					DATADIR=df_param.path_current_models,TEAM="a",ITER=0)
+			if "b" in df_param.l_training_teams:
+				param.policy_dict["path_glas_model_b"] = df_param.l_model_fn.format(\
+					DATADIR=df_param.path_current_models,TEAM="b",ITER=iter_i)
+			else: 
+				param.policy_dict["path_glas_model_b"] = df_param.l_model_fn.format(\
+					DATADIR=df_param.path_current_models,TEAM="b",ITER=0)
+			
 			if df_param.l_mode == "IL" or df_param.l_mode == "DAgger":
 				param.policy_dict["mcts_rollout_beta"] = 0.0 
 			elif df_param.l_mode == "ExIt" or df_param.l_mode == "MICE":
