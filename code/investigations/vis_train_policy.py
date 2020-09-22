@@ -35,13 +35,21 @@ if __name__ == '__main__':
 	env_ylim = df_param.env_ylim 
 	num_vis = 10
 	n_samples = 100
-	eps = 0 # only take identical game conditions -> at least #subsamples 
+	eps = 0.01 # only take identical game conditions -> at least #subsamples 
 
 	# load dataset 	
 	# fix relative path stupidness 
 	batched_fns = glob.glob(df_param.l_labelled_fn.format(\
 		DATADIR=path_to_datadir,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM="a",ITER='**'))
-	o_as,o_bs,goals,values,actions,weights = dh.read_oa_batch(batched_fns[0])
+	o_as,o_bs,goals,values,actions,weights = [],[],[],[],[],[]
+	for batched_fn in batched_fns:
+		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_fn)
+		o_as.extend(o_a)
+		o_bs.extend(o_b)
+		goals.extend(goal)
+		values.extend(value)
+		actions.extend(action)
+		weights.extend(weight)
 
 	# print('o_as',o_as)
 	# print('o_bs',o_bs)
@@ -87,15 +95,15 @@ if __name__ == '__main__':
 
 		# query model 
 		model_actions = [] 
-		# for o_a,o_b,goal in conditionals:
-		# 	o_a,o_b,goal = format_data(o_a,o_b,goal)
-		# 	for _ in range(n_samples):
-		# 		value, policy = model(o_a,o_b,goal)
-		# 		model_actions.append(policy.detach().numpy())
-		for _ in range(n_samples):
-			o_a,o_b,goal = format_data(candidate[0],candidate[1],candidate[2])
-			value, policy = model(o_a,o_b,goal)
-			model_actions.append(policy.detach().numpy())		
+		for o_a,o_b,goal in conditionals:
+			o_a,o_b,goal = format_data(o_a,o_b,goal)
+			for _ in range(n_samples):
+				value, policy = model(o_a,o_b,goal)
+				model_actions.append(policy.detach().numpy())
+		# for _ in range(n_samples):
+		# 	o_a,o_b,goal = format_data(candidate[0],candidate[1],candidate[2])
+		# 	value, policy = model(o_a,o_b,goal)
+		# 	model_actions.append(policy.detach().numpy())		
 
 		# print('model_actions',model_actions)
 
@@ -152,8 +160,11 @@ if __name__ == '__main__':
 		h_mcts = h_mcts.T / np.sum(np.sum(h_mcts))
 		h_model = h_model.T / np.sum(np.sum(h_model))
 
-		im1 = axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]],vmin=0,vmax=1)
-		im2 = axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]],vmin=0,vmax=1)
+		# im1 = axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]],vmin=0,vmax=1)
+		# im2 = axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]],vmin=0,vmax=1)
+		
+		im1 = axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
+		im2 = axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
 
 		# - arrange 
 		axs[1][0].set_title('mcts: {}'.format(i_state))
