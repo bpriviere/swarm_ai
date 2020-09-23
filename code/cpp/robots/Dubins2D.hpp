@@ -24,7 +24,7 @@ public:
     status = Status::Active;
   }
 
-  // x, y, theta, v_dot
+  // x, y, theta, V
   Eigen::Vector4f state;
 
   const auto position() const {
