@@ -258,6 +258,52 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 
 		elif policy_dict["sim_mode"] == "GLAS":
 			action = mctscpp.eval(g, gs, deterministic)
+
+			# testing 
+			# deterministic = False
+			# num_samples = 1000
+
+			# state = cpp_state_to_pstate(gs)
+			# model = ContinuousEmptyNet(param, "cpu")
+			# if gs.turn == mctscpp.GameState.Turn.Attackers: 
+			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
+			# else: 
+			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
+
+			# cpp_actions = []
+			# python_actions = [] 
+			# for i_sample in range(num_samples):
+
+			# 	cpp_action = mctscpp.eval(g, gs, deterministic)
+			# 	cpp_actions.append(cpp_action)
+
+			# 	python_action = np.nan*np.ones((param.num_nodes,2))
+			# 	for robot_idx in range(param.num_nodes): 
+			# 		o_a,o_b,goal = relative_state(state,param,robot_idx)
+			# 		o_a,o_b,goal = format_data(o_a,o_b,goal)					
+			# 		value, policy = model(o_a,o_b,goal)
+			# 		python_action[robot_idx, :] = policy.detach().numpy().flatten()
+
+			# 	python_actions.append(python_action)
+
+			# action = python_action
+
+			# print('cpp_action',cpp_action)
+			# print('python_action',python_action)
+
+			# cpp_actions = np.array(cpp_actions)
+			# python_actions = np.array(python_actions)
+
+			# import matplotlib.pyplot as plt 
+			# fig, axs = plt.subplots(1,2,sharex=True,sharey=True)
+			# axs[0].scatter(cpp_actions[:,0,0], cpp_actions[:,0,1], alpha=0.5)
+			# axs[0].set_title('cpp')
+			# axs[1].scatter(python_actions[:,0,0], python_actions[:,0,1], alpha=0.5)
+			# axs[1].set_title('python')
+
+			# plt.show()
+			# exit()
+
 			# print('cpp', action)
 
 			# # use python to eval model 
@@ -276,6 +322,7 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			# 	action[robot_idx, :] = policy.detach().numpy().flatten()
 
 			# print('python', action)
+
 
 			success = g.step(gs, action, gs)
 
@@ -437,7 +484,20 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 	else: 
 
 		dist = defaultdict(list)
-		for action,value in valuePerAction:
+
+		actions = [a for a,_ in valuePerAction]
+		values = [v for _,v in valuePerAction]
+
+		actions = [x for _,x in sorted(zip(values,actions), key=lambda pair: -pair[0])]
+		values = sorted(values)
+
+		if len(actions) > param.l_num_samples:
+			actions = actions[0:param.l_num_samples]
+			values = values[0:param.l_num_samples]
+
+		values = [v/sum(values) for v in values] 
+
+		for action,value in zip(actions,values):
 
 			action = np.array(action)
 			action = action.flatten()
@@ -446,6 +506,9 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 				action_idx = robot_idx * 2 + np.arange(2)
 				# dist[robot_idx].append(np.array([action[action_idx],value]))
 				dist[robot_idx].append([action[action_idx],value])
+
+		# print(dist)
+		# exit()
 
 		for robot_idx in dist.keys():
 			dist[robot_idx] = np.array(dist[robot_idx])

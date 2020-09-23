@@ -90,6 +90,8 @@ class Param:
 		self.l_subsample_on = False
 		self.l_num_subsamples = 5
 
+		self.l_num_samples = 5 # take l_num_samples-best samples from mctsresult (still weighted)
+
 		self.l_state_dim = 4 
 		self.l_action_dim = 2 
 		self.l_z_dim = 4
