@@ -284,7 +284,7 @@ def train_model(df_param,batched_files,training_team,model_fn):
 		log_file.write("time,epoch,train_loss,test_loss\n")
 		start_time = time.time()
 		best_test_loss = np.Inf
-		scheduler = ReduceLROnPlateau(optimizer, 'min')
+		# scheduler = ReduceLROnPlateau(optimizer, 'min')
 		pbar = tqdm(range(1,df_param.l_n_epoch+1))
 		for epoch in pbar:
 
@@ -293,7 +293,7 @@ def train_model(df_param,batched_files,training_team,model_fn):
 
 			train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on)
 			test_epoch_loss = test(model,optimizer,test_loader,df_param.l_subsample_on)
-			scheduler.step(test_epoch_loss)
+			# scheduler.step(test_epoch_loss)
 			losses.append((train_epoch_loss,test_epoch_loss))
 			if epoch%df_param.l_log_interval==0:
 				if test_epoch_loss < best_test_loss:
