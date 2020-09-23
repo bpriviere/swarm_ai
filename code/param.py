@@ -92,8 +92,8 @@ class Param:
 
 		self.l_state_dim = 4 
 		self.l_action_dim = 2 
-		self.l_z_dim = 16
-		self.l_hidden_dim = 12
+		self.l_z_dim = 4
+		self.l_hidden_dim = 16
 
 		n,m,h,z = self.l_state_dim,self.l_action_dim,self.l_hidden_dim,self.l_z_dim
 
@@ -139,8 +139,8 @@ class Param:
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 10000000000 # n_points 
-		self.l_batch_size = 2000
-		self.l_n_epoch = 100
+		self.l_batch_size = 2048
+		self.l_n_epoch = 2000
 		self.l_lr = 1e-3
 		self.l_wd = 0 
 		self.l_log_interval = 1
