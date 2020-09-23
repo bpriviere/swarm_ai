@@ -103,7 +103,7 @@ if __name__ == '__main__':
 
 	df_param = Param()
 
-	df_param.env_l = 0.5 
+	df_param.env_l = 1.0
 
 	df_param.attackerPolicyDicts = [
 		{
@@ -113,46 +113,14 @@ if __name__ == '__main__':
 			'mcts_tree_size' : 			50000,
 			'mcts_rollout_horizon' : 	100,	
 			'mcts_rollout_beta' : 		0.0,
-			'mcts_c_param' : 			0.25,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,
-		},			
-		{
-			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		'../current/models/a0.pt',
-			'path_glas_model_b' : 		'../current/models/b0.pt', 
-			'mcts_tree_size' : 			50000,
-			'mcts_rollout_horizon' : 	100,	
-			'mcts_rollout_beta' : 		0.0,
 			'mcts_c_param' : 			0.5,
 			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,		
-		},
+			'mcts_pw_alpha' : 			0.25,
+			'mcts_vf_beta' : 			0.0,
+		},				
 		{
-			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		'../current/models/a0.pt',
-			'path_glas_model_b' : 		'../current/models/b0.pt', 
-			'mcts_tree_size' : 			50000,
-			'mcts_rollout_horizon' : 	100,	
-			'mcts_rollout_beta' : 		0.0,
-			'mcts_c_param' : 			0.75,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,		
-		},	
-		# {
-		# 	'sim_mode' : 				"MCTS",
-		# 	'path_glas_model_a' : 		'../current/models/a0.pt',
-		# 	'path_glas_model_b' : 		'../current/models/b0.pt', 
-		# 	'mcts_tree_size' : 			50000,
-		# 	'mcts_rollout_horizon' : 	100,	
-		# 	'mcts_rollout_beta' : 		0.0,
-		# 	'mcts_c_param' : 			0.5,
-		# 	'mcts_pw_C' : 				1.0,
-		# 	'mcts_pw_alpha' : 			0.25,		
-		# },				
-		# {
-		# 	"sim_mode" : "PANAGOU",
-		# },		
+			"sim_mode" : "PANAGOU",
+		},		
 	]
 
 	df_param.defenderPolicyDicts = [				
@@ -163,46 +131,14 @@ if __name__ == '__main__':
 			'mcts_tree_size' : 			50000,
 			'mcts_rollout_horizon' : 	100,	
 			'mcts_rollout_beta' : 		0.0,
-			'mcts_c_param' : 			0.25,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,
-		},			
-		{
-			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		'../current/models/a0.pt',
-			'path_glas_model_b' : 		'../current/models/b0.pt', 
-			'mcts_tree_size' : 			50000,
-			'mcts_rollout_horizon' : 	100,	
-			'mcts_rollout_beta' : 		0.0,
 			'mcts_c_param' : 			0.5,
 			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,		
-		},
+			'mcts_pw_alpha' : 			0.25,
+			'mcts_vf_beta' : 			0.0,
+		},	
 		{
-			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		'../current/models/a0.pt',
-			'path_glas_model_b' : 		'../current/models/b0.pt', 
-			'mcts_tree_size' : 			50000,
-			'mcts_rollout_horizon' : 	100,	
-			'mcts_rollout_beta' : 		0.0,
-			'mcts_c_param' : 			0.75,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,		
-		},		
-		# {
-		# 	'sim_mode' : 				"MCTS",
-		# 	'path_glas_model_a' : 		'../current/models/a0.pt',
-		# 	'path_glas_model_b' : 		'../current/models/b0.pt', 
-		# 	'mcts_tree_size' : 			50000,
-		# 	'mcts_rollout_horizon' : 	100,	
-		# 	'mcts_rollout_beta' : 		0.0,
-		# 	'mcts_c_param' : 			0.5,
-		# 	'mcts_pw_C' : 				1.0,
-		# 	'mcts_pw_alpha' : 			0.25,		
-		# },				
-		# {
-		# 	"sim_mode" : "PANAGOU",
-		# },
+			"sim_mode" : "PANAGOU",
+		},
 	]
 
 	parser = argparse.ArgumentParser()
@@ -212,20 +148,20 @@ if __name__ == '__main__':
 	if not args.game_file is None: 
 		initial_conditions,robot_team_compositions = read_games_file(args.game_file)
 	else: 
-		df_param.num_trials = 10
+		df_param.num_trials = 2
 		df_param.robot_team_compositions = [
 			{
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
-			{
-			'a': {'standard_robot':2,'evasive_robot':0},
-			'b': {'standard_robot':1,'evasive_robot':0}
-			},
-			{
-			'a': {'standard_robot':1,'evasive_robot':0},
-			'b': {'standard_robot':2,'evasive_robot':0}
-			},						
+			# {
+			# 'a': {'standard_robot':2,'evasive_robot':0},
+			# 'b': {'standard_robot':1,'evasive_robot':0}
+			# },
+			# {
+			# 'a': {'standard_robot':1,'evasive_robot':0},
+			# 'b': {'standard_robot':2,'evasive_robot':0}
+			# },						
 		]		
 		initial_conditions,robot_team_compositions = make_games(df_param)
 
