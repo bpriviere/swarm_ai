@@ -23,7 +23,7 @@ class Param:
 			'path_glas_model_b' : 		'../current/models/b0.pt', 
 			'mcts_tree_size' : 			50000,
 			'mcts_rollout_horizon' : 	100,	
-			'mcts_rollout_beta' : 		0.0,
+			'mcts_rollout_beta' : 		0.25,
 			'mcts_c_param' : 			0.5,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
@@ -62,7 +62,7 @@ class Param:
 
 		# learning (l) parameters 
 		self.device = 'cpu' # cpu, cuda 
-		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
+		self.l_mode = "DAgger" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 2
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
