@@ -61,7 +61,7 @@ class Param:
 		self.env_l = 0.5 
 
 		# learning (l) parameters 
-		self.device = 'cuda' # cpu, cuda 
+		self.device = 'cpu' # cpu, cuda 
 		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 10
@@ -141,7 +141,7 @@ class Param:
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 10000000000 # n_points 
-		self.l_batch_size = 2048
+		self.l_batch_size = 512
 		self.l_n_epoch = 2000
 		self.l_lr = 1e-3
 		self.l_wd = 0 
