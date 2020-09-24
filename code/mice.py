@@ -93,16 +93,28 @@ def format_data(o_a,o_b,goal):
 
 
 def train(model,optimizer,loader,l_subsample_on):
+
+	# streams = [torch.cuda.Stream(), torch.cuda.Stream()]
 	
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
+
+		if step % 10 == 0:
+			model.require_backward_grad_sync = True
+			model.require_forward_param_sync = True
+		else:
+			model.require_backward_grad_sync = False
+			model.require_forward_param_sync = False
+
+		# torch.cuda.stream(streams[step%(len(streams))])
 		value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)		
 		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on)
 		optimizer.zero_grad()   
 		loss.backward()         
 		optimizer.step()        
 		epoch_loss += float(loss)
-	return epoch_loss/(step+1)	
+	# del streams
+	return epoch_loss/(step+1)
 
 
 def test(model,optimizer,loader,l_subsample_on):
@@ -263,10 +275,79 @@ def make_loaders(df_param,batched_files,n_points):
 
 	return train_loader,test_loader, train_dataset_size, test_dataset_size
 
+def train_model_parallel(rank, world_size, df_param, batched_files, model_fn):
+	print("Running train_parallel on rank {}.".format(rank))
+
+	torch.set_num_threads(1)
+
+	# initialize the process group
+	os.environ['MASTER_ADDR'] = 'localhost'
+	os.environ['MASTER_PORT'] = '12355'
+	# os.environ['CUDA_VISIBLE_DEVICES'] = ''
+	torch.distributed.init_process_group("gloo", rank=rank, world_size=world_size)
+
+
+	num_batches = len(batched_files) // world_size
+	# my_batched_files = batched_files[rank:num_batches*world_size:world_size]
+	my_batched_files = batched_files[0:num_batches*world_size:world_size]
+	print(rank, num_batches, len(my_batched_files))
+
+	n_points = get_dataset_size(df_param,my_batched_files)
+	train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders(df_param,my_batched_files,n_points)
+
+	print('train dataset size: ', train_dataset_size)
+	print('test dataset size: ', test_dataset_size)
+	print('device: ',df_param.device)
+
+	torch.distributed.barrier()
+	start_time = time.time()
+
+	single_model = ContinuousEmptyNet(df_param,df_param.device)
+	model = torch.nn.parallel.DistributedDataParallel(single_model, find_unused_parameters=True)
+
+	optimizer = torch.optim.Adam(model.parameters(), lr=df_param.l_lr, weight_decay=df_param.l_wd)
+
+	best_test_loss = np.Inf
+
+	# with model.no_sync():
+	for epoch in range(1,df_param.l_n_epoch+1):
+		train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on)
+	
+		if rank == 0 and epoch%df_param.l_log_interval==0:
+			print(train_epoch_loss)
+			# torch.save(model.to('cpu').state_dict(), model_fn)
+			# model.to(df_param.device)
+
+	torch.distributed.barrier()
+	if rank == 0:
+		print("time for training: ", time.time() - start_time)
+
+	torch.distributed.destroy_process_group()
+
 
 def train_model(df_param,batched_files,training_team,model_fn):
 
 	print('training model... {}'.format(model_fn))
+
+	# # num threads: 
+	#     1     2
+	# 1: 40     41
+	# 2: 24
+	# 4: 20    20
+	# 8: 15
+	# 10: 14   16
+	# 12: 17
+	# default serial version (cpu): 41sec
+	# default serial version (gpu): 73sec
+
+	import torch.multiprocessing as mp
+	world_size = 8
+	mp.spawn(train_model_parallel,
+		args=(world_size, df_param, batched_files, model_fn),
+		nprocs=world_size,
+		join=True)
+
+	exit()
 
 	n_points = get_dataset_size(df_param,batched_files)
 	train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders(df_param,batched_files,n_points)
@@ -275,6 +356,11 @@ def train_model(df_param,batched_files,training_team,model_fn):
 	print('test dataset size: ', test_dataset_size)
 
 	print('device: ',df_param.device)
+
+
+
+
+
 	model = ContinuousEmptyNet(df_param,df_param.device)
 	optimizer = torch.optim.Adam(model.parameters(), lr=df_param.l_lr, weight_decay=df_param.l_wd)
 	
@@ -301,6 +387,8 @@ def train_model(df_param,batched_files,training_team,model_fn):
 					pbar.set_description("Best Test Loss: {:.5f}".format(best_test_loss))
 					torch.save(model.to('cpu').state_dict(), model_fn)
 					model.to(df_param.device)
+			if np.isnan(train_epoch_loss):
+				pbar.set_description("NAN! {:.5f}".format(best_test_loss))
 			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
 	plotter.plot_loss(losses,training_team)
 
