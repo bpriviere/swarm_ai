@@ -318,11 +318,15 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 		epoch_loss = torch.tensor([train_epoch_loss, test_epoch_loss])
 
 		if parallel:
-			torch.distributed.reduce(epoch_loss, 0)
-
-		if rank == 0:
+			torch.distributed.all_reduce(epoch_loss)
 			train_epoch_loss = float(epoch_loss[0]) / num_train_batches
 			test_epoch_loss = float(epoch_loss[1]) / num_test_batches
+			if np.isnan(train_epoch_loss):
+				if rank == 0:
+					print("WARNING: NAN encountered during training! Aborting.")
+				break
+
+		if rank == 0:
 			losses.append((train_epoch_loss,test_epoch_loss))
 
 			if epoch%df_param.l_log_interval==0:
@@ -331,8 +335,6 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 					pbar.set_description("Best Test Loss: {:.5f}".format(best_test_loss))
 					torch.save(single_model.to('cpu').state_dict(), model_fn)
 					single_model.to(df_param.device)
-				if np.isnan(train_epoch_loss):
-					pbar.set_description("NAN! {:.5f}".format(best_test_loss))
 
 	# if parallel:
 		# torch.distributed.barrier()
