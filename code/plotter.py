@@ -257,7 +257,7 @@ def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list,env_length):
 
 
 
-def plot_loss(losses,team):
+def plot_loss(losses,lrs,team):
 
 	losses = np.array(losses)
 
@@ -272,6 +272,14 @@ def plot_loss(losses,team):
 	ax.set_yscale('log')
 	ax.set_title('Team {}'.format(team))
 	ax.grid(True)
+
+	# plot losses
+	color = 'red'
+	ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
+	ax2.plot(np.array(lrs), color=color)
+	ax2.set_ylabel('learning rate', color=color)
+	ax2.tick_params(axis='y', labelcolor=color)
+
 	fig.tight_layout()
 
 

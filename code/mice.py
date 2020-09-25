@@ -5,7 +5,7 @@ import numpy as np
 import time 
 import torch 
 import argparse
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingWarmRestarts
 from torch import nn 
 from collections import defaultdict
 from itertools import repeat
@@ -92,7 +92,7 @@ def format_data(o_a,o_b,goal):
 	return o_a,o_b,goal
 
 
-def train(model,optimizer,loader,l_subsample_on,l_sync_every):
+def train(model,optimizer,loader,l_subsample_on,l_sync_every,epoch, scheduler=None):
 
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
@@ -109,6 +109,8 @@ def train(model,optimizer,loader,l_subsample_on,l_sync_every):
 		optimizer.zero_grad()
 		loss.backward()
 		optimizer.step()
+		if scheduler is not None:
+			scheduler.step(epoch + step/len(loader))
 		epoch_loss += float(loss)
 	return epoch_loss
 
@@ -288,6 +290,7 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 		num_train_batches = int(dataset_size[2])
 		num_test_batches = int(dataset_size[3])
 		losses = []
+		lrs = []
 		pbar = tqdm(range(1,df_param.l_n_epoch+1))
 		best_test_loss = np.Inf
 	else:
@@ -307,12 +310,22 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 
 	optimizer = torch.optim.Adam(model.parameters(), lr=df_param.l_lr, weight_decay=df_param.l_wd)
 
+	if df_param.l_lr_scheduler == 'ReduceLROnPlateau':
+		scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=50, min_lr=1e-5, verbose=rank==0)
+		train_scheduler = None
+	elif df_param.l_lr_scheduler == 'CosineAnnealingWarmRestarts':
+		scheduler = CosineAnnealingWarmRestarts(optimizer, int(max(75, df_param.l_n_epoch / 20)), 1, 1e-5)
+		train_scheduler = scheduler
+	else:
+		scheduler = None
+		train_scheduler = None
+
 	for epoch in pbar:
 
 		random.shuffle(train_loader)
 		random.shuffle(test_loader)
 
-		train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on,df_param.l_sync_every)
+		train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on,df_param.l_sync_every,epoch,train_scheduler)
 		test_epoch_loss = test(model,test_loader,df_param.l_subsample_on)
 
 		epoch_loss = torch.tensor([train_epoch_loss, test_epoch_loss])
@@ -326,8 +339,17 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 					print("WARNING: NAN encountered during training! Aborting.")
 				break
 
+		if df_param.l_lr_scheduler == 'ReduceLROnPlateau':
+			scheduler.step(test_epoch_loss)
+
 		if rank == 0:
 			losses.append((train_epoch_loss,test_epoch_loss))
+			if df_param.l_lr_scheduler == 'ReduceLROnPlateau':
+				lrs.append(scheduler._last_lr)
+			elif df_param.l_lr_scheduler == 'CosineAnnealingWarmRestarts':
+				lrs.append(scheduler.get_last_lr())
+			else:
+				lrs.append(df_param.l_lr)
 
 			if epoch%df_param.l_log_interval==0:
 				if test_epoch_loss < best_test_loss:
@@ -341,7 +363,7 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 	
 	if rank == 0:
 		print("time for training: ", time.time() - start_time)
-		plotter.plot_loss(losses,training_team)
+		plotter.plot_loss(losses,lrs,training_team)
 		plotter.save_figs(model_fn + '.pdf')
 		# plotter.open_figs('plots/model.pdf')
 		print('training model complete for {}'.format(model_fn))

@@ -147,6 +147,7 @@ class Param:
 		self.l_batch_size = 512
 		self.l_n_epoch = 1000
 		self.l_lr = 1e-3
+		self.l_lr_scheduler = None # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
 		self.l_wd = 0 
 		self.l_log_interval = 1
 		self.l_raw_fn = '{DATADIR}raw_{TEAM}train_{NUM_A}a_{NUM_B}b_{IDX_TRIAL}trial'
