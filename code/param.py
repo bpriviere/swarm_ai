@@ -24,7 +24,7 @@ class Param:
 			'mcts_tree_size' : 			50000,
 			'mcts_rollout_horizon' : 	100,	
 			'mcts_rollout_beta' : 		0.25,
-			'mcts_c_param' : 			0.5,
+			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_vf_beta' : 			0.0,
@@ -62,12 +62,13 @@ class Param:
 
 		# learning (l) parameters 
 		self.device = 'cpu' # cpu, cuda
+		self.l_mode = "IL" # IL, DAgger, ExIt, MICE
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 2
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 2000
+		self.l_num_points_per_file = 1000
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -143,7 +144,7 @@ class Param:
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 10000000000 # n_points 
 		self.l_batch_size = 512
-		self.l_n_epoch = 2000
+		self.l_n_epoch = 1000
 		self.l_lr = 1e-3
 		self.l_wd = 0 
 		self.l_log_interval = 1
