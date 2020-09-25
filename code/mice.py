@@ -92,38 +92,35 @@ def format_data(o_a,o_b,goal):
 	return o_a,o_b,goal
 
 
-def train(model,optimizer,loader,l_subsample_on):
+def train(model,optimizer,loader,l_subsample_on,l_sync_every):
 
-	# streams = [torch.cuda.Stream(), torch.cuda.Stream()]
-	
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
 
-		if step % 10 == 0:
+		if step % l_sync_every == 0:
 			model.require_backward_grad_sync = True
 			model.require_forward_param_sync = True
 		else:
 			model.require_backward_grad_sync = False
 			model.require_forward_param_sync = False
 
-		# torch.cuda.stream(streams[step%(len(streams))])
-		value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)		
+		value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
 		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on)
-		optimizer.zero_grad()   
-		loss.backward()         
-		optimizer.step()        
+		optimizer.zero_grad()
+		loss.backward()
+		optimizer.step()
 		epoch_loss += float(loss)
-	# del streams
-	return epoch_loss/(step+1)
+	return epoch_loss
 
 
-def test(model,optimizer,loader,l_subsample_on):
+def test(model,loader,l_subsample_on):
 	epoch_loss = 0
-	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
-		value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)		
-		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on)
-		epoch_loss += float(loss)
-	return epoch_loss/(step+1)	
+	with torch.no_grad():
+		for o_a,o_b,goal,target_value,target_policy,weight in loader:
+			value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
+			loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on)
+			epoch_loss += float(loss)
+	return epoch_loss
 
 
 def uniform_sample(param,n):
@@ -230,169 +227,138 @@ def write_labelled_data(df_param,oa_pairs_by_size):
 			dh.write_oa_batch(batched_dataset,batch_fn) 	
 
 
-def get_dataset_size(df_param,batched_files):
-	n_points = 0 
-	for batched_file in batched_files:
-		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file)
-		n_points += value.shape[0]
-	n_points = np.min((n_points, df_param.l_max_dataset_size))
-	return n_points
-
-
-def make_loaders(df_param,batched_files,n_points):
+def make_loaders(df_param,batched_files):
 
 	train_loader = [] # lst of batches 
 	test_loader = [] 
-	curr_points, train_dataset_size, test_dataset_size = 0,0,0
-	for batched_file in batched_files: 
+	train_dataset_size, test_dataset_size = 0,0
+	num_train_batches = int(len(batched_files) * df_param.l_test_train_ratio)
+	random.shuffle(batched_files)
+	for k, batched_file in enumerate(batched_files):
 
-		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file)									
+		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file)
+		data = [
+			torch.from_numpy(o_a).float().to(df_param.device),
+			torch.from_numpy(o_b).float().to(df_param.device),
+			torch.from_numpy(goal).float().to(df_param.device),
+			torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
+			torch.from_numpy(action).float().to(df_param.device),
+			torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
+			]
 		
-		if curr_points < df_param.l_test_train_ratio * n_points: 
-			train_loader.append([
-				torch.from_numpy(o_a).float().to(df_param.device),
-				torch.from_numpy(o_b).float().to(df_param.device),
-				torch.from_numpy(goal).float().to(df_param.device),
-				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
-				torch.from_numpy(action).float().to(df_param.device),
-				torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
-				])
-				
+		if k < num_train_batches:
+			train_loader.append(data)
 			train_dataset_size += value.shape[0]
-
-		elif curr_points < n_points:
-			test_loader.append([
-				torch.from_numpy(o_a).float().to(df_param.device),
-				torch.from_numpy(o_b).float().to(df_param.device),
-				torch.from_numpy(goal).float().to(df_param.device),
-				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
-				torch.from_numpy(action).float().to(df_param.device), 			
-				torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
-				])
-
+		else:
+			test_loader.append(data)
 			test_dataset_size += value.shape[0]
-		curr_points += value.shape[0]	
 
 	return train_loader,test_loader, train_dataset_size, test_dataset_size
 
-def train_model_parallel(rank, world_size, df_param, batched_files, model_fn):
-	print("Running train_parallel on rank {}.".format(rank))
+def train_model_parallel(rank, world_size, df_param, batched_files, training_team, model_fn, parallel=True):
 
-	torch.set_num_threads(1)
+	if parallel:
+		torch.set_num_threads(1)
 
-	# initialize the process group
-	os.environ['MASTER_ADDR'] = 'localhost'
-	os.environ['MASTER_PORT'] = '12355'
-	# os.environ['CUDA_VISIBLE_DEVICES'] = ''
-	torch.distributed.init_process_group("gloo", rank=rank, world_size=world_size)
-
+		# initialize the process group
+		os.environ['MASTER_ADDR'] = 'localhost'
+		os.environ['MASTER_PORT'] = '12355'
+		torch.distributed.init_process_group("gloo", rank=rank, world_size=world_size)
 
 	num_batches = len(batched_files) // world_size
-	# my_batched_files = batched_files[rank:num_batches*world_size:world_size]
-	my_batched_files = batched_files[0:num_batches*world_size:world_size]
-	print(rank, num_batches, len(my_batched_files))
+	my_batched_files = batched_files[rank:num_batches*world_size:world_size]
 
-	n_points = get_dataset_size(df_param,my_batched_files)
-	train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders(df_param,my_batched_files,n_points)
+	train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders(df_param,my_batched_files)
+	num_train_batches = len(train_loader)
+	num_test_batches = len(test_loader)
+	print(rank, num_train_batches, num_test_batches)
 
-	print('train dataset size: ', train_dataset_size)
-	print('test dataset size: ', test_dataset_size)
-	print('device: ',df_param.device)
+	dataset_size = torch.tensor([train_dataset_size, test_dataset_size, num_train_batches, num_test_batches])
 
-	torch.distributed.barrier()
+	if parallel:
+		torch.distributed.reduce(dataset_size, 0)
+
+	if rank == 0:
+		print('train dataset size: ', int(dataset_size[0]))
+		print('test dataset size: ', int(dataset_size[1]))
+		if parallel:
+			print('device: multi-cpu: ', world_size)
+		else:
+			print('device: ', df_param.device)
+		num_train_batches = int(dataset_size[2])
+		num_test_batches = int(dataset_size[3])
+		losses = []
+		pbar = tqdm(range(1,df_param.l_n_epoch+1))
+		best_test_loss = np.Inf
+	else:
+		pbar = range(1,df_param.l_n_epoch+1)
+
+	if parallel:
+		torch.distributed.barrier()
+
 	start_time = time.time()
 
 	single_model = ContinuousEmptyNet(df_param,df_param.device)
-	model = torch.nn.parallel.DistributedDataParallel(single_model, find_unused_parameters=True)
+
+	if parallel:
+		model = torch.nn.parallel.DistributedDataParallel(single_model, find_unused_parameters=True)
+	else:
+		model = single_model
 
 	optimizer = torch.optim.Adam(model.parameters(), lr=df_param.l_lr, weight_decay=df_param.l_wd)
 
-	best_test_loss = np.Inf
+	for epoch in pbar:
 
-	# with model.no_sync():
-	for epoch in range(1,df_param.l_n_epoch+1):
-		train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on)
+		random.shuffle(train_loader)
+		random.shuffle(test_loader)
+
+		train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on,df_param.l_sync_every)
+		test_epoch_loss = test(model,test_loader,df_param.l_subsample_on)
+
+		epoch_loss = torch.tensor([train_epoch_loss, test_epoch_loss])
+
+		if parallel:
+			torch.distributed.reduce(epoch_loss, 0)
+
+		if rank == 0:
+			train_epoch_loss = float(epoch_loss[0]) / num_train_batches
+			test_epoch_loss = float(epoch_loss[1]) / num_test_batches
+			losses.append((train_epoch_loss,test_epoch_loss))
+
+			if epoch%df_param.l_log_interval==0:
+				if test_epoch_loss < best_test_loss:
+					best_test_loss = test_epoch_loss
+					pbar.set_description("Best Test Loss: {:.5f}".format(best_test_loss))
+					torch.save(single_model.to('cpu').state_dict(), model_fn)
+					single_model.to(df_param.device)
+				if np.isnan(train_epoch_loss):
+					pbar.set_description("NAN! {:.5f}".format(best_test_loss))
+
+	# if parallel:
+		# torch.distributed.barrier()
 	
-		if rank == 0 and epoch%df_param.l_log_interval==0:
-			print(train_epoch_loss)
-			# torch.save(model.to('cpu').state_dict(), model_fn)
-			# model.to(df_param.device)
-
-	torch.distributed.barrier()
 	if rank == 0:
 		print("time for training: ", time.time() - start_time)
+		plotter.plot_loss(losses,training_team)
+		plotter.save_figs(model_fn + '.pdf')
+		# plotter.open_figs('plots/model.pdf')
+		print('training model complete for {}'.format(model_fn))
 
-	torch.distributed.destroy_process_group()
+	if parallel:
+		torch.distributed.destroy_process_group()
 
 
 def train_model(df_param,batched_files,training_team,model_fn):
 
 	print('training model... {}'.format(model_fn))
 
-	# # num threads: 
-	#     1     2
-	# 1: 40     41
-	# 2: 24
-	# 4: 20    20
-	# 8: 15
-	# 10: 14   16
-	# 12: 17
-	# default serial version (cpu): 41sec
-	# default serial version (gpu): 73sec
-
-	import torch.multiprocessing as mp
-	world_size = 8
-	mp.spawn(train_model_parallel,
-		args=(world_size, df_param, batched_files, model_fn),
-		nprocs=world_size,
-		join=True)
-
-	exit()
-
-	n_points = get_dataset_size(df_param,batched_files)
-	train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders(df_param,batched_files,n_points)
-
-	print('train dataset size: ', train_dataset_size)
-	print('test dataset size: ', test_dataset_size)
-
-	print('device: ',df_param.device)
-
-
-
-
-
-	model = ContinuousEmptyNet(df_param,df_param.device)
-	optimizer = torch.optim.Adam(model.parameters(), lr=df_param.l_lr, weight_decay=df_param.l_wd)
-	
-	# train 
-	losses = []
-	with open(model_fn + ".csv", 'w') as log_file:
-		log_file.write("time,epoch,train_loss,test_loss\n")
-		start_time = time.time()
-		best_test_loss = np.Inf
-		# scheduler = ReduceLROnPlateau(optimizer, 'min')
-		pbar = tqdm(range(1,df_param.l_n_epoch+1))
-		for epoch in pbar:
-
-			random.shuffle(train_loader)
-			random.shuffle(test_loader)
-
-			train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on)
-			test_epoch_loss = test(model,optimizer,test_loader,df_param.l_subsample_on)
-			# scheduler.step(test_epoch_loss)
-			losses.append((train_epoch_loss,test_epoch_loss))
-			if epoch%df_param.l_log_interval==0:
-				if test_epoch_loss < best_test_loss:
-					best_test_loss = test_epoch_loss
-					pbar.set_description("Best Test Loss: {:.5f}".format(best_test_loss))
-					torch.save(model.to('cpu').state_dict(), model_fn)
-					model.to(df_param.device)
-			if np.isnan(train_epoch_loss):
-				pbar.set_description("NAN! {:.5f}".format(best_test_loss))
-			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
-	plotter.plot_loss(losses,training_team)
-
-	print('training model complete for {}'.format(model_fn))
+	if df_param.device == 'cpu' and df_param.num_cpus is not None:
+		torch.multiprocessing.spawn(train_model_parallel,
+			args=(df_param.num_cpus, df_param, batched_files, training_team, model_fn, True),
+			nprocs=df_param.num_cpus,
+			join=True)
+	else:
+		train_model_parallel(0, 1, df_param,batched_files,training_team,model_fn, False)
 
 
 def load_param(some_dict):
@@ -664,6 +630,4 @@ if __name__ == '__main__':
 		if not df_param.make_data_on:
 			break 
 
-	plotter.save_figs('plots/model.pdf')
-	plotter.open_figs('plots/model.pdf')
 	print('done!')
