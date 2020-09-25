@@ -35,7 +35,7 @@ def loadGLAS(glas, file):
 
 if __name__ == '__main__':
 	mode = "MCTS_RANDOM" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
-	num_nodes = 10000
+	num_nodes = 100000
 	export_dot = None # or "mcts.dot"
 
 	# test RobotState
@@ -44,7 +44,7 @@ if __name__ == '__main__':
 
 	# test GameState
 	attackers = [mctscpp.RobotState([0.05,0.25,0,0])]
-	defenders = [mctscpp.RobotState([0.3,0.25,0,0])]
+	defenders = [mctscpp.RobotState([0.30,0.25,0,0])]
 	gs = mctscpp.GameState(mctscpp.GameState.Turn.Attackers,attackers,defenders)
 	print(gs)
 
@@ -108,16 +108,24 @@ if __name__ == '__main__':
 					actionIdx = 1
 					robots = gs.defenders
 				for robot in robots:
-					x = robot.state[0]
-					y = robot.state[1]
-					for action, value in mctsresult.valuePerAction:
-						dx = action[actionIdx][0]
-						dy = action[actionIdx][1]
-						p = value
-						color = None
-						if (action[actionIdx] == mctsresult.bestAction[actionIdx]).all():
-							color = 'red'
-						ax.arrow(x, y, dx * 0.01, dy*0.01, width=p*0.001, color=color)
+					# x = robot.state[0]
+					# y = robot.state[1]
+					# for action, value in mctsresult.valuePerAction:
+					# 	dx = action[actionIdx][0]
+					# 	dy = action[actionIdx][1]
+					# 	p = value
+					# 	color = None
+					# 	if (action[actionIdx] == mctsresult.bestAction[actionIdx]).all():
+					# 		color = 'red'
+					# 	ax.arrow(x, y, dx * 0.01, dy*0.01, width=p*0.001, color=color)
+
+					scatter = np.empty((len(mctsresult.valuePerAction), 3))
+					for i, (action, value) in enumerate(mctsresult.valuePerAction):
+						scatter[i,0:2] = robot.state[0:2] + action[actionIdx] * 0.01
+						scatter[i,2]   = value * 1000
+					ax.add_patch(mpatches.Circle(robot.state[0:2].copy(), 0.125 * 0.01, linestyle='--', fill=False))
+					ax.scatter(scatter[:,0], scatter[:,1], s=scatter[:,2], alpha=0.5)
+					# plt.show()
 
 				success = g.step(gs, mctsresult.bestAction, gs)
 			else:
