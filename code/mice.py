@@ -404,6 +404,7 @@ def make_dataset(states,params,df_param,testing=None):
 			# p.starmap(evaluate_expert, list(zip(states, params)))
 		pool_count += num_workers
 
+def make_labelled_dataset(df_param):
 	# labelled dataset 
 	print('cleaning labelled data...')
 	labelled_data_fns = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,TEAM='**',NUM_A='**',NUM_B='**',IDX_TRIAL='**')
@@ -483,7 +484,7 @@ def format_dir(df_param):
 	if df_param.clean_data_on:
 		datadir = df_param.path_current_data
 		if os.path.exists(datadir):
-			for file in glob.glob(datadir + "/*"):
+			for file in glob.glob(datadir + "/raw_*"):
 				os.remove(file)
 		os.makedirs(datadir,exist_ok=True)
 
@@ -572,6 +573,7 @@ if __name__ == '__main__':
 	df_param.clean_data_on = True
 	df_param.clean_models_on = True
 	df_param.make_data_on = True
+	df_param.make_labelled_data_on = True
 	df_param.mice_testing_on = False
 
 	if df_param.mice_testing_on:
@@ -608,6 +610,9 @@ if __name__ == '__main__':
 					states = get_self_play_samples(params)
 				
 				make_dataset(states,params,df_param,testing=testing)
+
+			if df_param.make_labelled_data_on:
+				make_labelled_dataset(df_param)
 
 			model_fn = df_param.l_model_fn.format(\
 					DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i+1)
