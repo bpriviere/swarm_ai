@@ -61,8 +61,9 @@ class Param:
 		self.env_l = 0.5 
 
 		# learning (l) parameters 
-		self.device = 'cpu' # cpu, cuda 
-		self.l_mode = "DAgger" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
+		self.device = 'cpu' # cpu, cuda
+		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
+		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 2
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
