@@ -11,6 +11,8 @@ from cpp.buildRelease import mctscpp
 from benchmark.panagou import PanagouPolicy
 import datahandler as dh
 
+from learning.continuous_emptynet import ContinuousEmptyNet
+
 def create_cpp_robot_type(param, robot_type):
 	p_min = [param.env_xlim[0], param.env_ylim[0]]
 	p_max = [param.env_xlim[1], param.env_ylim[1]]
@@ -50,22 +52,26 @@ def param_to_cpp_game(param, policy_dict_a, policy_dict_b):
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	
 	if policy_dict_a["sim_mode"] in ["GLAS","MCTS"]:
-		loadGLAS(g.glasA, policy_dict_a["path_glas_model_a"])
+		if policy_dict_a["path_glas_model_a"] is not None:
+			loadGLAS(g.glasA, policy_dict_a["path_glas_model_a"])
 
 	if policy_dict_b["sim_mode"] in ["GLAS","MCTS"]:
-		loadGLAS(g.glasB, policy_dict_b["path_glas_model_b"])
+		if policy_dict_b["path_glas_model_b"] is not None:
+			loadGLAS(g.glasB, policy_dict_b["path_glas_model_b"])
 
 	return g
 
 def loadGLAS(glas, file):
 	state_dict = torch.load(file)
 
-	den = glas.discreteEmptyNet
-	loadFeedForwardNNWeights(den.deepSetA.phi, state_dict, "model_team_a.phi")
-	loadFeedForwardNNWeights(den.deepSetA.rho, state_dict, "model_team_a.rho")
-	loadFeedForwardNNWeights(den.deepSetB.phi, state_dict, "model_team_b.phi")
-	loadFeedForwardNNWeights(den.deepSetB.rho, state_dict, "model_team_b.rho")
-	loadFeedForwardNNWeights(den.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(glas.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(glas.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(glas.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
+	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
+	loadFeedForwardNNWeights(glas.value, state_dict, "value")
 
 	return glas
 
@@ -130,7 +136,8 @@ def expected_value(param,state,policy_dict):
 		policy_dict["mcts_rollout_beta"],
 		policy_dict["mcts_c_param"],
 		policy_dict["mcts_pw_C"],
-		policy_dict["mcts_pw_alpha"])
+		policy_dict["mcts_pw_alpha"],
+		policy_dict["mcts_vf_beta"])
 	return mctsresult.expectedReward
 
 def self_play(param,deterministic=True):
@@ -143,6 +150,54 @@ def self_play(param,deterministic=True):
 		exit()
 
 	return play_game(param,policy_dict_a,policy_dict_b,deterministic=deterministic)
+
+def relative_state(states,param,idx):
+
+	n_robots, n_state_dim = states.shape
+
+	goal = np.array([param.goal[0],param.goal[1],0,0])
+
+	o_a = []
+	o_b = [] 
+	relative_goal = goal - states[idx,:]
+
+	# projecting goal to radius of sensing 
+	alpha = np.linalg.norm(relative_goal[0:2]) / param.robots[idx]["r_sense"]
+	relative_goal[2:] = relative_goal[2:] / np.max((alpha,1))	
+
+	for idx_j in range(n_robots): 
+		if idx_j != idx and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]: 
+			if idx_j in param.team_1_idxs:  
+				o_a.append(states[idx_j,:] - states[idx,:])
+			elif idx_j in param.team_2_idxs:
+				o_b.append(states[idx_j,:] - states[idx,:])
+
+	return np.array(o_a),np.array(o_b),np.array(relative_goal)
+
+
+def format_data(o_a,o_b,goal):
+	# input: [num_a/b, dim_state_a/b] np array 
+	# output: 1 x something torch float tensor
+
+	# make 0th dim (this matches batch dim in training)
+	if o_a.shape[0] == 0:
+		o_a = np.expand_dims(o_a,axis=0)
+	if o_b.shape[0] == 0:
+		o_b = np.expand_dims(o_b,axis=0)
+	goal = np.expand_dims(goal,axis=0)
+
+	# reshape if more than one element in set
+	if o_a.shape[0] > 1: 
+		o_a = np.reshape(o_a,(1,np.size(o_a)))
+	if o_b.shape[0] > 1: 
+		o_b = np.reshape(o_b,(1,np.size(o_b)))
+
+	o_a = torch.from_numpy(o_a).float() 
+	o_b = torch.from_numpy(o_b).float()
+	goal = torch.from_numpy(goal).float()
+
+	return o_a,o_b,goal
+
 
 def play_game(param,policy_dict_a,policy_dict_b,deterministic=True): 
 
@@ -162,10 +217,9 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 
 	gs = state_to_cpp_game_state(param,param.state,"a")
 	count = 0
-	finished = False
 	invalid_team_action = [np.nan*np.ones(2) for _ in range(param.num_nodes)]
 	team_action = list(invalid_team_action)
-	while not finished:
+	while True:
 		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
@@ -175,6 +229,20 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			policy_dict = policy_dict_b
 			team_idx = param.team_2_idxs
 
+		# output result
+		isTerminal = g.isTerminal(gs)
+		if count % 2 == 0 or isTerminal:
+			# update sim_result
+			sim_result['states'].append([rs.state.copy() for rs in gs.attackers + gs.defenders])
+			sim_result['actions'].append(team_action.copy())
+			r = g.computeReward(gs)
+			sim_result['rewards'].append([r, 1 - r])
+			# prepare for next update
+			team_action = list(invalid_team_action)
+
+		if isTerminal:
+			break
+
 		if policy_dict["sim_mode"] == "MCTS":
 			
 			mctsresult = mctscpp.search(g, gs, \
@@ -182,7 +250,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				policy_dict["mcts_rollout_beta"],
 				policy_dict["mcts_c_param"],
 				policy_dict["mcts_pw_C"],
-				policy_dict["mcts_pw_alpha"])
+				policy_dict["mcts_pw_alpha"],
+				policy_dict["mcts_vf_beta"])
 			if mctsresult.success: 
 				action = mctsresult.bestAction
 				success = g.step(gs, action, gs)
@@ -190,8 +259,73 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				success = False
 
 		elif policy_dict["sim_mode"] == "GLAS":
+			action = mctscpp.eval(g, gs, 1.0, deterministic)
 
-			action = mctscpp.eval(g, gs, deterministic)
+			# testing 
+			# deterministic = False
+			# num_samples = 1000
+
+			# state = cpp_state_to_pstate(gs)
+			# model = ContinuousEmptyNet(param, "cpu")
+			# if gs.turn == mctscpp.GameState.Turn.Attackers: 
+			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
+			# else: 
+			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
+
+			# cpp_actions = []
+			# python_actions = [] 
+			# for i_sample in range(num_samples):
+
+			# 	cpp_action = mctscpp.eval(g, gs, deterministic)
+			# 	cpp_actions.append(cpp_action)
+
+			# 	python_action = np.nan*np.ones((param.num_nodes,2))
+			# 	for robot_idx in range(param.num_nodes): 
+			# 		o_a,o_b,goal = relative_state(state,param,robot_idx)
+			# 		o_a,o_b,goal = format_data(o_a,o_b,goal)					
+			# 		value, policy = model(o_a,o_b,goal)
+			# 		python_action[robot_idx, :] = policy.detach().numpy().flatten()
+
+			# 	python_actions.append(python_action)
+
+			# action = python_action
+
+			# print('cpp_action',cpp_action)
+			# print('python_action',python_action)
+
+			# cpp_actions = np.array(cpp_actions)
+			# python_actions = np.array(python_actions)
+
+			# import matplotlib.pyplot as plt 
+			# fig, axs = plt.subplots(1,2,sharex=True,sharey=True)
+			# axs[0].scatter(cpp_actions[:,0,0], cpp_actions[:,0,1], alpha=0.5)
+			# axs[0].set_title('cpp')
+			# axs[1].scatter(python_actions[:,0,0], python_actions[:,0,1], alpha=0.5)
+			# axs[1].set_title('python')
+
+			# plt.show()
+			# exit()
+
+			# print('cpp', action)
+
+			# # use python to eval model 
+			# state = cpp_state_to_pstate(gs)
+			# action = np.nan*np.ones((param.num_nodes,2))
+			# model = ContinuousEmptyNet(param, "cpu")
+			# if gs.turn == mctscpp.GameState.Turn.Attackers: 
+			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
+			# else: 
+			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
+
+			# for robot_idx in team_idx: 
+			# 	o_a,o_b,goal = relative_state(state,param,robot_idx)
+			# 	o_a,o_b,goal = format_data(o_a,o_b,goal)
+			# 	value, policy = model(o_a,o_b,goal)
+			# 	action[robot_idx, :] = policy.detach().numpy().flatten()
+
+			# print('python', action)
+
+
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "PANAGOU":
@@ -201,21 +335,15 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			action = pp.eval(pstate)
 			success = g.step(gs, action, gs)
 
+		elif policy_dict["sim_mode"] == "RANDOM":
+			action = mctscpp.eval(g, gs, 0.0, False)
+			success = g.step(gs, action, gs)
+
 		else: 
 			exit('sim mode {} not recognized'.format(policy_dict["sim_mode"]))
 
-		isTerminal = g.isTerminal(gs)
-		if success:
-			if count % 2 == 0 or isTerminal:
-				# update sim_result
-				sim_result['states'].append([rs.state.copy() for rs in gs.attackers + gs.defenders])
-				sim_result['actions'].append(team_action.copy())
-				r = g.computeReward(gs)
-				sim_result['rewards'].append([r, 1 - r])
-				# prepare for next update
-				team_action = invalid_team_action
-
-		finished = not success or isTerminal
+		if not success:
+			break
 
 		for idx in team_idx:
 			team_action[idx] = action[idx].copy()
@@ -257,7 +385,7 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 
 	sim_result = {
 		'states' : [],
-		'actions' : [],
+		'policy_dists' : [],
 		'values' : [],
 		'param' : param.to_dict()
 		}
@@ -269,23 +397,75 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 			policy_dict["mcts_rollout_beta"],
 			policy_dict["mcts_c_param"],
 			policy_dict["mcts_pw_C"],
-			policy_dict["mcts_pw_alpha"])
+			policy_dict["mcts_pw_alpha"],
+			policy_dict["mcts_vf_beta"])
 		if mctsresult.success: 
-			action = value_to_dist(param,mctsresult.valuePerAction) # 
+			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction) # 
 			value = mctsresult.expectedReward[0]
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
-			sim_result["actions"].append(action) # total number of robots x action dimension per robot 
+			sim_result["policy_dists"].append(policy_dist)  
 			sim_result["values"].append(value)
 
 	sim_result["states"] = np.array(sim_result["states"])
-	sim_result["actions"] = np.array(sim_result["actions"])
+	sim_result["policy_dists"] = np.array(sim_result["policy_dists"])
 	dh.write_sim_result(sim_result,param.dataset_fn)
 
 	if not quiet_on:
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
-	
 
-def value_to_dist(param,valuePerAction):
+def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
+	
+	alphas = np.random.randint(low=0,high=len(testing),size=len(states))
+	
+	if not quiet_on:
+		print('   running expert for instance {}'.format(param.dataset_fn))
+
+	if progress is not None:
+		progress_pos = current_process()._identity[0] - progress
+		# enumeration = tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos)
+		enumeration = tqdm.tqdm(zip(alphas,states), desc=param.dataset_fn, leave=False, position=progress_pos)
+	else:
+		enumeration = zip(alphas,states)
+
+	if is_valid_policy_dict(param.policy_dict):
+		policy_dict = param.policy_dict
+	else: 
+		print('bad policy dict')
+		exit()
+
+	game = param_to_cpp_game(param,policy_dict,policy_dict)
+
+	sim_result = {
+		'states' : [],
+		'policy_dists' : [],
+		'values' : [],
+		'param' : param.to_dict()
+		}
+
+	for alpha, state in enumeration:
+
+		test_state = np.array(testing[alpha]["test_state"])
+		test_value = testing[alpha]["test_value"]
+
+		test_valuePerAction = []
+		for valuePerAction in testing[alpha]["test_valuePerAction"]:
+			x = ((np.array((valuePerAction[0],valuePerAction[1]),dtype=float),np.array((np.nan,np.nan),dtype=float)),valuePerAction[-1])
+			test_valuePerAction.append(x)
+
+		test_policy_dist = valuePerAction_to_policy_dist(param,test_valuePerAction) # 
+
+		sim_result["states"].append(test_state)
+		sim_result["policy_dists"].append(test_policy_dist)  		
+		sim_result["values"].append(test_value)
+
+	sim_result["states"] = np.array(sim_result["states"])
+	sim_result["policy_dists"] = np.array(sim_result["policy_dists"])
+	dh.write_sim_result(sim_result,param.dataset_fn)
+
+	if not quiet_on:
+		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))	
+
+def valuePerAction_to_policy_dist(param,valuePerAction):
 
 	if param.training_team == "a":
 		num_robots = param.num_nodes_A
@@ -294,31 +474,50 @@ def value_to_dist(param,valuePerAction):
 		num_robots = param.num_nodes_B
 		robot_idxs = param.team_2_idxs
 
-	dist = np.zeros((param.num_nodes,9))
-	values = defaultdict(list) 
-	for value_action,value in valuePerAction:
 
-		value_action = np.array(value_action)
-		value_action = value_action.flatten()
+	if param.l_subsample_on: 
 
-		for robot_idx in robot_idxs:
+		# make distribution
+		weights = np.array([v for _,v in valuePerAction])
+		weights /= sum(weights)
+		dist = dict()
+		for robot_idx in robot_idxs: 
+			action_idx = robot_idx * 2 + np.arange(2)
+			actions = np.array([np.array(a).flatten()[action_idx] for a,v in valuePerAction])
+			choice_idxs = np.random.choice(actions.shape[0],param.l_num_subsamples,p=weights)
+			dist[robot_idx] = np.array([(actions[choice_idx,:],weights[choice_idx]) for choice_idx in choice_idxs])
 
-			class_action = np.zeros(2)
-			if value_action[robot_idx*2] > 0: 
-				class_action[0] = 1 
-			elif value_action[robot_idx*2] < 0: 
-				class_action[0] = -1 
-			if value_action[robot_idx*2+1] > 0: 
-				class_action[1] = 1 
-			elif value_action[robot_idx*2+1] < 0: 
-				class_action[1] = -1 
+	else: 
 
-			action_idx = np.where(np.all(param.actions == class_action,axis=1))[0][0]
-			values[robot_idx,action_idx].append(value) 
+		dist = defaultdict(list)
 
-	for robot_idx in robot_idxs: 
-		for action_idx, robot_action in enumerate(param.actions):
-			dist[robot_idx,action_idx] = np.sum(values[robot_idx,action_idx])
+		actions = [a for a,_ in valuePerAction]
+		values = [v for _,v in valuePerAction]
+
+		actions = [x for _,x in sorted(zip(values,actions), key=lambda pair: -pair[0])]
+		values = sorted(values)
+
+		if len(actions) > param.l_num_samples:
+			actions = actions[0:param.l_num_samples]
+			values = values[0:param.l_num_samples]
+
+		values = [v/sum(values) for v in values] 
+
+		for action,value in zip(actions,values):
+
+			action = np.array(action)
+			action = action.flatten()
+
+			for robot_idx in robot_idxs:
+				action_idx = robot_idx * 2 + np.arange(2)
+				# dist[robot_idx].append(np.array([action[action_idx],value]))
+				dist[robot_idx].append([action[action_idx],value])
+
+		# print(dist)
+		# exit()
+
+		for robot_idx in dist.keys():
+			dist[robot_idx] = np.array(dist[robot_idx])
 
 	return dist	
 
@@ -347,10 +546,13 @@ def is_valid_policy_dict(policy_dict):
 			return False
 
 	elif policy_dict["sim_mode"] == "PANAGOU":
-		pass 
+		pass
 
-	else: 
+	elif policy_dict["sim_mode"] == "RANDOM":
+		pass
+
+	else:
 		print('sim_mode not recognized')
 		return False
 
-	return True 	
+	return True

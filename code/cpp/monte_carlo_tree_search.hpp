@@ -13,6 +13,9 @@
 // #include "neighbor.hpp"
 // #include "planresult.hpp"
 
+#define CHECK_ACTION_DUPLICATES 0
+#define CHECK_STATE_DUPLICATES 1
+
 namespace libMultiRobotPlanning {
 
 /*!
@@ -65,13 +68,15 @@ class MonteCarloTreeSearch {
     size_t num_nodes,
     float Cp,
     float pw_C,
-    float pw_alpha)
+    float pw_alpha,
+    float vf_beta)
     : m_env(environment)
     , m_generator(generator)
     , m_num_nodes(num_nodes)
     , m_Cp(Cp)
     , m_pw_C(pw_C)
     , m_pw_alpha(pw_alpha)
+    , m_vf_beta(vf_beta)
     {}
 
   bool search(const State& startState, Action& result) {
@@ -150,7 +155,8 @@ class MonteCarloTreeSearch {
     // output node value
     for (size_t i = 1; i < m_nodes.size(); ++i) {
       float value = m_env.rewardToFloat(m_nodes[i].parent->state, m_nodes[i].reward) / m_nodes[i].number_of_visits;
-      stream << "\tn" << i << " [width=" << value << "]\n";
+      stream << "\tn" << i << " [width=" << 0 << "]\n";
+      // stream << "\tn" << i << " [width=" << value << "]\n";
     }
 
     // output nodes
@@ -173,8 +179,7 @@ class MonteCarloTreeSearch {
         , number_of_visits(0)
         , reward()
         , children()
-        , gotActions(false)
-        , untried_actions()
+        , estimated_value(0)
     {
     }
 
@@ -186,8 +191,7 @@ class MonteCarloTreeSearch {
     Reward reward;
 
     std::vector<Node*> children;
-    bool gotActions;
-    std::vector<Action> untried_actions;
+    float estimated_value;
 
     size_t computeDepth() const {
       size_t depth = 0;
@@ -208,6 +212,10 @@ class MonteCarloTreeSearch {
 
       // Use progressive widening, see https://hal.archives-ouvertes.fr/hal-00542673v1/document
       size_t maxChildren = ceil(m_pw_C * powf(nodePtr->number_of_visits, m_pw_alpha));
+      if (node.parent == nullptr) {
+        maxChildren = std::max<size_t>(maxChildren, 25);
+      }
+
       if (nodePtr->children.size() < maxChildren) {
         Node* child = expand(nodePtr);
         if (child != nullptr) {
@@ -225,32 +233,41 @@ class MonteCarloTreeSearch {
 
   Node* expand(Node* nodePtr)
   {
-    // if this node was never attempted to be expanded, query potential actions first
-    if (!nodePtr->gotActions) {
-      nodePtr->untried_actions = m_env.computeValidActions(nodePtr->state);
-      nodePtr->gotActions = true;
+    const auto action = m_env.sampleAction(nodePtr->state, false);
+#if CHECK_ACTION_DUPLICATES
+    // std::cout << "a " << action[0] << " " << action[1] << std::endl;
+    for (const auto c : nodePtr->children) {
+      if (c->action_to_node == action) {
+        // std::cout << "ACTION DUPLICATE!" << std::endl;
+        return nullptr;
+      }
     }
-
-    // try to expand until we either found a valid action or have no more valid actions
+#endif
+    // sample a new action and add it if valid
     m_nodes.resize(m_nodes.size() + 1);
     auto& newNode = m_nodes[m_nodes.size()-1];
-    while (nodePtr->untried_actions.size() > 0) {
-      // shuffle on demand
-      std::uniform_int_distribution<int> dist(0, nodePtr->untried_actions.size() - 1);
-      int idx = dist(m_generator);
-      std::swap(nodePtr->untried_actions.back(), nodePtr->untried_actions.begin()[idx]);
-
-      const auto& action = nodePtr->untried_actions.back();
-      bool success = m_env.step(nodePtr->state, action, newNode.state);
-      if (success) {
-        newNode.parent = nodePtr;
-        newNode.action_to_node = action;
-        nodePtr->untried_actions.pop_back();
-        nodePtr->children.push_back(&newNode);
-        return &newNode;
+    bool success = m_env.step(nodePtr->state, action, newNode.state);
+#if CHECK_STATE_DUPLICATES
+    if (success) {
+      for (const auto c : nodePtr->children) {
+        if (c->state.isApprox(newNode.state)) {
+          // std::cout << "STATE DUPLICATE!" << c->state << newNode.state << std::endl;
+          success = false;
+          break;
+        }
       }
-      nodePtr->untried_actions.pop_back();
     }
+#endif
+    if (success) {
+      newNode.parent = nodePtr;
+      newNode.action_to_node = action;
+      if (m_vf_beta > 0) {
+        newNode.estimated_value = m_env.estimateValue(newNode.state);
+      }
+      nodePtr->children.push_back(&newNode);
+      return &newNode;
+    }
+
     // there was no valid expansion
     m_nodes.pop_back();
     return nullptr;
@@ -296,7 +313,9 @@ class MonteCarloTreeSearch {
     Node* result = nullptr;
     float bestValue = -1;
     for (Node* c : nodePtr->children) {
-      float value = m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits + Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits);
+      float value =   m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits
+                    + (1-m_vf_beta) * Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits)
+                    + m_vf_beta * c->estimated_value;
       assert(value >= 0);
       if (value > bestValue) {
         bestValue = value;
@@ -326,6 +345,7 @@ class MonteCarloTreeSearch {
   float m_Cp;
   float m_pw_C;
   float m_pw_alpha;
+  float m_vf_beta;
 };
 
 }  // namespace libMultiRobotPlanning

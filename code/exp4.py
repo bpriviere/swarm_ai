@@ -9,7 +9,8 @@ import time
 
 # custom 
 from param import Param 
-from learning.discrete_emptynet import DiscreteEmptyNet
+# from learning.discrete_emptynet import DiscreteEmptyNet
+from learning.continuous_emptynet import ContinuousEmptyNet
 from mice import format_data, relative_state
 from cpp_interface import self_play, expected_value
 import plotter 
@@ -26,7 +27,7 @@ def eval_value(param):
 		o_a,o_b,goal = relative_state(state,param,robot_idx)
 		o_a,o_b,goal = format_data(o_a,o_b,goal)
 
-		model = DiscreteEmptyNet(param, "cpu")
+		model = ContinuousEmptyNet(param, "cpu")
 		model.load_state_dict(torch.load(param.policy_dict["path_glas_model_a"]))
 
 		value,action = model(o_a,o_b,goal)
@@ -129,9 +130,9 @@ def main():
 		df_param.num_trials = 1
 		df_param.env_l = 0.5
 		df_param.make_environment()
-		df_param.sim_modes = ["EXPECTED_VALUE"] # ["EXPECTED_VALUE","GLAS"] #["GLAS"]
-		df_param.path_glas_model_a = '../saved/value_fnc_test/a3.pt'
-		df_param.path_glas_model_b = '../saved/value_fnc_test/b3.pt'
+		df_param.sim_modes = ["EXPECTED_VALUE","GLAS"] #["GLAS"]
+		df_param.path_glas_model_a = '../current/models/a10.pt'
+		df_param.path_glas_model_b = '../current/models/b10.pt'
 		df_param.mcts_tree_size = 10000
 		dx = 0.05
 		df_param.dss, df_param.X, df_param.Y = discretize_state_space(df_param,dx,dx)

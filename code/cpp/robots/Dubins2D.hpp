@@ -67,6 +67,12 @@ public:
     return state.segment<1>(3);
   }
 
+  bool isApprox(const RobotStateDubins2D& other) const
+  {
+    const float epsilon = 1e-3;
+    return status == other.status && (state - other.state).squaredNorm() < epsilon*epsilon;
+  }
+
   friend std::ostream& operator<<(std::ostream& out, const RobotStateDubins2D& s)
   {
     Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");

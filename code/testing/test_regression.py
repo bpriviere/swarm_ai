@@ -64,12 +64,14 @@ def robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,team
 def loadGLAS(glas, file):
 	state_dict = torch.load(file)
 
-	den = glas.discreteEmptyNet
-	loadFeedForwardNNWeights(den.deepSetA.phi, state_dict, "model_team_a.phi")
-	loadFeedForwardNNWeights(den.deepSetA.rho, state_dict, "model_team_a.rho")
-	loadFeedForwardNNWeights(den.deepSetB.phi, state_dict, "model_team_b.phi")
-	loadFeedForwardNNWeights(den.deepSetB.rho, state_dict, "model_team_b.rho")
-	loadFeedForwardNNWeights(den.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(glas.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(glas.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(glas.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
+	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
+	loadFeedForwardNNWeights(glas.value, state_dict, "value")
 
 	return glas
 
@@ -90,7 +92,10 @@ if __name__ == '__main__':
 	
 	tree_sizes = [100,1000,10000]
 	betas = [0.0, 0.25, 0.5]
-	ecc = 1.4 
+	ecc = 1.4
+	pw_C = 1.0
+	pw_alpha = 0.25
+	vf_beta = 0.0
 	num_trials = 5 
 	dt = 0.1
 	max_depth = 1000
@@ -147,7 +152,7 @@ if __name__ == '__main__':
 				game_state = state_to_cpp_game_state(state,team_1_idxs,"a")
 
 				start = time.time()
-				mctscpp.search(game, game_state, tree_size, beta, ecc)
+				mctscpp.search(game, game_state, tree_size, beta, ecc, pw_C, pw_alpha, vf_beta)
 				elapsed = time.time() - start 
 				results[i_tree_size,i_beta,i_trial] = elapsed 
 

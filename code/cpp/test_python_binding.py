@@ -22,18 +22,20 @@ def loadFeedForwardNNWeights(ff, state_dict, name):
 def loadGLAS(glas, file):
 	state_dict = torch.load(file)
 
-	den = glas.discreteEmptyNet
-	loadFeedForwardNNWeights(den.deepSetA.phi, state_dict, "model_team_a.phi")
-	loadFeedForwardNNWeights(den.deepSetA.rho, state_dict, "model_team_a.rho")
-	loadFeedForwardNNWeights(den.deepSetB.phi, state_dict, "model_team_b.phi")
-	loadFeedForwardNNWeights(den.deepSetB.rho, state_dict, "model_team_b.rho")
-	loadFeedForwardNNWeights(den.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(glas.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(glas.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(glas.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
+	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
+	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
+	loadFeedForwardNNWeights(glas.value, state_dict, "value")
 
 	return glas
 
 if __name__ == '__main__':
 	mode = "MCTS_RANDOM" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
-	num_nodes = 10000
+	num_nodes = 100000
 	export_dot = None # or "mcts.dot"
 
 	# test RobotState
@@ -42,7 +44,7 @@ if __name__ == '__main__':
 
 	# test GameState
 	attackers = [mctscpp.RobotState([0.05,0.25,0,0])]
-	defenders = [mctscpp.RobotState([0.3,0.25,0,0])]
+	defenders = [mctscpp.RobotState([0.30,0.25,0,0])]
 	gs = mctscpp.GameState(mctscpp.GameState.Turn.Attackers,attackers,defenders)
 	print(gs)
 
@@ -65,12 +67,14 @@ if __name__ == '__main__':
 	Cp = 1.4
 	pw_C = 1.0
 	pw_alpha = 0.25
+	vf_beta = 0
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	if "GLAS" in mode:
 		loadGLAS(g.glasA, "../../current/models/a1.pt")
 		loadGLAS(g.glasB, "../../current/models/b1.pt")
 	if "RANDOM" in mode:
 		rollout_beta = 0.0
+		vf_beta = 0
 	print(g)
 
 	next_state = mctscpp.GameState()
@@ -89,7 +93,7 @@ if __name__ == '__main__':
 			[rs.state[0:2].copy() for rs in gs.attackers],
 			[rs.state[0:2].copy() for rs in gs.defenders]])
 		if "MCTS" in mode:
-			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp, pw_C, pw_alpha, export_dot)
+			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp, pw_C, pw_alpha, vf_beta, export_dot)
 			if export_dot:
 				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
 				exit()
@@ -104,16 +108,24 @@ if __name__ == '__main__':
 					actionIdx = 1
 					robots = gs.defenders
 				for robot in robots:
-					x = robot.state[0]
-					y = robot.state[1]
-					for action, value in mctsresult.valuePerAction:
-						dx = action[actionIdx][0]
-						dy = action[actionIdx][1]
-						p = value
-						color = None
-						if (action[actionIdx] == mctsresult.bestAction[actionIdx]).all():
-							color = 'red'
-						ax.arrow(x, y, dx * 0.01, dy*0.01, width=p*0.001, color=color)
+					# x = robot.state[0]
+					# y = robot.state[1]
+					# for action, value in mctsresult.valuePerAction:
+					# 	dx = action[actionIdx][0]
+					# 	dy = action[actionIdx][1]
+					# 	p = value
+					# 	color = None
+					# 	if (action[actionIdx] == mctsresult.bestAction[actionIdx]).all():
+					# 		color = 'red'
+					# 	ax.arrow(x, y, dx * 0.01, dy*0.01, width=p*0.001, color=color)
+
+					scatter = np.empty((len(mctsresult.valuePerAction), 3))
+					for i, (action, value) in enumerate(mctsresult.valuePerAction):
+						scatter[i,0:2] = robot.state[0:2] + action[actionIdx] * 0.01
+						scatter[i,2]   = value * 1000
+					ax.add_patch(mpatches.Circle(robot.state[0:2].copy(), 0.125 * 0.01, linestyle='--', fill=False))
+					ax.scatter(scatter[:,0], scatter[:,1], s=scatter[:,2], alpha=0.5)
+					# plt.show()
 
 				success = g.step(gs, mctsresult.bestAction, gs)
 			else:

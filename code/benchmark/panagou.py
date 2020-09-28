@@ -58,7 +58,7 @@ class PanagouPolicy:
 
 				if robot["team"] == "a":
 					if self.matching[i_robot] == None:
-						print('not matched')
+						# print('not matched')
 						actions[i_robot,:] = theta_to_u(robot,self.theta_noms[i_robot])
 					else:
 						j_robot = self.matching[i_robot]

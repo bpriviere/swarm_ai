@@ -30,6 +30,12 @@ public:
     return state.segment<2>(0);
   }
 
+  bool isApprox(const RobotStateSingleIntegrator2D& other) const
+  {
+    const float epsilon = 1e-3;
+    return status == other.status && (state - other.state).squaredNorm() < epsilon*epsilon;
+  }
+
   friend std::ostream& operator<<(std::ostream& out, const RobotStateSingleIntegrator2D& s)
   {
     Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");
@@ -63,7 +69,6 @@ public:
   }
 
   float velocity_limit;
-  std::vector<RobotActionSingleIntegrator2D> possibleActions;
   RobotActionSingleIntegrator2D invalidAction;
 
   void step(const RobotStateSingleIntegrator2D& state,
@@ -90,17 +95,6 @@ public:
 
   void init()
   {
-    possibleActions.resize(9);
-    possibleActions[0] << -velocity_limit / sqrtf(2), -velocity_limit / sqrtf(2);
-    possibleActions[1] << -velocity_limit, 0;
-    possibleActions[2] << -velocity_limit / sqrtf(2), velocity_limit / sqrtf(2);
-    possibleActions[3] << 0, -velocity_limit;
-    possibleActions[4] << 0, 0;
-    possibleActions[5] << 0, velocity_limit;
-    possibleActions[6] << velocity_limit / sqrtf(2), -velocity_limit / sqrtf(2);
-    possibleActions[7] << velocity_limit, 0;
-    possibleActions[8] << velocity_limit / sqrtf(2), velocity_limit / sqrtf(2);
-
     invalidAction << nanf("") , nanf("");
   }
 

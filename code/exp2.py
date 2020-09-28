@@ -156,9 +156,9 @@ if __name__ == '__main__':
 	args = parser.parse_args() 	
 
 	if not args.path_glas_model_a is None: 
-		df_param.path_glas_model_a = args.path_glas_model_a
+		df_param.policy_dict["path_glas_model_a"] = args.path_glas_model_a
 	if not args.path_glas_model_b is None: 
-		df_param.path_glas_model_b = args.path_glas_model_b	
+		df_param.policy_dict["path_glas_model_b"] = args.path_glas_model_b	
 
 	run_on = True
 	if run_on: 

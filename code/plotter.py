@@ -257,7 +257,7 @@ def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list,env_length):
 
 
 
-def plot_loss(losses,team):
+def plot_loss(losses,lrs,team):
 
 	losses = np.array(losses)
 
@@ -272,6 +272,14 @@ def plot_loss(losses,team):
 	ax.set_yscale('log')
 	ax.set_title('Team {}'.format(team))
 	ax.grid(True)
+
+	# plot losses
+	color = 'red'
+	ax2 = ax.twinx()  # instantiate a second axes that shares the same x-axis
+	ax2.plot(np.array(lrs), color=color)
+	ax2.set_ylabel('learning rate', color=color)
+	ax2.tick_params(axis='y', labelcolor=color)
+
 	fig.tight_layout()
 
 
@@ -327,8 +335,8 @@ def plot_tree_results(sim_result,title=None):
 		gamma = reward_1 * 2 - 1 
 		return gamma 
 
-	states = sim_result["states"][0:137]
-	actions = sim_result["actions"][0:137]
+	states = sim_result["states"]
+	actions = sim_result["actions"]
 
 	# states = sim_result["states"]
 	# actions = sim_result["actions"]	
@@ -685,14 +693,14 @@ def policy_to_label(policy):
 	# keys = ["sim_mode","path","mcts_tree_size"]
 	# keys = ["sim_mode","path","mcts_rollout_beta"] 
 	# keys = ["sim_mode","mcts_rollout_beta"] 
-	keys = ["sim_mode","mcts_rollout_beta","mcts_tree_size","mcts_c_param"] 
+	keys = ["sim_mode","mcts_rollout_beta","mcts_tree_size","mcts_c_param","path"]
 	# keys = ["path"]
 	label = '' 
 	for key, value in policy.items():
 		if "path" in key and np.any(['path' in a for a in keys]):
 			label += '{} '.format(os.path.basename(value).split(".")[0])
 		elif key == "mcts_rollout_beta":
-			if policy["sim_mode"] == "MCTS_GLAS":
+			if policy["sim_mode"] == "MCTS":
 				label += ', b: {}'.format(value)
 		elif key == "mcts_tree_size":
 			label += ', |n|: {}'.format(value)
@@ -751,6 +759,45 @@ def plot_exp3_results(all_sim_results):
 	# ax.legend()
 	# ax.grid(True)
 
+
+def plot_test_model(df_param,stats):
+
+	LIMS = df_param.standard_robot["acceleration_limit"]*np.array([[-1,1],[-1,1]])
+	nbins = 20
+
+	for alpha,stats_per_condition in stats.items():
+
+		fig,axs = plt.subplots(ncols=2)
+
+		xedges = np.linspace(LIMS[0,0],LIMS[0,1],nbins) 
+		yedges = np.linspace(LIMS[1,0],LIMS[1,1],nbins) 
+
+		h_mcts, xedges, yedges = np.histogram2d(stats_per_condition["test"][:,0],stats_per_condition["test"][:,1],bins=(xedges,yedges),range=LIMS,density=True)
+		h_model, xedges, yedges = np.histogram2d(stats_per_condition["learned"][:,0],stats_per_condition["learned"][:,1],bins=(xedges,yedges),range=LIMS,density=True)
+
+		h_mcts = h_mcts.T 
+		h_model = h_model.T 
+
+		axs[0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
+		axs[1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
+
+		# - arrange 
+		axs[0].set_title('mcts: {}'.format(alpha))
+		axs[1].set_title('model: {}'.format(alpha))
+		axs[0].set_xlabel('x-action')
+		axs[1].set_xlabel('x-action')
+		axs[0].set_ylabel('y-action')
+
+		# fig,ax = plt.subplots()
+		# ax.hist2d(stats_per_condition["learned"][:,0],stats_per_condition["learned"][:,1])
+		# ax.set_title('learned')
+		# ax.set_aspect('equal')
+
+		# fig,ax = plt.subplots()
+		# ax.hist2d(stats_per_condition["test"][:,0],stats_per_condition["test"][:,1])
+		# ax.set_title('test')
+		# ax.set_aspect('equal')
+		
 
 def plot_convergence(all_sim_results):
 

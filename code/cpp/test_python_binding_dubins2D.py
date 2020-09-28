@@ -54,10 +54,12 @@ if __name__ == '__main__':
 	Cp = 1.4
 	pw_C = 1.0
 	pw_alpha = 0.25
+	vf_beta = 0
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 
 	if "RANDOM" in mode:
 		rollout_beta = 0.0
+		vf_beta = 0
 	print(g)
 
 	next_state = mctscpp.GameState()
@@ -76,7 +78,7 @@ if __name__ == '__main__':
 			[rs.state[0:2].copy() for rs in gs.attackers],
 			[rs.state[0:2].copy() for rs in gs.defenders]])
 		if "MCTS" in mode:
-			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp, pw_C, pw_alpha, export_dot)
+			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp, pw_C, pw_alpha, vf_beta, export_dot)
 			if export_dot:
 				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
 				exit()

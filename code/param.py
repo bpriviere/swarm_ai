@@ -23,10 +23,11 @@ class Param:
 			'path_glas_model_b' : 		'../current/models/b0.pt', 
 			'mcts_tree_size' : 			50000,
 			'mcts_rollout_horizon' : 	100,	
-			'mcts_rollout_beta' : 		0.0,
-			'mcts_c_param' : 			0.5,
+			'mcts_rollout_beta' : 		0.25,
+			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
+			'mcts_vf_beta' : 			0.0,
 		}
 
 		# max timesteps until the game terminates
@@ -60,57 +61,93 @@ class Param:
 		self.env_l = 0.5 
 
 		# learning (l) parameters 
-		self.device = 'cpu'
-		self.l_mode = "IL" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
+		self.device = 'cpu' # cpu, cuda
+		self.l_mode = "IL" # IL, DAgger, ExIt, MICE
+		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
+		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
+		self.l_mode = "DAgger" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
-		self.l_num_iterations = 10
+		self.l_num_iterations = 2
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 800
+		self.l_num_points_per_file = 1000
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
-			{
-			'a': {'standard_robot':2,'evasive_robot':0},
-			'b': {'standard_robot':1,'evasive_robot':0}
-			},
-			{
-			'a': {'standard_robot':1,'evasive_robot':0},
-			'b': {'standard_robot':2,'evasive_robot':0}
-			},
+			# {
+			# 'a': {'standard_robot':2,'evasive_robot':0},
+			# 'b': {'standard_robot':1,'evasive_robot':0}
+			# },
+			# {
+			# 'a': {'standard_robot':1,'evasive_robot':0},
+			# 'b': {'standard_robot':2,'evasive_robot':0}
+			# },
 			# {
 			# 'a': {'standard_robot':2,'evasive_robot':0},
 			# 'b': {'standard_robot':2,'evasive_robot':0}
 			# },			
 		]
 
-		n,m,h,l,p = 4,2,16,8,8 # state dim, action dim, hidden layer, output phi, output rho
+		self.l_subsample_on = False
+		self.l_num_subsamples = 5
+
+		self.l_num_samples = 5 # take l_num_samples-best samples from mctsresult (still weighted)
+
+		self.l_state_dim = 4 
+		self.l_action_dim = 2 
+		self.l_z_dim = 4
+		self.l_hidden_dim = 16
+
+		n,m,h,z = self.l_state_dim,self.l_action_dim,self.l_hidden_dim,self.l_z_dim
+
 		self.l_phi_network_architecture = [
 			["Linear", n, h],
 			["Linear", h, h],
-			["Linear", h, l]
+			["Linear", h, h]
 		]
 
 		self.l_rho_network_architecture = [
-			["Linear", l, h],
 			["Linear", h, h],
-			["Linear", h, p]
+			["Linear", h, h],
+			["Linear", h, h]
 		]
 
-		self.l_psi_network_architecture = [
-			["Linear", 2*p+n, h],
+		self.l_conditional_network_architecture = [
+			["Linear", 2*h+n, h], 
 			["Linear", h, h],
-			["Linear", h, 9+1]
+			["Linear", h, h] 
 		]
+
+		self.l_encoder_network_architecture = [
+			["Linear", m+h, h],
+			["Linear", h, h],
+			["Linear", h, h],
+			["Linear", h, 2*z] 
+		]
+
+		self.l_decoder_network_architecture = [
+			["Linear", z+h, h], 
+			["Linear", h, h],
+			["Linear", h, h],
+			["Linear", h, m] 
+		]
+
+		self.l_value_network_architecture = [
+			["Linear", h, h], 
+			["Linear", h, h],
+			["Linear", h, 1] 
+		]
+
 
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
-		self.l_max_dataset_size = 1000000 # n_points 
-		self.l_batch_size = 2000
-		self.l_n_epoch = 100
+		self.l_max_dataset_size = 10000000000 # n_points 
+		self.l_batch_size = 512
+		self.l_n_epoch = 1000
 		self.l_lr = 1e-3
+		self.l_lr_scheduler = None # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
 		self.l_wd = 0 
 		self.l_log_interval = 1
 		self.l_raw_fn = '{DATADIR}raw_{TEAM}train_{NUM_A}a_{NUM_B}b_{IDX_TRIAL}trial'
