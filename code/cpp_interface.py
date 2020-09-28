@@ -52,10 +52,12 @@ def param_to_cpp_game(param, policy_dict_a, policy_dict_b):
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	
 	if policy_dict_a["sim_mode"] in ["GLAS","MCTS"]:
-		loadGLAS(g.glasA, policy_dict_a["path_glas_model_a"])
+		if policy_dict_a["path_glas_model_a"] is not None:
+			loadGLAS(g.glasA, policy_dict_a["path_glas_model_a"])
 
 	if policy_dict_b["sim_mode"] in ["GLAS","MCTS"]:
-		loadGLAS(g.glasB, policy_dict_b["path_glas_model_b"])
+		if policy_dict_b["path_glas_model_b"] is not None:
+			loadGLAS(g.glasB, policy_dict_b["path_glas_model_b"])
 
 	return g
 
@@ -257,7 +259,7 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				success = False
 
 		elif policy_dict["sim_mode"] == "GLAS":
-			action = mctscpp.eval(g, gs, deterministic)
+			action = mctscpp.eval(g, gs, 1.0, deterministic)
 
 			# testing 
 			# deterministic = False
@@ -331,6 +333,10 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			pstate = cpp_state_to_pstate(gs)
 			pp.init_sim(pstate)
 			action = pp.eval(pstate)
+			success = g.step(gs, action, gs)
+
+		elif policy_dict["sim_mode"] == "RANDOM":
+			action = mctscpp.eval(g, gs, 0.0, False)
 			success = g.step(gs, action, gs)
 
 		else: 
@@ -540,10 +546,13 @@ def is_valid_policy_dict(policy_dict):
 			return False
 
 	elif policy_dict["sim_mode"] == "PANAGOU":
-		pass 
+		pass
 
-	else: 
+	elif policy_dict["sim_mode"] == "RANDOM":
+		pass
+
+	else:
 		print('sim_mode not recognized')
 		return False
 
-	return True 	
+	return True

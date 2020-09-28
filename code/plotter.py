@@ -335,8 +335,8 @@ def plot_tree_results(sim_result,title=None):
 		gamma = reward_1 * 2 - 1 
 		return gamma 
 
-	states = sim_result["states"][0:137]
-	actions = sim_result["actions"][0:137]
+	states = sim_result["states"]
+	actions = sim_result["actions"]
 
 	# states = sim_result["states"]
 	# actions = sim_result["actions"]	
@@ -693,14 +693,14 @@ def policy_to_label(policy):
 	# keys = ["sim_mode","path","mcts_tree_size"]
 	# keys = ["sim_mode","path","mcts_rollout_beta"] 
 	# keys = ["sim_mode","mcts_rollout_beta"] 
-	keys = ["sim_mode","mcts_rollout_beta","mcts_tree_size","mcts_c_param"] 
+	keys = ["sim_mode","mcts_rollout_beta","mcts_tree_size","mcts_c_param","path"]
 	# keys = ["path"]
 	label = '' 
 	for key, value in policy.items():
 		if "path" in key and np.any(['path' in a for a in keys]):
 			label += '{} '.format(os.path.basename(value).split(".")[0])
 		elif key == "mcts_rollout_beta":
-			if policy["sim_mode"] == "MCTS_GLAS":
+			if policy["sim_mode"] == "MCTS":
 				label += ', b: {}'.format(value)
 		elif key == "mcts_tree_size":
 			label += ', |n|: {}'.format(value)

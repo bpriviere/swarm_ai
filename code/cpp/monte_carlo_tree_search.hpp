@@ -233,7 +233,7 @@ class MonteCarloTreeSearch {
 
   Node* expand(Node* nodePtr)
   {
-    const auto action = m_env.sampleAction(nodePtr->state);
+    const auto action = m_env.sampleAction(nodePtr->state, false);
 #if CHECK_ACTION_DUPLICATES
     // std::cout << "a " << action[0] << " " << action[1] << std::endl;
     for (const auto c : nodePtr->children) {

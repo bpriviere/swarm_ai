@@ -147,26 +147,32 @@ def get_self_play_samples(params):
 	self_play_states = []
 
 	for param in params:
-		param.policy_dict["sim_mode"] = "GLAS"
+		if param.iter_i == 0:
+			param.policy_dict["sim_mode"] = "RANDOM"
+		else:
+			param.policy_dict["sim_mode"] = "GLAS"
 
 	for param in params: 
-		states_per_file = [] 
+		states_per_file = []
+		remaining_plots_per_file = 2
 		while len(states_per_file) < param.l_num_points_per_file:
 			param.state = param.make_initial_condition()
 			sim_result = self_play(param,deterministic=False)
 
+			if remaining_plots_per_file > 0:
+				plotter.plot_tree_results(sim_result)
+				remaining_plots_per_file -= 1
+
 			# clean data
 			idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
 			states = sim_result["states"][idxs]
-
-			if len(states) > param.l_num_points_per_file:
-				states = states[0:param.l_num_points_per_file]
-			
 			states_per_file.extend(states)
-		self_play_states.append(states_per_file)
+		self_play_states.append(states_per_file[0:param.l_num_points_per_file])
 	print('self-play sample collection completed.')
+
+	plotter.save_figs('plots/self_play_samples_team{}_iter{}.pdf'.format(params[0].training_team, params[0].iter_i))
 	return self_play_states
-	
+
 
 def increment():
 	exit('not implemented')
@@ -475,19 +481,15 @@ def get_params(df_param,training_team,iter_i):
 
 			param.policy_dict["sim_mode"] = "MCTS"
 
-			if "a" in df_param.l_training_teams:
+			if iter_i == 0:
+				param.policy_dict["path_glas_model_a"] = None
+				param.policy_dict["path_glas_model_b"] = None
+			else:
 				param.policy_dict["path_glas_model_a"] = df_param.l_model_fn.format(\
 					DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
-			else: 
-				param.policy_dict["path_glas_model_a"] = df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM="a",ITER=0)
-			if "b" in df_param.l_training_teams:
 				param.policy_dict["path_glas_model_b"] = df_param.l_model_fn.format(\
 					DATADIR=df_param.path_current_models,TEAM="b",ITER=iter_i)
-			else: 
-				param.policy_dict["path_glas_model_b"] = df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM="b",ITER=0)
-			
+
 			if df_param.l_mode == "IL" or df_param.l_mode == "DAgger":
 				param.policy_dict["mcts_rollout_beta"] = 0.0 
 			elif df_param.l_mode == "ExIt" or df_param.l_mode == "MICE":
@@ -606,21 +608,13 @@ if __name__ == '__main__':
 	print('Clean old data on: {}'.format(df_param.clean_data_on))
 	print('Make new data on: {}'.format(df_param.make_data_on))
 
-	format_dir(df_param)
-
-	# create randomly initialized models for use in the first iteration
-	model = ContinuousEmptyNet(df_param,df_param.device)
-	for training_team in ["a","b"]:
-		model_fn = df_param.l_model_fn.format(\
-			DATADIR=df_param.path_current_models,TEAM=training_team,ITER=0)
-		torch.save(model.to('cpu').state_dict(), model_fn)
-	del model
 
 	# training loop 
 	for iter_i in range(df_param.l_num_iterations):
 		for training_team in df_param.l_training_teams:
 
 			print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
+			format_dir(df_param)
 
 			if df_param.make_data_on: 
 				

@@ -235,7 +235,8 @@ class Game {
     return reward.second;
   }
 
-  RobotActionT sampleAction(const RobotStateT& state, const RobotTypeT& robotType, bool teamAttacker, size_t idx, const GameStateT& gameState)
+  RobotActionT sampleAction(const RobotStateT& state, const RobotTypeT& robotType, bool teamAttacker,
+    size_t idx, const GameStateT& gameState, bool deterministic)
   {
     if (state.status != RobotState::Status::Active) {
       return robotType.invalidAction;
@@ -246,10 +247,11 @@ class Game {
     if (m_rollout_beta > 0 && dist(m_generator) < m_rollout_beta) {
       // Use NN if rollout_beta is > 0 probabilistically
       const auto& glas = teamAttacker ? m_glas_a : m_glas_b;
-      auto result = glas.eval(gameState, m_goal, robotType, teamAttacker, idx, false);
+      assert(glas.valid());
+      auto result = glas.eval(gameState, m_goal, robotType, teamAttacker, idx, deterministic);
       return std::get<1>(result);
     } else {
-      // use uniform random sample
+      // use uniform random sample (no deterministic option)
       std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
       std::uniform_real_distribution<float> distMag(0.0, 1.0);
       float theta = distTheta(m_generator);
@@ -258,7 +260,7 @@ class Game {
     }
   }
 
-  GameActionT sampleAction(const GameStateT& state)
+  GameActionT sampleAction(const GameStateT& state, bool deterministic)
   {
     size_t NumAttackers = state.attackers.size();
     size_t NumDefenders = state.defenders.size();
@@ -267,7 +269,7 @@ class Game {
 
     if (state.turn == GameStateT::Turn::Attackers) {
       for (size_t i = 0; i < NumAttackers; ++i) {
-        result[i] = sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state);
+        result[i] = sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state, deterministic);
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
         result[NumAttackers + i] = m_defenderTypes[i].invalidAction;
@@ -277,7 +279,7 @@ class Game {
         result[i] = m_attackerTypes[i].invalidAction;
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
-        result[NumAttackers + i] = sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state);
+        result[NumAttackers + i] = sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state, deterministic);
       }
     }
     return result;
@@ -293,26 +295,9 @@ class Game {
 
     while (true) {
       bool valid = true;
-      if (m_rollout_beta > 0 && dist(m_generator) < m_rollout_beta) {
-        // Use NN if rollout_beta is > 0 probabilistically
-        assert(m_glas_a.valid() && m_glas_b.valid());
 
-        const auto action = computeActionsWithGLAS(m_glas_a, m_glas_b, s, m_goal, m_attackerTypes, m_defenderTypes, false);
-
-        // step twice (once for each player)
-        valid &= step(s, action, nextState);
-        valid &= step(nextState, action, nextState);
-      } else {
-        // use regular random rollout
-
-        // compute and step for player1
-        const auto action1 = sampleAction(s);
-        valid &= step(s, action1, nextState);
-
-        // compute and step for player2
-        const auto action2 = sampleAction(nextState);
-        valid &= step(nextState, action2, nextState);
-      }
+      const auto action = sampleAction(s, false);
+      valid &= step(s, action, nextState);
 
       if (valid) {
         s = nextState;

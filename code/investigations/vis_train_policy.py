@@ -70,7 +70,7 @@ if __name__ == '__main__':
 
 		# select candidate observations 
 		candidate = (o_as[idxs[i_state]],o_bs[idxs[i_state]],goals[idxs[i_state]])
-		print('candidate {}/{}:'.format(i_state,num_vis,candidate))
+		print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
 
 		# append all identical ones (should be # subsamples)
 		conditionals = [] 

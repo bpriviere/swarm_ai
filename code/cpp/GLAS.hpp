@@ -377,32 +377,32 @@ private:
 // };
 
 
-template<class Robot>
-std::vector<typename Robot::Action> computeActionsWithGLAS(
-  const GLAS<Robot>& glas_a,
-  const GLAS<Robot>& glas_b,
-  const GameState<Robot>& state,
-  const Eigen::Matrix<float, Robot::StateDim, 1>& goal,
-  const std::vector<typename Robot::Type>& attackerTypes,
-  const std::vector<typename Robot::Type>& defenderTypes,
-  bool deterministic)
-{
-  size_t NumAttackers = state.attackers.size();
-  size_t NumDefenders = state.defenders.size();
+// template<class Robot>
+// std::vector<typename Robot::Action> computeActionsWithGLAS(
+//   const GLAS<Robot>& glas_a,
+//   const GLAS<Robot>& glas_b,
+//   const GameState<Robot>& state,
+//   const Eigen::Matrix<float, Robot::StateDim, 1>& goal,
+//   const std::vector<typename Robot::Type>& attackerTypes,
+//   const std::vector<typename Robot::Type>& defenderTypes,
+//   bool deterministic)
+// {
+//   size_t NumAttackers = state.attackers.size();
+//   size_t NumDefenders = state.defenders.size();
 
-  std::vector<typename Robot::Action> action(NumAttackers + NumDefenders);
+//   std::vector<typename Robot::Action> action(NumAttackers + NumDefenders);
 
-  // evaluate glas for all team members of a
-  for (size_t j = 0; j < NumAttackers; ++j) {
-    auto result_a = glas_a.eval(state, goal, attackerTypes[j], true, j, deterministic);
-    action[j] = std::get<1>(result_a);
-  }
+//   // evaluate glas for all team members of a
+//   for (size_t j = 0; j < NumAttackers; ++j) {
+//     auto result_a = glas_a.eval(state, goal, attackerTypes[j], true, j, deterministic);
+//     action[j] = std::get<1>(result_a);
+//   }
 
-  // evaluate glas for all team members of b
-  for (size_t j = 0; j < NumDefenders; ++j) {
-    auto result_b = glas_b.eval(state, goal, defenderTypes[j], false, j, deterministic);
-    action[NumAttackers + j] = std::get<1>(result_b);
-  }
+//   // evaluate glas for all team members of b
+//   for (size_t j = 0; j < NumDefenders; ++j) {
+//     auto result_b = glas_b.eval(state, goal, defenderTypes[j], false, j, deterministic);
+//     action[NumAttackers + j] = std::get<1>(result_b);
+//   }
 
-  return action;
-}
+//   return action;
+// }

@@ -69,6 +69,7 @@ MCTSResult search(
   float vf_beta,
   const char* export_dot = nullptr)
 {
+  float old_rollout_beta = game.rolloutBeta();
   game.setRolloutBeta(rollout_beta);
   MCTSResult result;
   libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(
@@ -82,19 +83,21 @@ MCTSResult search(
     std::ofstream stream(export_dot);
     mcts.exportToDot(stream);
   }
+  game.setRolloutBeta(old_rollout_beta);
   return result;
 }
 
 GameT::GameActionT eval(
   GameT& game,
   const GameT::GameStateT& startState,
+  float rollout_beta,
   bool deterministic)
 {
-  return computeActionsWithGLAS(
-    game.glasA(), game.glasB(),
-    startState, game.goal(),
-    game.attackerTypes(), game.defenderTypes(),
-	deterministic);
+  float old_rollout_beta = game.rolloutBeta();
+  game.setRolloutBeta(rollout_beta);
+  auto result = game.sampleAction(startState, deterministic);
+  game.setRolloutBeta(old_rollout_beta);
+  return result;
 }
 
 
