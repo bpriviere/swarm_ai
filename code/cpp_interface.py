@@ -379,13 +379,14 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 	else:
 		enumeration = states
 
-	if is_valid_policy_dict(param.policy_dict):
-		policy_dict = param.policy_dict
-	else: 
-		print('bad policy dict')
-		exit()
+	game = param_to_cpp_game(param,None,None)
 
-	game = param_to_cpp_game(param,policy_dict,policy_dict)
+	my_policy = create_cpp_policy(param.my_policy_dict, param.training_team)
+
+	other_team = "b" if param.training_team == "a" else "a"
+	other_policies = []
+	for other_policy_dict in param.other_policy_dicts:
+		other_policies.append(create_cpp_policy(other_policy_dict,other_team))
 
 	sim_result = {
 		'states' : [],
@@ -396,13 +397,14 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 
 	for state in enumeration:
 		game_state = state_to_cpp_game_state(param,state,param.training_team)
-		mctsresult = mctscpp.search(game, game_state,
-			policy_dict["mcts_tree_size"],
-			policy_dict["mcts_rollout_beta"],
-			policy_dict["mcts_c_param"],
-			policy_dict["mcts_pw_C"],
-			policy_dict["mcts_pw_alpha"],
-			policy_dict["mcts_vf_beta"])
+		mctsresult = mctscpp.search(game, game_state, \
+			my_policy,
+			other_policies,
+			param.my_policy_dict["mcts_tree_size"],
+			param.my_policy_dict["mcts_c_param"],
+			param.my_policy_dict["mcts_pw_C"],
+			param.my_policy_dict["mcts_pw_alpha"],
+			param.my_policy_dict["mcts_vf_beta"])
 		if mctsresult.success: 
 			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction) # 
 			value = mctsresult.expectedReward[0]

@@ -181,7 +181,8 @@ def get_self_play_samples(params):
 			param.policy_dict_a = {
 				"sim_mode" : "GLAS",
 				"path_glas_model_a" : path_glas_model_a, 
-				"path_glas_model_b" : None 
+				"path_glas_model_b" : None ,
+				"mcts_rollout_beta" : 1.0 
 			}			
 
 		else: 
@@ -192,7 +193,8 @@ def get_self_play_samples(params):
 			param.policy_dict_a = {
 				"sim_mode" : "GLAS",
 				"path_glas_model_a" : path_glas_model_a, 
-				"path_glas_model_b" : None 
+				"path_glas_model_b" : None ,
+				"mcts_rollout_beta" : 1.0 
 			}
 
 		# dict b 
@@ -209,7 +211,8 @@ def get_self_play_samples(params):
 			param.policy_dict_b = {
 				"sim_mode" : "GLAS",
 				"path_glas_model_a" : None, 
-				"path_glas_model_b" : path_glas_model_b
+				"path_glas_model_b" : path_glas_model_b,
+				"mcts_rollout_beta" : 1.0 
 			}			
 
 		else: 
@@ -220,7 +223,8 @@ def get_self_play_samples(params):
 			param.policy_dict_b = {
 				"sim_mode" : "GLAS",
 				"path_glas_model_a" : None, 
-				"path_glas_model_b" : path_glas_model_b
+				"path_glas_model_b" : path_glas_model_b,
+				"mcts_rollout_beta" : 1.0 
 			}		
 
 	for param in params: 
@@ -492,21 +496,34 @@ def make_dataset(states,params,df_param,testing=None):
 		param.env_l = env_l
 		param.update()
 
-		# policy dict  
-		param.policy_dict["sim_mode"] = "MCTS" 
+		# my policy 
+		param.my_policy_dict = param.policy_dict 
 		if param.i == 0 or param.l_mode in ["IL","DAgger"]:
-			param.policy_dict["path_glas_model_a"] = None
-			param.policy_dict["path_glas_model_b"] = None
-			param.policy_dict["mcts_rollout_beta"] = 0.0 
-		else: 
-			param.policy_dict["path_glas_model_a"] = param.l_model_fn.format(\
+			param.my_policy_dict["path_glas_model_{}".format(param.training_team)] = None  
+			param.my_policy_dict["mcts_rollout_beta"] = 0.0 
+		else:
+			param.my_policy_dict["path_glas_model_{}".format(param.training_team)] = param.l_model_fn.format(\
 				DATADIR=param.path_current_models,\
-				TEAM="a",\
+				TEAM=param.training_team,\
 				ITER=param.i)
-			param.policy_dict["path_glas_model_b"] = param.l_model_fn.format(\
-				DATADIR=param.path_current_models,\
-				TEAM="b",\
-				ITER=param.i)
+
+		opponents_key = "Skill_B" if param.training_team == "a" else "Skill_A"
+		opponents_team = "b" if param.training_team == "a" else "a"
+		param.other_policy_dicts = []
+		for other_policy_skill in param.curriculum[opponents_key]:
+			
+			other_policy_dict = param.policy_dict 
+			if param.i == 0 or param.l_mode in ["IL","DAgger"]:
+				other_policy_dict["path_glas_model_{}".format(opponents_team)] = None  
+				other_policy_dict["mcts_rollout_beta"] = 0.0 
+			else:
+				other_policy_dict["path_glas_model_{}".format(opponents_team)] = param.l_model_fn.format(\
+					DATADIR=param.path_current_models,\
+					TEAM=opponents_team,\
+					ITER=other_policy_skill)
+			param.other_policy_dicts.append(other_policy_dict)
+
+		# param.policy_dict["sim_mode"] = "MCTS" 
 
 	if not df_param.l_parallel_on:
 		if df_param.mice_testing_on:
@@ -724,8 +741,8 @@ def isCurriculumConverged(df_param,curriculum,desired_game):
 
 def incrementCurriculum(df_param,curriculum):
 	# for now only increment policy skill 
-	curriculum["Skill_A"].append('a{}.pt'.format(len(curriculum["Skill_A"])))
-	curriculum["Skill_B"].append('b{}.pt'.format(len(curriculum["Skill_B"])))
+	curriculum["Skill_A"].append(len(curriculum["Skill_A"]))
+	curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
 	return curriculum 
 
 if __name__ == '__main__':
