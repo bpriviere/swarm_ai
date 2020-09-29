@@ -36,8 +36,8 @@ def read_oa_batch(fn):
 
 	key = os.path.basename(fn)
 	key = key.split('_')
-	num_a = int(key[2].split('a')[0])
-	num_b = int(key[3].split('b')[0])
+	num_a = int(key[3].split('a')[-1])
+	num_b = int(key[4].split('b')[-1])
 	action_dim_per_agent = 2
 	state_dim_per_agent = 4
 

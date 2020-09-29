@@ -136,6 +136,15 @@ def get_uniform_samples(params):
 	print('getting uniform samples...')
 	states = []
 	for param in params:
+
+		# delta-uniform sampling for curriculum 
+		robot_team_composition, _, _, env_l = sample_curriculum(param.curriculum)
+
+		# update
+		param.robot_team_composition = robot_team_composition
+		param.env_l = env_l
+		param.update()
+
 		states.append(uniform_sample(param,param.l_num_points_per_file))
 	print('uniform samples collection completed.')
 	return states
@@ -143,23 +152,84 @@ def get_uniform_samples(params):
 
 def get_self_play_samples(params):
 	# When using multiprocessing, load cpp_interface per process
-	from cpp_interface import self_play
+	from cpp_interface import play_game
 
 	print('getting self-play samples...')
 	self_play_states = []
 
 	for param in params:
-		if param.iter_i == 0:
-			param.policy_dict["sim_mode"] = "RANDOM"
-		else:
-			param.policy_dict["sim_mode"] = "GLAS"
+
+		# delta-uniform sampling for curriculum 
+		robot_team_composition, skill_a, skill_b, env_l = sample_curriculum(param.curriculum)
+
+		# update
+		param.robot_team_composition = robot_team_composition
+		param.env_l = env_l
+		param.update()
+
+		# dict a 
+		if param.i == 0 or (param.training_team == "b" and skill_a == None):
+			param.policy_dict_a = {
+				"sim_mode" : "RANDOM"
+			}
+
+		elif param.training_team == "a": 
+			path_glas_model_a = param.l_model_fn.format(\
+						DATADIR=param.path_current_models,\
+						TEAM="a",\
+						ITER=param.i)
+			param.policy_dict_a = {
+				"sim_mode" : "GLAS",
+				"path_glas_model_a" : path_glas_model_a, 
+				"path_glas_model_b" : None 
+			}			
+
+		else: 
+			path_glas_model_a = param.l_model_fn.format(\
+						DATADIR=param.path_current_models,\
+						TEAM="a",\
+						ITER=skill_a)
+			param.policy_dict_a = {
+				"sim_mode" : "GLAS",
+				"path_glas_model_a" : path_glas_model_a, 
+				"path_glas_model_b" : None 
+			}
+
+		# dict b 
+		if param.i == 0 or (param.training_team == "a" and skill_b == None):
+			param.policy_dict_b = {
+				"sim_mode" : "RANDOM"
+			}
+
+		elif param.training_team == "b": 
+			path_glas_model_b = param.l_model_fn.format(\
+						DATADIR=param.path_current_models,\
+						TEAM="b",\
+						ITER=param.i)
+			param.policy_dict_b = {
+				"sim_mode" : "GLAS",
+				"path_glas_model_a" : None, 
+				"path_glas_model_b" : path_glas_model_b
+			}			
+
+		else: 
+			path_glas_model_b = param.l_model_fn.format(\
+						DATADIR=param.path_current_models,\
+						TEAM="b",\
+						ITER=skill_b)
+			param.policy_dict_b = {
+				"sim_mode" : "GLAS",
+				"path_glas_model_a" : None, 
+				"path_glas_model_b" : path_glas_model_b
+			}		
 
 	for param in params: 
 		states_per_file = []
 		remaining_plots_per_file = 2
 		while len(states_per_file) < param.l_num_points_per_file:
 			param.state = param.make_initial_condition()
-			sim_result = self_play(param,deterministic=False)
+			# sim_result = self_play(param,deterministic=False)
+			sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
 
 			if remaining_plots_per_file > 0:
 				plotter.plot_tree_results(sim_result)
@@ -172,12 +242,8 @@ def get_self_play_samples(params):
 		self_play_states.append(states_per_file[0:param.l_num_points_per_file])
 	print('self-play sample collection completed.')
 
-	plotter.save_figs('plots/self_play_samples_team{}_iter{}.pdf'.format(params[0].training_team, params[0].iter_i))
+	plotter.save_figs('plots/self_play_samples_team{}_iter{}.pdf'.format(params[0].training_team, params[0].i))
 	return self_play_states
-
-
-def increment():
-	exit('not implemented')
 
 
 def make_labelled_data(sim_result,oa_pairs_by_size):
@@ -199,18 +265,12 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 
 			for action, weight in zip(policy_dist[robot_idx][:,0],policy_dist[robot_idx][:,1]):
 
-				# o_a2 = o_a + cov_s * np.random.normal(size=o_a.shape)
-				# o_b2 = o_b + cov_s * np.random.normal(size=o_b.shape)
-				# goal2 = goal + cov_s * np.random.normal(size=goal.shape)
-				# action2 = action + cov_a * np.random.normal(size=action.shape)
-				# oa_pairs_by_size[key].append((o_a2, o_b2, goal2, value, action2, weight))
-
 				oa_pairs_by_size[key].append((o_a, o_b, goal, value, action, weight))
 
 	return oa_pairs_by_size
 
 
-def write_labelled_data(df_param,oa_pairs_by_size):
+def write_labelled_data(df_param,oa_pairs_by_size,i):
 
 	for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
 		batch_num = 0 
@@ -225,15 +285,26 @@ def write_labelled_data(df_param,oa_pairs_by_size):
 
 			batched_dataset.append(data)
 			if len(batched_dataset) >= df_param.l_batch_size:
-				batch_fn = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,\
-					TEAM=team,NUM_A=num_a,NUM_B=num_b,IDX_TRIAL=batch_num)
+				batch_fn = df_param.l_labelled_fn.format(
+					DATADIR=df_param.path_current_data,\
+					TEAM=team,
+					LEARNING_ITER=i,
+					NUM_A=num_a,
+					NUM_B=num_b,
+					NUM_FILE=batch_num)
 				dh.write_oa_batch(batched_dataset,batch_fn) 
 				batch_num += 1 
 				batched_dataset = [] 
 
+		# last batch 
 		if len(batched_dataset) > 0:
-			batch_fn = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,\
-				TEAM=team,NUM_A=num_a,NUM_B=num_b,IDX_TRIAL=batch_num)
+			batch_fn = df_param.l_labelled_fn.format(\
+				DATADIR=df_param.path_current_data,\
+				TEAM=team,
+				LEARNING_ITER=i,
+				NUM_A=num_a,
+				NUM_B=num_b,
+				NUM_FILE=batch_num)
 			dh.write_oa_batch(batched_dataset,batch_fn) 	
 
 
@@ -412,7 +483,30 @@ def make_dataset(states,params,df_param,testing=None):
 	print('making dataset...')
 
 	for param in params:
-		param.policy_dict["sim_mode"] = "MCTS"
+
+		# delta-uniform sampling for curriculum 
+		robot_team_composition, skill_a, skill_b, env_l = sample_curriculum(param.curriculum)
+
+		# update
+		param.robot_team_composition = robot_team_composition
+		param.env_l = env_l
+		param.update()
+
+		# policy dict  
+		param.policy_dict["sim_mode"] = "MCTS" 
+		if param.i == 0 or param.l_mode in ["IL","DAgger"]:
+			param.policy_dict["path_glas_model_a"] = None
+			param.policy_dict["path_glas_model_b"] = None
+			param.policy_dict["mcts_rollout_beta"] = 0.0 
+		else: 
+			param.policy_dict["path_glas_model_a"] = param.l_model_fn.format(\
+				DATADIR=param.path_current_models,\
+				TEAM="a",\
+				ITER=param.i)
+			param.policy_dict["path_glas_model_b"] = param.l_model_fn.format(\
+				DATADIR=param.path_current_models,\
+				TEAM="b",\
+				ITER=param.i)
 
 	if not df_param.l_parallel_on:
 		if df_param.mice_testing_on:
@@ -438,74 +532,67 @@ def make_dataset(states,params,df_param,testing=None):
 			# p.starmap(evaluate_expert, list(zip(states, params)))
 		pool_count += num_workers
 
-def make_labelled_dataset(df_param):
+def make_labelled_dataset(df_param,i):
 	# labelled dataset 
 	print('cleaning labelled data...')
-	labelled_data_fns = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,TEAM='**',NUM_A='**',NUM_B='**',IDX_TRIAL='**')
+	labelled_data_fns = df_param.l_labelled_fn.format(\
+		DATADIR=df_param.path_current_data,
+		TEAM='**',
+		LEARNING_ITER=i,
+		NUM_A='**',
+		NUM_B='**',
+		NUM_FILE='**')
 	for file in glob.glob(labelled_data_fns+'**'):
 		os.remove(file)
 
 	print('making labelled data...')
-	sim_result_fns = df_param.l_raw_fn.format(DATADIR=df_param.path_current_data,TEAM='**',NUM_A='**',NUM_B='**',IDX_TRIAL='**')
+	sim_result_fns = df_param.l_raw_fn.format(\
+		DATADIR=df_param.path_current_data,
+		TEAM='**',\
+		LEARNING_ITER=i,
+		NUM_FILE='**')	
 	oa_pairs_by_size = defaultdict(list) 
 	for sim_result_fn in tqdm(glob.glob(sim_result_fns+'**')): 
 		sim_result = dh.load_sim_result(sim_result_fn)
 		oa_pairs_by_size = make_labelled_data(sim_result,oa_pairs_by_size)
 
 	# make actual batches and write to file 
-	write_labelled_data(df_param,oa_pairs_by_size)
+	write_labelled_data(df_param,oa_pairs_by_size,i)
 	print('labelling data completed.')
 	print('dataset completed.')
 
-def get_start(df_param,robot_team_composition):
-	num_nodes_A = 0 
-	for robot_type,number in robot_team_composition["a"].items():
-		num_nodes_A += number
-	num_nodes_B = 0 
-	for robot_type,number in robot_team_composition["b"].items():
-		num_nodes_B += number
-	base_fn = df_param.l_raw_fn.format(DATADIR=df_param.path_current_data,TEAM=training_team,\
-		NUM_A=num_nodes_A,NUM_B=num_nodes_B,IDX_TRIAL="*")
+def get_start(df_param,i):
+	base_fn = df_param.l_raw_fn.format(
+		DATADIR=df_param.path_current_data,\
+		TEAM=training_team,\
+		LEARNING_ITER=i,\
+		NUM_FILE='*')
 	start = len(glob.glob(base_fn+'*'))
 	return start
 
-def get_params(df_param,training_team,iter_i):
+def get_params(df_param,training_team,i,curriculum):
 
 	params = []
 
-	for robot_team_composition in df_param.l_robot_team_composition_cases:
+	start = get_start(df_param,i)
 
-		start = get_start(df_param,robot_team_composition)
+	for trial in range(df_param.l_num_file_per_iteration): 
 
-		for trial in range(df_param.l_num_file_per_iteration): 
+		param = Param() # random seed 
 
-			param = Param() # random seed 
-			param.robot_team_composition = robot_team_composition 
-			param.l_num_points_per_file = df_param.l_num_points_per_file
-			param.training_team = training_team
-			param.iter_i = iter_i 
+		param.curriculum = curriculum 
+		param.training_team = training_team
+		param.i = i 
 
-			param.policy_dict["sim_mode"] = "MCTS"
+		param.update() 
 
-			if iter_i == 0:
-				param.policy_dict["path_glas_model_a"] = None
-				param.policy_dict["path_glas_model_b"] = None
-			else:
-				param.policy_dict["path_glas_model_a"] = df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
-				param.policy_dict["path_glas_model_b"] = df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM="b",ITER=iter_i)
+		param.dataset_fn = df_param.l_raw_fn.format(
+			DATADIR=df_param.path_current_data,
+			TEAM=training_team,\
+			LEARNING_ITER=i,
+			NUM_FILE=trial+start)
 
-			if df_param.l_mode == "IL" or df_param.l_mode == "DAgger":
-				param.policy_dict["mcts_rollout_beta"] = 0.0 
-			elif df_param.l_mode == "ExIt" or df_param.l_mode == "MICE":
-				param.policy_dict["mcts_rollout_beta"] = df_param.policy_dict["mcts_rollout_beta"]
-
-			param.update() 
-			param.dataset_fn = df_param.l_raw_fn.format(DATADIR=df_param.path_current_data,TEAM=training_team,\
-				NUM_A=param.num_nodes_A,NUM_B=param.num_nodes_B,IDX_TRIAL=trial+start)
-
-			params.append(param)
+		params.append(param)
 
 	return params	
 
@@ -572,7 +659,7 @@ def test_model(param,model_fn,testing):
 		choice_idxs = np.random.choice(actions.shape[0],n_samples,p=weights)
 		for choice_idx in choice_idxs:
 			mu = actions[choice_idx,:]
-			test_sample = mu + cov_a * np.random.normal(size=(2,)) 
+			test_sample = mu + 0.01 * np.random.normal(size=(2,)) 
 			stats_per_condition["test"].append(test_sample)
 
 		stats_per_condition["learned"] = np.array(stats_per_condition["learned"]).squeeze()
@@ -592,13 +679,59 @@ def read_testing_yaml(fn):
 		testing.append(test)
 	return testing
 
+def sample_curriculum(curriculum):
+
+	# 'naive' curriculum learning 
+	num_a = curriculum["NumA"][-1]
+	num_b = curriculum["NumB"][-1]
+	skill_a = curriculum["Skill_A"][-1]
+	skill_b = curriculum["Skill_B"][-1]
+	env_l = curriculum["EnvironmentLength"][-1]
+
+	robot_team_composition = {
+		'a': {'standard_robot':num_a,'evasive_robot':0},
+		'b': {'standard_robot':num_b,'evasive_robot':0}
+	}
+
+	return robot_team_composition, skill_a, skill_b, env_l 
+
+def initialCurriculum(df_param):
+	curriculum = {
+		'Skill_A' : [None],
+		'Skill_B' : [None],
+		'EnvironmentLength' : [0.5],
+		'NumA' : [1],
+		'NumB' : [1],
+	}
+	return curriculum 
+
+def isTrainingConverged(df_param,i):
+	if df_param.l_mode in ["IL"]:
+		return True 
+	elif df_param.l_mode in ["ExIt","MICE","DAgger"]: 
+		return i >= df_param.l_num_iterations
+		# return True
+	else: 
+		print('not recognized: ', df_param.l_mode)
+		exit()
+
+def isCurriculumConverged(df_param,curriculum,desired_game):
+	return True 
+	# for key, desired_game_value in desired_game.items():
+	# 	if not desired_game_value in curriculum[key]:
+	# 		return False
+	# return True  
+
+def incrementCurriculum(df_param,curriculum):
+	# for now only increment policy skill 
+	curriculum["Skill_A"].append('a{}.pt'.format(len(curriculum["Skill_A"])))
+	curriculum["Skill_B"].append('b{}.pt'.format(len(curriculum["Skill_B"])))
+	return curriculum 
+
 if __name__ == '__main__':
 
-	cov_a = 1e-2
-	cov_s = 1e-2
-
+	# parameters
 	pool_count = 0
-
 	df_param = Param() 
 	df_param.clean_data_on = True
 	df_param.clean_models_on = True
@@ -606,57 +739,93 @@ if __name__ == '__main__':
 	df_param.make_labelled_data_on = True
 	df_param.mice_testing_on = False
 
+	# testing 
 	if df_param.mice_testing_on:
 		testing = read_testing_yaml("testing/test_continuous_glas.yaml")
 	else:
 		testing = None 
 
+	# prints 
+	print('Learning Mode: {}'.format(df_param.l_mode))
 	print('Clean old data on: {}'.format(df_param.clean_data_on))
+	print('Clean old models on: {}'.format(df_param.clean_models_on))
 	print('Make new data on: {}'.format(df_param.make_data_on))
+	print('Testing on: {}'.format(df_param.mice_testing_on))
 
+	# format directory 
+	format_dir(df_param)
 
-	# training loop 
-	for iter_i in range(df_param.l_num_iterations):
-		for training_team in df_param.l_training_teams:
+	# specify desired : for now isolate curriculum to skill of policy 
+	desired_game = {
+		'Skill_A' : 'a1.pt',
+		'Skill_B' : 'b1.pt',
+		'EnvironmentLength' : 0.5,
+		'NumA' : 1,
+		'NumB' : 1,
+	}
 
-			print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
-			format_dir(df_param)
+	# initial curriculum 
+	curriculum = initialCurriculum(df_param)
 
-			if df_param.make_data_on: 
-				
-				params = get_params(df_param,training_team,iter_i)
-				# if iter_i == 0 or df_param.l_mode == "IL":
-				if df_param.l_mode == "IL":
-					states = get_uniform_samples(params)
-				else: 
-					states = get_self_play_samples(params)
-				
-				make_dataset(states,params,df_param,testing=testing)
+	i = 0 
+	k = 0 
+	# curriculum loop  
+	while True: 
 
-			if df_param.make_labelled_data_on:
-				make_labelled_dataset(df_param)
+		# training loop 
+		while True: 
 
-			model_fn = df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i+1)
-			batched_fns = glob.glob(df_param.l_labelled_fn.format(\
-					DATADIR=df_param.path_current_data,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM=training_team,ITER='**'))
+			# team loop 
+			for training_team in df_param.l_training_teams:
 
-			train_model(df_param,\
-				batched_fns, \
-				training_team,\
-				model_fn)
+				print('k: {}, i: {}, training team: {}'.format(k,i,training_team))
 
-			if df_param.mice_testing_on: 
-				stats = test_model(df_param,model_fn,testing)
-				plotter.plot_test_model(df_param,stats)
-				plotter.save_figs('plots/model.pdf')
-				plotter.open_figs('plots/model.pdf')
-				exit()
+				if df_param.make_data_on: 
 
-			if df_param.l_mode == "Mice":
-				increment(df_param)
+					params = get_params(df_param,training_team,i,curriculum)
 
-		if not df_param.make_data_on:
+					if df_param.l_mode == "IL":
+						states = get_uniform_samples(params)
+					else: 
+						states = get_self_play_samples(params)
+					
+					make_dataset(states,params,df_param,testing=testing)
+
+				if df_param.make_labelled_data_on:
+					make_labelled_dataset(df_param,i)
+
+				# model to be trained 
+				model_fn = df_param.l_model_fn.format(\
+						DATADIR=df_param.path_current_models,\
+						TEAM=training_team,\
+						ITER=i+1)
+
+				# data to be used 
+				batched_fns = glob.glob(df_param.l_labelled_fn.format(\
+						DATADIR=df_param.path_current_data,\
+						TEAM=training_team,\
+						LEARNING_ITER=i,\
+						NUM_A='**',\
+						NUM_B='**',\
+						NUM_FILE='**'))
+
+				train_model(df_param,batched_fns,training_team,model_fn)
+
+				if df_param.mice_testing_on: 
+					stats = test_model(df_param,model_fn,testing)
+					plotter.plot_test_model(df_param,stats)
+					plotter.save_figs('plots/model.pdf')
+					plotter.open_figs('plots/model.pdf')
+					exit()
+
+			i = i + 1 
+
+			if isTrainingConverged(df_param,i):
+				curriculum = incrementCurriculum(df_param,curriculum)
+				k = k + 1
+				break 
+
+		if isCurriculumConverged(df_param,curriculum,desired_game):
 			break 
 
 	print('done!')

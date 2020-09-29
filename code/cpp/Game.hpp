@@ -6,7 +6,7 @@
 // #include "robots/RobotType.hpp"
 #include "GameState.hpp"
 
-#include "GLAS.hpp"
+#include "Policy.hpp"
 
 #define REWARD_MODEL_BASIC_TERMINAL         1
 #define REWARD_MODEL_TIME_EXPANDED_TERMINAL 2
@@ -39,6 +39,7 @@ class Game {
 
   typedef GameState<Robot> GameStateT;
   typedef std::vector<RobotActionT> GameActionT;
+  typedef Policy<Robot> PolicyT;
 
   Game(
     const std::vector<RobotTypeT>& attackerTypes,
@@ -53,9 +54,6 @@ class Game {
     , m_goal(goal)
     , m_maxDepth(maxDepth)
     , m_generator(generator)
-    , m_glas_a(generator)
-    , m_glas_b(generator)
-    , m_rollout_beta(0.0)
   {
   }
 
@@ -235,32 +233,11 @@ class Game {
     return reward.second;
   }
 
-  RobotActionT sampleAction(const RobotStateT& state, const RobotTypeT& robotType, bool teamAttacker,
-    size_t idx, const GameStateT& gameState, bool deterministic)
-  {
-    if (state.status != RobotState::Status::Active) {
-      return robotType.invalidAction;
-    }
-
-    std::uniform_real_distribution<float> dist(0.0,1.0);
-
-    if (m_rollout_beta > 0 && dist(m_generator) < m_rollout_beta) {
-      // Use NN if rollout_beta is > 0 probabilistically
-      const auto& glas = teamAttacker ? m_glas_a : m_glas_b;
-      assert(glas.valid());
-      auto result = glas.eval(gameState, m_goal, robotType, teamAttacker, idx, deterministic);
-      return std::get<1>(result);
-    } else {
-      // use uniform random sample (no deterministic option)
-      std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
-      std::uniform_real_distribution<float> distMag(0.0, 1.0);
-      float theta = distTheta(m_generator);
-      float mag = sqrtf(distMag(m_generator)) * robotType.actionLimit();
-      return RobotActionT(cosf(theta) * mag, sinf(theta) * mag);
-    }
-  }
-
-  GameActionT sampleAction(const GameStateT& state, bool deterministic)
+  GameActionT sampleAction(
+    const GameStateT& state,
+    const PolicyT& policyAttacker,
+    const PolicyT& policyDefender,
+    bool deterministic)
   {
     size_t NumAttackers = state.attackers.size();
     size_t NumDefenders = state.defenders.size();
@@ -269,7 +246,7 @@ class Game {
 
     if (state.turn == GameStateT::Turn::Attackers) {
       for (size_t i = 0; i < NumAttackers; ++i) {
-        result[i] = sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state, deterministic);
+        result[i] = policyAttacker.sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state, m_goal, deterministic);
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
         result[NumAttackers + i] = m_defenderTypes[i].invalidAction;
@@ -279,24 +256,25 @@ class Game {
         result[i] = m_attackerTypes[i].invalidAction;
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
-        result[NumAttackers + i] = sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state, deterministic);
+        result[NumAttackers + i] = policyDefender.sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state, m_goal, deterministic);
       }
     }
     return result;
   }
 
-  Reward rollout(const GameStateT& state)
+  Reward rollout(
+    const GameStateT& state,
+    const PolicyT& policyAttacker,
+    const PolicyT& policyDefender,
+    bool deterministic)
   {
     GameStateT s = state;
     GameStateT nextState;
 
-    std::uniform_real_distribution<float> dist(0.0,1.0);
-    std::vector<std::vector<RobotActionT>> actions;
-
     while (true) {
       bool valid = true;
 
-      const auto action = sampleAction(s, false);
+      const auto action = sampleAction(s, policyAttacker, policyDefender, deterministic);
       valid &= step(s, action, nextState);
 
       if (valid) {
@@ -364,17 +342,18 @@ class Game {
     return 0.5;
   }
 
-  float estimateValue(const GameStateT& state)
+  float estimateValue(
+    const GameStateT& state,
+    const PolicyT& policyAttacker,
+    const PolicyT& policyDefender)
   {
-    assert(m_glas_a.valid() && m_glas_b.valid());
-
     if (state.turn == GameStateT::Turn::Defenders)
     {
       // we check the turn on the child node, so in this case compute the reward
       // from the perspective of attackers
       float value_sum = 0;
       for (size_t j = 0; j < state.attackers.size(); ++j) {
-        auto result_a = m_glas_a.eval(state, m_goal, m_attackerTypes[j], true, j, true);
+        auto result_a = policyAttacker.glasConst().eval(state, m_goal, m_attackerTypes[j], true, j, true);
         float value = std::get<0>(result_a);
         value_sum += value;
       }
@@ -383,30 +362,12 @@ class Game {
 
       float value_sum = 0;
       for (size_t j = 0; j < state.defenders.size(); ++j) {
-        auto result_b = m_glas_b.eval(state, m_goal, m_defenderTypes[j], false, j, true);
+        auto result_b = policyDefender.glasConst().eval(state, m_goal, m_defenderTypes[j], false, j, true);
         float value = std::get<0>(result_b);
         value_sum += value;
       }
       return 1.0 - value_sum / state.defenders.size();
     }
-  }
-
-  float rolloutBeta() const {
-    return m_rollout_beta;
-  }
-
-  void setRolloutBeta(float rollout_beta) {
-    m_rollout_beta = rollout_beta;
-  }
-
-  GLAS<Robot>& glasA()
-  {
-    return m_glas_a;
-  }
-
-  GLAS<Robot>& glasB()
-  {
-    return m_glas_b;
   }
 
   const auto& attackerTypes() const
@@ -436,7 +397,4 @@ private:
   Eigen::Matrix<float, Robot::StateDim, 1> m_goal;
   size_t m_maxDepth;
   std::default_random_engine& m_generator;
-  GLAS<Robot> m_glas_a;
-  GLAS<Robot> m_glas_b;
-  float m_rollout_beta;
 };

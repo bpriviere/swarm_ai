@@ -22,7 +22,6 @@ class Param:
 			'path_glas_model_a' : 		'../current/models/a0.pt', 
 			'path_glas_model_b' : 		'../current/models/b0.pt', 
 			'mcts_tree_size' : 			50000,
-			'mcts_rollout_horizon' : 	100,	
 			'mcts_rollout_beta' : 		0.25,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
@@ -31,7 +30,7 @@ class Param:
 		}
 
 		# max timesteps until the game terminates
-		self.df_mcts_rollout_horizon = 100
+		self.rollout_horizon = 100
 
 		# robot types 
 		self.standard_robot = {
@@ -65,7 +64,6 @@ class Param:
 		self.l_mode = "IL" # IL, DAgger, ExIt, MICE
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
-		self.l_mode = "DAgger" # IL, DAgger, ExIt, Mice # so far only IL is implemented 
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 2
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
@@ -150,8 +148,8 @@ class Param:
 		self.l_lr_scheduler = None # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
 		self.l_wd = 0 
 		self.l_log_interval = 1
-		self.l_raw_fn = '{DATADIR}raw_{TEAM}train_{NUM_A}a_{NUM_B}b_{IDX_TRIAL}trial'
-		self.l_labelled_fn = '{DATADIR}labelled_{TEAM}train_{NUM_A}a_{NUM_B}b_{IDX_TRIAL}trial.npy'
+		self.l_raw_fn = '{DATADIR}raw_team{TEAM}_i{LEARNING_ITER}_numfn{NUM_FILE}'
+		self.l_labelled_fn = '{DATADIR}labelled_team{TEAM}_i{LEARNING_ITER}_numa{NUM_A}_numb{NUM_B}_numfn{NUM_FILE}.npy'
 		self.l_model_fn = '{DATADIR}{TEAM}{ITER}.pt'
 
 		# path stuff
