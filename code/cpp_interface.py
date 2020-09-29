@@ -33,33 +33,26 @@ def robot_composition_to_cpp_robot_types(param,team):
 	return types
 
 def param_to_cpp_game(param, policy_dict_a, policy_dict_b):
-	
 	attackerTypes = robot_composition_to_cpp_robot_types(param,"a") 
 	defenderTypes = robot_composition_to_cpp_robot_types(param,"b") 
-	
-	dt = param.sim_dt 
 
-	goal = param.goal 
+	dt = param.sim_dt
+	goal = param.goal
+	rollout_horizon = param.rollout_horizon
 
-	# ideally, max_depth should be a policy parameter, not a game parameter 
-	if policy_dict_a["sim_mode"] == "MCTS":
-		max_depth = policy_dict_a["mcts_rollout_horizon"]
-	elif policy_dict_b["sim_mode"] == "MCTS":
-		max_depth = policy_dict_b["mcts_rollout_horizon"]
-	else: 
-		max_depth = param.df_mcts_rollout_horizon
-
-	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
-	
-	if policy_dict_a["sim_mode"] in ["GLAS","MCTS"]:
-		if policy_dict_a["path_glas_model_a"] is not None:
-			loadGLAS(g.glasA, policy_dict_a["path_glas_model_a"])
-
-	if policy_dict_b["sim_mode"] in ["GLAS","MCTS"]:
-		if policy_dict_b["path_glas_model_b"] is not None:
-			loadGLAS(g.glasB, policy_dict_b["path_glas_model_b"])
-
+	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, rollout_horizon)
 	return g
+
+def create_cpp_policy(policy_dict, team):
+	policy = mctscpp.Policy()
+	if policy_dict["sim_mode"] in ["GLAS","MCTS"]:
+		file = policy_dict["path_glas_model_{}".format(team)]
+		if file is not None:
+			loadGLAS(policy.glas, file)
+			policy.rolloutBeta = policy_dict["mcts_rollout_beta"]
+			return policy
+	policy.rolloutBeta = 0.0
+	return policy
 
 def loadGLAS(glas, file):
 	state_dict = torch.load(file)
@@ -205,7 +198,9 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		pp = PanagouPolicy(param)
 		pp.init_sim(param.state)
 
-	g = param_to_cpp_game(param,policy_dict_a,policy_dict_b) 
+	g = param_to_cpp_game(param,policy_dict_a,policy_dict_b)
+	policy_a = create_cpp_policy(policy_dict_a, 'a')
+	policy_b = create_cpp_policy(policy_dict_b, 'b')
 
 	sim_result = {
 		'param' : param.to_dict(),
@@ -225,9 +220,13 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
 			policy_dict = policy_dict_a
 			team_idx = param.team_1_idxs
+			my_policy = policy_a
+			other_policies = [policy_b]
 		elif gs.turn == mctscpp.GameState.Turn.Defenders:
 			policy_dict = policy_dict_b
 			team_idx = param.team_2_idxs
+			my_policy = policy_b
+			other_policies = [policy_a]
 
 		# output result
 		isTerminal = g.isTerminal(gs)
@@ -246,8 +245,9 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		if policy_dict["sim_mode"] == "MCTS":
 			
 			mctsresult = mctscpp.search(g, gs, \
+				my_policy,
+				other_policies,
 				policy_dict["mcts_tree_size"],
-				policy_dict["mcts_rollout_beta"],
 				policy_dict["mcts_c_param"],
 				policy_dict["mcts_pw_C"],
 				policy_dict["mcts_pw_alpha"],
@@ -259,7 +259,9 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				success = False
 
 		elif policy_dict["sim_mode"] == "GLAS":
-			action = mctscpp.eval(g, gs, 1.0, deterministic)
+			policy_a.rolloutBeta = 1.0
+			policy_b.rolloutBeta = 1.0
+			action = mctscpp.eval(g, gs, policy_a, policy_b, deterministic)
 
 			# testing 
 			# deterministic = False
@@ -336,7 +338,9 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "RANDOM":
-			action = mctscpp.eval(g, gs, 0.0, False)
+			policy_a.rolloutBeta = 0.0
+			policy_b.rolloutBeta = 0.0
+			action = mctscpp.eval(g, gs, policy_a, policy_b, False)
 			success = g.step(gs, action, gs)
 
 		else: 
@@ -538,7 +542,6 @@ def is_valid_policy_dict(policy_dict):
 		if bad_key(policy_dict,"path_glas_model_a") or \
 			bad_key(policy_dict,"path_glas_model_b") or \
 			bad_key(policy_dict,"mcts_tree_size") or \
-			bad_key(policy_dict,"mcts_rollout_horizon") or \
 			bad_key(policy_dict,"mcts_rollout_beta") or \
 			bad_key(policy_dict,"mcts_c_param") or \
 			bad_key(policy_dict,"mcts_pw_C") or \
