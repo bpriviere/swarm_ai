@@ -45,7 +45,6 @@ public:
       auto result = m_glas.eval(gameState, goal, robotType, teamAttacker, idx, deterministic);
       return std::get<1>(result);
     } else {
-      std::cout << "gen " << m_generator << std::endl;
       // use uniform random sample (no deterministic option)
       std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
       std::uniform_real_distribution<float> distMag(0.0, 1.0);
