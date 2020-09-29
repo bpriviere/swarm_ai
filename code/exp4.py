@@ -12,11 +12,13 @@ from param import Param
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
 from mice import format_data, relative_state
-from cpp_interface import self_play, expected_value
 import plotter 
 import datahandler as dh
 
 def eval_value(param):
+	# When using multiprocessing, load cpp_interface per process
+	from cpp_interface import self_play, expected_value
+	
 	print('{}/{}'.format(param.count,param.total))
 
 	if param.policy_dict["sim_mode"] == "GLAS":
