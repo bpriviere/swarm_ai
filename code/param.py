@@ -22,7 +22,6 @@ class Param:
 			'path_glas_model_a' : 		'../current/models/a0.pt', 
 			'path_glas_model_b' : 		'../current/models/b0.pt', 
 			'mcts_tree_size' : 			50000,
-			'mcts_rollout_horizon' : 	100,	
 			'mcts_rollout_beta' : 		0.25,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
@@ -31,7 +30,7 @@ class Param:
 		}
 
 		# max timesteps until the game terminates
-		self.df_mcts_rollout_horizon = 100
+		self.rollout_horizon = 100
 
 		# robot types 
 		self.standard_robot = {
