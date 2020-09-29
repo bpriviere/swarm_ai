@@ -18,7 +18,6 @@ import random
 # custom 
 import plotter
 import datahandler as dh
-from cpp_interface import evaluate_expert, test_evaluate_expert, self_play
 from param import Param 
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
@@ -143,6 +142,9 @@ def get_uniform_samples(params):
 
 
 def get_self_play_samples(params):
+	# When using multiprocessing, load cpp_interface per process
+	from cpp_interface import self_play
+
 	print('getting self-play samples...')
 	self_play_states = []
 
@@ -397,9 +399,13 @@ def load_param(some_dict):
 	return param 
 
 def evaluate_expert_wrapper(arg):
+	# When using multiprocessing, load cpp_interface per process
+	from cpp_interface import evaluate_expert
 	evaluate_expert(*arg)
 
 def test_evaluate_expert_wrapper(arg):
+	# When using multiprocessing, load cpp_interface per process
+	from cpp_interface import test_evaluate_expert
 	test_evaluate_expert(*arg)
 
 def make_dataset(states,params,df_param,testing=None):

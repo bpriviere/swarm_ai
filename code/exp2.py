@@ -14,12 +14,13 @@ import argparse
 from param import Param 
 import datahandler as dh
 import plotter 
-from cpp_interface import evaluate_expert
 from mice import relative_state, format_data
 from learning.discrete_emptynet import DiscreteEmptyNet
 
 
 def evaluate_stochastic_policy(param):
+	# When using multiprocessing, load cpp_interface per process
+	from cpp_interface import evaluate_expert
 
 	print('running param {}/{}'.format(param.count,param.total))
 

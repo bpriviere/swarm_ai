@@ -10,9 +10,11 @@ import datahandler as dh
 import plotter 
 from plotter import policy_to_label
 from param import Param
-from cpp_interface import play_game
 
 def wrap_play_game(param):
+	# When using multiprocessing, load cpp_interface per process
+	from cpp_interface import play_game
+	
 	print('playing game {}/{}'.format(param.count,param.total))
 	sim_result = play_game(param,param.policy_a_dict,param.policy_b_dict)
 	dh.write_sim_result(sim_result,param.dataset_fn)

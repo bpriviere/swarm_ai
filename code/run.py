@@ -8,11 +8,12 @@ import argparse
 
 # my packages 
 from param import Param
-from cpp_interface import self_play
 import datahandler
 import plotter 
 
 def run_sim(param):
+	# When using multiprocessing, load cpp_interface per process
+	from cpp_interface import self_play
 
 	sim_result = self_play(param)
 	results_fn = os.path.join(param.path_current_results,'sim_result_{}'.format(param.trial))
