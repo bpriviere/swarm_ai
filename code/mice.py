@@ -228,6 +228,11 @@ def get_self_play_samples(params):
 			}		
 
 	for param in params: 
+
+		print('self-play policies...')
+		print('param.policy_dict_a: ',param.policy_dict_a)
+		print('param.policy_dict_b: ',param.policy_dict_b)
+
 		states_per_file = []
 		remaining_plots_per_file = 2
 		while len(states_per_file) < param.l_num_points_per_file:
@@ -246,7 +251,7 @@ def get_self_play_samples(params):
 		self_play_states.append(states_per_file[0:param.l_num_points_per_file])
 	print('self-play sample collection completed.')
 
-	plotter.save_figs('plots/self_play_samples_team{}_iter{}.pdf'.format(params[0].training_team, params[0].i))
+	plotter.save_figs('../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1))
 	return self_play_states
 
 
@@ -447,8 +452,14 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 	if rank == 0:
 		print("time for training: ", time.time() - start_time)
 		plotter.plot_loss(losses,lrs,training_team)
-		plotter.save_figs(model_fn + '.pdf')
+		plotter.save_figs("../current/models/{}_losses.pdf".format(os.path.basename(model_fn).split('.')[0]))
+
 		# plotter.open_figs('plots/model.pdf')
+
+		print("visualize training data and model distribution...")
+		plotter.plot_training(df_param,batched_files,model_fn)
+		plotter.save_figs("../current/models/{}_dist_vis.pdf".format(os.path.basename(model_fn).split('.')[0]))
+
 		print('training model complete for {}'.format(model_fn))
 
 	if parallel:
@@ -521,6 +532,11 @@ def make_dataset(states,params,df_param,testing=None):
 					TEAM=opponents_team,\
 					ITER=other_policy_skill)
 			param.other_policy_dicts.append(other_policy_dict)
+
+		print('evaluate-expert policies...')
+		print('param.my_policy_dict: ',param.my_policy_dict)
+		print('param.other_policy_dicts: ',param.other_policy_dicts)
+
 
 		# param.policy_dict["sim_mode"] = "MCTS" 
 
