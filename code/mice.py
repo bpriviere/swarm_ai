@@ -698,12 +698,22 @@ def read_testing_yaml(fn):
 
 def sample_curriculum(curriculum):
 
-	# 'naive' curriculum learning 
-	num_a = curriculum["NumA"][-1]
-	num_b = curriculum["NumB"][-1]
-	skill_a = curriculum["Skill_A"][-1]
-	skill_b = curriculum["Skill_B"][-1]
-	env_l = curriculum["EnvironmentLength"][-1]
+	mode = "uniform"
+
+	if mode == "naive": 
+		# 'naive' curriculum learning 
+		num_a = curriculum["NumA"][-1]
+		num_b = curriculum["NumB"][-1]
+		skill_a = curriculum["Skill_A"][-1]
+		skill_b = curriculum["Skill_B"][-1]
+		env_l = curriculum["EnvironmentLength"][-1]
+
+	elif mode == "uniform":
+		num_a = curriculum["NumA"][np.random.randint(len(curriculum["NumA"]))]
+		num_b = curriculum["NumB"][np.random.randint(len(curriculum["NumB"]))]
+		skill_a = curriculum["Skill_A"][np.random.randint(len(curriculum["Skill_A"]))]
+		skill_b = curriculum["Skill_B"][np.random.randint(len(curriculum["Skill_B"]))]
+		env_l = curriculum["EnvironmentLength"][np.random.randint(len(curriculum["EnvironmentLength"]))]
 
 	robot_team_composition = {
 		'a': {'standard_robot':num_a,'evasive_robot':0},
