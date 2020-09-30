@@ -497,7 +497,7 @@ def make_dataset(states,params,df_param,testing=None):
 		param.update()
 
 		# my policy 
-		param.my_policy_dict = param.policy_dict 
+		param.my_policy_dict = param.policy_dict.copy()
 		if param.i == 0 or param.l_mode in ["IL","DAgger"]:
 			param.my_policy_dict["path_glas_model_{}".format(param.training_team)] = None  
 			param.my_policy_dict["mcts_rollout_beta"] = 0.0 
@@ -511,9 +511,8 @@ def make_dataset(states,params,df_param,testing=None):
 		opponents_team = "b" if param.training_team == "a" else "a"
 		param.other_policy_dicts = []
 		for other_policy_skill in param.curriculum[opponents_key]:
-			
-			other_policy_dict = param.policy_dict 
-			if param.i == 0 or param.l_mode in ["IL","DAgger"]:
+			other_policy_dict = param.policy_dict.copy()
+			if param.i == 0 or param.l_mode in ["IL","DAgger"] or other_policy_skill is None:
 				other_policy_dict["path_glas_model_{}".format(opponents_team)] = None  
 				other_policy_dict["mcts_rollout_beta"] = 0.0 
 			else:
@@ -526,6 +525,7 @@ def make_dataset(states,params,df_param,testing=None):
 		# param.policy_dict["sim_mode"] = "MCTS" 
 
 	if not df_param.l_parallel_on:
+		from cpp_interface import evaluate_expert, test_evaluate_expert
 		if df_param.mice_testing_on:
 			for states_per_file, param in zip(states, params): 
 				test_evaluate_expert(states_per_file,param,testing,quiet_on=True,progress=None) 				
