@@ -44,11 +44,12 @@ def param_to_cpp_game(param, policy_dict_a, policy_dict_b):
 	return g
 
 def create_cpp_policy(policy_dict, team):
-	policy = mctscpp.Policy()
+	policy = mctscpp.Policy('None')
 	if policy_dict["sim_mode"] in ["GLAS","MCTS"]:
 		file = policy_dict["path_glas_model_{}".format(team)]
 		if file is not None:
 			loadGLAS(policy.glas, file)
+			policy.name = file
 			policy.rolloutBeta = policy_dict["mcts_rollout_beta"]
 			return policy
 	policy.rolloutBeta = 0.0

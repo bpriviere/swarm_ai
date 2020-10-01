@@ -56,12 +56,14 @@ if __name__ == '__main__':
 	pw_alpha = 0.25
 	vf_beta = 0
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
-	policyA = mctscpp.Policy()
-	policyB = mctscpp.Policy()
+	policyA = mctscpp.Policy('a')
+	policyB = mctscpp.Policy('b')
 	if "RANDOM" in mode:
 		policyA.rolloutBeta = 0.0
 		policyB.rolloutBeta = 0.0
 		vf_beta = 0
+	print(policyA)
+	print(policyB)
 	print(g)
 
 	next_state = mctscpp.GameState()

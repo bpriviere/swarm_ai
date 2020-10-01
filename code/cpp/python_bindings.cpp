@@ -103,9 +103,7 @@ PYBIND11_MODULE(mctscpp, m) {
 
 
   // helper functions
-  m.def("seed", &seed,
-    "game"_a = -1);
-
+  m.def("seed", &seed);
   m.def("search", &search,
     "game"_a,
     "start_state"_a,
@@ -213,8 +211,14 @@ PYBIND11_MODULE(mctscpp, m) {
 
   // Policy
   py::class_<PolicyT> (m, "Policy")
-    .def(py::init<std::default_random_engine&>(), "generator"_a = g_generator)
+    .def(py::init<
+      const std::string&,
+      std::default_random_engine&>(),
+      "name"_a,
+      "generator"_a = g_generator)
+    .def("__repr__", &toString<PolicyT>)
     .def_property_readonly("glas", &PolicyT::glas)
+    .def_property("name", &PolicyT::name, &PolicyT::setName)
     .def_property("weight", &PolicyT::weight, &PolicyT::setWeight)
     .def_property("rolloutBeta", &PolicyT::rolloutBeta, &PolicyT::setRolloutBeta);
 

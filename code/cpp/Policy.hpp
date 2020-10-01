@@ -16,8 +16,10 @@ public:
   // typedef std::vector<RobotActionT> GameActionT;
 
   Policy(
+    const std::string& name,
     std::default_random_engine& generator)
-    : m_generator(generator)
+    : m_name(name)
+    , m_generator(generator)
     , m_rollout_beta(0.0)
     , m_weight(1.0)
     , m_glas(generator)
@@ -54,6 +56,14 @@ public:
     }
   }
 
+  const std::string& name() const {
+    return m_name;
+  }
+
+  void setName(const std::string& name) {
+    m_name = name;
+  }
+
   float rolloutBeta() const {
     return m_rollout_beta;
   }
@@ -80,7 +90,17 @@ public:
     return m_glas;
   }
 
+  friend std::ostream& operator<<(std::ostream& out, const Policy& p)
+  {
+    out <<"Policy(" << p.m_name;
+    out <<",rolloutBeta=" << p.m_rollout_beta;
+    out <<",weight=" << p.m_weight;
+    out << ")";
+    return out;
+  }
+
 private:
+  std::string m_name;
   std::default_random_engine& m_generator;
   float m_rollout_beta;
   float m_weight;
