@@ -241,7 +241,17 @@ def get_self_play_samples(params):
 			sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
 
 			if remaining_plots_per_file > 0:
-				plotter.plot_tree_results(sim_result)
+				title = ""
+				if param.policy_dict_a['sim_mode'] == "RANDOM":
+					title += 'RANDOM'
+				else:
+					title += param.policy_dict_a['path_glas_model_a']
+				title += " vs "
+				if param.policy_dict_b['sim_mode'] == "RANDOM":
+					title += 'RANDOM'
+				else:
+					title += param.policy_dict_b['path_glas_model_b']
+				plotter.plot_tree_results(sim_result, title)
 				remaining_plots_per_file -= 1
 
 			# clean data

@@ -28,6 +28,9 @@ from param import Param
 plt.rcParams.update({'font.size': 10})
 plt.rcParams['lines.linewidth'] = 2.5
 
+import matplotlib
+matplotlib.use('Agg')
+
 def has_figs():
 	if len(plt.get_fignums()) > 0:
 		return True
@@ -365,7 +368,7 @@ def plot_tree_results(sim_result,title=None):
 
 	colors = get_colors(sim_result["param"])
 
-	fig,axs = plt.subplots(nrows=2,ncols=2) 
+	fig,axs = plt.subplots(nrows=2,ncols=2,constrained_layout=True)
 
 	# state space
 	ax = axs[0,0]
@@ -414,10 +417,6 @@ def plot_tree_results(sim_result,title=None):
 	if title is not None: 
 		fig.suptitle(title)
 
-	fig.tight_layout()
-
-	if title is not None: 
-		fig.suptitle(title)
 
 def plot_training(df_param,batched_fns,path_to_model):
 	import torch 
