@@ -428,8 +428,8 @@ def plot_training(df_param,batched_fns,path_to_model):
 	team_2_color = 'orange'
 	goal_color = 'green'
 	self_color = 'black'
-	LIMS = df_param.standard_robot["acceleration_limit"]*np.array([[-1,1],[-1,1]])
-	rsense = df_param.standard_robot["r_sense"]
+	LIMS = df_param.robot_types["standard_robot"]["acceleration_limit"]*np.array([[-1,1],[-1,1]])
+	rsense = df_param.robot_types["standard_robot"]["r_sense"]
 	env_xlim = df_param.env_xlim 
 	env_ylim = df_param.env_ylim 
 	nbins = 20
@@ -909,7 +909,7 @@ def plot_exp3_results(all_sim_results):
 
 def plot_test_model(df_param,stats):
 
-	LIMS = df_param.standard_robot["acceleration_limit"]*np.array([[-1,1],[-1,1]])
+	LIMS = df_param.robot_types["standard_robot"]["acceleration_limit"]*np.array([[-1,1],[-1,1]])
 	nbins = 20
 
 	for alpha,stats_per_condition in stats.items():
@@ -1287,7 +1287,7 @@ if __name__ == '__main__':
 		num_points_per_file = 9 
 
 		param = Param()
-		rsense = param.standard_robot["r_sense"]
+		rsense = param.robot_types["standard_robot"]["r_sense"]
 		env_length = param.env_xlim[1] - param.env_xlim[0]
 		abs_goal = param.goal 
 		action_list = param.actions

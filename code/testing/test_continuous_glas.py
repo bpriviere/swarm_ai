@@ -10,7 +10,7 @@ import tqdm
 sys.path.append('../')
 import datahandler as dh 
 from learning.continuous_emptynet import ContinuousEmptyNet
-from learning_interface import format_data, relative_state 
+from learning_interface import format_data, global_to_local
 
 def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
 	from cpp_interface import param_to_cpp_game, is_valid_policy_dict, valuePerAction_to_policy_dist
@@ -90,7 +90,7 @@ def test_model(param,model_fn,testing):
 		}
 
 		test_state = np.array(testing[alpha]["test_state"])
-		o_a,o_b,goal = relative_state(test_state,param,robot_idx)
+		o_a,o_b,goal = global_to_local(test_state,param,robot_idx)
 		o_a,o_b,goal = format_data(o_a,o_b,goal)
 
 		value, _ = model(o_a,o_b,goal)

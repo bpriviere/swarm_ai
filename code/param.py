@@ -69,6 +69,7 @@ class Param:
 		self.l_num_iterations = 2
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
 		self.l_num_points_per_file = 1000
+		self.l_mcts_rollout_beta = 0.25
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{

@@ -14,8 +14,8 @@ def global_to_local(states,param,idx):
 	relative_goal = goal - states[idx,:]
 
 	# projecting goal to radius of sensing 
-	alpha = np.linalg.norm(relative_goal[0:2]) / param.robots[idx]["r_sense"]
-	relative_goal[2:] = relative_goal[2:] / np.max((alpha,1))	
+	# alpha = np.linalg.norm(relative_goal[0:2]) / param.robots[idx]["r_sense"]
+	# relative_goal[2:] = relative_goal[2:] / np.max((alpha,1))	
 
 	for idx_j in range(n_robots): 
 		if idx_j != idx and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]: 
@@ -25,6 +25,7 @@ def global_to_local(states,param,idx):
 				o_b.append(states[idx_j,:] - states[idx,:])
 
 	return np.array(o_a),np.array(o_b),np.array(relative_goal)
+
 
 def local_to_global(param,o_a,o_b,relative_goal,team):
 
@@ -46,8 +47,8 @@ def local_to_global(param,o_a,o_b,relative_goal,team):
 	num_a = o_a.shape[0] + i_a
 	num_b = o_b.shape[0] + i_b
 	robot_team_composition = {
-		'a': {'standard_robot': num_a + i_a},
-		'b': {'standard_robot': num_b + i_b}
+		'a': {'standard_robot': num_a},
+		'b': {'standard_robot': num_b}
 		}
 
 	# state 
@@ -56,20 +57,28 @@ def local_to_global(param,o_a,o_b,relative_goal,team):
 	g_y = param.goal[1]
 	s_i = np.array([g_x,g_y,0,0]) - relative_goal
 
+	team_1_idxs = []
+	team_2_idxs = [] 
 	state = np.zeros((num_a + num_b,state_dim)) 
 	for i in range(num_a + num_b):
 		if team == "a" and i == 0:
 			state[i,:] = s_i 
+			self_idx = i 
+			team_1_idxs.append(i)
 		elif team == "b" and i == num_a: 
-			state[i,:] = s_i 
+			state[i,:] = s_i
+			self_idx = i 
+			team_2_idxs.append(i)
 		elif i < num_a:
 			o_a_idx = i - i_a
 			state[i,:] = o_a[o_a_idx,:] + s_i 
+			team_1_idxs.append(i)
 		else: 
 			o_b_idx = i - i_b - num_a 
 			state[i,:] = o_b[o_b_idx,:] + s_i 
+			team_2_idxs.append(i)
 
-	return state, robot_team_composition 
+	return state, robot_team_composition, self_idx, team_1_idxs, team_2_idxs
 
 def format_data(o_a,o_b,goal):
 	# input: [num_a/b, dim_state_a/b] np array 

@@ -212,14 +212,14 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 
 		elif policy_dict["sim_mode"] == "D_MCTS": 
 			state = np.array([rs.state.copy() for rs in gs.attackers + gs.defenders])
-			action = np.nan*np.zeros((param.num_nodes,2))
-			success = True 
+			action = np.nan*np.zeros((state.shape[0],2))
 			for robot_idx in team_idx: 
 				o_a,o_b,goal = global_to_local(state,param,robot_idx)
-				state_i, robot_team_composition_i = local_to_global(param,o_a,o_b,goal,team)
-				game_i = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+				state_i, robot_team_composition_i, self_idx, team_1_idxs_i, team_2_idxs_i = \
+					local_to_global(param,o_a,o_b,goal,team)
+				game_i = param_to_cpp_game(robot_team_composition_i,param.robot_types,param.env_xlim,param.env_ylim,\
 					param.sim_dt,param.goal,param.rollout_horizon)
-				gamestate_i = state_to_cpp_game_state(state_i,team,param.team_1_idxs,param.team_2_idxs)
+				gamestate_i = state_to_cpp_game_state(state_i,team,team_1_idxs_i,team_2_idxs_i)
 				gamestate_i.depth = 0
 				mctsresult = mctscpp.search(game_i, gamestate_i, \
 					my_policy,
@@ -229,13 +229,14 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 					policy_dict["mcts_pw_C"],
 					policy_dict["mcts_pw_alpha"],
 					policy_dict["mcts_vf_beta"])
+
 				if mctsresult.success: 
 					action_i = mctsresult.bestAction
-					action[robot_idx,:] = action_i[robot_idx]
+					action[robot_idx,:] = action_i[self_idx]
 				else: 
-					success = False 
-			if success:
-				success = g.step(gs,action,gs)
+					action[robot_idx,:] = np.zeros(2) 
+
+			success = g.step(gs,action,gs)
 
 		elif policy_dict["sim_mode"] == "GLAS":
 			policy_a.rolloutBeta = 1.0
@@ -310,7 +311,7 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 		}
 
 	for state in enumeration:
-		game_state = state_to_cpp_game_state(state,"a",param.team_1_idxs,param.team_2_idxs)
+		game_state = state_to_cpp_game_state(state,param.training_team,param.team_1_idxs,param.team_2_idxs)
 		mctsresult = mctscpp.search(game, game_state, \
 			my_policy,
 			other_policies,

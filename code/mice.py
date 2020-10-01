@@ -122,65 +122,58 @@ def get_self_play_samples(params):
 		param.env_l = env_l
 		param.update()
 
-		# dict a 
-		if param.i == 0 or (param.training_team == "b" and skill_a == None):
-			param.policy_dict_a = {
-				"sim_mode" : "RANDOM"
-			}
-
-		elif param.training_team == "a": 
-			path_glas_model_a = param.l_model_fn.format(\
-						DATADIR=param.path_current_models,\
-						TEAM="a",\
-						ITER=param.i)
-			param.policy_dict_a = {
-				"sim_mode" : "GLAS",
-				"path_glas_model_a" : path_glas_model_a, 
-				"path_glas_model_b" : None ,
-				"mcts_rollout_beta" : 1.0 
-			}			
-
+		if param.i == 0:
+			path_glas_model_a = None
+			path_glas_model_b = None
 		else: 
-			path_glas_model_a = param.l_model_fn.format(\
-						DATADIR=param.path_current_models,\
-						TEAM="a",\
-						ITER=skill_a)
-			param.policy_dict_a = {
-				"sim_mode" : "GLAS",
-				"path_glas_model_a" : path_glas_model_a, 
-				"path_glas_model_b" : None ,
-				"mcts_rollout_beta" : 1.0 
-			}
+			if param.training_team == "a" : 
+				path_glas_model_a = param.l_model_fn.format(\
+							DATADIR=param.path_current_models,\
+							TEAM="a",\
+							ITER=param.i)
+				if skill_b is None: 
+					path_glas_model_b = None
+				else: 
+					path_glas_model_b = param.l_model_fn.format(\
+								DATADIR=param.path_current_models,\
+								TEAM="b",\
+								ITER=skill_b)
 
-		# dict b 
-		if param.i == 0 or (param.training_team == "a" and skill_b == None):
-			param.policy_dict_b = {
-				"sim_mode" : "RANDOM"
-			}
+			elif param.training_team == "b" : 
+				path_glas_model_b = param.l_model_fn.format(\
+							DATADIR=param.path_current_models,\
+							TEAM="b",\
+							ITER=param.i)
+				if skill_a is None: 
+					path_glas_model_a = None
+				else: 
+					path_glas_model_a = param.l_model_fn.format(\
+								DATADIR=param.path_current_models,\
+								TEAM="a",\
+								ITER=skill_a)
 
-		elif param.training_team == "b": 
-			path_glas_model_b = param.l_model_fn.format(\
-						DATADIR=param.path_current_models,\
-						TEAM="b",\
-						ITER=param.i)
-			param.policy_dict_b = {
-				"sim_mode" : "GLAS",
-				"path_glas_model_a" : None, 
-				"path_glas_model_b" : path_glas_model_b,
-				"mcts_rollout_beta" : 1.0 
-			}			
-
-		else: 
-			path_glas_model_b = param.l_model_fn.format(\
-						DATADIR=param.path_current_models,\
-						TEAM="b",\
-						ITER=skill_b)
-			param.policy_dict_b = {
-				"sim_mode" : "GLAS",
-				"path_glas_model_a" : None, 
-				"path_glas_model_b" : path_glas_model_b,
-				"mcts_rollout_beta" : 1.0 
-			}		
+		param.policy_dict_a = {
+			'sim_mode' : 				"D_MCTS", 
+			'path_glas_model_a' : 		path_glas_model_a, 	
+			'path_glas_model_b' : 		path_glas_model_b, 	
+			'mcts_tree_size' : 			5000,
+			'mcts_rollout_beta' : 		0.0,
+			'mcts_c_param' : 			1.4,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,
+			'mcts_vf_beta' : 			0.0,
+		}
+		param.policy_dict_b = {
+			'sim_mode' : 				"D_MCTS", 
+			'path_glas_model_a' : 		path_glas_model_a, 	
+			'path_glas_model_b' : 		path_glas_model_b, 	
+			'mcts_tree_size' : 			5000,
+			'mcts_rollout_beta' : 		0.0,
+			'mcts_c_param' : 			1.4,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,
+			'mcts_vf_beta' : 			0.0,
+		}	
 
 	for param in params: 
 
@@ -196,20 +189,17 @@ def get_self_play_samples(params):
 			sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
 
 			if remaining_plots_per_file > 0:
-				title = ""
-				if param.policy_dict_a['sim_mode'] == "RANDOM":
-					title += 'RANDOM'
-				else:
-					title += param.policy_dict_a['path_glas_model_a']
-				title += " vs "
-				if param.policy_dict_b['sim_mode'] == "RANDOM":
-					title += 'RANDOM'
-				else:
-					title += param.policy_dict_b['path_glas_model_b']
+				title = policy_title(param.policy_dict_a,"a") + " vs " + policy_title(param.policy_dict_b,"b")
 				plotter.plot_tree_results(sim_result, title)
 				remaining_plots_per_file -= 1
 
 			# clean data
+			# if np.isnan(sim_result["states"]).any(axis=2).any(axis=1).any():
+			# 	print('WARNING: NANS found in self-play states')
+			# 	plotter.plot_tree_results(sim_result, title)
+			# 	plotter.save_figs('../current/models/{}{}_nans.pdf'.format(params[0].training_team, params[0].i+1))
+			# 	exit()
+
 			idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
 			states = sim_result["states"][idxs]
 			states_per_file.extend(states)
@@ -219,6 +209,11 @@ def get_self_play_samples(params):
 	plotter.save_figs('../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1))
 	return self_play_states
 
+def policy_title(policy_dict,team):
+	title = policy_dict["sim_mode"] 
+	if policy_dict["sim_mode"] in ["D_MCTS","MCTS","GLAS"]:
+		title += " {}".format(policy_dict['path_glas_model_{}'.format(team)])
+	return title 
 
 def make_labelled_data(sim_result,oa_pairs_by_size):
 
@@ -467,8 +462,21 @@ def make_dataset(states,params,df_param,testing=None):
 		param.env_l = env_l
 		param.update()
 
+		# imitate expert policy 
+		expert_policy_dict = {
+			'sim_mode' : 				"MCTS", 
+			'path_glas_model_a' : 		None, 	
+			'path_glas_model_b' : 		None, 	
+			'mcts_tree_size' : 			50000,
+			'mcts_rollout_beta' : 		0.0,
+			'mcts_c_param' : 			1.4,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,
+			'mcts_vf_beta' : 			0.0,
+		}
+
 		# my policy 
-		param.my_policy_dict = param.policy_dict.copy()
+		param.my_policy_dict = expert_policy_dict.copy()
 		if param.i == 0 or param.l_mode in ["IL","DAgger"]:
 			param.my_policy_dict["path_glas_model_{}".format(param.training_team)] = None  
 			param.my_policy_dict["mcts_rollout_beta"] = 0.0 
@@ -477,12 +485,13 @@ def make_dataset(states,params,df_param,testing=None):
 				DATADIR=param.path_current_models,\
 				TEAM=param.training_team,\
 				ITER=param.i)
+			param.my_policy_dict["mcts_rollout_beta"] = param.l_mcts_rollout_beta 
 
 		opponents_key = "Skill_B" if param.training_team == "a" else "Skill_A"
 		opponents_team = "b" if param.training_team == "a" else "a"
 		param.other_policy_dicts = []
 		for other_policy_skill in param.curriculum[opponents_key]:
-			other_policy_dict = param.policy_dict.copy()
+			other_policy_dict = expert_policy_dict.copy()
 			if param.i == 0 or param.l_mode in ["IL","DAgger"] or other_policy_skill is None:
 				other_policy_dict["path_glas_model_{}".format(opponents_team)] = None  
 				other_policy_dict["mcts_rollout_beta"] = 0.0 
@@ -501,7 +510,7 @@ def make_dataset(states,params,df_param,testing=None):
 		# param.policy_dict["sim_mode"] = "MCTS" 
 
 	if not df_param.l_parallel_on:
-		from cpp_interface import evaluate_expert, test_evaluate_expert
+		from cpp_interface import evaluate_expert
 		if df_param.mice_testing_on:
 			for states_per_file, param in zip(states, params): 
 				test_evaluate_expert(states_per_file,param,testing,quiet_on=True,progress=None) 				
