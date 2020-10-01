@@ -16,11 +16,13 @@ import yaml
 import random
 
 # custom 
+from testing.test_continuous_glas import test_model, test_evaluate_expert_wrapper, read_testing_yaml
 import plotter
 import datahandler as dh
 from param import Param 
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
+from learning_interface import format_data, relative_state 
 
 def my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on):
 	# value \& policy network : https://www.nature.com/articles/nature24270
@@ -42,53 +44,6 @@ def my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsamp
 	loss = loss / value.shape[0]
 
 	return loss
-
-def relative_state(states,param,idx):
-
-	n_robots, n_state_dim = states.shape
-
-	goal = np.array([param.goal[0],param.goal[1],0,0])
-
-	o_a = []
-	o_b = [] 
-	relative_goal = goal - states[idx,:]
-
-	# projecting goal to radius of sensing 
-	alpha = np.linalg.norm(relative_goal[0:2]) / param.robots[idx]["r_sense"]
-	relative_goal[2:] = relative_goal[2:] / np.max((alpha,1))	
-
-	for idx_j in range(n_robots): 
-		if idx_j != idx and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]: 
-			if idx_j in param.team_1_idxs:  
-				o_a.append(states[idx_j,:] - states[idx,:])
-			elif idx_j in param.team_2_idxs:
-				o_b.append(states[idx_j,:] - states[idx,:])
-
-	return np.array(o_a),np.array(o_b),np.array(relative_goal)
-
-
-def format_data(o_a,o_b,goal):
-	# input: [num_a/b, dim_state_a/b] np array 
-	# output: 1 x something torch float tensor
-
-	# make 0th dim (this matches batch dim in training)
-	if o_a.shape[0] == 0:
-		o_a = np.expand_dims(o_a,axis=0)
-	if o_b.shape[0] == 0:
-		o_b = np.expand_dims(o_b,axis=0)
-	goal = np.expand_dims(goal,axis=0)
-
-	# reshape if more than one element in set
-	if o_a.shape[0] > 1: 
-		o_a = np.reshape(o_a,(1,np.size(o_a)))
-	if o_b.shape[0] > 1: 
-		o_b = np.reshape(o_b,(1,np.size(o_b)))
-
-	o_a = torch.from_numpy(o_a).float() 
-	o_b = torch.from_numpy(o_b).float()
-	goal = torch.from_numpy(goal).float()
-
-	return o_a,o_b,goal
 
 
 def train(model,optimizer,loader,l_subsample_on,l_sync_every,epoch, scheduler=None):
@@ -499,11 +454,6 @@ def evaluate_expert_wrapper(arg):
 	from cpp_interface import evaluate_expert
 	evaluate_expert(*arg)
 
-def test_evaluate_expert_wrapper(arg):
-	# When using multiprocessing, load cpp_interface per process
-	from cpp_interface import test_evaluate_expert
-	test_evaluate_expert(*arg)
-
 def make_dataset(states,params,df_param,testing=None):
 	print('making dataset...')
 
@@ -654,73 +604,6 @@ def format_dir(df_param):
 			for file in glob.glob(modeldir + "/*"):
 				os.remove(file)
 		os.makedirs(modeldir,exist_ok=True)	
-
-def test_model(param,model_fn,testing):
-
-	print('testing model: {}'.format(model_fn))
-
-	stats = {} 
-	model = ContinuousEmptyNet(param, "cpu")
-	model.load_state_dict(torch.load(model_fn))
-
-	robot_idx = 0 
-	n_samples = 1000
-
-	for alpha in range(len(testing)):
-		
-		stats_per_condition = {
-			'learned' : [],
-			'test' : [],
-			'latent' : [], 
-		}
-
-		test_state = np.array(testing[alpha]["test_state"])
-		o_a,o_b,goal = relative_state(test_state,param,robot_idx)
-		o_a,o_b,goal = format_data(o_a,o_b,goal)
-
-		value, _ = model(o_a,o_b,goal)
-
-		print('test num: ', alpha)
-		print('   value: ',value)
-		print('   valuePerAction: ', testing[alpha]["test_valuePerAction"])
-
-		# learned distribution 
-		for i_sample in range(n_samples):
-			_, learned_sample = model(o_a,o_b,goal)
-			stats_per_condition["learned"].append(learned_sample.detach().numpy())
-
-		# test distribution 
-		weights = []
-		actions = [] 
-		for action in testing[alpha]["test_valuePerAction"]:
-			weights.append(action[-1])
-			actions.append(np.array((action[0],action[1])))
-
-		weights = np.array(weights)
-		actions = np.array(actions)
-		weights /= sum(weights) 
-		choice_idxs = np.random.choice(actions.shape[0],n_samples,p=weights)
-		for choice_idx in choice_idxs:
-			mu = actions[choice_idx,:]
-			test_sample = mu + 0.01 * np.random.normal(size=(2,)) 
-			stats_per_condition["test"].append(test_sample)
-
-		stats_per_condition["learned"] = np.array(stats_per_condition["learned"]).squeeze()
-		stats_per_condition["test"] = np.array(stats_per_condition["test"]).squeeze()
-
-		stats[alpha] = stats_per_condition
-
-	return stats
-
-def read_testing_yaml(fn):
-	
-	with open(fn) as f:
-		testing_cfg = yaml.load(f, Loader=yaml.FullLoader)
-
-	testing = []
-	for test in testing_cfg["test_continuous_glas"]:
-		testing.append(test)
-	return testing
 
 def sample_curriculum(curriculum):
 

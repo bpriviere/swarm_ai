@@ -467,13 +467,17 @@ def plot_training(df_param,batched_fns,path_to_model):
 		dataset_actions = []
 		dataset_weights = []
 		for o_a,o_b,goal,action,weight in zip(o_as,o_bs,goals,actions,weights):
-			if (np.linalg.norm(o_a - candidate[0]) <= eps) and \
-				(np.linalg.norm(o_b - candidate[1]) <= eps) and \
-				(np.linalg.norm(goal - candidate[2]) <= eps):
+			if o_a.shape == candidate[0].shape and \
+				o_b.shape == candidate[1].shape and \
+				goal.shape == candidate[2].shape: 
 
-				conditionals.append((o_a,o_b,goal))
-				dataset_actions.append(action)
-				dataset_weights.append(weight)
+				if (np.linalg.norm(o_a - candidate[0]) <= eps) and \
+					(np.linalg.norm(o_b - candidate[1]) <= eps) and \
+					(np.linalg.norm(goal - candidate[2]) <= eps):
+
+					conditionals.append((o_a,o_b,goal))
+					dataset_actions.append(action)
+					dataset_weights.append(weight)
 
 		dataset_weights = dataset_weights / sum(dataset_weights)
 		choice_idxs = np.random.choice(len(dataset_actions),n_samples,p=dataset_weights)

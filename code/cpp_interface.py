@@ -145,53 +145,6 @@ def self_play(param,deterministic=True):
 
 	return play_game(param,policy_dict_a,policy_dict_b,deterministic=deterministic)
 
-def relative_state(states,param,idx):
-
-	n_robots, n_state_dim = states.shape
-
-	goal = np.array([param.goal[0],param.goal[1],0,0])
-
-	o_a = []
-	o_b = [] 
-	relative_goal = goal - states[idx,:]
-
-	# projecting goal to radius of sensing 
-	alpha = np.linalg.norm(relative_goal[0:2]) / param.robots[idx]["r_sense"]
-	relative_goal[2:] = relative_goal[2:] / np.max((alpha,1))	
-
-	for idx_j in range(n_robots): 
-		if idx_j != idx and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]: 
-			if idx_j in param.team_1_idxs:  
-				o_a.append(states[idx_j,:] - states[idx,:])
-			elif idx_j in param.team_2_idxs:
-				o_b.append(states[idx_j,:] - states[idx,:])
-
-	return np.array(o_a),np.array(o_b),np.array(relative_goal)
-
-
-def format_data(o_a,o_b,goal):
-	# input: [num_a/b, dim_state_a/b] np array 
-	# output: 1 x something torch float tensor
-
-	# make 0th dim (this matches batch dim in training)
-	if o_a.shape[0] == 0:
-		o_a = np.expand_dims(o_a,axis=0)
-	if o_b.shape[0] == 0:
-		o_b = np.expand_dims(o_b,axis=0)
-	goal = np.expand_dims(goal,axis=0)
-
-	# reshape if more than one element in set
-	if o_a.shape[0] > 1: 
-		o_a = np.reshape(o_a,(1,np.size(o_a)))
-	if o_b.shape[0] > 1: 
-		o_b = np.reshape(o_b,(1,np.size(o_b)))
-
-	o_a = torch.from_numpy(o_a).float() 
-	o_b = torch.from_numpy(o_b).float()
-	goal = torch.from_numpy(goal).float()
-
-	return o_a,o_b,goal
-
 
 def play_game(param,policy_dict_a,policy_dict_b,deterministic=True): 
 
@@ -263,72 +216,6 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			policy_a.rolloutBeta = 1.0
 			policy_b.rolloutBeta = 1.0
 			action = mctscpp.eval(g, gs, policy_a, policy_b, deterministic)
-
-			# testing 
-			# deterministic = False
-			# num_samples = 1000
-
-			# state = cpp_state_to_pstate(gs)
-			# model = ContinuousEmptyNet(param, "cpu")
-			# if gs.turn == mctscpp.GameState.Turn.Attackers: 
-			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
-			# else: 
-			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
-
-			# cpp_actions = []
-			# python_actions = [] 
-			# for i_sample in range(num_samples):
-
-			# 	cpp_action = mctscpp.eval(g, gs, deterministic)
-			# 	cpp_actions.append(cpp_action)
-
-			# 	python_action = np.nan*np.ones((param.num_nodes,2))
-			# 	for robot_idx in range(param.num_nodes): 
-			# 		o_a,o_b,goal = relative_state(state,param,robot_idx)
-			# 		o_a,o_b,goal = format_data(o_a,o_b,goal)					
-			# 		value, policy = model(o_a,o_b,goal)
-			# 		python_action[robot_idx, :] = policy.detach().numpy().flatten()
-
-			# 	python_actions.append(python_action)
-
-			# action = python_action
-
-			# print('cpp_action',cpp_action)
-			# print('python_action',python_action)
-
-			# cpp_actions = np.array(cpp_actions)
-			# python_actions = np.array(python_actions)
-
-			# import matplotlib.pyplot as plt 
-			# fig, axs = plt.subplots(1,2,sharex=True,sharey=True)
-			# axs[0].scatter(cpp_actions[:,0,0], cpp_actions[:,0,1], alpha=0.5)
-			# axs[0].set_title('cpp')
-			# axs[1].scatter(python_actions[:,0,0], python_actions[:,0,1], alpha=0.5)
-			# axs[1].set_title('python')
-
-			# plt.show()
-			# exit()
-
-			# print('cpp', action)
-
-			# # use python to eval model 
-			# state = cpp_state_to_pstate(gs)
-			# action = np.nan*np.ones((param.num_nodes,2))
-			# model = ContinuousEmptyNet(param, "cpu")
-			# if gs.turn == mctscpp.GameState.Turn.Attackers: 
-			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
-			# else: 
-			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
-
-			# for robot_idx in team_idx: 
-			# 	o_a,o_b,goal = relative_state(state,param,robot_idx)
-			# 	o_a,o_b,goal = format_data(o_a,o_b,goal)
-			# 	value, policy = model(o_a,o_b,goal)
-			# 	action[robot_idx, :] = policy.detach().numpy().flatten()
-
-			# print('python', action)
-
-
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "PANAGOU":
@@ -420,57 +307,6 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 	if not quiet_on:
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 
-def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
-	
-	alphas = np.random.randint(low=0,high=len(testing),size=len(states))
-	
-	if not quiet_on:
-		print('   running expert for instance {}'.format(param.dataset_fn))
-
-	if progress is not None:
-		progress_pos = current_process()._identity[0] - progress
-		# enumeration = tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos)
-		enumeration = tqdm.tqdm(zip(alphas,states), desc=param.dataset_fn, leave=False, position=progress_pos)
-	else:
-		enumeration = zip(alphas,states)
-
-	if is_valid_policy_dict(param.policy_dict):
-		policy_dict = param.policy_dict
-	else: 
-		print('bad policy dict')
-		exit()
-
-	game = param_to_cpp_game(param,policy_dict,policy_dict)
-
-	sim_result = {
-		'states' : [],
-		'policy_dists' : [],
-		'values' : [],
-		'param' : param.to_dict()
-		}
-
-	for alpha, state in enumeration:
-
-		test_state = np.array(testing[alpha]["test_state"])
-		test_value = testing[alpha]["test_value"]
-
-		test_valuePerAction = []
-		for valuePerAction in testing[alpha]["test_valuePerAction"]:
-			x = ((np.array((valuePerAction[0],valuePerAction[1]),dtype=float),np.array((np.nan,np.nan),dtype=float)),valuePerAction[-1])
-			test_valuePerAction.append(x)
-
-		test_policy_dist = valuePerAction_to_policy_dist(param,test_valuePerAction) # 
-
-		sim_result["states"].append(test_state)
-		sim_result["policy_dists"].append(test_policy_dist)  		
-		sim_result["values"].append(test_value)
-
-	sim_result["states"] = np.array(sim_result["states"])
-	sim_result["policy_dists"] = np.array(sim_result["policy_dists"])
-	dh.write_sim_result(sim_result,param.dataset_fn)
-
-	if not quiet_on:
-		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))	
 
 def valuePerAction_to_policy_dist(param,valuePerAction):
 
