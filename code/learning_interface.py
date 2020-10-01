@@ -3,7 +3,7 @@ import numpy as np
 import torch 
 
 
-def relative_state(states,param,idx):
+def global_to_local(states,param,idx):
 
 	n_robots, n_state_dim = states.shape
 
@@ -26,9 +26,9 @@ def relative_state(states,param,idx):
 
 	return np.array(o_a),np.array(o_b),np.array(relative_goal)
 
-def local_to_global(param,o_a,o_b,goal,team):
+def local_to_global(param,o_a,o_b,relative_goal,team):
 
-	# goal = {[g_x,g_y,0,0] - s^i} 
+	# relative_goal = {[g_x,g_y,0,0] - s^i} 
 	# o_a = {s^j - s^i}
 	# o_b = {s^j - s^i}
 
@@ -43,8 +43,8 @@ def local_to_global(param,o_a,o_b,goal,team):
 	# robot team composition 
 	# assume knowledge of state_dim
 	state_dim = 4
-	num_a = len(o_a) // state_dim   
-	num_b = len(o_b) // state_dim  
+	num_a = o_a.shape[0] + i_a
+	num_b = o_b.shape[0] + i_b
 	robot_team_composition = {
 		'a': {'standard_robot': num_a + i_a},
 		'b': {'standard_robot': num_b + i_b}
@@ -54,7 +54,7 @@ def local_to_global(param,o_a,o_b,goal,team):
 	# assume knowledge of g_x,g_y
 	g_x = param.goal[0]
 	g_y = param.goal[1]
-	s_i = goal - np.array([g_x,g_y,0,0])
+	s_i = np.array([g_x,g_y,0,0]) - relative_goal
 
 	state = np.zeros((num_a + num_b,state_dim)) 
 	for i in range(num_a + num_b):
@@ -63,11 +63,11 @@ def local_to_global(param,o_a,o_b,goal,team):
 		elif team == "b" and i == num_a: 
 			state[i,:] = s_i 
 		elif i < num_a:
-			robot_idx = state_dim*i + np.arange(state_dim)
-			state[i,:] = o_a[robot_idx] + s_i 
+			o_a_idx = i - i_a
+			state[i,:] = o_a[o_a_idx,:] + s_i 
 		else: 
-			robot_idx = state_dim*(i-num_a) + np.arange(state_dim)
-			state[i,:] = o_b[robot_idx] + s_i 
+			o_b_idx = i - i_b - num_a 
+			state[i,:] = o_b[o_b_idx,:] + s_i 
 
 	return state, robot_team_composition 
 

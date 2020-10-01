@@ -22,7 +22,7 @@ import datahandler as dh
 from param import Param 
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
-from learning_interface import format_data, relative_state 
+from learning_interface import format_data, global_to_local 
 
 def my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on):
 	# value \& policy network : https://www.nature.com/articles/nature24270
@@ -234,7 +234,7 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 
 	for timestep,(state,policy_dist,value) in enumerate(zip(states,policy_dists,values)):
 		for robot_idx in robot_idxs:
-			o_a, o_b, goal = relative_state(state,param,robot_idx)
+			o_a, o_b, goal = global_to_local(state,param,robot_idx)
 			key = (param.training_team,len(o_a),len(o_b))
 
 			for action, weight in zip(policy_dist[robot_idx][:,0],policy_dist[robot_idx][:,1]):

@@ -12,34 +12,32 @@ from benchmark.panagou import PanagouPolicy
 import datahandler as dh
 
 from learning.continuous_emptynet import ContinuousEmptyNet
+from learning_interface import local_to_global, global_to_local
 
-def create_cpp_robot_type(param, robot_type):
-	p_min = [param.env_xlim[0], param.env_ylim[0]]
-	p_max = [param.env_xlim[1], param.env_ylim[1]]
-	velocity_limit = param.__dict__[robot_type]["speed_limit"]
-	acceleration_limit = param.__dict__[robot_type]["acceleration_limit"]
-	tag_radius = param.__dict__[robot_type]["tag_radius"]
-	r_sense = param.__dict__[robot_type]["r_sense"]
-	radius = param.__dict__[robot_type]["radius"]
+def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
+	p_min = [env_xlim[0], env_ylim[0]]
+	p_max = [env_xlim[1], env_ylim[1]]
+	velocity_limit = robot_type["speed_limit"]
+	acceleration_limit = robot_type["acceleration_limit"]
+	tag_radius = robot_type["tag_radius"]
+	r_sense = robot_type["r_sense"]
+	radius = robot_type["radius"]
 	rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)
-	return rt
+	return rt	
 
-def robot_composition_to_cpp_robot_types(param,team):
+
+def robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,team,env_xlim,env_ylim):
 	types = [] 
-	for robot_type, num in param.robot_team_composition[team].items():
-		rt = create_cpp_robot_type(param, robot_type)
+	for robot_type_name, num in robot_team_composition[team].items():
+		rt = create_cpp_robot_type(robot_types[robot_type_name], env_xlim, env_ylim)
 		for _ in range(num):
 			types.append(rt)
 	return types
 
-def param_to_cpp_game(param, policy_dict_a, policy_dict_b):
-	attackerTypes = robot_composition_to_cpp_robot_types(param,"a") 
-	defenderTypes = robot_composition_to_cpp_robot_types(param,"b") 
 
-	dt = param.sim_dt
-	goal = param.goal
-	rollout_horizon = param.rollout_horizon
-
+def param_to_cpp_game(robot_team_composition,robot_types,env_xlim,env_ylim,dt,goal,rollout_horizon):
+	attackerTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"a",env_xlim,env_ylim)
+	defenderTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"b",env_xlim,env_ylim)
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, rollout_horizon)
 	return g
 
@@ -94,19 +92,15 @@ def cpp_state_to_pstate(gs):
 		idx += 1 		
 	return pstate
 
-def state_to_cpp_game_state(param,state,turn):
-
-	param.state = state
-	param.make_robot_teams()
-	param.assign_initial_condition()
+def state_to_cpp_game_state(state,turn,team_1_idxs,team_2_idxs):
 
 	attackers = [] 
 	defenders = [] 
-	for robot in param.robots: 
-		rs = mctscpp.RobotState(robot["x0"])
-		if robot["team"] == "a":
+	for robot_idx, robot_state in enumerate(state): 
+		rs = mctscpp.RobotState(robot_state)
+		if robot_idx in team_1_idxs: 
 			attackers.append(rs)
-		elif robot["team"] == "b":
+		elif robot_idx in team_2_idxs:
 			defenders.append(rs)		
 
 	if turn == "a":
@@ -123,8 +117,9 @@ def state_to_cpp_game_state(param,state,turn):
 	return game_state 
 
 def expected_value(param,state,policy_dict):
-	g = param_to_cpp_game(param,policy_dict,policy_dict) 
-	gs = state_to_cpp_game_state(param,state,"a")
+	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+		param.sim_dt,param.goal,param.rollout_horizon)	
+	gs = state_to_cpp_game_state(state,"a",param.team_1_idxs,param.team_2_idxs)
 	mctsresult = mctscpp.search(g, gs,
 		policy_dict["mcts_tree_size"],
 		policy_dict["mcts_rollout_beta"],
@@ -152,7 +147,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		pp = PanagouPolicy(param)
 		pp.init_sim(param.state)
 
-	g = param_to_cpp_game(param,policy_dict_a,policy_dict_b)
+	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+		param.sim_dt,param.goal,param.rollout_horizon)
 	policy_a = create_cpp_policy(policy_dict_a, 'a')
 	policy_b = create_cpp_policy(policy_dict_b, 'b')
 
@@ -164,7 +160,7 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		'rewards' : []
 	}
 
-	gs = state_to_cpp_game_state(param,param.state,"a")
+	gs = state_to_cpp_game_state(param.state,"a",param.team_1_idxs,param.team_2_idxs)
 	count = 0
 	invalid_team_action = [np.nan*np.ones(2) for _ in range(param.num_nodes)]
 	team_action = list(invalid_team_action)
@@ -176,11 +172,13 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			team_idx = param.team_1_idxs
 			my_policy = policy_a
 			other_policies = [policy_b]
+			team = 'a'
 		elif gs.turn == mctscpp.GameState.Turn.Defenders:
 			policy_dict = policy_dict_b
 			team_idx = param.team_2_idxs
 			my_policy = policy_b
 			other_policies = [policy_a]
+			team = 'b'
 
 		# output result
 		isTerminal = g.isTerminal(gs)
@@ -211,6 +209,33 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				success = g.step(gs, action, gs)
 			else:
 				success = False
+
+		elif policy_dict["sim_mode"] == "D_MCTS": 
+			state = np.array([rs.state.copy() for rs in gs.attackers + gs.defenders])
+			action = np.nan*np.zeros((param.num_nodes,2))
+			success = True 
+			for robot_idx in team_idx: 
+				o_a,o_b,goal = global_to_local(state,param,robot_idx)
+				state_i, robot_team_composition_i = local_to_global(param,o_a,o_b,goal,team)
+				game_i = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+					param.sim_dt,param.goal,param.rollout_horizon)
+				gamestate_i = state_to_cpp_game_state(state_i,team,param.team_1_idxs,param.team_2_idxs)
+				gamestate_i.depth = 0
+				mctsresult = mctscpp.search(game_i, gamestate_i, \
+					my_policy,
+					other_policies,
+					policy_dict["mcts_tree_size"],
+					policy_dict["mcts_c_param"],
+					policy_dict["mcts_pw_C"],
+					policy_dict["mcts_pw_alpha"],
+					policy_dict["mcts_vf_beta"])
+				if mctsresult.success: 
+					action_i = mctsresult.bestAction
+					action[robot_idx,:] = action_i[robot_idx]
+				else: 
+					success = False 
+			if success:
+				success = g.step(gs,action,gs)
 
 		elif policy_dict["sim_mode"] == "GLAS":
 			policy_a.rolloutBeta = 1.0
@@ -267,7 +292,8 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 	else:
 		enumeration = states
 
-	game = param_to_cpp_game(param,None,None)
+	game = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+		param.sim_dt,param.goal,param.rollout_horizon)
 
 	my_policy = create_cpp_policy(param.my_policy_dict, param.training_team)
 
@@ -284,7 +310,7 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 		}
 
 	for state in enumeration:
-		game_state = state_to_cpp_game_state(param,state,param.training_team)
+		game_state = state_to_cpp_game_state(state,"a",param.team_1_idxs,param.team_2_idxs)
 		mctsresult = mctscpp.search(game, game_state, \
 			my_policy,
 			other_policies,
@@ -376,7 +402,7 @@ def is_valid_policy_dict(policy_dict):
 			bad_key(policy_dict,"path_glas_model_b"):
 			return False 
 
-	elif policy_dict["sim_mode"] == "MCTS":
+	elif policy_dict["sim_mode"] in ["MCTS","D_MCTS"]:
 		if bad_key(policy_dict,"path_glas_model_a") or \
 			bad_key(policy_dict,"path_glas_model_b") or \
 			bad_key(policy_dict,"mcts_tree_size") or \
