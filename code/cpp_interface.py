@@ -495,38 +495,37 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 			dist[robot_idx] = np.array([(actions[choice_idx,:],weights[choice_idx]) for choice_idx in choice_idxs])
 
 	else: 
+		# sort so that highest values are first
+		valuePerActionSorted = sorted(valuePerAction, key=lambda p: p[1], reverse=True)
+
+		# limit to l_num_samples
+		valuePerActionSorted = valuePerActionSorted[0:param.l_num_samples]
+
+		# renormalize
+		norm = sum([value for _, value in valuePerActionSorted])
 
 		dist = defaultdict(list)
-
-		actions = [a for a,_ in valuePerAction]
-		values = [v for _,v in valuePerAction]
-
-		actions = [x for _,x in sorted(zip(values,actions), key=lambda pair: -pair[0])]
-		values = sorted(values)
-
-		if len(actions) > param.l_num_samples:
-			actions = actions[0:param.l_num_samples]
-			values = values[0:param.l_num_samples]
-
-		values = [v/sum(values) for v in values] 
-
-		for action,value in zip(actions,values):
+		for action,value in valuePerActionSorted:
 
 			action = np.array(action)
 			action = action.flatten()
 
 			for robot_idx in robot_idxs:
 				action_idx = robot_idx * 2 + np.arange(2)
-				# dist[robot_idx].append(np.array([action[action_idx],value]))
-				dist[robot_idx].append([action[action_idx],value])
+				v = value/norm if norm > 0 else 1/len(valuePerActionSorted)
+				dist[robot_idx].append([action[action_idx],v])
 
-		# print(dist)
-		# exit()
+		# dist = defaultdict(list)
+		# action = np.array(bestAction)
+		# action = action.flatten()
+		# for robot_idx in robot_idxs:
+		# 	action_idx = robot_idx * 2 + np.arange(2)
+		# 	dist[robot_idx].append([action[action_idx],1.0])
 
 		for robot_idx in dist.keys():
 			dist[robot_idx] = np.array(dist[robot_idx])
 
-	return dist	
+	return dist
 
 def bad_key(some_dict,some_key):
 	if some_key not in some_dict.keys():
