@@ -74,18 +74,10 @@ class ContinuousEmptyNet(nn.Module):
 
 		batch_size = o_a.shape[0]
 
-		print('goal[0,:]',goal[0,:])
-		print('goal.shape',goal.shape)
-
 		# project goal to sensing area
 		goal_norm = goal.norm(p=2,dim=1)
 		scale = 1.0 / torch.clamp(goal_norm/self.r_sense,min=1)
 		goal = torch.mul(scale.unsqueeze(1), goal)
-
-		print('goal[0,:]',goal[0,:])
-		print('goal.shape',goal.shape)
-
-		exit()
 
 		# condition on game state 
 		output_rho_team_a = self.model_team_a(o_a)
