@@ -62,11 +62,11 @@ class Param:
 
 		# learning (l) parameters 
 		self.device = 'cpu' # cpu, cuda
-		self.l_mode = "IL" # IL, DAgger, ExIt, MICE
+		self.l_mode = "DAgger" # IL, DAgger, ExIt, MICE
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
-		self.l_num_iterations = 2
+		self.l_num_iterations = 5
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
 		self.l_num_points_per_file = 1000
 		self.l_mcts_rollout_beta = 0.25
@@ -173,11 +173,11 @@ class Param:
 	def make_environment(self):
 		self.env_xlim = [0,self.env_l]
 		self.env_ylim = [0,self.env_l]
-		self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
-		# self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
+		# self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
+		self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
 		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
-		self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
-		# self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
+		# self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
+		self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
 		self.goal = np.array([0.75*self.env_l,0.75*self.env_l,0,0])
 
@@ -288,5 +288,6 @@ class Param:
 	def get_random_velocity_inside(self,speed_lim):
 
 		th = random.random()*2*np.pi 
-		r  = sqrt(random.random())*speed_lim
+		# r  = sqrt(random.random())*speed_lim
+		r  = 0*sqrt(random.random())*speed_lim
 		return r*cos(th), r*sin(th)	

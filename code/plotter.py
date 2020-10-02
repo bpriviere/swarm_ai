@@ -845,7 +845,10 @@ def policy_to_label(policy):
 	label = '' 
 	for key, value in policy.items():
 		if "path" in key and np.any(['path' in a for a in keys]):
-			label += '{} '.format(os.path.basename(value).split(".")[0])
+			if value is None: 
+				label += 'None'
+			else:
+				label += '{} '.format(os.path.basename(value).split(".")[0])
 		elif key == "mcts_rollout_beta":
 			if policy["sim_mode"] == "MCTS":
 				label += ', b: {}'.format(value)
