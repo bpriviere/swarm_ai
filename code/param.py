@@ -18,11 +18,11 @@ class Param:
 
 		# these parameters are also used for learning 
 		self.policy_dict = {
-			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		'../current/models/a0.pt', 
-			'path_glas_model_b' : 		'../current/models/b0.pt', 
+			'sim_mode' : 				"MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
+			'path_glas_model_a' : 		None, 	#'../current/models/a0.pt', 
+			'path_glas_model_b' : 		None, 	#'../current/models/b0.pt', 
 			'mcts_tree_size' : 			50000,
-			'mcts_rollout_beta' : 		0.25,
+			'mcts_rollout_beta' : 		0.0,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
@@ -33,22 +33,23 @@ class Param:
 		self.rollout_horizon = 100
 
 		# robot types 
-		self.standard_robot = {
-			'speed_limit': 0.125,
-			'acceleration_limit':0.125,
-			'tag_radius': 0.025,
-			'dynamics':'double_integrator',
-			'r_sense': 1.0,
-			'radius': 0.025,
-		}
-
-		self.evasive_robot = {
-			'speed_limit': 0.125,
-			'acceleration_limit':0.2,
-			'tag_radius': 0.025,
-			'dynamics':'double_integrator',
-			'r_sense': 1.0,
-			'radius': 0.025,
+		self.robot_types = {
+			'standard_robot' : {
+				'speed_limit': 0.125,
+				'acceleration_limit':0.125,
+				'tag_radius': 0.025,
+				'dynamics':'double_integrator',
+				'r_sense': 2.0,
+				'radius': 0.025,
+			},
+			'evasive_robot' : {
+				'speed_limit': 0.125,
+				'acceleration_limit':0.2,
+				'tag_radius': 0.025,
+				'dynamics':'double_integrator',
+				'r_sense': 2.0,
+				'radius': 0.025,
+			}
 		}
 
 		self.robot_team_composition = {
@@ -68,6 +69,7 @@ class Param:
 		self.l_num_iterations = 2
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
 		self.l_num_points_per_file = 1000
+		self.l_mcts_rollout_beta = 0.25
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -172,8 +174,10 @@ class Param:
 		self.env_xlim = [0,self.env_l]
 		self.env_ylim = [0,self.env_l]
 		self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
+		# self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
 		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
+		# self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
 		self.goal = np.array([0.75*self.env_l,0.75*self.env_l,0,0])
 
@@ -232,9 +236,9 @@ class Param:
 		# make robot teams 
 		self.robots = [] 
 		for team, composition in self.robot_team_composition.items():
-			for robot_type, robot_number in composition.items():
+			for robot_type_name, robot_number in composition.items():
 				for _ in range(robot_number):
-					robot = copy.copy(self.__dict__[robot_type])
+					robot = copy.copy(self.robot_types[robot_type_name])
 					robot["team"] = team 
 					self.robots.append(robot)		
 

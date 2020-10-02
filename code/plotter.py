@@ -428,8 +428,8 @@ def plot_training(df_param,batched_fns,path_to_model):
 	team_2_color = 'orange'
 	goal_color = 'green'
 	self_color = 'black'
-	LIMS = df_param.standard_robot["acceleration_limit"]*np.array([[-1,1],[-1,1]])
-	rsense = df_param.standard_robot["r_sense"]
+	LIMS = df_param.robot_types["standard_robot"]["acceleration_limit"]*np.array([[-1,1],[-1,1]])
+	rsense = df_param.robot_types["standard_robot"]["r_sense"]
 	env_xlim = df_param.env_xlim 
 	env_ylim = df_param.env_ylim 
 	nbins = 20
@@ -467,13 +467,17 @@ def plot_training(df_param,batched_fns,path_to_model):
 		dataset_actions = []
 		dataset_weights = []
 		for o_a,o_b,goal,action,weight in zip(o_as,o_bs,goals,actions,weights):
-			if (np.linalg.norm(o_a - candidate[0]) <= eps) and \
-				(np.linalg.norm(o_b - candidate[1]) <= eps) and \
-				(np.linalg.norm(goal - candidate[2]) <= eps):
+			if o_a.shape == candidate[0].shape and \
+				o_b.shape == candidate[1].shape and \
+				goal.shape == candidate[2].shape: 
 
-				conditionals.append((o_a,o_b,goal))
-				dataset_actions.append(action)
-				dataset_weights.append(weight)
+				if (np.linalg.norm(o_a - candidate[0]) <= eps) and \
+					(np.linalg.norm(o_b - candidate[1]) <= eps) and \
+					(np.linalg.norm(goal - candidate[2]) <= eps):
+
+					conditionals.append((o_a,o_b,goal))
+					dataset_actions.append(action)
+					dataset_weights.append(weight)
 
 		dataset_weights = dataset_weights / sum(dataset_weights)
 		choice_idxs = np.random.choice(len(dataset_actions),n_samples,p=dataset_weights)
@@ -905,7 +909,7 @@ def plot_exp3_results(all_sim_results):
 
 def plot_test_model(df_param,stats):
 
-	LIMS = df_param.standard_robot["acceleration_limit"]*np.array([[-1,1],[-1,1]])
+	LIMS = df_param.robot_types["standard_robot"]["acceleration_limit"]*np.array([[-1,1],[-1,1]])
 	nbins = 20
 
 	for alpha,stats_per_condition in stats.items():
@@ -1283,7 +1287,7 @@ if __name__ == '__main__':
 		num_points_per_file = 9 
 
 		param = Param()
-		rsense = param.standard_robot["r_sense"]
+		rsense = param.robot_types["standard_robot"]["r_sense"]
 		env_length = param.env_xlim[1] - param.env_xlim[0]
 		abs_goal = param.goal 
 		action_list = param.actions

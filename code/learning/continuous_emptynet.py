@@ -19,7 +19,9 @@ class ContinuousEmptyNet(nn.Module):
 
 		self.device = torch.device(device)
 
-		self.acceleration_limit = param.standard_robot["acceleration_limit"]
+		# self.acceleration_limit = param.standard_robot["acceleration_limit"]
+		self.acceleration_limit = param.robot_types["standard_robot"]["acceleration_limit"]
+
 		self.z_dim = param.l_z_dim
 
 		self.model_team_a = DeepSet(
