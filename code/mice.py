@@ -14,6 +14,7 @@ from tqdm import tqdm
 import itertools
 import yaml 
 import random
+import pickle 
 
 # custom 
 from testing.test_continuous_glas import test_model, test_evaluate_expert_wrapper, read_testing_yaml
@@ -175,43 +176,111 @@ def get_self_play_samples(params):
 			'mcts_vf_beta' : 			0.0,
 		}	
 
+	# print policies 
+	print('self-play policies...')
 	for param in params: 
-
-		print('self-play policies...')
 		print('param.policy_dict_a: ',param.policy_dict_a)
 		print('param.policy_dict_b: ',param.policy_dict_b)
 
-		states_per_file = []
-		remaining_plots_per_file = 2
-		while len(states_per_file) < param.l_num_points_per_file:
-			param.state = param.make_initial_condition()
-			# sim_result = self_play(param,deterministic=False)
-			sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
 
-			idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
-			sim_result["states"] = sim_result["states"][idxs]
-			sim_result["actions"] = sim_result["actions"][idxs]
-			sim_result["times"] = sim_result["times"][idxs]
-			sim_result["rewards"] = sim_result["rewards"][idxs]
+	# get self play states 
+	if not df_param.l_parallel_on:
+		for param in params: 
+			instance_self_play(param)
 
-			if remaining_plots_per_file > 0:
-				title = policy_title(param.policy_dict_a,"a") + " vs " + policy_title(param.policy_dict_b,"b")
-				plotter.plot_tree_results(sim_result, title)
-				remaining_plots_per_file -= 1
+	else:
+		# todo: multiprocess tqdm  
+		# global pool_count
+		# freeze_support()
+		# with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
+			# args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
+			# r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
+			# p.starmap(evaluate_expert, states, params)
+			# p.starmap(evaluate_expert, list(zip(states, params)))
 
-			# clean data
-			# if np.isnan(sim_result["states"]).any(axis=2).any(axis=1).any():
-			# 	print('WARNING: NANS found in self-play states')
-			# 	plotter.plot_tree_results(sim_result, title)
-			# 	plotter.save_figs('../current/models/{}{}_nans.pdf'.format(params[0].training_team, params[0].i+1))
-			# 	exit()
+		ncpu = cpu_count()
+		print('ncpu: ', ncpu)
+		num_workers = min(ncpu-1, len(params))
+		pool = Pool(num_workers)
+		for _ in pool.imap_unordered(instance_self_play, params):
+			pass 		
+		# with Pool(num_workers) as p: 
+		# 	p.imap_unordered(instance_self_play,params)
 
-			states_per_file.extend(sim_result["states"])
-		self_play_states.append(states_per_file[0:param.l_num_points_per_file])
+	self_play_states = [] 
+	for param in params: 
+		fn = '{}/states_for_{}.pickle'.format(\
+			os.path.dirname(param.dataset_fn),os.path.basename(param.dataset_fn))
+		with open(fn, 'rb') as h:
+			states_per_file = pickle.load(h)
+		self_play_states.append(states_per_file[0:param.l_num_points_per_file]) 
+	
 	print('self-play sample collection completed.')
+
+	# for param in params: 
+	# 	states_per_file = []
+	# 	remaining_plots_per_file = 2
+	# 	while len(states_per_file) < param.l_num_points_per_file:
+	# 		param.state = param.make_initial_condition()
+	# 		# sim_result = self_play(param,deterministic=False)
+	# 		sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
+
+	# 		# clean data
+	# 		idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
+	# 		sim_result["states"] = sim_result["states"][idxs]
+	# 		sim_result["actions"] = sim_result["actions"][idxs]
+	# 		sim_result["times"] = sim_result["times"][idxs]
+	# 		sim_result["rewards"] = sim_result["rewards"][idxs]
+
+	# 		if remaining_plots_per_file > 0:
+	# 			title = policy_title(param.policy_dict_a,"a") + " vs " + policy_title(param.policy_dict_b,"b")
+	# 			plotter.plot_tree_results(sim_result, title)
+	# 			remaining_plots_per_file -= 1
+
+	# 		if np.isnan(sim_result["states"]).any(axis=2).any(axis=1).any():
+	# 			print('WARNING: NANS found in self-play states')
+	# 			plotter.plot_tree_results(sim_result, title)
+	# 			plotter.save_figs('../current/models/{}{}_nans.pdf'.format(params[0].training_team, params[0].i+1))
+	# 			exit()
+
+	# 		states_per_file.extend(sim_result["states"])
+	# 	self_play_states.append(states_per_file[0:param.l_num_points_per_file])
 
 	plotter.save_figs('../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1))
 	return self_play_states
+
+def instance_self_play(param):
+	from cpp_interface import play_game
+
+	print('starting self-play states {}'.format(param.dataset_fn))
+	states_per_file = []
+	remaining_plots_per_file = 2
+	while len(states_per_file) < param.l_num_points_per_file:
+		param.state = param.make_initial_condition()
+		# sim_result = self_play(param,deterministic=False)
+		sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
+
+		# clean data
+		idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
+		sim_result["states"] = sim_result["states"][idxs]
+		sim_result["actions"] = sim_result["actions"][idxs]
+		sim_result["times"] = sim_result["times"][idxs]
+		sim_result["rewards"] = sim_result["rewards"][idxs]
+
+		if remaining_plots_per_file > 0:
+			title = policy_title(param.policy_dict_a,"a") + " vs " + policy_title(param.policy_dict_b,"b")
+			plotter.plot_tree_results(sim_result, title)
+			remaining_plots_per_file -= 1
+		
+		states_per_file.extend(sim_result["states"])
+
+	# 
+	fn = '{}/states_for_{}.pickle'.format(\
+		os.path.dirname(param.dataset_fn),os.path.basename(param.dataset_fn)) 
+	with open(fn, 'wb') as h:
+		pickle.dump(states_per_file, h)	
+	print('completed self-play states {}'.format(param.dataset_fn))
+
 
 def policy_title(policy_dict,team):
 	title = policy_dict["sim_mode"] 
@@ -753,7 +822,8 @@ if __name__ == '__main__':
 				batched_fns = glob.glob(df_param.l_labelled_fn.format(\
 						DATADIR=df_param.path_current_data,\
 						TEAM=training_team,\
-						LEARNING_ITER=i,\
+						# LEARNING_ITER=i,\
+						LEARNING_ITER='**',\
 						NUM_A='**',\
 						NUM_B='**',\
 						NUM_FILE='**'))
