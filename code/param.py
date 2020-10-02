@@ -21,7 +21,7 @@ class Param:
 			'sim_mode' : 				"MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
 			'path_glas_model_a' : 		None, 	#'../current/models/a0.pt', 
 			'path_glas_model_b' : 		None, 	#'../current/models/b0.pt', 
-			'mcts_tree_size' : 			50000,
+			'mcts_tree_size' : 			100000,
 			'mcts_rollout_beta' : 		0.0,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
@@ -58,7 +58,7 @@ class Param:
 		}
 		
 		# environment
-		self.env_l = 0.5 
+		self.env_l = 0.5
 
 		# learning (l) parameters 
 		self.device = 'cpu' # cpu, cuda
@@ -70,6 +70,9 @@ class Param:
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
 		self.l_num_points_per_file = 1000
 		self.l_mcts_rollout_beta = 0.25
+		self.l_num_learner_nodes = 500
+		self.l_num_expert_nodes = 100000
+		self.l_env_l0 = 0.25
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -174,12 +177,38 @@ class Param:
 		self.env_xlim = [0,self.env_l]
 		self.env_ylim = [0,self.env_l]
 		# self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
-		self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
-		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
 		# self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
+		self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
 		self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
+		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
-		self.goal = np.array([0.75*self.env_l,0.75*self.env_l,0,0])
+		self.goal = np.array([0.75*self.env_l,0.5*self.env_l,0,0])
+
+		# # randomly change enviornment
+		# alpha = np.random.randint(4)
+		# if alpha == 0:
+		# 	# do nothing 
+		# 	pass 
+		# if alpha == 1 or alpha == 3: 
+		# 	# flip on x = 0.5 l 
+		# 	hold = self.reset_xlim_A
+		# 	self.reset_xlim_A = self.reset_xlim_B
+		# 	self.reset_xlim_B = hold 
+		# 	hold = self.reset_ylim_A
+		# 	self.reset_ylim_A = self.reset_ylim_B
+		# 	self.reset_ylim_B = hold 
+		# 	self.goal[0] = self.env_xlim[1] - self.goal[0] 
+		# if alpha == 2 or alpha == 3:
+		# 	# flip on y = x 
+		# 	hold = self.reset_xlim_A
+		# 	self.reset_xlim_A = self.reset_ylim_A 
+		# 	self.reset_ylim_A = hold 
+		# 	hold = self.reset_xlim_B
+		# 	self.reset_xlim_B = self.reset_ylim_B 
+		# 	self.reset_ylim_B = hold  
+		# 	hold = self.goal[0]
+		# 	self.goal[0] = self.goal[1]
+		# 	self.goal[1] = hold 
 
 	def make_initial_condition(self):
 

@@ -63,6 +63,21 @@ def open_figs(filename):
 	if os.path.exists(pdf_path):
 		subprocess.call(["xdg-open", pdf_path])
 
+def merge_figs(pdfs,result_fn):
+
+	from PyPDF2 import PdfFileMerger
+
+	merger = PdfFileMerger()
+
+	# write new one 
+	for pdf in pdfs:
+	    merger.append(pdf)
+	merger.write(result_fn)
+	merger.close()
+
+	# delete old files 
+	for pdf in pdfs: 
+		os.remove(pdf)
 
 def make_fig():
 	return plt.subplots()

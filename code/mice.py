@@ -157,24 +157,15 @@ def get_self_play_samples(params):
 			'sim_mode' : 				"D_MCTS", 
 			'path_glas_model_a' : 		path_glas_model_a, 	
 			'path_glas_model_b' : 		path_glas_model_b, 	
-			'mcts_tree_size' : 			500,
+			'mcts_tree_size' : 			param.l_num_learner_nodes,
 			'mcts_rollout_beta' : 		param.l_mcts_rollout_beta,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_vf_beta' : 			0.0,
 		}
-		param.policy_dict_b = {
-			'sim_mode' : 				"D_MCTS", 
-			'path_glas_model_a' : 		path_glas_model_a, 	
-			'path_glas_model_b' : 		path_glas_model_b, 	
-			'mcts_tree_size' : 			500,
-			'mcts_rollout_beta' : 		param.l_mcts_rollout_beta,
-			'mcts_c_param' : 			1.4,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,
-			'mcts_vf_beta' : 			0.0,
-		}	
+		param.policy_dict_b = param.policy_dict_a.copy() 
+
 
 	# print policies 
 	print('self-play policies...')
@@ -215,7 +206,6 @@ def get_self_play_samples(params):
 			states_per_file = pickle.load(h)
 		self_play_states.append(states_per_file[0:param.l_num_points_per_file]) 
 	
-	print('self-play sample collection completed.')
 
 	# for param in params: 
 	# 	states_per_file = []
@@ -246,7 +236,12 @@ def get_self_play_samples(params):
 	# 		states_per_file.extend(sim_result["states"])
 	# 	self_play_states.append(states_per_file[0:param.l_num_points_per_file])
 
-	plotter.save_figs('../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1))
+	# plotter.save_figs('../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1))
+
+	plotter.merge_figs(glob.glob('../current/models/temp_**'),\
+		'../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1))
+	print('self-play sample collection completed.')
+
 	return self_play_states
 
 def instance_self_play(param):
@@ -274,7 +269,10 @@ def instance_self_play(param):
 		
 		states_per_file.extend(sim_result["states"])
 
-	# 
+	# plot figs 
+	plotter.save_figs('../current/models/temp_{}.pdf'.format(os.path.basename(param.dataset_fn)))
+	
+	# write data
 	fn = '{}/states_for_{}.pickle'.format(\
 		os.path.dirname(param.dataset_fn),os.path.basename(param.dataset_fn)) 
 	with open(fn, 'wb') as h:
@@ -540,7 +538,7 @@ def make_dataset(states,params,df_param,testing=None):
 			'sim_mode' : 				"MCTS", 
 			'path_glas_model_a' : 		None, 	
 			'path_glas_model_b' : 		None, 	
-			'mcts_tree_size' : 			50000,
+			'mcts_tree_size' : 			param.l_num_expert_nodes,
 			'mcts_rollout_beta' : 		0.0,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
@@ -689,7 +687,7 @@ def format_dir(df_param):
 
 def sample_curriculum(curriculum):
 
-	mode = "uniform"
+	mode = "naive"
 
 	if mode == "naive": 
 		# 'naive' curriculum learning 
@@ -717,21 +715,22 @@ def initialCurriculum(df_param):
 	curriculum = {
 		'Skill_A' : [None],
 		'Skill_B' : [None],
-		'EnvironmentLength' : [0.5],
+		'EnvironmentLength' : [df_param.l_env_l0],
 		'NumA' : [1],
 		'NumB' : [1],
 	}
 	return curriculum 
 
 def isTrainingConverged(df_param,i):
-	if df_param.l_mode in ["IL"]:
-		return True 
-	elif df_param.l_mode in ["ExIt","MICE","DAgger"]: 
-		return i >= df_param.l_num_iterations
-		# return True
-	else: 
-		print('not recognized: ', df_param.l_mode)
-		exit()
+	return i >= df_param.l_num_iterations
+	# if df_param.l_mode in ["IL"]:
+	# 	return True 
+	# elif df_param.l_mode in ["ExIt","MICE","DAgger"]: 
+	# 	return i >= df_param.l_num_iterations
+	# 	# return True
+	# else: 
+	# 	print('not recognized: ', df_param.l_mode)
+	# 	exit()
 
 def isCurriculumConverged(df_param,curriculum,desired_game):
 	return True 
