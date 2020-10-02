@@ -33,7 +33,8 @@ def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
 		print('bad policy dict')
 		exit()
 
-	game = param_to_cpp_game(param,policy_dict,policy_dict)
+	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+		param.sim_dt,param.goal,param.rollout_horizon)	
 
 	sim_result = {
 		'states' : [],
