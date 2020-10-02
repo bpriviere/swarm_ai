@@ -156,8 +156,8 @@ def get_self_play_samples(params):
 			'sim_mode' : 				"D_MCTS", 
 			'path_glas_model_a' : 		path_glas_model_a, 	
 			'path_glas_model_b' : 		path_glas_model_b, 	
-			'mcts_tree_size' : 			5000,
-			'mcts_rollout_beta' : 		0.0,
+			'mcts_tree_size' : 			500,
+			'mcts_rollout_beta' : 		param.l_mcts_rollout_beta,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
@@ -167,8 +167,8 @@ def get_self_play_samples(params):
 			'sim_mode' : 				"D_MCTS", 
 			'path_glas_model_a' : 		path_glas_model_a, 	
 			'path_glas_model_b' : 		path_glas_model_b, 	
-			'mcts_tree_size' : 			5000,
-			'mcts_rollout_beta' : 		0.0,
+			'mcts_tree_size' : 			500,
+			'mcts_rollout_beta' : 		param.l_mcts_rollout_beta,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
@@ -188,6 +188,12 @@ def get_self_play_samples(params):
 			# sim_result = self_play(param,deterministic=False)
 			sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
 
+			idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
+			sim_result["states"] = sim_result["states"][idxs]
+			sim_result["actions"] = sim_result["actions"][idxs]
+			sim_result["times"] = sim_result["times"][idxs]
+			sim_result["rewards"] = sim_result["rewards"][idxs]
+
 			if remaining_plots_per_file > 0:
 				title = policy_title(param.policy_dict_a,"a") + " vs " + policy_title(param.policy_dict_b,"b")
 				plotter.plot_tree_results(sim_result, title)
@@ -200,9 +206,7 @@ def get_self_play_samples(params):
 			# 	plotter.save_figs('../current/models/{}{}_nans.pdf'.format(params[0].training_team, params[0].i+1))
 			# 	exit()
 
-			idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
-			states = sim_result["states"][idxs]
-			states_per_file.extend(states)
+			states_per_file.extend(sim_result["states"])
 		self_play_states.append(states_per_file[0:param.l_num_points_per_file])
 	print('self-play sample collection completed.')
 
