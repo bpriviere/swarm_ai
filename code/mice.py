@@ -25,7 +25,8 @@ from param import Param
 from learning.continuous_emptynet import ContinuousEmptyNet
 from learning_interface import format_data, global_to_local 
 
-def my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on):
+# def my_loss(value, policy, target_value, target_policy, weight, mu, sd, l_subsample_on):
+def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on):
 	# value \& policy network : https://www.nature.com/articles/nature24270
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
@@ -33,12 +34,14 @@ def my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsamp
 	if l_subsample_on:
 		criterion = nn.MSELoss(reduction='sum')
 		mse = criterion(policy,target_policy) + criterion(value,target_value)
-		kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) 
+		# kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) 
+		kldiv = 0.5 * torch.sum(- 1 - logvar + mu.pow(2) + torch.exp(logvar)) 
 	else: 
 		criterion = nn.MSELoss(reduction='none')
 		# mse = torch.sum(weight*criterion(value, target_value) + weight*criterion(policy, target_policy))
 		mse = torch.sum(weight*(criterion(value, target_value) + criterion(policy, target_policy)))
-		kldiv = 0.5 * torch.sum( weight * (- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2))) 
+		# kldiv = 0.5 * torch.sum( weight * (- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2))) 
+		kldiv = 0.5 * torch.sum( weight * (- 1 - logvar + mu.pow(2) + torch.exp(logvar))) 
 
 	kld_weight = 1e-4
 	loss = mse + kld_weight * kldiv
@@ -66,6 +69,23 @@ def train(model,optimizer,loader,l_subsample_on,l_sync_every,epoch, scheduler=No
 		optimizer.step()
 		if scheduler is not None:
 			scheduler.step(epoch + step/len(loader))
+
+		if torch.isnan(loss).any():
+			print('WARNING: NAN FOUND IN TRAIN')
+			if torch.isnan(o_a).any():
+				print(' in o_a')
+			if torch.isnan(o_b).any():
+				print(' in o_b')
+			if torch.isnan(goal).any():
+				print(' in goal')
+			if torch.isnan(target_value).any():
+				print(' in target_value')
+			if torch.isnan(target_policy).any():
+				print(' in target_policy')
+			if torch.isnan(weight).any():
+				print(' in weight')
+			exit()																				
+
 		epoch_loss += float(loss)
 	return epoch_loss
 
@@ -75,8 +95,25 @@ def test(model,loader,l_subsample_on):
 	with torch.no_grad():
 		for o_a,o_b,goal,target_value,target_policy,weight in loader:
 			value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
-			loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on)
+			loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd, l_subsample_on)
 			epoch_loss += float(loss)
+
+			if torch.isnan(loss).any():
+				print('WARNING: NAN FOUND IN TEST')
+				if torch.isnan(o_a).any():
+					print(' in o_a')
+				if torch.isnan(o_b).any():
+					print(' in o_b')
+				if torch.isnan(goal).any():
+					print(' in goal')
+				if torch.isnan(target_value).any():
+					print(' in target_value')
+				if torch.isnan(target_policy).any():
+					print(' in target_policy')
+				if torch.isnan(weight).any():
+					print(' in weight')
+				exit()	
+
 	return epoch_loss
 
 
@@ -305,7 +342,8 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 
 			for action, weight in zip(policy_dist[robot_idx][:,0],policy_dist[robot_idx][:,1]):
 
-				oa_pairs_by_size[key].append((o_a, o_b, goal, value, action, weight))
+				if not (np.isnan(action).any() or np.isnan(weight).any()):
+					oa_pairs_by_size[key].append((o_a, o_b, goal, value, action, weight))
 
 	return oa_pairs_by_size
 
@@ -821,8 +859,8 @@ if __name__ == '__main__':
 				batched_fns = glob.glob(df_param.l_labelled_fn.format(\
 						DATADIR=df_param.path_current_data,\
 						TEAM=training_team,\
-						# LEARNING_ITER=i,\
-						LEARNING_ITER='**',\
+						LEARNING_ITER=i,\
+						# LEARNING_ITER='**',\
 						NUM_A='**',\
 						NUM_B='**',\
 						NUM_FILE='**'))

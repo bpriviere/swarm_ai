@@ -94,7 +94,9 @@ class ContinuousEmptyNet(nn.Module):
 			# encode action 
 			dist = self.encoder(torch.cat((x,y),1))
 			mu = dist[:,0:self.z_dim]
-			sd = dist[:,self.z_dim:]
+			# sd = dist[:,self.z_dim:]
+			logvar = dist[:,self.z_dim:]
+			sd = torch.pow(torch.exp(logvar),1/2)
 
 		eps = torch.randn(size=(batch_size,self.z_dim),device=self.device)
 		z = mu + sd * eps
@@ -102,13 +104,18 @@ class ContinuousEmptyNet(nn.Module):
 		# decode 
 		policy = self.decoder(torch.cat((z,y),1))
 
+		# scale policy 
+		policy_norm = policy.norm(p=2,dim=1)
+		scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
+		policy = torch.mul(scale.unsqueeze(1), policy)
+
 		# value uses game state condition
 		value = (torch.tanh(self.value(y))+1) / 2 
 
 		if x is None:
 			return value, policy
 		else: 
-			return value, policy, mu, sd
+			return value, policy, mu, logvar
 
 
 	# def torch_scale(self,action,max_action):
