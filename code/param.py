@@ -70,7 +70,7 @@ class Param:
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
 		self.l_num_points_per_file = 1000
 		self.l_mcts_rollout_beta = 0.25
-		self.l_num_learner_nodes = 500
+		self.l_num_learner_nodes = 5000
 		self.l_num_expert_nodes = 100000
 		self.l_env_l0 = 0.25
 		self.l_training_teams = ["a","b"]
@@ -184,33 +184,35 @@ class Param:
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
 		self.goal = np.array([0.75*self.env_l,0.5*self.env_l,0,0])
 
-		# # randomly change enviornment
+	def make_initial_condition(self):
+
+		# randomly change enviornment
 		# alpha = np.random.randint(4)
 		# if alpha == 0:
 		# 	# do nothing 
-		# 	pass 
+		# 	reset_xlim_A = self.reset_xlim_A
+		# 	reset_xlim_B = self.reset_xlim_B
+		# 	reset_ylim_A = self.reset_ylim_A
+		# 	reset_ylim_B = self.reset_ylim_B
+		# 	goal = self.goal
+
 		# if alpha == 1 or alpha == 3: 
 		# 	# flip on x = 0.5 l 
-		# 	hold = self.reset_xlim_A
-		# 	self.reset_xlim_A = self.reset_xlim_B
-		# 	self.reset_xlim_B = hold 
-		# 	hold = self.reset_ylim_A
-		# 	self.reset_ylim_A = self.reset_ylim_B
-		# 	self.reset_ylim_B = hold 
-		# 	self.goal[0] = self.env_xlim[1] - self.goal[0] 
+		# 	reset_xlim_A = self.reset_xlim_B
+		# 	reset_xlim_B = self.reset_xlim_A 
+		# 	reset_ylim_A = self.reset_ylim_B
+		# 	reset_ylim_B = self.reset_ylim_A 
+		# 	goal = self.goal
+		# 	goal[0] = self.env_xlim[1] - self.goal[0]
 		# if alpha == 2 or alpha == 3:
 		# 	# flip on y = x 
-		# 	hold = self.reset_xlim_A
-		# 	self.reset_xlim_A = self.reset_ylim_A 
-		# 	self.reset_ylim_A = hold 
-		# 	hold = self.reset_xlim_B
-		# 	self.reset_xlim_B = self.reset_ylim_B 
-		# 	self.reset_ylim_B = hold  
-		# 	hold = self.goal[0]
-		# 	self.goal[0] = self.goal[1]
-		# 	self.goal[1] = hold 
-
-	def make_initial_condition(self):
+		# 	reset_xlim_A = self.reset_ylim_A
+		# 	reset_ylim_A = self.reset_xlim_A
+		# 	reset_xlim_B = self.reset_ylim_B 
+		# 	reset_ylim_B = self.reset_xlim_B 
+		# 	goal = self.goal
+		# 	goal[1] = self.goal[0]
+		# 	goal[0] = self.goal[1]
 
 		state = [] 
 		positions = [] 
