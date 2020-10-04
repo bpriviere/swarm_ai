@@ -312,6 +312,8 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 
 	for state in enumeration:
 		game_state = state_to_cpp_game_state(state,param.training_team,param.team_1_idxs,param.team_2_idxs)
+		game_state.depth = 0 
+		# print(game_state)
 		mctsresult = mctscpp.search(game, game_state, \
 			my_policy,
 			other_policies,
@@ -362,10 +364,20 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 		valuePerActionSorted = sorted(valuePerAction, key=lambda p: p[1], reverse=True)
 
 		# limit to l_num_samples
-		valuePerActionSorted = valuePerActionSorted[0:param.l_num_samples]
+		if len(valuePerActionSorted) > param.l_num_samples:
+			valuePerActionSorted = valuePerActionSorted[0:param.l_num_samples]
 
 		# renormalize
-		norm = sum([value for _, value in valuePerActionSorted])
+		# norm = sum([value for _, value in valuePerActionSorted])
+
+		normalization = "linear"
+		if normalization == "linear": 
+			norm = sum([value for _, value in valuePerActionSorted])
+			valuePerActionSorted = [ (a, v/norm) for a,v in valuePerActionSorted]
+		elif normalization == "softmax": 
+			beta = 1.0 
+			norm = sum([np.exp(beta*value) for _, value in valuePerActionSorted])
+			valuePerActionSorted = [ (a, np.exp(beta*v) / norm) for a,v in valuePerActionSorted] 
 
 		dist = defaultdict(list)
 		for action,value in valuePerActionSorted:
@@ -375,8 +387,9 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 
 			for robot_idx in robot_idxs:
 				action_idx = robot_idx * 2 + np.arange(2)
-				v = value/norm if norm > 0 else 1/len(valuePerActionSorted)
-				dist[robot_idx].append([action[action_idx],v])
+				# v = value/norm if norm > 0 else 1/len(valuePerActionSorted)
+				# dist[robot_idx].append([action[action_idx],v])
+				dist[robot_idx].append([action[action_idx],value])
 
 		# dist = defaultdict(list)
 		# action = np.array(bestAction)
