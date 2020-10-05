@@ -39,7 +39,7 @@ class Param:
 				'acceleration_limit':0.125,
 				'tag_radius': 0.025,
 				'dynamics':'double_integrator',
-				'r_sense': 2.0,
+				'r_sense': 0.2,
 				'radius': 0.025,
 			},
 			'evasive_robot' : {
@@ -47,7 +47,7 @@ class Param:
 				'acceleration_limit':0.2,
 				'tag_radius': 0.025,
 				'dynamics':'double_integrator',
-				'r_sense': 2.0,
+				'r_sense': 0.2,
 				'radius': 0.025,
 			}
 		}
@@ -73,6 +73,7 @@ class Param:
 		self.l_num_learner_nodes = 5000
 		self.l_num_expert_nodes = 100000
 		self.l_env_l0 = 0.25
+		self.l_env_dl = 0.25
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -176,10 +177,10 @@ class Param:
 	def make_environment(self):
 		self.env_xlim = [0,self.env_l]
 		self.env_ylim = [0,self.env_l]
-		# self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
-		# self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
-		self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
-		self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
+		self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
+		self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
+		# self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
+		# self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
 		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
 		self.goal = np.array([0.75*self.env_l,0.5*self.env_l,0,0])
