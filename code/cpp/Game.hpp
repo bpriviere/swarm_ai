@@ -329,6 +329,7 @@ class Game {
     // }
     // return expf(10.0 * -minDistToGoal);
     int numActive = 0;
+    int numCaptured = 0;
     for (const auto& attacker : state.attackers) {
       if (attacker.status == RobotStateT::Status::ReachedGoal) {
         return 1;
@@ -336,9 +337,20 @@ class Game {
       if (attacker.status == RobotStateT::Status::Active) {
         ++numActive;
       }
+      if (attacker.status == RobotStateT::Status::Captured) {
+        ++numCaptured;
+      }
     }
 
-    if (numActive == 0) {
+    // 'old' reward: defender wins if no attacker is active
+
+    // if (numActive == 0) {
+    //   return 0;
+    // }
+
+    // 'new' reward: defender wins if all attackers are tagged
+
+    if (numCaptured == state.attackers.size()) {
       return 0;
     }
 
