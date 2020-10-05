@@ -775,7 +775,7 @@ def isTrainingConverged(df_param,i,k):
 	# 	exit()
 
 def isCurriculumConverged(df_param,curriculum,desired_game):
-	return curriculum["EnvironmentLength"] < desired_game["EnvironmentLength"]
+	return (desired_game["EnvironmentLength"] + df_param.l_env_dl) in curriculum["EnvironmentLength"]
 	# return True 
 	# for key, desired_game_value in desired_game.items():
 	# 	if not desired_game_value in curriculum[key]:
@@ -788,8 +788,8 @@ def incrementCurriculum(df_param,curriculum,desired_game):
 	# 	curriculum["Skill_A"].append(len(curriculum["Skill_A"]))
 	# if curriculum["Skill_B"] < desired_game["Skill_B"] : 
 	# 	curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
-	if curriculum["EnvironmentLength"] < desired_game["EnvironmentLength"] : 
-		curriculum["EnvironmentLength"] = curriculum["EnvironmentLength"] + df_param.l_env_dl
+	if not desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"]: 
+		curriculum["EnvironmentLength"].append(curriculum["EnvironmentLength"][-1] + df_param.l_env_dl)
 	return curriculum 
 
 if __name__ == '__main__':
