@@ -96,7 +96,7 @@ class ContinuousEmptyNet(nn.Module):
 			mu = dist[:,0:self.z_dim]
 			# sd = dist[:,self.z_dim:]
 			logvar = dist[:,self.z_dim:]
-			sd = torch.pow(torch.exp(logvar),1/2)
+			sd = torch.sqrt(torch.exp(logvar))
 
 		eps = torch.randn(size=(batch_size,self.z_dim),device=self.device)
 		z = mu + sd * eps
