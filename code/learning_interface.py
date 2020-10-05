@@ -18,7 +18,8 @@ def global_to_local(states,param,idx):
 	# relative_goal[2:] = relative_goal[2:] / np.max((alpha,1))	
 
 	for idx_j in range(n_robots): 
-		if idx_j != idx and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]: 
+		if idx_j != idx and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"] \
+		and not np.isnan(states[idx_j,:]).any(): 
 			if idx_j in param.team_1_idxs:  
 				o_a.append(states[idx_j,:] - states[idx,:])
 			elif idx_j in param.team_2_idxs:

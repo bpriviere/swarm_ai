@@ -214,6 +214,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			state = np.array([rs.state.copy() for rs in gs.attackers + gs.defenders])
 			action = np.nan*np.zeros((state.shape[0],2))
 			for robot_idx in team_idx: 
+				if np.isnan(state[robot_idx,:]).any(): # non active robot 
+					continue
 				o_a,o_b,goal = global_to_local(state,param,robot_idx)
 				state_i, robot_team_composition_i, self_idx, team_1_idxs_i, team_2_idxs_i = \
 					local_to_global(param,o_a,o_b,goal,team)

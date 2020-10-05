@@ -293,11 +293,11 @@ def instance_self_play(param):
 		sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
 
 		# clean data
-		idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
-		sim_result["states"] = sim_result["states"][idxs]
-		sim_result["actions"] = sim_result["actions"][idxs]
-		sim_result["times"] = sim_result["times"][idxs]
-		sim_result["rewards"] = sim_result["rewards"][idxs]
+		# idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
+		# sim_result["states"] = sim_result["states"][idxs]
+		# sim_result["actions"] = sim_result["actions"][idxs]
+		# sim_result["times"] = sim_result["times"][idxs]
+		# sim_result["rewards"] = sim_result["rewards"][idxs]
 
 		if remaining_plots_per_file > 0:
 			title = policy_title(param.policy_dict_a,"a") + " vs " + policy_title(param.policy_dict_b,"b")
@@ -337,6 +337,10 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 
 	for timestep,(state,policy_dist,value) in enumerate(zip(states,policy_dists,values)):
 		for robot_idx in robot_idxs:
+			
+			if np.isnan(state[robot_idx,:]).any(): # non active robot 
+				continue
+
 			o_a, o_b, goal = global_to_local(state,param,robot_idx)
 			key = (param.training_team,len(o_a),len(o_b))
 
