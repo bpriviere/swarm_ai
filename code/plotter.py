@@ -436,6 +436,7 @@ def plot_tree_results(sim_result,title=None):
 def plot_training(df_param,batched_fns,path_to_model):
 	import torch 
 	from learning.continuous_emptynet import ContinuousEmptyNet
+	from learning.gaussian_emptynet import GaussianEmptyNet
 	from mice import format_data
 
 	# - vis 
@@ -463,7 +464,10 @@ def plot_training(df_param,batched_fns,path_to_model):
 		weights.extend(weight)
 
 	# load models
-	model = ContinuousEmptyNet(df_param,"cpu")
+	if df_param.l_gaussian_on:
+		model = GaussianEmptyNet(df_param,"cpu")
+	else:
+		model = ContinuousEmptyNet(df_param,"cpu")
 	model.load_state_dict(torch.load(path_to_model))
 
 	# pick random observations	
@@ -509,6 +513,10 @@ def plot_training(df_param,batched_fns,path_to_model):
 			for _ in range(n_samples):
 				value, policy = model(o_a,o_b,goal)
 				model_actions.append(policy.detach().numpy())
+		# for _ in range(n_samples):
+		# 	o_a,o_b,goal = format_data(candidate[0],candidate[1],candidate[2])
+		# 	value, policy = model(o_a,o_b,goal)
+		# 	model_actions.append(policy.detach().numpy())
 
 		# convert for easy plot
 		model_actions = np.array(model_actions).squeeze()

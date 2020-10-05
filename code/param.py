@@ -144,6 +144,13 @@ class Param:
 			["Linear", h, 1] 
 		]
 
+		self.l_policy_network_architecture = [
+			["Linear", h, h], 
+			["Linear", h, h],
+			["Linear", h, 2*2] 		
+		]
+
+		self.l_gaussian_on = True 
 
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8

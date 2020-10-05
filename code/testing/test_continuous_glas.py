@@ -10,6 +10,7 @@ import tqdm
 sys.path.append('../')
 import datahandler as dh 
 from learning.continuous_emptynet import ContinuousEmptyNet
+from learning.gaussian_emptynet import GaussianEmptyNet
 from learning_interface import format_data, global_to_local
 
 def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
@@ -76,7 +77,10 @@ def test_model(param,model_fn,testing):
 	print('testing model: {}'.format(model_fn))
 
 	stats = {} 
-	model = ContinuousEmptyNet(param, "cpu")
+	if param.l_gaussian_on:
+		model = GaussianEmptyNet(param, "cpu")
+	else:
+		model = ContinuousEmptyNet(param, "cpu")
 	model.load_state_dict(torch.load(model_fn))
 
 	robot_idx = 0 

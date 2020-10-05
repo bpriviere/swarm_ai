@@ -23,34 +23,40 @@ import datahandler as dh
 from param import Param 
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
+from learning.gaussian_emptynet import GaussianEmptyNet
 from learning_interface import format_data, global_to_local 
 
-# def my_loss(value, policy, target_value, target_policy, weight, mu, sd, l_subsample_on):
-def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on):
+def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on,l_gaussian_on):
 	# value \& policy network : https://www.nature.com/articles/nature24270
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
 
-	if l_subsample_on:
-		criterion = nn.MSELoss(reduction='sum')
-		mse = criterion(policy,target_policy) + criterion(value,target_value)
-		# kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) 
-		kldiv = 0.5 * torch.sum(- 1 - logvar + mu.pow(2) + torch.exp(logvar)) 
-	else: 
+	if l_gaussian_on: 
 		criterion = nn.MSELoss(reduction='none')
-		# mse = torch.sum(weight*criterion(value, target_value) + weight*criterion(policy, target_policy))
 		mse = torch.sum(weight*(criterion(value, target_value) + criterion(policy, target_policy)))
-		# kldiv = 0.5 * torch.sum( weight * (- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2))) 
-		kldiv = 0.5 * torch.sum( weight * (- 1 - logvar + mu.pow(2) + torch.exp(logvar))) 
+		loss = mse / value.shape[0]
 
-	kld_weight = 1e-4
-	loss = mse + kld_weight * kldiv
-	loss = loss / value.shape[0]
+	else:
+		if l_subsample_on:
+			criterion = nn.MSELoss(reduction='sum')
+			mse = criterion(policy,target_policy) + criterion(value,target_value)
+			# kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) 
+			kldiv = 0.5 * torch.sum(- 1 - logvar + mu.pow(2) + torch.exp(logvar)) 
+		else: 
+			criterion = nn.MSELoss(reduction='none')
+			# mse = torch.sum(weight*criterion(value, target_value) + weight*criterion(policy, target_policy))
+			mse = torch.sum(weight*(criterion(value, target_value) + criterion(policy, target_policy)))
+			# kldiv = 0.5 * torch.sum( weight * (- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2))) 
+			kldiv = 0.5 * torch.sum( weight * (- 1 - logvar + mu.pow(2) + torch.exp(logvar))) 
+
+		kld_weight = 1e-4
+		loss = mse + kld_weight * kldiv
+		loss = loss / value.shape[0]
 
 	return loss
 
 
-def train(model,optimizer,loader,l_subsample_on,l_sync_every,epoch, scheduler=None):
+def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch, scheduler=None):
 
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
@@ -62,8 +68,14 @@ def train(model,optimizer,loader,l_subsample_on,l_sync_every,epoch, scheduler=No
 			model.require_backward_grad_sync = False
 			model.require_forward_param_sync = False
 
-		value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
-		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on)
+		if l_gaussian_on: 
+			value, policy = model(o_a,o_b,goal)
+			mu = 0
+			sd = 0 
+		else:
+			value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
+		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd, l_subsample_on, l_gaussian_on)
+
 		optimizer.zero_grad()
 		loss.backward()
 		optimizer.step()
@@ -90,12 +102,17 @@ def train(model,optimizer,loader,l_subsample_on,l_sync_every,epoch, scheduler=No
 	return epoch_loss
 
 
-def test(model,loader,l_subsample_on):
+def test(model,loader,l_subsample_on,l_gaussian_on):
 	epoch_loss = 0
 	with torch.no_grad():
 		for o_a,o_b,goal,target_value,target_policy,weight in loader:
-			value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
-			loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd, l_subsample_on)
+			if l_gaussian_on: 
+				value, policy = model(o_a,o_b,goal)
+				mu = 0
+				sd = 0 
+			else:
+				value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
+			loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd, l_subsample_on, l_gaussian_on)
 			epoch_loss += float(loss)
 
 			if torch.isnan(loss).any():
@@ -462,7 +479,10 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 
 	start_time = time.time()
 
-	single_model = ContinuousEmptyNet(df_param,df_param.device)
+	if df_param.l_gaussian_on: 
+		single_model = GaussianEmptyNet(df_param,df_param.device)
+	else:
+		single_model = ContinuousEmptyNet(df_param,df_param.device)
 
 	if parallel:
 		model = torch.nn.parallel.DistributedDataParallel(single_model, find_unused_parameters=True)
@@ -486,8 +506,8 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 		random.shuffle(train_loader)
 		random.shuffle(test_loader)
 
-		train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on,df_param.l_sync_every,epoch,train_scheduler)
-		test_epoch_loss = test(model,test_loader,df_param.l_subsample_on)
+		train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on,df_param.l_gaussian_on,df_param.l_sync_every,epoch,train_scheduler)
+		test_epoch_loss = test(model,test_loader,df_param.l_subsample_on,df_param.l_gaussian_on)
 
 		epoch_loss = torch.tensor([train_epoch_loss, test_epoch_loss])
 
