@@ -215,7 +215,8 @@ public:
 
     // compute input_a
     for (size_t i = 0; i < NumAttackers; ++i) {
-      if (!teamAttacker || i != idx) {
+      if (    (!teamAttacker || i != idx) 
+           && state.attackers[i].status == Robot::State::Status::Active) {
         auto relState = state.attackers[i].state - my_state;
         if (relState.template head<2>().squaredNorm() <= robotType.r_senseSquared) {
           input_a.push_back(relState);
@@ -224,7 +225,8 @@ public:
     }
     // compute input_b
     for (size_t i = 0; i < NumDefenders; ++i) {
-      if (teamAttacker || i != idx) {
+      if (    (teamAttacker || i != idx)
+           && state.defenders[i].status == Robot::State::Status::Active) {
         auto relState = state.defenders[i].state - my_state;
         if (relState.template head<2>().squaredNorm() <= robotType.r_senseSquared) {
           input_b.push_back(relState);
