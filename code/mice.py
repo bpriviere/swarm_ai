@@ -17,7 +17,7 @@ import random
 import pickle 
 
 # custom 
-from testing.test_continuous_glas import test_model, test_evaluate_expert_wrapper, read_testing_yaml
+from testing.test_continuous_glas import test_model, test_evaluate_expert_wrapper, read_testing_yaml, test_evaluate_expert
 import plotter
 import datahandler as dh
 from param import Param 
@@ -26,14 +26,17 @@ from learning.continuous_emptynet import ContinuousEmptyNet
 from learning.gaussian_emptynet import GaussianEmptyNet
 from learning_interface import format_data, global_to_local 
 
-def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on,l_gaussian_on):
+def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on):
 	# value \& policy network : https://www.nature.com/articles/nature24270
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
 
 	if l_gaussian_on: 
+		# train distribution parameters, mean and variance where target_policy is mean and weight is variance 
 		criterion = nn.MSELoss(reduction='none')
-		mse = torch.sum(weight*(criterion(value, target_value) + criterion(policy, target_policy)))
+		action_dim = 2 
+		mse = torch.sum((criterion(value, target_value) + \
+			criterion(mu, target_policy) + criterion(torch.exp(logvar),weight)))
 		loss = mse / value.shape[0]
 
 	else:
@@ -69,12 +72,11 @@ def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch
 			model.require_forward_param_sync = False
 
 		if l_gaussian_on: 
-			value, policy = model(o_a,o_b,goal)
-			mu = 0
-			sd = 0 
+			value, policy, mu, logvar = model(o_a,o_b,goal,training=True)
 		else:
-			value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
-		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd, l_subsample_on, l_gaussian_on)
+			value, policy, mu, logvar = model(o_a,o_b,goal,x=target_policy)
+
+		loss = my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on)
 
 		optimizer.zero_grad()
 		loss.backward()
@@ -107,12 +109,10 @@ def test(model,loader,l_subsample_on,l_gaussian_on):
 	with torch.no_grad():
 		for o_a,o_b,goal,target_value,target_policy,weight in loader:
 			if l_gaussian_on: 
-				value, policy = model(o_a,o_b,goal)
-				mu = 0
-				sd = 0 
+				value, policy, mu, logvar = model(o_a,o_b,goal,training=True)
 			else:
-				value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
-			loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd, l_subsample_on, l_gaussian_on)
+				value, policy, mu, logvar = model(o_a,o_b,goal,x=target_policy)
+			loss = my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on)
 			epoch_loss += float(loss)
 
 			if torch.isnan(loss).any():
@@ -416,15 +416,27 @@ def make_loaders(df_param,batched_files):
 	random.shuffle(batched_files)
 	for k, batched_file in enumerate(batched_files):
 
-		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file)
-		data = [
-			torch.from_numpy(o_a).float().to(df_param.device),
-			torch.from_numpy(o_b).float().to(df_param.device),
-			torch.from_numpy(goal).float().to(df_param.device),
-			torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
-			torch.from_numpy(action).float().to(df_param.device),
-			torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
-			]
+		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file,df_param.l_gaussian_on)
+
+		if df_param.l_gaussian_on: 
+			data = [
+				torch.from_numpy(o_a).float().to(df_param.device),
+				torch.from_numpy(o_b).float().to(df_param.device),
+				torch.from_numpy(goal).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
+				torch.from_numpy(action).float().to(df_param.device),
+				torch.from_numpy(weight).float().to(df_param.device),
+				]
+
+		else: 
+			data = [
+				torch.from_numpy(o_a).float().to(df_param.device),
+				torch.from_numpy(o_b).float().to(df_param.device),
+				torch.from_numpy(goal).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
+				torch.from_numpy(action).float().to(df_param.device),
+				torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
+				]
 		
 		if k < num_train_batches:
 			train_loader.append(data)

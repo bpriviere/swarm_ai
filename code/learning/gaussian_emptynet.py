@@ -60,7 +60,7 @@ class GaussianEmptyNet(nn.Module):
 		self.value.to(device)
 		return super().to(device)
 
-	def __call__(self,o_a,o_b,goal):
+	def __call__(self,o_a,o_b,goal,training=False):
 
 		batch_size = o_a.shape[0]
 
@@ -94,4 +94,7 @@ class GaussianEmptyNet(nn.Module):
 		scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
 		policy = torch.mul(scale.unsqueeze(1), policy)
 
-		return value, policy 
+		if training:
+			return value, policy, mu, logvar
+		else:
+			return value, policy 

@@ -361,6 +361,23 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 			choice_idxs = np.random.choice(actions.shape[0],param.l_num_subsamples,p=weights)
 			dist[robot_idx] = np.array([(actions[choice_idx,:],weights[choice_idx]) for choice_idx in choice_idxs])
 
+	elif param.l_gaussian_on: 
+
+		# 
+		valuePerActionSorted = sorted(valuePerAction, key=lambda p: p[1], reverse=True)
+		mean_action = np.array(valuePerActionSorted[0][0]).flatten() # (num_robots,2) -> (2*num_robots,) 
+
+		dist = defaultdict(list)
+		for robot_idx in robot_idxs: 
+			action_idx = robot_idx * 2 + np.arange(2)
+
+			mean_action_i = mean_action[action_idx]
+			var_action_i = np.zeros((2))
+			for action,value in valuePerAction: 
+				var_action_i += value*np.power(np.array(action).flatten()[action_idx] - mean_action_i,2)
+
+			dist[robot_idx] = np.array([[mean_action_i,var_action_i]])
+
 	else: 
 		# sort so that highest values are first
 		valuePerActionSorted = sorted(valuePerAction, key=lambda p: p[1], reverse=True)

@@ -455,7 +455,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 	o_as,o_bs,goals,values,actions,weights = [],[],[],[],[],[]
 	for batched_fn in batched_fns:
-		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_fn)
+		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_fn,df_param.l_gaussian_on)
 		o_as.extend(o_a)
 		o_bs.extend(o_b)
 		goals.extend(goal)
@@ -498,16 +498,25 @@ def plot_training(df_param,batched_fns,path_to_model):
 					dataset_actions.append(action)
 					dataset_weights.append(weight)
 
-		dataset_weights = dataset_weights / sum(dataset_weights)
-		choice_idxs = np.random.choice(len(dataset_actions),n_samples,p=dataset_weights)
-		weighted_dataset_actions = np.array([dataset_actions[choice_idx] for choice_idx in choice_idxs])
-		dataset_actions = weighted_dataset_actions
+		if df_param.l_gaussian_on: 
+			# dataset_actions = mean 
+			# dataset_weights = variance 
+			mean = np.array(dataset_actions)
+			sd = np.sqrt(np.array(dataset_weights))
+			eps2 = np.random.normal(size=mean.shape)
+			dataset_actions = mean + sd * eps2
+		else: 
+			dataset_weights = dataset_weights / sum(dataset_weights)
+			choice_idxs = np.random.choice(len(dataset_actions),n_samples,p=dataset_weights)
+			weighted_dataset_actions = np.array([dataset_actions[choice_idx] for choice_idx in choice_idxs])
+			dataset_actions = weighted_dataset_actions
 		
 		# print('conditionals',conditionals)
 		# print('dataset_actions',dataset_actions)
 
 		# query model 
 		model_actions = [] 
+
 		for o_a,o_b,goal in conditionals:
 			o_a,o_b,goal = format_data(o_a,o_b,goal)
 			for _ in range(n_samples):
