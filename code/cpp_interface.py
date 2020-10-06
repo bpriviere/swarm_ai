@@ -363,20 +363,37 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 
 	elif param.l_gaussian_on: 
 
-		# 
-		valuePerActionSorted = sorted(valuePerAction, key=lambda p: p[1], reverse=True)
-		mean_action = np.array(valuePerActionSorted[0][0]).flatten() # (num_robots,2) -> (2*num_robots,) 
+		# "first" option 
+		actions = np.array([np.array(a).flatten() for a,_ in valuePerAction])
+		values = np.array([v for _,v in valuePerAction])
 
 		dist = defaultdict(list)
 		for robot_idx in robot_idxs: 
 			action_idx = robot_idx * 2 + np.arange(2)
 
-			mean_action_i = mean_action[action_idx]
-			var_action_i = np.zeros((2))
-			for action,value in valuePerAction: 
-				var_action_i += value*np.power(np.array(action).flatten()[action_idx] - mean_action_i,2)
+			average = np.average(actions[:,action_idx], weights=values, axis=0)
+			variance = np.average((actions[:,action_idx]-average)**2, weights=values, axis=0)
+			dist[robot_idx] = np.array([[average,variance]])
 
-			dist[robot_idx] = np.array([[mean_action_i,var_action_i]])
+
+		# "second" option
+		# valuePerActionSorted = sorted(valuePerAction, key=lambda p: p[1], reverse=True)
+		# mean_action = np.array(valuePerActionSorted[0][0]).flatten() # (num_robots,2) -> (2*num_robots,) 
+		# mean_value = np.array(valuePerActionSorted[0][1])
+
+		# dist = defaultdict(list)
+		# for robot_idx in robot_idxs: 
+		# 	action_idx = robot_idx * 2 + np.arange(2)
+
+		# 	mean_action_i = mean_action[action_idx]
+		# 	var_action_i = np.zeros((2))
+		# 	for action,value in valuePerAction: 
+		# 		var_action_i += np.power(np.array(action).flatten()[action_idx] - mean_action_i,2)
+		# 		# var_action_i += value*np.power(np.array(action).flatten()[action_idx] - mean_action_i,2)
+		# 	# var_action_i = var_action_i / sum([value for _,value in valuePerAction])
+
+		# 	var_action_i /= len(valuePerAction)
+		# 	dist[robot_idx] = np.array([[mean_action_i,var_action_i]])
 
 	else: 
 		# sort so that highest values are first

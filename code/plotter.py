@@ -517,15 +517,17 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# query model 
 		model_actions = [] 
 
-		for o_a,o_b,goal in conditionals:
-			o_a,o_b,goal = format_data(o_a,o_b,goal)
+		if df_param.mice_testing_on: 
 			for _ in range(n_samples):
+				o_a,o_b,goal = format_data(candidate[0],candidate[1],candidate[2])
 				value, policy = model(o_a,o_b,goal)
 				model_actions.append(policy.detach().numpy())
-		# for _ in range(n_samples):
-		# 	o_a,o_b,goal = format_data(candidate[0],candidate[1],candidate[2])
-		# 	value, policy = model(o_a,o_b,goal)
-		# 	model_actions.append(policy.detach().numpy())
+		else:
+			for o_a,o_b,goal in conditionals:
+				o_a,o_b,goal = format_data(o_a,o_b,goal)
+				for _ in range(n_samples):
+					value, policy = model(o_a,o_b,goal)
+					model_actions.append(policy.detach().numpy())
 
 		# convert for easy plot
 		model_actions = np.array(model_actions).squeeze()
