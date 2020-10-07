@@ -1,0 +1,29 @@
+##### Requirements File for Python #####
+# Notes from https://note.nkmk.me/en/python-pip-install-requirements/
+#
+# Generate this list using 
+#    pip3 freeze > python_requirements.txt
+#
+# Use with
+#    pip3 install -r python_requirements.txt
+#
+
+wheel
+numpy
+gym
+pandas
+matplotlib
+opencv-python
+cvxpy
+seaborn
+imutils
+
+# PyTorch (CUDA)
+pytorch
+
+# PyTorch (non-CUDA)
+# torch==1.5.0+cpu
+# torchvision==0.6.0+cpu
+
+# PyTorch (ARM-hf)
+# https://gist.github.com/fgolemo/e19ef13183f1a4b5b59c24ae2ae31273

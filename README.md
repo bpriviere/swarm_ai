@@ -1,40 +1,23 @@
 # swarm_ai
 https://github.com/bpriviere/swarm_ai.git
+```
+git clone --recurse-submodules https://github.com/bpriviere/swarm_ai.git 
+```
 
 ## Working with the code
 Developed using Ubuntu 20.20 (at least that's what Wolfgang uses, and has worked for matt too)
 The code as it currently stands should take under a minute to run.
 
 ## Dependencies
-These instructions were developed on a virtual machine on Windows running Xubuntu 20.04
-### Setting up (X)ubuntu 20.04
-Install dependencies for VM Addons (reboot required)
-```
-sudo apt-get install -y build-essential gcc make cmake python3-dev libyaml-cpp-dev libeigen3-dev ffmpeg
-```
+These instructions were developed on Xubuntu 20.04 and use python3.X (X>=6 should be ok). 
 
-Additional dependencies for if running as a VM (reboot requried)
+The quick way is to run
 ```
-sudo apt-get install -y perl dkms
+setup$ ./install_dependencies.sh
 ```
+The `python_requirements.txt` file defaults to using CUDA support.  For systems that don't have CUDA, modify to ensure the correct things are installed.
 
-### Python3
-Requires python3.X (X>=6 should be ok)
-```
-sudo apt install python3-pip -y
-pip3 install wheel
-pip3 install numpy gym pandas matplotlib opencv-python cvxpy
-```
-For CUDA support (nvidea VGA required)
-```
-pip3 install pytorch
-```
-otherwise install
-```
-pip3 install torch==1.5.0+cpu torchvision==0.6.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
-```
-
-### Gurobi
+### Installing Gurobi
 Download from
 ```
 https://www.gurobi.com/downloads/gurobi-software/
@@ -70,12 +53,6 @@ sudo snap install --classic code
 Upon opening a python file in VS Code, should be prompted to install a python add-on.
 Install the python add-on and then make sure `Python 3.X.X 64-bit (/usr/bin/python3)` is selected
 Also should install pylint (used for debugging) as well.
-
-### Swarm Code
-Clone the repo with (submodules should automatically update)
-```
-git clone --recurse-submodules https://github.com/bpriviere/swarm_ai.git 
-```
 
 ### Compiling the cpp Components
 Follow the instructions at 
@@ -176,27 +153,23 @@ sudo reboot
 ```
 
 ### Software Requirements
-Requires python3.X (X>=6 should be ok)
-```
-sudo apt install -y build-essential gcc make cmake python3-dev libyaml-cpp-dev libeigen3-dev
-sudo apt install python3-pip -y
-pip3 install wheel
-pip3 install numpy matplotlib
-```
-
-### Download the code
+Follow as per above (modify for no CUDA support).  Download the repo
 ```
 git clone --recurse-submodules https://github.com/bpriviere/swarm_ai.git 
 ```
+and run the install script
+```
+setup$ ./install_dependencies.sh
+```
 
 ### Running the code
-Follow the instruction at
+Instructions at `https://github.com/bpriviere/swarm_ai/tree/master/code/cpp` but basically just run
 ```
-https://github.com/bpriviere/swarm_ai/tree/master/code/cpp
+code/cpp$ ./build_all.h
 ```
 and where you run the test script
 ```
-python3 test_python_binding.py
+code/cpp$ python3 test_python_binding.py
 ```
 just make sure to comment out the parts that need torch.
 
