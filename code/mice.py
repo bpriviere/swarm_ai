@@ -83,6 +83,7 @@ def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch
 		optimizer.step()
 		if scheduler is not None:
 			scheduler.step(epoch + step/len(loader))
+		epoch_loss += float(loss)
 
 		if torch.isnan(loss).any():
 			print('WARNING: NAN FOUND IN TRAIN')
@@ -98,9 +99,8 @@ def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch
 				print(' in target_policy')
 			if torch.isnan(weight).any():
 				print(' in weight')
-			exit()																				
+			break
 
-		epoch_loss += float(loss)
 	return epoch_loss
 
 
@@ -131,7 +131,7 @@ def test(model,loader,l_subsample_on,l_gaussian_on):
 					print(' in target_policy')
 				if torch.isnan(weight).any():
 					print(' in weight')
-				exit()	
+				break
 
 	return epoch_loss
 
