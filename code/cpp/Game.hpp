@@ -353,7 +353,7 @@ class Game {
     }
 
     return (   numAttackerActive / (float)state.attackers.size()
-             - numDefendersActive / (float)state.defenders.size()
+             + (1.0f - numDefendersActive / (float)state.defenders.size())
              + reachedGoal) / 3.0f;
           // + (1.0 - minDistToGoal /(1.41 * 0.25))) / 3;
 

@@ -193,6 +193,12 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			team_action = list(invalid_team_action)
 
 		if isTerminal:
+			# calc reachedgoal
+			sim_result['reached_goal'] = 0.0 
+			for rs in gs.attackers + gs.defenders:
+				if rs.status == mctscpp.RobotState.Status.ReachedGoal:
+					sim_result['reached_goal'] = 1.0 
+					break 
 			break
 
 		if policy_dict["sim_mode"] == "MCTS":

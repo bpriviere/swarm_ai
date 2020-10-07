@@ -350,7 +350,8 @@ def get_n_colors(n):
 def plot_tree_results(sim_result,title=None): 
 
 	def team_1_reward_to_gamma(reward_1):
-		gamma = reward_1 * 2 - 1 
+		# gamma = reward_1 * 2 - 1 
+		gamma = reward_1 
 		return gamma 
 
 	states = sim_result["states"]
@@ -863,7 +864,7 @@ def policy_to_label(policy):
 	# keys = ["sim_mode","path","mcts_tree_size"]
 	# keys = ["sim_mode","path","mcts_rollout_beta"] 
 	# keys = ["sim_mode","mcts_rollout_beta"] 
-	keys = ["sim_mode","mcts_rollout_beta","mcts_tree_size","mcts_c_param","path"]
+	keys = ["sim_mode","mcts_rollout_beta","mcts_tree_size","path"]
 	# keys = ["path"]
 	label = '' 
 	for key, value in policy.items():
@@ -893,7 +894,8 @@ def plot_exp3_results(all_sim_results):
 		key = (\
 			policy_to_label(sim_result["param"]["policy_a_dict"]),
 			policy_to_label(sim_result["param"]["policy_b_dict"]))
-		results[key].append(sim_result["rewards"][-1,0])
+		# results[key].append(sim_result["rewards"][-1,0])
+		results[key].append(sim_result["reached_goal"])
 
 	attackerPolicies = all_sim_results[0]["param"]["attackerPolicyDicts"]
 	defenderPolicies = all_sim_results[0]["param"]["defenderPolicyDicts"]
