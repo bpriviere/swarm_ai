@@ -321,41 +321,71 @@ class Game {
 // private:
   float computeReward(const GameStateT& state)
   {
-    // // our reward is the closest distance to the goal
+    // std::cout << "compRew " << state << std::endl;
+    // our reward is the closest distance to the goal
     // float minDistToGoal = std::numeric_limits<float>::infinity();
+    // float minDistToGoal = (1.41 * 0.25);
     // for (const auto& attacker : state.attackers) {
     //   float distToGoal = (attacker.position() - m_goal.template head<2>()).norm();
     //   minDistToGoal = std::min(minDistToGoal, distToGoal);
     // }
     // return expf(10.0 * -minDistToGoal);
-    int numActive = 0;
-    int numCaptured = 0;
+    // return 1.0 - minDistToGoal /(1.41 * 0.25);
+
+    int numAttackerActive = 0;
+    int reachedGoal = 0;
     for (const auto& attacker : state.attackers) {
+      if (   attacker.status == RobotStateT::Status::Active
+          || attacker.status == RobotStateT::Status::ReachedGoal) {
+        ++numAttackerActive;
+      }
       if (attacker.status == RobotStateT::Status::ReachedGoal) {
-        return 1;
-      }
-      if (attacker.status == RobotStateT::Status::Active) {
-        ++numActive;
-      }
-      if (attacker.status == RobotStateT::Status::Captured) {
-        ++numCaptured;
+        // minDistToGoal = 0.0;
+        reachedGoal = 1;
       }
     }
 
-    // 'old' reward: defender wins if no attacker is active
+    int numDefendersActive = 0;
+    for (const auto& defender : state.defenders) {
+      if (   defender.status == RobotStateT::Status::Active) {
+        ++numDefendersActive;
+      }
+    }
 
-    // if (numActive == 0) {
+    return (   numAttackerActive / (float)state.attackers.size()
+             - numDefendersActive / (float)state.defenders.size()
+             + reachedGoal) / 3.0f;
+          // + (1.0 - minDistToGoal /(1.41 * 0.25))) / 3;
+
+
+    // int numActive = 0;
+    // int numCaptured = 0;
+    // for (const auto& attacker : state.attackers) {
+    //   if (attacker.status == RobotStateT::Status::ReachedGoal) {
+    //     return 1;
+    //   }
+    //   if (attacker.status == RobotStateT::Status::Active) {
+    //     ++numActive;
+    //   }
+    //   if (attacker.status == RobotStateT::Status::Captured) {
+    //     ++numCaptured;
+    //   }
+    // }
+
+    // // 'old' reward: defender wins if no attacker is active
+
+    // // if (numActive == 0) {
+    // //   return 0;
+    // // }
+
+    // // 'new' reward: defender wins if all attackers are tagged
+
+    // if (numCaptured == state.attackers.size()) {
     //   return 0;
     // }
 
-    // 'new' reward: defender wins if all attackers are tagged
-
-    if (numCaptured == state.attackers.size()) {
-      return 0;
-    }
-
-    // Tie otherwise (essentially timeout)
-    return 0.5;
+    // // Tie otherwise (essentially timeout)
+    // return 0.5;
   }
 
   float estimateValue(
