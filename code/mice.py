@@ -683,17 +683,6 @@ def make_dataset(states,params,df_param,testing=None):
 			# p.starmap(evaluate_expert, list(zip(states, params)))
 
 def make_labelled_dataset(df_param,i):
-	# labelled dataset 
-	print('cleaning labelled data...')
-	labelled_data_fns = df_param.l_labelled_fn.format(\
-		DATADIR=df_param.path_current_data,
-		TEAM='**',
-		LEARNING_ITER=i,
-		NUM_A='**',
-		NUM_B='**',
-		NUM_FILE='**')
-	for file in glob.glob(labelled_data_fns+'**'):
-		os.remove(file)
 
 	print('making labelled data...')
 	sim_result_fns = df_param.l_raw_fn.format(\
@@ -751,7 +740,7 @@ def format_dir(df_param):
 	if df_param.clean_data_on:
 		datadir = df_param.path_current_data
 		if os.path.exists(datadir):
-			for file in glob.glob(datadir + "/raw_*"):
+			for file in glob.glob(datadir + "/*"):
 				os.remove(file)
 		os.makedirs(datadir,exist_ok=True)
 
