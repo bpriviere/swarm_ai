@@ -323,7 +323,7 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 			param.my_policy_dict["mcts_pw_alpha"],
 			param.my_policy_dict["mcts_vf_beta"])
 		if mctsresult.success: 
-			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
+			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction) # 
 			value = mctsresult.expectedReward[0]
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["policy_dists"].append(policy_dist)  
