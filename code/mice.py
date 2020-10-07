@@ -810,7 +810,7 @@ def isTrainingConverged(df_param,i,k):
 	# 	exit()
 
 def isCurriculumConverged(df_param,curriculum,desired_game):
-	return (desired_game["EnvironmentLength"] + df_param.l_env_dl) in curriculum["EnvironmentLength"]
+	return desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"]
 	# return True 
 	# for key, desired_game_value in desired_game.items():
 	# 	if not desired_game_value in curriculum[key]:
@@ -819,13 +819,19 @@ def isCurriculumConverged(df_param,curriculum,desired_game):
 
 def incrementCurriculum(df_param,curriculum,desired_game):
 	
-	# if curriculum["Skill_A"] < desired_game["Skill_A"] : 
-	# 	curriculum["Skill_A"].append(len(curriculum["Skill_A"]))
-	# if curriculum["Skill_B"] < desired_game["Skill_B"] : 
-	# 	curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
-	if not desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"]: 
-		curriculum["EnvironmentLength"].append(curriculum["EnvironmentLength"][-1] + df_param.l_env_dl)
-	return curriculum 
+	done = isCurriculumConverged(df_param,curriculum,desired_game)
+
+	if done: 
+		return curriculum, done 
+
+	else: 
+		# if curriculum["Skill_A"] < desired_game["Skill_A"] : 
+		# 	curriculum["Skill_A"].append(len(curriculum["Skill_A"]))
+		# if curriculum["Skill_B"] < desired_game["Skill_B"] : 
+		# 	curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
+		if not desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"]: 
+			curriculum["EnvironmentLength"].append(curriculum["EnvironmentLength"][-1] + df_param.l_env_dl)
+		return curriculum , done 
 
 if __name__ == '__main__':
 
@@ -921,12 +927,13 @@ if __name__ == '__main__':
 			i = i + 1 
 
 			if isTrainingConverged(df_param,i,k):
-				curriculum = incrementCurriculum(df_param,curriculum,desired_game)
+				curriculum, curriculumDone = incrementCurriculum(df_param,curriculum,desired_game)
 				k = k + 1
 				print('\n\n -------------- {} curriculum: {} -------------- \n\n'.format(k,curriculum))
 				break 
 
-		if isCurriculumConverged(df_param,curriculum,desired_game):
+		# if isCurriculumConverged(df_param,curriculum,desired_game):
+		if curriculumDone:
 			break 
 
 	print('done!')
