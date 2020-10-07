@@ -3,6 +3,7 @@
 import torch
 import numpy as np
 import tqdm
+from queue import Empty
 from collections import defaultdict
 from multiprocessing import current_process
 
@@ -284,16 +285,13 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 	return sim_result
 
 
-def evaluate_expert(states,param,quiet_on=True,progress=None):
+def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 	
 	if not quiet_on:
 		print('   running expert for instance {}'.format(param.dataset_fn))
 
-	if progress is not None:
-		progress_pos = current_process()._identity[0] - progress
-		enumeration = tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos)
-	else:
-		enumeration = states
+	if rank == 0:
+		pbar = tqdm.tqdm(total=total)
 
 	game = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
 		param.sim_dt,param.goal,param.rollout_horizon)
@@ -312,7 +310,7 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 		'param' : param.to_dict()
 		}
 
-	for state in enumeration:
+	for state in states:
 		game_state = state_to_cpp_game_state(state,param.training_team,param.team_1_idxs,param.team_2_idxs)
 		game_state.depth = 0 
 		# print(game_state)
@@ -325,11 +323,23 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 			param.my_policy_dict["mcts_pw_alpha"],
 			param.my_policy_dict["mcts_vf_beta"])
 		if mctsresult.success: 
-			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction) # 
+			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
 			value = mctsresult.expectedReward[0]
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["policy_dists"].append(policy_dist)  
 			sim_result["values"].append(value)
+
+		# update status
+		if rank == 0:
+			count = 1
+			try:
+				while True:
+					count += queue.get_nowait()
+			except Empty:
+				pass
+			pbar.update(count)
+		else:
+			queue.put_nowait(1)
 
 	sim_result["states"] = np.array(sim_result["states"])
 	sim_result["policy_dists"] = np.array(sim_result["policy_dists"])

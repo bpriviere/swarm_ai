@@ -9,7 +9,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingWarmResta
 from torch import nn 
 from collections import defaultdict
 from itertools import repeat
-from multiprocessing import cpu_count, Pool, freeze_support
+# from multiprocessing import cpu_count, Pool, freeze_support, Queue
+import multiprocessing as mp
+from queue import Empty
 from tqdm import tqdm
 import itertools
 import yaml 
@@ -231,26 +233,18 @@ def get_self_play_samples(params):
 	# get self play states 
 	if not df_param.l_parallel_on:
 		for param in params: 
-			instance_self_play(param)
+			instance_self_play(0, None, param)
 
 	else:
-		# todo: multiprocess tqdm  
-		# global pool_count
-		# freeze_support()
-		# with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
-			# args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
-			# r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
-			# p.starmap(evaluate_expert, states, params)
-			# p.starmap(evaluate_expert, list(zip(states, params)))
-
-		ncpu = cpu_count()
+		ncpu = mp.cpu_count()
 		print('ncpu: ', ncpu)
 		num_workers = min(ncpu-1, len(params))
-		pool = Pool(num_workers)
-		for _ in pool.imap_unordered(instance_self_play, params):
-			pass 		
-		# with Pool(num_workers) as p: 
-		# 	p.imap_unordered(instance_self_play,params)
+		with mp.Pool(num_workers) as pool:
+			manager = mp.Manager()
+			queue = manager.Queue()
+			args = list(zip(itertools.count(), itertools.repeat(queue), itertools.repeat(len(params)), params))
+			for _ in pool.imap_unordered(instance_self_play_wrapper, args):
+				pass
 
 	self_play_states = [] 
 	for param in params: 
@@ -298,10 +292,17 @@ def get_self_play_samples(params):
 
 	return self_play_states
 
-def instance_self_play(param):
+def instance_self_play_wrapper(arg):
+	instance_self_play(*arg)
+
+def instance_self_play(rank, queue, total, param):
+	# When using multiprocessing, load cpp_interface per process
 	from cpp_interface import play_game
 
-	print('starting self-play states {}'.format(param.dataset_fn))
+	if rank == 0:
+		pbar = tqdm(total=param.l_num_points_per_file*total)
+
+	# print('starting self-play states {}'.format(param.dataset_fn))
 	states_per_file = []
 	remaining_plots_per_file = 2
 	while len(states_per_file) < param.l_num_points_per_file:
@@ -323,6 +324,18 @@ def instance_self_play(param):
 		
 		states_per_file.extend(sim_result["states"])
 
+		# update status
+		if rank == 0:
+			count = len(sim_result["states"])
+			try:
+				while True:
+					count += queue.get_nowait()
+			except Empty:
+				pass
+			pbar.update(count)
+		else:
+			queue.put_nowait(len(sim_result["states"]))
+
 	# plot figs 
 	plotter.save_figs('../current/models/temp_{}.pdf'.format(os.path.basename(param.dataset_fn)))
 	
@@ -331,7 +344,7 @@ def instance_self_play(param):
 		os.path.dirname(param.dataset_fn),os.path.basename(param.dataset_fn)) 
 	with open(fn, 'wb') as h:
 		pickle.dump(states_per_file, h)	
-	print('completed self-play states {}'.format(param.dataset_fn))
+	# print('completed self-play states {}'.format(param.dataset_fn))
 
 
 def policy_title(policy_dict,team):
@@ -651,21 +664,23 @@ def make_dataset(states,params,df_param,testing=None):
 			for states_per_file, param in zip(states, params): 
 				evaluate_expert(states_per_file, param, quiet_on=False)
 	else:
-		global pool_count
-		freeze_support()
-		ncpu = cpu_count()
+		ncpu = mp.cpu_count()
 		print('ncpu: ', ncpu)
 		num_workers = min(ncpu-1, len(params))
-		with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
+		with mp.Pool(num_workers) as p:
+			manager = mp.Manager()
+			queue = manager.Queue()
+			total = sum([len(states_per_file) for states_per_file in states])
 			if df_param.mice_testing_on:
-				args = list(zip(states, params, itertools.repeat(testing), itertools.repeat(True), itertools.repeat(pool_count)))
-				r = list(tqdm(p.imap_unordered(test_evaluate_expert_wrapper, args), total=len(args), position=0))
+				args = list(zip(itertools.count(), itertools.repeat(queue), itertools.repeat(total), states, params, itertools.repeat(testing)))
+				for _ in p.imap_unordered(test_evaluate_expert_wrapper, args):
+					pass
 			else:
-				args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
-				r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
+				args = list(zip(itertools.count(), itertools.repeat(queue), itertools.repeat(total), states, params))
+				for _ in p.imap_unordered(evaluate_expert_wrapper, args):
+					pass
 			# p.starmap(evaluate_expert, states, params)
 			# p.starmap(evaluate_expert, list(zip(states, params)))
-		pool_count += num_workers
 
 def make_labelled_dataset(df_param,i):
 	# labelled dataset 
@@ -815,7 +830,6 @@ def incrementCurriculum(df_param,curriculum,desired_game):
 if __name__ == '__main__':
 
 	# parameters
-	pool_count = 0
 	df_param = Param() 
 	df_param.clean_data_on = True
 	df_param.clean_models_on = True
