@@ -4,6 +4,7 @@ import numpy as np
 import math
 import matplotlib.pyplot as plt 
 import matplotlib.patches as patches
+from matplotlib.patches import Ellipse
 import os, subprocess
 import matplotlib.patches as mpatches
 
@@ -172,7 +173,7 @@ def plot_sa_pairs(sampled_sa_pairs,sim_result,team):
 	action_list = sim_result["param"]["actions"]
 	env_xlim = sim_result["param"]["env_xlim"]
 	env_ylim = sim_result["param"]["env_ylim"]
-	tag_radius = sim_result["param"]["standard_robot"]["tag_radius"]
+	tag_radius = sim_result["param"]["robot_types"]["standard_robot"]["tag_radius"]
 	goal = sim_result["param"]["goal"]
 
 	team_1_color = 'blue'
@@ -456,7 +457,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 	o_as,o_bs,goals,values,actions,weights = [],[],[],[],[],[]
 	for batched_fn in batched_fns:
-		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_fn)
+		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_fn,df_param.l_gaussian_on)
 		o_as.extend(o_a)
 		o_bs.extend(o_b)
 		goals.extend(goal)
@@ -482,6 +483,8 @@ def plot_training(df_param,batched_fns,path_to_model):
 		candidate = (o_as[idxs[i_state]],o_bs[idxs[i_state]],goals[idxs[i_state]])
 		print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
 
+		fig, axs = plt.subplots(nrows=2,ncols=2)
+
 		# append all identical ones (should be # subsamples)
 		conditionals = [] 
 		dataset_actions = []
@@ -499,25 +502,45 @@ def plot_training(df_param,batched_fns,path_to_model):
 					dataset_actions.append(action)
 					dataset_weights.append(weight)
 
-		dataset_weights = dataset_weights / sum(dataset_weights)
-		choice_idxs = np.random.choice(len(dataset_actions),n_samples,p=dataset_weights)
-		weighted_dataset_actions = np.array([dataset_actions[choice_idx] for choice_idx in choice_idxs])
-		dataset_actions = weighted_dataset_actions
+		if df_param.l_gaussian_on: 
+			# dataset_actions = mean 
+			# dataset_weights = variance 
+			mean = np.array(dataset_actions)
+			sd = np.sqrt(np.array(dataset_weights))
+			eps2 = np.random.normal(size=mean.shape)
+			dataset_actions = mean + sd * eps2
+			for m, s in zip(mean, sd):
+				axs[1][0].add_patch(Ellipse(m, width=s[0] * 2, height=s[1] * 2, alpha=0.5))
+		else: 
+			dataset_weights = dataset_weights / sum(dataset_weights)
+			choice_idxs = np.random.choice(len(dataset_actions),n_samples,p=dataset_weights)
+			weighted_dataset_actions = np.array([dataset_actions[choice_idx] for choice_idx in choice_idxs])
+			dataset_actions = weighted_dataset_actions
 		
 		# print('conditionals',conditionals)
 		# print('dataset_actions',dataset_actions)
 
 		# query model 
 		model_actions = [] 
-		for o_a,o_b,goal in conditionals:
-			o_a,o_b,goal = format_data(o_a,o_b,goal)
+
+		if df_param.mice_testing_on: 
 			for _ in range(n_samples):
+				o_a,o_b,goal = format_data(candidate[0],candidate[1],candidate[2])
 				value, policy = model(o_a,o_b,goal)
 				model_actions.append(policy.detach().numpy())
-		# for _ in range(n_samples):
-		# 	o_a,o_b,goal = format_data(candidate[0],candidate[1],candidate[2])
-		# 	value, policy = model(o_a,o_b,goal)
-		# 	model_actions.append(policy.detach().numpy())
+		else:
+			for o_a,o_b,goal in conditionals:
+				o_a,o_b,goal = format_data(o_a,o_b,goal)
+				if df_param.l_gaussian_on:
+					with torch.no_grad():
+						value, policy, mu, logvar = model(o_a, o_b, goal, True)
+					m = mu.numpy()
+					s = torch.sqrt(torch.exp(logvar)).numpy()
+					axs[1][1].add_patch(Ellipse(m[0], width=s[0,0] * 2, height=s[0,1] * 2, alpha=0.5))
+				else:
+					for _ in range(n_samples):
+						value, policy = model(o_a,o_b,goal)
+						model_actions.append(policy.detach().numpy())
 
 		# convert for easy plot
 		model_actions = np.array(model_actions).squeeze()
@@ -525,7 +548,6 @@ def plot_training(df_param,batched_fns,path_to_model):
 		
 		# vis 
 		# fig: game state encoding  
-		fig, axs = plt.subplots(nrows=2,ncols=2)
 
 		# 
 		axs[0][1].set_axis_off()
@@ -560,23 +582,6 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# axs[0][0].set_ylim([-rsense,rsense])
 		axs[0][0].set_title('game state: {}'.format(i_state))
 		axs[0][0].set_aspect('equal')
-		
-		# fig: histograms of model/dataset in action space
-		# https://numpy.org/doc/stable/reference/generated/numpy.histogram2d.html
-		xedges = np.linspace(LIMS[0,0],LIMS[0,1],nbins) 
-		yedges = np.linspace(LIMS[1,0],LIMS[1,1],nbins) 
-
-		h_mcts, xedges, yedges = np.histogram2d(dataset_actions[:,0],dataset_actions[:,1],bins=(xedges,yedges),range=LIMS) 
-		h_model, xedges, yedges = np.histogram2d(model_actions[:,0],model_actions[:,1],bins=(xedges,yedges),range=LIMS) 
-
-		h_mcts = h_mcts.T / np.sum(np.sum(h_mcts))
-		h_model = h_model.T / np.sum(np.sum(h_model))
-
-		# im1 = axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]],vmin=0,vmax=1)
-		# im2 = axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]],vmin=0,vmax=1)
-		
-		im1 = axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
-		im2 = axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
 
 		# - arrange 
 		axs[1][0].set_title('mcts: {}'.format(i_state))
@@ -585,10 +590,37 @@ def plot_training(df_param,batched_fns,path_to_model):
 		axs[1][1].set_xlabel('x-action')
 		axs[1][0].set_ylabel('y-action')
 
-		fig.tight_layout()
-		fig.colorbar(im1, ax=axs[1][0])
-		fig.colorbar(im2, ax=axs[1][1])	
+		if not df_param.l_gaussian_on:
+			
+			# fig: histograms of model/dataset in action space
+			# https://numpy.org/doc/stable/reference/generated/numpy.histogram2d.html
+			xedges = np.linspace(LIMS[0,0],LIMS[0,1],nbins) 
+			yedges = np.linspace(LIMS[1,0],LIMS[1,1],nbins) 
 
+			h_mcts, xedges, yedges = np.histogram2d(dataset_actions[:,0],dataset_actions[:,1],bins=(xedges,yedges),range=LIMS) 
+			h_model, xedges, yedges = np.histogram2d(model_actions[:,0],model_actions[:,1],bins=(xedges,yedges),range=LIMS) 
+
+			h_mcts = h_mcts.T / np.sum(np.sum(h_mcts))
+			h_model = h_model.T / np.sum(np.sum(h_model))
+
+			# im1 = axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]],vmin=0,vmax=1)
+			# im2 = axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]],vmin=0,vmax=1)
+			
+			im1 = axs[1][0].imshow(h_mcts,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
+			im2 = axs[1][1].imshow(h_model,origin='lower',interpolation='nearest',extent=[LIMS[0,0],LIMS[0,1],LIMS[1,0],LIMS[1,1]])
+
+			fig.colorbar(im1, ax=axs[1][0])
+			fig.colorbar(im2, ax=axs[1][1])
+
+		else:
+			axs[1][0].set_xlim(LIMS[0])
+			axs[1][0].set_ylim(LIMS[1])
+			axs[1][0].set_aspect('equal')
+			axs[1][1].set_xlim(LIMS[0])
+			axs[1][1].set_ylim(LIMS[1])
+			axs[1][1].set_aspect('equal')
+
+		fig.tight_layout()
 
 def plot_exp1_results(all_sim_results):
 

@@ -329,7 +329,7 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 			param.my_policy_dict["mcts_pw_alpha"],
 			param.my_policy_dict["mcts_vf_beta"])
 		if mctsresult.success: 
-			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction) # 
+			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
 			value = mctsresult.expectedReward[0]
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["policy_dists"].append(policy_dist)  
@@ -355,7 +355,7 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 
 
-def valuePerAction_to_policy_dist(param,valuePerAction):
+def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 
 	if param.training_team == "a":
 		num_robots = param.num_nodes_A
@@ -376,6 +376,41 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 			actions = np.array([np.array(a).flatten()[action_idx] for a,v in valuePerAction])
 			choice_idxs = np.random.choice(actions.shape[0],param.l_num_subsamples,p=weights)
 			dist[robot_idx] = np.array([(actions[choice_idx,:],weights[choice_idx]) for choice_idx in choice_idxs])
+
+	elif param.l_gaussian_on: 
+
+		# "first" option 
+		actions = np.array([np.array(a).flatten() for a,_ in valuePerAction])
+		values = np.array([v for _,v in valuePerAction])
+
+		dist = defaultdict(list)
+		for robot_idx in robot_idxs: 
+			action_idx = robot_idx * 2 + np.arange(2)
+
+			# average = np.average(actions[:,action_idx], weights=values, axis=0)
+			average = np.array(bestAction).flatten()[action_idx]
+			variance = np.average((actions[:,action_idx]-average)**2, weights=values, axis=0)
+			dist[robot_idx] = np.array([[average,variance]])
+
+
+		# "second" option
+		# valuePerActionSorted = sorted(valuePerAction, key=lambda p: p[1], reverse=True)
+		# mean_action = np.array(valuePerActionSorted[0][0]).flatten() # (num_robots,2) -> (2*num_robots,) 
+		# mean_value = np.array(valuePerActionSorted[0][1])
+
+		# dist = defaultdict(list)
+		# for robot_idx in robot_idxs: 
+		# 	action_idx = robot_idx * 2 + np.arange(2)
+
+		# 	mean_action_i = mean_action[action_idx]
+		# 	var_action_i = np.zeros((2))
+		# 	for action,value in valuePerAction: 
+		# 		var_action_i += np.power(np.array(action).flatten()[action_idx] - mean_action_i,2)
+		# 		# var_action_i += value*np.power(np.array(action).flatten()[action_idx] - mean_action_i,2)
+		# 	# var_action_i = var_action_i / sum([value for _,value in valuePerAction])
+
+		# 	var_action_i /= len(valuePerAction)
+		# 	dist[robot_idx] = np.array([[mean_action_i,var_action_i]])
 
 	else: 
 		# sort so that highest values are first

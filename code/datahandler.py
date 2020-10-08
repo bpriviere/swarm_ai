@@ -31,7 +31,7 @@ def write_mcts_config_file(param, config_fn):
 def write_oa_batch(batched_dataset,batch_fn):
 	np.save(batch_fn, batched_dataset)
 
-def read_oa_batch(fn):
+def read_oa_batch(fn,l_gaussian_on):
 	data = np.load(fn)
 
 	key = os.path.basename(fn)
@@ -46,8 +46,14 @@ def read_oa_batch(fn):
 	goal = data[:,(num_a+num_b)*state_dim_per_agent:(num_a+num_b)*state_dim_per_agent+state_dim_per_agent]
 
 	value = data[:,(num_a+num_b)*state_dim_per_agent+state_dim_per_agent]
-	action = data[:,((num_a+num_b)*state_dim_per_agent+state_dim_per_agent+1):-1]
-	weight = data[:,-1]
+
+	if l_gaussian_on:
+		action = data[:,((num_a+num_b)*state_dim_per_agent+state_dim_per_agent+1):-2]
+		weight = data[:,-2:]
+	else: 
+		action = data[:,((num_a+num_b)*state_dim_per_agent+state_dim_per_agent+1):-1]
+		weight = data[:,-1]
+	
 	return o_a,o_b,goal,value,action,weight 
 	
 
