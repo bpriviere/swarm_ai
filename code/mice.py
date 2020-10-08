@@ -11,7 +11,7 @@ from collections import defaultdict
 from itertools import repeat
 # from multiprocessing import cpu_count, Pool, freeze_support, Queue
 import multiprocessing as mp
-from queue import Empty
+from queue import Queue, Empty
 from tqdm import tqdm
 import itertools
 import yaml 
@@ -19,7 +19,7 @@ import random
 import pickle 
 
 # custom 
-from testing.test_continuous_glas import test_model, test_evaluate_expert_wrapper, read_testing_yaml
+from testing.test_continuous_glas import test_model, test_evaluate_expert_wrapper, read_testing_yaml, test_evaluate_expert
 import plotter
 import datahandler as dh
 from param import Param 
@@ -28,15 +28,18 @@ from learning.continuous_emptynet import ContinuousEmptyNet
 from learning.gaussian_emptynet import GaussianEmptyNet
 from learning_interface import format_data, global_to_local 
 
-def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on,l_gaussian_on):
+def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on):
 	# value \& policy network : https://www.nature.com/articles/nature24270
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
 
 	if l_gaussian_on: 
-		criterion = nn.MSELoss(reduction='none')
-		mse = torch.sum(weight*(criterion(value, target_value) + criterion(policy, target_policy)))
-		loss = mse / value.shape[0]
+		# train distribution parameters, mean and variance where target_policy is mean and weight is variance 
+		criterion = nn.MSELoss()
+		action_dim = 2 
+		loss = criterion(value, target_value) + \
+			criterion(mu, target_policy) + \
+			criterion(torch.exp(logvar),weight)
 
 	else:
 		if l_subsample_on:
@@ -71,12 +74,11 @@ def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch
 			model.require_forward_param_sync = False
 
 		if l_gaussian_on: 
-			value, policy = model(o_a,o_b,goal)
-			mu = 0
-			sd = 0 
+			value, policy, mu, logvar = model(o_a,o_b,goal,training=True)
 		else:
-			value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
-		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd, l_subsample_on, l_gaussian_on)
+			value, policy, mu, logvar = model(o_a,o_b,goal,x=target_policy)
+
+		loss = my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on)
 
 		optimizer.zero_grad()
 		loss.backward()
@@ -109,12 +111,10 @@ def test(model,loader,l_subsample_on,l_gaussian_on):
 	with torch.no_grad():
 		for o_a,o_b,goal,target_value,target_policy,weight in loader:
 			if l_gaussian_on: 
-				value, policy = model(o_a,o_b,goal)
-				mu = 0
-				sd = 0 
+				value, policy, mu, logvar = model(o_a,o_b,goal,training=True)
 			else:
-				value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
-			loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd, l_subsample_on, l_gaussian_on)
+				value, policy, mu, logvar = model(o_a,o_b,goal,x=target_policy)
+			loss = my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on)
 			epoch_loss += float(loss)
 
 			if torch.isnan(loss).any():
@@ -429,15 +429,27 @@ def make_loaders(df_param,batched_files):
 	random.shuffle(batched_files)
 	for k, batched_file in enumerate(batched_files):
 
-		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file)
-		data = [
-			torch.from_numpy(o_a).float().to(df_param.device),
-			torch.from_numpy(o_b).float().to(df_param.device),
-			torch.from_numpy(goal).float().to(df_param.device),
-			torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
-			torch.from_numpy(action).float().to(df_param.device),
-			torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
-			]
+		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file,df_param.l_gaussian_on)
+
+		if df_param.l_gaussian_on: 
+			data = [
+				torch.from_numpy(o_a).float().to(df_param.device),
+				torch.from_numpy(o_b).float().to(df_param.device),
+				torch.from_numpy(goal).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
+				torch.from_numpy(action).float().to(df_param.device),
+				torch.from_numpy(weight).float().to(df_param.device),
+				]
+
+		else: 
+			data = [
+				torch.from_numpy(o_a).float().to(df_param.device),
+				torch.from_numpy(o_b).float().to(df_param.device),
+				torch.from_numpy(goal).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
+				torch.from_numpy(action).float().to(df_param.device),
+				torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
+				]
 		
 		if k < num_train_batches:
 			train_loader.append(data)
@@ -655,6 +667,7 @@ def make_dataset(states,params,df_param,testing=None):
 
 		# param.policy_dict["sim_mode"] = "MCTS" 
 
+	total = sum([len(states_per_file) for states_per_file in states])
 	if not df_param.l_parallel_on:
 		from cpp_interface import evaluate_expert
 		if df_param.mice_testing_on:
@@ -662,7 +675,7 @@ def make_dataset(states,params,df_param,testing=None):
 				test_evaluate_expert(states_per_file,param,testing,quiet_on=True,progress=None) 				
 		else:
 			for states_per_file, param in zip(states, params): 
-				evaluate_expert(states_per_file, param, quiet_on=False)
+				evaluate_expert(0, Queue(), total, states_per_file, param, quiet_on=False)
 	else:
 		ncpu = mp.cpu_count()
 		print('ncpu: ', ncpu)
@@ -670,7 +683,6 @@ def make_dataset(states,params,df_param,testing=None):
 		with mp.Pool(num_workers) as p:
 			manager = mp.Manager()
 			queue = manager.Queue()
-			total = sum([len(states_per_file) for states_per_file in states])
 			if df_param.mice_testing_on:
 				args = list(zip(itertools.count(), itertools.repeat(queue), itertools.repeat(total), states, params, itertools.repeat(testing)))
 				for _ in p.imap_unordered(test_evaluate_expert_wrapper, args):
@@ -831,6 +843,14 @@ if __name__ == '__main__':
 	df_param.make_data_on = True
 	df_param.make_labelled_data_on = True
 	df_param.mice_testing_on = False
+
+	# check batch size 
+	expected_num_datapoints = df_param.l_num_file_per_iteration * \
+		df_param.l_num_points_per_file * df_param.l_num_samples
+	des_num = 10 
+	if des_num*df_param.l_batch_size > expected_num_datapoints:
+		df_param.l_batch_size = expected_num_datapoints // des_num
+		print('changed batch size to: ', df_param.l_batch_size)
 
 	# testing 
 	if df_param.mice_testing_on:

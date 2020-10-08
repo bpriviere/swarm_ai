@@ -147,7 +147,7 @@ class Param:
 		self.l_policy_network_architecture = [
 			["Linear", h, h], 
 			["Linear", h, h],
-			["Linear", h, 2*2] 		
+			["Linear", h, 2*m] 		
 		]
 
 		self.l_gaussian_on = False 
