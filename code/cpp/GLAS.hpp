@@ -275,6 +275,11 @@ public:
     return m_value;
   }
 
+  bool valid() const
+  {
+    return m_psi.valid();
+  }
+
 private:
   std::default_random_engine& m_gen;
 

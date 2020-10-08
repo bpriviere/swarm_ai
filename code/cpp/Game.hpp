@@ -234,9 +234,10 @@ class Game {
       }
     }
     // ii) no attacker is active anymore
-    if (!anyActive) {
+    if (state.attackers.size() > 0 && !anyActive) {
       return true;
     }
+
     // iii) maximum time horizon reached
     if (state.depth >= m_maxDepth) {
       return true;
