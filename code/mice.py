@@ -11,7 +11,7 @@ from collections import defaultdict
 from itertools import repeat
 # from multiprocessing import cpu_count, Pool, freeze_support, Queue
 import multiprocessing as mp
-from queue import Empty
+from queue import Queue, Empty
 from tqdm import tqdm
 import itertools
 import yaml 
@@ -35,11 +35,11 @@ def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_su
 
 	if l_gaussian_on: 
 		# train distribution parameters, mean and variance where target_policy is mean and weight is variance 
-		criterion = nn.MSELoss(reduction='none')
+		criterion = nn.MSELoss()
 		action_dim = 2 
-		mse = torch.sum((criterion(value, target_value) + \
-			criterion(mu, target_policy) + criterion(torch.exp(logvar),weight)))
-		loss = mse / value.shape[0]
+		loss = criterion(value, target_value) + \
+			criterion(mu, target_policy) + \
+			criterion(torch.exp(logvar),weight)
 
 	else:
 		if l_subsample_on:
@@ -667,6 +667,7 @@ def make_dataset(states,params,df_param,testing=None):
 
 		# param.policy_dict["sim_mode"] = "MCTS" 
 
+	total = sum([len(states_per_file) for states_per_file in states])
 	if not df_param.l_parallel_on:
 		from cpp_interface import evaluate_expert
 		if df_param.mice_testing_on:
@@ -674,7 +675,7 @@ def make_dataset(states,params,df_param,testing=None):
 				test_evaluate_expert(states_per_file,param,testing,quiet_on=True,progress=None) 				
 		else:
 			for states_per_file, param in zip(states, params): 
-				evaluate_expert(states_per_file, param, quiet_on=False)
+				evaluate_expert(0, Queue(), total, states_per_file, param, quiet_on=False)
 	else:
 		ncpu = mp.cpu_count()
 		print('ncpu: ', ncpu)
@@ -682,7 +683,6 @@ def make_dataset(states,params,df_param,testing=None):
 		with mp.Pool(num_workers) as p:
 			manager = mp.Manager()
 			queue = manager.Queue()
-			total = sum([len(states_per_file) for states_per_file in states])
 			if df_param.mice_testing_on:
 				args = list(zip(itertools.count(), itertools.repeat(queue), itertools.repeat(total), states, params, itertools.repeat(testing)))
 				for _ in p.imap_unordered(test_evaluate_expert_wrapper, args):

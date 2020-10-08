@@ -323,7 +323,7 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 			param.my_policy_dict["mcts_pw_alpha"],
 			param.my_policy_dict["mcts_vf_beta"])
 		if mctsresult.success: 
-			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction) # 
+			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
 			value = mctsresult.expectedReward[0]
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["policy_dists"].append(policy_dist)  
@@ -349,7 +349,7 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 
 
-def valuePerAction_to_policy_dist(param,valuePerAction):
+def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 
 	if param.training_team == "a":
 		num_robots = param.num_nodes_A
@@ -381,7 +381,8 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 		for robot_idx in robot_idxs: 
 			action_idx = robot_idx * 2 + np.arange(2)
 
-			average = np.average(actions[:,action_idx], weights=values, axis=0)
+			# average = np.average(actions[:,action_idx], weights=values, axis=0)
+			average = np.array(bestAction).flatten()[action_idx]
 			variance = np.average((actions[:,action_idx]-average)**2, weights=values, axis=0)
 			dist[robot_idx] = np.array([[average,variance]])
 
