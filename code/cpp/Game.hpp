@@ -81,7 +81,15 @@ class Game {
           }
         }
       }
-      nextState.turn = GameStateT::Turn::Defenders;
+
+      nextState.turn = GameStateT::Turn::Attackers;
+      for (size_t i = 0; i < NumDefenders; ++i) {
+        if (state.defenders[i].status == RobotStateT::Status::Active) {
+          nextState.turn = GameStateT::Turn::Defenders;
+          break;
+        }
+      }
+
     } else {
       for (size_t i = 0; i < NumDefenders; ++i) {
         if (nextState.defenders[i].status == RobotStateT::Status::Active) {
@@ -92,8 +100,16 @@ class Game {
           }
         }
       }
-      nextState.turn = GameStateT::Turn::Attackers;
+
+      nextState.turn = GameStateT::Turn::Defenders;
+      for (size_t i = 0; i < NumAttackers; ++i) {
+        if (state.attackers[i].status == RobotStateT::Status::Active) {
+          nextState.turn = GameStateT::Turn::Attackers;
+          break;
+        }
+      }
     }
+
     // Update status
     for (size_t i = 0; i < NumAttackers; ++i) {
       if (nextState.attackers[i].status == RobotStateT::Status::Active) {
@@ -352,9 +368,21 @@ class Game {
       }
     }
 
-    return (   numAttackerActive / (float)state.attackers.size()
-             + (1.0f - numDefendersActive / (float)state.defenders.size())
-             + reachedGoal) / 3.0f;
+    float r1 = 0.0;
+    if (state.attackers.size() > 0){
+      r1 = numAttackerActive / (float)state.attackers.size();
+    }
+
+    float r2 = 0.0;
+    if (state.defenders.size() > 0){
+      r2 = (1.0f - numDefendersActive / (float)state.defenders.size());
+    }
+
+    return ( r1 + r2 + reachedGoal ) / 3.0f;    
+
+    // return (   numAttackerActive / (float)state.attackers.size()
+    //          + (1.0f - numDefendersActive / (float)state.defenders.size())
+    //          + reachedGoal) / 3.0f;
           // + (1.0 - minDistToGoal /(1.41 * 0.25))) / 3;
 
 
