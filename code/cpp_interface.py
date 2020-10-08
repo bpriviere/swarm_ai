@@ -165,8 +165,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 	count = 0
 	invalid_team_action = [np.nan*np.ones(2) for _ in range(param.num_nodes)]
 	team_action = list(invalid_team_action)
+	gs.depth = 0
 	while True:
-		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
 			policy_dict = policy_dict_a
@@ -202,7 +202,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			break
 
 		if policy_dict["sim_mode"] == "MCTS":
-			
+			depth = gs.depth
+			gs.depth = 0
 			mctsresult = mctscpp.search(g, gs, \
 				my_policy,
 				other_policies,
@@ -211,6 +212,7 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				policy_dict["mcts_pw_C"],
 				policy_dict["mcts_pw_alpha"],
 				policy_dict["mcts_vf_beta"])
+			gs.depth = depth
 			if mctsresult.success: 
 				action = mctsresult.bestAction
 				success = g.step(gs, action, gs)

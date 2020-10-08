@@ -425,7 +425,8 @@ def make_loaders(df_param,batched_files):
 	train_loader = [] # lst of batches 
 	test_loader = [] 
 	train_dataset_size, test_dataset_size = 0,0
-	num_train_batches = int(len(batched_files) * df_param.l_test_train_ratio)
+	num_test_batches = math.ceil(len(batched_files) * (1 - df_param.l_test_train_ratio))
+	num_train_batches = len(batched_files) - num_test_batches
 	random.shuffle(batched_files)
 	for k, batched_file in enumerate(batched_files):
 
