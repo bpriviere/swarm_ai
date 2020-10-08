@@ -832,6 +832,14 @@ if __name__ == '__main__':
 	df_param.make_labelled_data_on = True
 	df_param.mice_testing_on = False
 
+	# check batch size 
+	expected_num_datapoints = df_param.l_num_file_per_iteration * \
+		df_param.l_num_points_per_file * df_param.l_num_samples
+	des_num = 10 
+	if des_num*df_param.l_batch_size > expected_num_datapoints:
+		df_param.l_batch_size = expected_num_datapoints // des_num
+		print('changed batch size to: ', df_param.l_batch_size)
+
 	# testing 
 	if df_param.mice_testing_on:
 		testing = read_testing_yaml("testing/test_continuous_glas.yaml")
