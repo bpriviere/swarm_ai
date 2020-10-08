@@ -561,6 +561,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# - goal 
 		axs[0][0].scatter(candidate[2][0],candidate[2][1],color=goal_color,alpha=0.5)
 
+
 		# - neighbors 
 		num_a = int(len(candidate[0])/4)
 		num_b = int(len(candidate[1])/4)
@@ -576,10 +577,19 @@ def plot_training(df_param,batched_fns,path_to_model):
 				color=team_2_color,alpha=0.5)
 
 		# - arrange  
-		axs[0][0].set_xlim([np.max((-rsense,-env_xlim[1])),np.min((rsense,env_xlim[1]))])
-		axs[0][0].set_ylim([np.max((-rsense,-env_ylim[1])),np.min((rsense,env_ylim[1]))])
+		l = np.max((np.abs(axs[0][0].get_xlim()),np.abs(axs[0][0].get_ylim())))
+		axs[0][0].set_xlim([-l,l])
+		axs[0][0].set_ylim([-l,l])
+		# axs[0][0].set_xlim([np.min((axs[0][0].get_xlim()[0],axs[0][0].get_ylim()[0])),np.max((axs[0][0].get_xlim()[1],axs[0][0].get_ylim()[1]))])
+		# axs[0][0].set_ylim([np.min((axs[0][0].get_xlim()[0],axs[0][0].get_ylim()[0])),np.max((axs[0][0].get_xlim()[1],axs[0][0].get_ylim()[1]))])
+		# axs[0][0].set_xlim([np.max((-rsense,-env_xlim[1])),np.min((rsense,env_xlim[1]))])
+		# axs[0][0].set_ylim([np.max((-rsense,-env_ylim[1])),np.min((rsense,env_ylim[1]))])
 		# axs[0][0].set_xlim([-rsense,rsense])
 		# axs[0][0].set_ylim([-rsense,rsense])
+
+		# sensing radius 
+		axs[0][0].add_patch(mpatches.Circle((0,0), rsense, color='black',alpha=0.1))
+		
 		axs[0][0].set_title('game state: {}'.format(i_state))
 		axs[0][0].set_aspect('equal')
 
