@@ -873,14 +873,14 @@ def policy_to_label(policy):
 				label += 'None'
 			else:
 				label += '{} '.format(os.path.basename(value).split(".")[0])
-		elif key == "mcts_rollout_beta":
+		elif key == "mcts_rollout_beta" and key in keys:
 			if policy["sim_mode"] == "MCTS":
 				label += ', b: {}'.format(value)
-		elif key == "mcts_tree_size":
+		elif key == "mcts_tree_size" and key in keys:
 			label += ', |n|: {}'.format(value)
-		elif key == "mcts_c_param":
+		elif key == "mcts_c_param" and key in keys:
 			label += ', c: {}'.format(value)			
-		elif key == "sim_mode":
+		elif key == "sim_mode" and key in keys:
 			label += '{} '.format(value)
 		elif key in keys:  
 			label += ', {}'.format(value)
@@ -888,7 +888,7 @@ def policy_to_label(policy):
 	return label
 
 def plot_exp3_results(all_sim_results):
-	
+
 	results = defaultdict(list)
 	for sim_result in all_sim_results:
 		key = (\
