@@ -39,7 +39,7 @@ class Param:
 				'acceleration_limit':0.125,
 				'tag_radius': 0.025,
 				'dynamics':'double_integrator',
-				'r_sense': 0.2,
+				'r_sense': 5.0,
 				'radius': 0.025,
 			},
 			'evasive_robot' : {
@@ -47,7 +47,7 @@ class Param:
 				'acceleration_limit':0.2,
 				'tag_radius': 0.025,
 				'dynamics':'double_integrator',
-				'r_sense': 0.2,
+				'r_sense': 0.5,
 				'radius': 0.025,
 			}
 		}
@@ -61,16 +61,16 @@ class Param:
 		self.env_l = 0.5
 
 		# learning (l) parameters 
-		self.device = 'cpu' # cpu, cuda
+		self.device = 'cpu' # 'cpu', 'cuda'
 		self.l_mode = "DAgger" # IL, DAgger, ExIt, MICE
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
-		self.l_num_iterations = 5
-		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 1000
+		self.l_num_iterations = 1
+		self.l_num_file_per_iteration = 10 # optimized for num cpu on ben's laptop 
+		self.l_num_points_per_file = 4000
 		self.l_mcts_rollout_beta = 0.25
-		self.l_num_learner_nodes = 5000
+		self.l_num_learner_nodes = 500
 		self.l_num_expert_nodes = 100000
 		self.l_env_l0 = 0.25
 		self.l_env_dl = 0.25
