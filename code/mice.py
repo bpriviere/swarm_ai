@@ -35,11 +35,18 @@ def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_su
 
 	if l_gaussian_on: 
 		# train distribution parameters, mean and variance where target_policy is mean and weight is variance 
-		criterion = nn.MSELoss()
-		action_dim = 2 
-		loss = criterion(value, target_value) + \
-			criterion(mu, target_policy) + \
-			criterion(torch.exp(logvar),weight)
+		# criterion = nn.MSELoss(reduction='sum')
+		# action_dim = 2 
+		# mse = criterion(value, target_value) + criterion(mu, target_policy)
+		# kldiv = 0.5 * torch.sum(- 1 - logvar + mu.pow(2) + torch.exp(logvar))
+		# kld_weight = 1e-4
+		# loss = mse + kld_weight * kldiv
+		# loss = loss / value.shape[0]
+
+		criterion = nn.MSELoss(reduction='none')
+		# action_dim = 2 
+		loss = torch.sum(criterion(mu, target_policy) / (2 * torch.exp(logvar)) + 1/2 * logvar + criterion(value, target_value))
+		loss = loss / value.shape[0]
 
 	else:
 		if l_subsample_on:

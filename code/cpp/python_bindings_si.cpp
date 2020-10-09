@@ -207,7 +207,8 @@ PYBIND11_MODULE(mctscppsi, m) {
     .def_property_readonly("psi", &GLAST::psi)
     .def_property_readonly("encoder", &GLAST::encoder)
     .def_property_readonly("decoder", &GLAST::decoder)
-    .def_property_readonly("value", &GLAST::value);
+    .def_property_readonly("value", &GLAST::value)
+    .def_property_readonly("policy", &GLAST::policy);
 
   // Policy
   py::class_<PolicyT> (m, "Policy")

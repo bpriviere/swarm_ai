@@ -164,23 +164,40 @@ public:
     psi_input.segment(m_ds_a.sizeOut(), m_ds_b.sizeOut()) = m_ds_b.eval(input_b);
     psi_input.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), 4) = goal;
 
+    Eigen::VectorXf action(2);
+
     // evaluate psi to compute condition y
     auto y = m_psi.eval(psi_input);
 
-    // evaluate decoder to compute distribution
-    Eigen::VectorXf dec_input(m_decoder.sizeIn());
-    int z_dim = m_decoder.sizeIn() - m_psi.sizeOut();
-    auto z = dec_input.segment(0, z_dim);
-    if (deterministic) {
-      z.setZero();
-    } else {
-      std::normal_distribution<float> dist(0.0,1.0);
-      for (int i = 0; i < z_dim; ++i) {
-        z(i) = dist(m_gen);
+    if (isGaussian()) {
+      auto policy = m_policy.eval(y);
+      auto mu = policy.segment<2>(0);
+      if (deterministic) {
+        action = mu;
+      } else {
+        auto logvar = policy.segment<2>(2);
+        auto sd = logvar.array().exp().sqrt();
+        for (int i = 0; i < 2; ++i) {
+          std::normal_distribution<float> dist(mu(i),sd(i));
+          action(i) = dist(m_gen);
+        }
       }
+    } else {
+      // evaluate decoder to compute distribution
+      Eigen::VectorXf dec_input(m_decoder.sizeIn());
+      int z_dim = m_decoder.sizeIn() - m_psi.sizeOut();
+      auto z = dec_input.segment(0, z_dim);
+      if (deterministic) {
+        z.setZero();
+      } else {
+        std::normal_distribution<float> dist(0.0,1.0);
+        for (int i = 0; i < z_dim; ++i) {
+          z(i) = dist(m_gen);
+        }
+      }
+      dec_input.segment(z_dim, y.size()) = y;
+      action = m_decoder.eval(dec_input);
     }
-    dec_input.segment(z_dim, y.size()) = y;
-    auto action = m_decoder.eval(dec_input);
 
     // scale action
     float action_norm = action.norm();
@@ -275,9 +292,20 @@ public:
     return m_value;
   }
 
+  auto& policy()
+  {
+    return m_policy;
+  }
+
   bool valid() const
   {
     return m_psi.valid();
+  }
+
+private:
+  bool isGaussian() const
+  {
+    return !m_decoder.valid();
   }
 
 private:
@@ -289,6 +317,7 @@ private:
   FeedForwardNN m_encoder;
   FeedForwardNN m_decoder;
   FeedForwardNN m_value;
+  FeedForwardNN m_policy;
 
 };
 
