@@ -241,7 +241,7 @@ def get_self_play_samples(params):
 	# get self play states 
 	if not df_param.l_parallel_on:
 		for param in params: 
-			instance_self_play(0, None, param)
+			instance_self_play(0, Queue(), len(params), param)
 
 	else:
 		ncpu = mp.cpu_count()
@@ -621,13 +621,13 @@ def make_dataset(states,params,df_param,testing=None):
 
 	for param in params:
 
-		# delta-uniform sampling for curriculum 
-		robot_team_composition, skill_a, skill_b, env_l = sample_curriculum(param.curriculum)
+		# # delta-uniform sampling for curriculum 
+		# robot_team_composition, skill_a, skill_b, env_l = sample_curriculum(param.curriculum)
 
-		# update
-		param.robot_team_composition = robot_team_composition
-		param.env_l = env_l
-		param.update()
+		# # update
+		# param.robot_team_composition = robot_team_composition
+		# param.env_l = env_l
+		# param.update()
 
 		# imitate expert policy 
 		expert_policy_dict = {
@@ -774,7 +774,7 @@ def format_dir(df_param):
 
 def sample_curriculum(curriculum):
 
-	mode = "naive"
+	mode = "uniform"
 
 	if mode == "naive": 
 		# 'naive' curriculum learning 
@@ -785,11 +785,11 @@ def sample_curriculum(curriculum):
 		env_l = curriculum["EnvironmentLength"][-1]
 
 	elif mode == "uniform":
-		num_a = curriculum["NumA"][np.random.randint(len(curriculum["NumA"]))]
-		num_b = curriculum["NumB"][np.random.randint(len(curriculum["NumB"]))]
-		skill_a = curriculum["Skill_A"][np.random.randint(len(curriculum["Skill_A"]))]
-		skill_b = curriculum["Skill_B"][np.random.randint(len(curriculum["Skill_B"]))]
-		env_l = curriculum["EnvironmentLength"][np.random.randint(len(curriculum["EnvironmentLength"]))]
+		num_a = random.choice(curriculum["NumA"])
+		num_b = random.choice(curriculum["NumB"])
+		skill_a = random.choice(curriculum["Skill_A"])
+		skill_b = random.choice(curriculum["Skill_B"])
+		env_l = random.choice(curriculum["EnvironmentLength"])
 
 	robot_team_composition = {
 		'a': {'standard_robot':num_a,'evasive_robot':0},
@@ -820,12 +820,14 @@ def isTrainingConverged(df_param,i,k):
 	# 	exit()
 
 def isCurriculumConverged(df_param,curriculum,desired_game):
-	return desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"]
+	# return desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"] and \
+		# desired_game["NumA"] in curriculum["NumA"]
+		# desired_game["NumB"] in curriculum["NumB"]
 	# return True 
-	# for key, desired_game_value in desired_game.items():
-	# 	if not desired_game_value in curriculum[key]:
-	# 		return False
-	# return True  
+	for key, desired_game_value in desired_game.items():
+		if desired_game_value not in curriculum[key]:
+			return False
+	return True
 
 def incrementCurriculum(df_param,curriculum,desired_game):
 	
@@ -841,6 +843,14 @@ def incrementCurriculum(df_param,curriculum,desired_game):
 		# 	curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
 		if not desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"]: 
 			curriculum["EnvironmentLength"].append(curriculum["EnvironmentLength"][-1] + df_param.l_env_dl)
+		if not desired_game["NumA"] in curriculum["NumA"]: 
+			curriculum["NumA"].append(curriculum["NumA"][-1] + 1)
+		if not desired_game["NumB"] in curriculum["NumB"]: 
+			curriculum["NumB"].append(curriculum["NumB"][-1] + 1)
+
+		curriculum["Skill_A"].append(len(curriculum["Skill_A"]))
+		curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
+
 		return curriculum , done 
 
 if __name__ == '__main__':
@@ -879,11 +889,11 @@ if __name__ == '__main__':
 
 	# specify desired : for now isolate curriculum to skill of policy 
 	desired_game = {
-		'Skill_A' : 'a1.pt',
-		'Skill_B' : 'b1.pt',
+		# 'Skill_A' : 'a1.pt',
+		# 'Skill_B' : 'b1.pt',
 		'EnvironmentLength' : 1.0,
-		'NumA' : 1,
-		'NumB' : 1,
+		'NumA' : 3,
+		'NumB' : 3,
 	}
 
 	# initial curriculum 

@@ -62,7 +62,7 @@ class Param:
 
 		# learning (l) parameters 
 		self.device = 'cpu' # 'cpu', 'cuda'
-		self.l_mode = "DAgger" # IL, DAgger, ExIt, MICE
+		self.l_mode = "MICE" # IL, DAgger, ExIt, MICE
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
@@ -72,8 +72,8 @@ class Param:
 		self.l_mcts_rollout_beta = 0.25
 		self.l_num_learner_nodes = 500
 		self.l_num_expert_nodes = 100000
-		self.l_env_l0 = 0.25
-		self.l_env_dl = 0.25
+		self.l_env_l0 = 1.0
+		self.l_env_dl = 1.0
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -184,13 +184,18 @@ class Param:
 	def make_environment(self):
 		self.env_xlim = [0,self.env_l]
 		self.env_ylim = [0,self.env_l]
-		self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
-		self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
-		# self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
-		# self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
+
+		self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
+		self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
+		# self.reset_ylim_A = [0.1*self.env_l,0.2*self.env_l]
+		# self.reset_ylim_B = [0.8*self.env_l,0.9*self.env_l]
+
+		# self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
+		# self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
-		self.goal = np.array([0.75*self.env_l,0.5*self.env_l,0,0])
+
+		self.goal = np.array([0.6*self.env_l,0.5*self.env_l,0,0])
 
 	def make_initial_condition(self):
 

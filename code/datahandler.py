@@ -10,23 +10,13 @@ import pickle
 from datetime import datetime,timedelta
 
 def write_sim_result(sim_result_dict,fn):
-	with open(fn+'.pickle', 'wb') as h:
+	with open(fn+'.pickle', 'xb') as h:
 		pickle.dump(sim_result_dict, h)
 
 def load_sim_result(fn):
 	with open(fn, 'rb') as h:
 		sim_result = pickle.load(h)
 	return sim_result
-
-def write_mcts_config_file(param, config_fn):
-
-	config = param.to_dict()
-	for key, value in config.items():
-		if isinstance(value,np.ndarray):
-			config[key] = value.tolist()
-
-	with open(config_fn,'w') as f:
-		yaml.dump(config,f)
 
 def write_oa_batch(batched_dataset,batch_fn):
 	np.save(batch_fn, batched_dataset)
