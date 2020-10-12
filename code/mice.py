@@ -469,7 +469,7 @@ def make_loaders(df_param,batched_files):
 
 	return train_loader,test_loader, train_dataset_size, test_dataset_size
 
-def train_model_parallel(rank, world_size, df_param, batched_files, training_team, model_fn, parallel=True):
+def train_model_parallel(rank, world_size, df_param, batched_files, training_team, model_fn, warmstart_fn,parallel=True):
 
 	if parallel:
 		torch.set_num_threads(1)
@@ -517,6 +517,9 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 		single_model = GaussianEmptyNet(df_param,df_param.device)
 	else:
 		single_model = ContinuousEmptyNet(df_param,df_param.device)
+
+	if warmstart_fn is not None:
+		single_model.load_state_dict(torch.load(warmstart_fn))
 
 	if parallel:
 		model = torch.nn.parallel.DistributedDataParallel(single_model, find_unused_parameters=True)
@@ -594,17 +597,17 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 		torch.distributed.destroy_process_group()
 
 
-def train_model(df_param,batched_files,training_team,model_fn):
+def train_model(df_param,batched_files,training_team,model_fn,warmstart_fn):
 
 	print('training model... {}'.format(model_fn))
 
 	if df_param.device == 'cpu' and df_param.num_cpus is not None:
 		torch.multiprocessing.spawn(train_model_parallel,
-			args=(df_param.num_cpus, df_param, batched_files, training_team, model_fn, True),
+			args=(df_param.num_cpus, df_param, batched_files, training_team, model_fn, warmstart_fn,True),
 			nprocs=df_param.num_cpus,
 			join=True)
 	else:
-		train_model_parallel(0, 1, df_param,batched_files,training_team,model_fn, False)
+		train_model_parallel(0, 1, df_param,batched_files,training_team,model_fn,warmstart_fn,False)
 
 
 def load_param(some_dict):
@@ -933,6 +936,13 @@ if __name__ == '__main__':
 						DATADIR=df_param.path_current_models,\
 						TEAM=training_team,\
 						ITER=i+1)
+				if df_param.l_warmstart and i > 0:
+					warmstart_fn = df_param.l_model_fn.format(\
+							DATADIR=df_param.path_current_models,\
+							TEAM=training_team,\
+							ITER=i)
+				else:
+					warmstart_fn = None
 
 				# data to be used 
 				batched_fns = glob.glob(df_param.l_labelled_fn.format(\
@@ -944,7 +954,7 @@ if __name__ == '__main__':
 						NUM_B='**',\
 						NUM_FILE='**'))
 
-				train_model(df_param,batched_fns,training_team,model_fn)
+				train_model(df_param,batched_fns,training_team,model_fn,warmstart_fn)
 
 				if df_param.mice_testing_on: 
 					stats = test_model(df_param,model_fn,testing)

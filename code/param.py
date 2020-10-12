@@ -74,6 +74,7 @@ class Param:
 		self.l_num_expert_nodes = 100000
 		self.l_env_l0 = 1.0
 		self.l_env_dl = 1.0
+		self.l_warmstart = False # warmstart policies between iterations
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
