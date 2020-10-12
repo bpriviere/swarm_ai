@@ -17,6 +17,7 @@ import itertools
 import yaml 
 import random
 import pickle 
+import math 
 
 # custom 
 from testing.test_continuous_glas import test_model, test_evaluate_expert_wrapper, read_testing_yaml, test_evaluate_expert
@@ -319,7 +320,10 @@ def instance_self_play(rank, queue, total, param):
 
 		if remaining_plots_per_file > 0:
 			title = policy_title(param.policy_dict_a,"a") + " vs " + policy_title(param.policy_dict_b,"b")
-			plotter.plot_tree_results(sim_result, title)
+			plotter.plot_tree_results(sim_result, \
+				title = title, \
+				model_fn_a = param.policy_dict_a["path_glas_model_a"], \
+				model_fn_b = param.policy_dict_b["path_glas_model_b"])
 			remaining_plots_per_file -= 1
 		
 		states_per_file.extend(sim_result["states"])
