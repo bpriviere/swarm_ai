@@ -36,11 +36,18 @@ def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_su
 
 	if l_gaussian_on: 
 		# train distribution parameters, mean and variance where target_policy is mean and weight is variance 
-		criterion = nn.MSELoss()
-		action_dim = 2 
-		loss = criterion(value, target_value) + \
-			criterion(mu, target_policy) + \
-			criterion(torch.exp(logvar),weight)
+		# criterion = nn.MSELoss(reduction='sum')
+		# action_dim = 2 
+		# mse = criterion(value, target_value) + criterion(mu, target_policy)
+		# kldiv = 0.5 * torch.sum(- 1 - logvar + mu.pow(2) + torch.exp(logvar))
+		# kld_weight = 1e-4
+		# loss = mse + kld_weight * kldiv
+		# loss = loss / value.shape[0]
+
+		criterion = nn.MSELoss(reduction='none')
+		# action_dim = 2 
+		loss = torch.sum(criterion(mu, target_policy) / (2 * torch.exp(logvar)) + 1/2 * logvar + criterion(value, target_value))
+		loss = loss / value.shape[0]
 
 	else:
 		if l_subsample_on:
@@ -234,7 +241,7 @@ def get_self_play_samples(params):
 	# get self play states 
 	if not df_param.l_parallel_on:
 		for param in params: 
-			instance_self_play(0, None, param)
+			instance_self_play(0, Queue(), len(params), param)
 
 	else:
 		ncpu = mp.cpu_count()
@@ -465,7 +472,7 @@ def make_loaders(df_param,batched_files):
 
 	return train_loader,test_loader, train_dataset_size, test_dataset_size
 
-def train_model_parallel(rank, world_size, df_param, batched_files, training_team, model_fn, parallel=True):
+def train_model_parallel(rank, world_size, df_param, batched_files, training_team, model_fn, warmstart_fn,parallel=True):
 
 	if parallel:
 		torch.set_num_threads(1)
@@ -514,6 +521,9 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 	else:
 		single_model = ContinuousEmptyNet(df_param,df_param.device)
 
+	if warmstart_fn is not None:
+		single_model.load_state_dict(torch.load(warmstart_fn))
+
 	if parallel:
 		model = torch.nn.parallel.DistributedDataParallel(single_model, find_unused_parameters=True)
 	else:
@@ -543,12 +553,13 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 
 		if parallel:
 			torch.distributed.all_reduce(epoch_loss)
-			train_epoch_loss = float(epoch_loss[0]) / num_train_batches
-			test_epoch_loss = float(epoch_loss[1]) / num_test_batches
-			if np.isnan(train_epoch_loss):
-				if rank == 0:
-					print("WARNING: NAN encountered during training! Aborting.")
-				break
+
+		train_epoch_loss = float(epoch_loss[0]) / num_train_batches
+		test_epoch_loss = float(epoch_loss[1]) / num_test_batches
+		if np.isnan(train_epoch_loss):
+			if rank == 0:
+				print("WARNING: NAN encountered during training! Aborting.")
+			break
 
 		if df_param.l_lr_scheduler == 'ReduceLROnPlateau':
 			scheduler.step(test_epoch_loss)
@@ -589,17 +600,17 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 		torch.distributed.destroy_process_group()
 
 
-def train_model(df_param,batched_files,training_team,model_fn):
+def train_model(df_param,batched_files,training_team,model_fn,warmstart_fn):
 
 	print('training model... {}'.format(model_fn))
 
 	if df_param.device == 'cpu' and df_param.num_cpus is not None:
 		torch.multiprocessing.spawn(train_model_parallel,
-			args=(df_param.num_cpus, df_param, batched_files, training_team, model_fn, True),
+			args=(df_param.num_cpus, df_param, batched_files, training_team, model_fn, warmstart_fn,True),
 			nprocs=df_param.num_cpus,
 			join=True)
 	else:
-		train_model_parallel(0, 1, df_param,batched_files,training_team,model_fn, False)
+		train_model_parallel(0, 1, df_param,batched_files,training_team,model_fn,warmstart_fn,False)
 
 
 def load_param(some_dict):
@@ -617,13 +628,13 @@ def make_dataset(states,params,df_param,testing=None):
 
 	for param in params:
 
-		# delta-uniform sampling for curriculum 
-		robot_team_composition, skill_a, skill_b, env_l = sample_curriculum(param.curriculum)
+		# # delta-uniform sampling for curriculum 
+		# robot_team_composition, skill_a, skill_b, env_l = sample_curriculum(param.curriculum)
 
-		# update
-		param.robot_team_composition = robot_team_composition
-		param.env_l = env_l
-		param.update()
+		# # update
+		# param.robot_team_composition = robot_team_composition
+		# param.env_l = env_l
+		# param.update()
 
 		# imitate expert policy 
 		expert_policy_dict = {
@@ -770,7 +781,7 @@ def format_dir(df_param):
 
 def sample_curriculum(curriculum):
 
-	mode = "naive"
+	mode = "uniform"
 
 	if mode == "naive": 
 		# 'naive' curriculum learning 
@@ -781,11 +792,11 @@ def sample_curriculum(curriculum):
 		env_l = curriculum["EnvironmentLength"][-1]
 
 	elif mode == "uniform":
-		num_a = curriculum["NumA"][np.random.randint(len(curriculum["NumA"]))]
-		num_b = curriculum["NumB"][np.random.randint(len(curriculum["NumB"]))]
-		skill_a = curriculum["Skill_A"][np.random.randint(len(curriculum["Skill_A"]))]
-		skill_b = curriculum["Skill_B"][np.random.randint(len(curriculum["Skill_B"]))]
-		env_l = curriculum["EnvironmentLength"][np.random.randint(len(curriculum["EnvironmentLength"]))]
+		num_a = random.choice(curriculum["NumA"])
+		num_b = random.choice(curriculum["NumB"])
+		skill_a = random.choice(curriculum["Skill_A"])
+		skill_b = random.choice(curriculum["Skill_B"])
+		env_l = random.choice(curriculum["EnvironmentLength"])
 
 	robot_team_composition = {
 		'a': {'standard_robot':num_a,'evasive_robot':0},
@@ -816,12 +827,14 @@ def isTrainingConverged(df_param,i,k):
 	# 	exit()
 
 def isCurriculumConverged(df_param,curriculum,desired_game):
-	return desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"]
+	# return desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"] and \
+		# desired_game["NumA"] in curriculum["NumA"]
+		# desired_game["NumB"] in curriculum["NumB"]
 	# return True 
-	# for key, desired_game_value in desired_game.items():
-	# 	if not desired_game_value in curriculum[key]:
-	# 		return False
-	# return True  
+	for key, desired_game_value in desired_game.items():
+		if desired_game_value not in curriculum[key]:
+			return False
+	return True
 
 def incrementCurriculum(df_param,curriculum,desired_game):
 	
@@ -837,6 +850,14 @@ def incrementCurriculum(df_param,curriculum,desired_game):
 		# 	curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
 		if not desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"]: 
 			curriculum["EnvironmentLength"].append(curriculum["EnvironmentLength"][-1] + df_param.l_env_dl)
+		if not desired_game["NumA"] in curriculum["NumA"]: 
+			curriculum["NumA"].append(curriculum["NumA"][-1] + 1)
+		if not desired_game["NumB"] in curriculum["NumB"]: 
+			curriculum["NumB"].append(curriculum["NumB"][-1] + 1)
+
+		curriculum["Skill_A"].append(len(curriculum["Skill_A"]))
+		curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
+
 		return curriculum , done 
 
 if __name__ == '__main__':
@@ -875,11 +896,11 @@ if __name__ == '__main__':
 
 	# specify desired : for now isolate curriculum to skill of policy 
 	desired_game = {
-		'Skill_A' : 'a1.pt',
-		'Skill_B' : 'b1.pt',
+		# 'Skill_A' : 'a1.pt',
+		# 'Skill_B' : 'b1.pt',
 		'EnvironmentLength' : 1.0,
-		'NumA' : 1,
-		'NumB' : 1,
+		'NumA' : 3,
+		'NumB' : 3,
 	}
 
 	# initial curriculum 
@@ -918,6 +939,13 @@ if __name__ == '__main__':
 						DATADIR=df_param.path_current_models,\
 						TEAM=training_team,\
 						ITER=i+1)
+				if df_param.l_warmstart and i > 0:
+					warmstart_fn = df_param.l_model_fn.format(\
+							DATADIR=df_param.path_current_models,\
+							TEAM=training_team,\
+							ITER=i)
+				else:
+					warmstart_fn = None
 
 				# data to be used 
 				batched_fns = glob.glob(df_param.l_labelled_fn.format(\
@@ -929,7 +957,7 @@ if __name__ == '__main__':
 						NUM_B='**',\
 						NUM_FILE='**'))
 
-				train_model(df_param,batched_fns,training_team,model_fn)
+				train_model(df_param,batched_fns,training_team,model_fn,warmstart_fn)
 
 				if df_param.mice_testing_on: 
 					stats = test_model(df_param,model_fn,testing)

@@ -65,6 +65,7 @@ def loadGLAS(glas, file):
 	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
 	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
 	loadFeedForwardNNWeights(glas.value, state_dict, "value")
+	loadFeedForwardNNWeights(glas.policy, state_dict, "policy")
 
 	return glas
 

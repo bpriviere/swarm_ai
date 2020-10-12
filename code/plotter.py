@@ -288,7 +288,8 @@ def plot_loss(losses,lrs,team):
 	ax.legend()
 	ax.set_ylabel('mse')
 	ax.set_xlabel('epoch')
-	ax.set_yscale('log')
+	if (losses > 0).all():
+		ax.set_yscale('log')
 	ax.set_title('Team {}'.format(team))
 	ax.grid(True)
 
