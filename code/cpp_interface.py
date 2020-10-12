@@ -118,12 +118,21 @@ def state_to_cpp_game_state(state,turn,team_1_idxs,team_2_idxs):
 	return game_state 
 
 def expected_value(param,state,policy_dict):
+
 	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
 		param.sim_dt,param.goal,param.rollout_horizon)	
 	gs = state_to_cpp_game_state(state,"a",param.team_1_idxs,param.team_2_idxs)
-	mctsresult = mctscpp.search(g, gs,
+
+	policy_a = create_cpp_policy(policy_dict, 'a')
+	policy_b = create_cpp_policy(policy_dict, 'b')
+
+	my_policy = policy_a 
+	other_policies = [policy_b]
+
+	mctsresult = mctscpp.search(g, gs, \
+		my_policy,
+		other_policies,
 		policy_dict["mcts_tree_size"],
-		policy_dict["mcts_rollout_beta"],
 		policy_dict["mcts_c_param"],
 		policy_dict["mcts_pw_C"],
 		policy_dict["mcts_pw_alpha"],

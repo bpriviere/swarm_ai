@@ -348,7 +348,7 @@ def get_n_colors(n):
 	return colors
 
 
-def plot_tree_results(sim_result,title=None): 
+def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None): 
 
 	def team_1_reward_to_gamma(reward_1):
 		# gamma = reward_1 * 2 - 1 
@@ -407,11 +407,54 @@ def plot_tree_results(sim_result,title=None):
 	ax = axs[0,1] 
 	ax.grid(True)
 	ax.set_title('Value Function')
+	ax.plot(times,team_1_reward_to_gamma(rewards[:,0]),color=team_1_color)	
+	ax.set_ylim([-1,1])
+
+	if model_fn_a is not None or model_fn_b is not None: 
+
+		from learning.continuous_emptynet import ContinuousEmptyNet
+		from learning.gaussian_emptynet import GaussianEmptyNet
+		from learning_interface import format_data, global_to_local 
+		from param import Param 
+		import torch 
+
+		param_obj = Param()
+		param_obj.from_dict(sim_result["param"])
+
+		if sim_result["param"]["l_gaussian_on"]: 
+			model_a = GaussianEmptyNet(param_obj,"cpu")
+			model_b = GaussianEmptyNet(param_obj,"cpu")
+		else: 
+			model_a = ContinuousEmptyNet(param_obj,"cpu")
+			model_b = ContinuousEmptyNet(param_obj,"cpu")
+
+		if not model_fn_a is None:
+			model_a.load_state_dict(torch.load(model_fn_a))
+		if not model_fn_b is None:
+			model_b.load_state_dict(torch.load(model_fn_b))
+
+		for i in range(num_nodes):
+			if model_fn_a is None and i in team_1_idxs:
+				continue
+			elif model_fn_b is None and i not in team_1_idxs: 
+				continue 
+			else: 
+
+				values = [] 
+				for t in range(states.shape[0]):
+					o_a,o_b,goal = global_to_local(states[t,:,:],param_obj,i)
+					o_a,o_b,goal = format_data(o_a,o_b,goal)
+					if i in team_1_idxs and not model_fn_a is None:
+						value,action = model_a(o_a,o_b,goal)
+					elif not model_fn_b is None: 
+						value,action = model_b(o_a,o_b,goal)
+					values.append(value)
+
+				ax.plot(times,values,color=colors[i])
+
 	# ax.plot(times,rewards[:,0],color=team_1_color,label='attackers')
 	# ax.plot(times,rewards[:,1],color=team_2_color,label='defenders')
 	# ax.legend()
-	ax.plot(times,team_1_reward_to_gamma(rewards[:,0]),color=team_1_color)	
-	ax.set_ylim([-1,1])
 
 	# time varying velocity
 	ax = axs[1,0]
@@ -728,18 +771,18 @@ def plot_exp4_results(all_sim_results):
 	X = all_sim_results[0]["param"]["X"]
 	Y = all_sim_results[0]["param"]["Y"]
 	num_trials = all_sim_results[0]["param"]["num_trials"]
-	sim_modes = all_sim_results[0]["param"]["sim_modes"]
+	exp4_sim_modes = all_sim_results[0]["param"]["sim_modes"]
 	xlim = [all_sim_results[0]["param"]["env_xlim"][0],all_sim_results[0]["param"]["env_xlim"][1]]
 	ylim = [all_sim_results[0]["param"]["env_ylim"][0],all_sim_results[0]["param"]["env_ylim"][1]]
 
 	results = dict() 
-	for sim_mode in sim_modes: 
-		results[sim_mode] = np.zeros((X.shape[0],Y.shape[0],num_trials))
+	for exp4_sim_mode in exp4_sim_modes: 
+		results[exp4_sim_mode] = np.zeros((X.shape[0],Y.shape[0],num_trials))
 
 	for sim_result in all_sim_results:
 		pos,i_x,i_y = get_initial_condition(sim_result["param"],X,Y)
-		sim_mode = sim_result["param"]["policy_dict"]["sim_mode"]
-		results[sim_mode][i_x,i_y,sim_result["param"]["i_trial"]] = sim_result["rewards"][-1,0]
+		exp4_sim_mode = sim_result["param"]["exp4_sim_mode"]
+		results[exp4_sim_mode][i_x,i_y,sim_result["param"]["i_trial"]] = sim_result["rewards"][-1,0]
 
 	# values = np.zeros((X.shape[0],Y.shape[0],num_trials)) 
 	# for sim_result in all_sim_results:
@@ -755,7 +798,7 @@ def plot_exp4_results(all_sim_results):
 
 	for sim_mode, values in results.items():
 		fig,ax = plt.subplots()
-		im = ax.imshow(np.mean(values,axis=2),origin='lower',extent=(xlim[0],xlim[1],ylim[0],ylim[1]),vmin=0,vmax=1)
+		im = ax.imshow(np.mean(values,axis=2).T,origin='lower',extent=(xlim[0],xlim[1],ylim[0],ylim[1]),vmin=0,vmax=1)
 		fig.colorbar(im)
 		ax.scatter(sim_result["param"]["goal"][0],sim_result["param"]["goal"][1],color='green',marker='o',label='goal')
 		for robot_idx in range(sim_result["param"]["num_nodes"]):

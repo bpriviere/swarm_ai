@@ -11,7 +11,8 @@ import time
 from param import Param 
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
-from mice import format_data, relative_state
+from learning.gaussian_emptynet import GaussianEmptyNet
+from learning_interface import format_data, global_to_local 
 import plotter 
 import datahandler as dh
 
@@ -21,15 +22,19 @@ def eval_value(param):
 	
 	print('{}/{}'.format(param.count,param.total))
 
-	if param.policy_dict["sim_mode"] == "GLAS":
+	if param.exp4_sim_mode == "GLAS_VALUE":
 
 		state = np.array(param.state)
 		robot_idx = 0 
 
-		o_a,o_b,goal = relative_state(state,param,robot_idx)
+		o_a,o_b,goal = global_to_local(state,param,robot_idx)
 		o_a,o_b,goal = format_data(o_a,o_b,goal)
 
-		model = ContinuousEmptyNet(param, "cpu")
+		if param.l_gaussian_on: 
+			model = GaussianEmptyNet(param,"cpu")
+		else: 
+			model = ContinuousEmptyNet(param,"cpu")
+
 		model.load_state_dict(torch.load(param.policy_dict["path_glas_model_a"]))
 
 		value,action = model(o_a,o_b,goal)
@@ -40,10 +45,7 @@ def eval_value(param):
 			"param" : param.to_dict(),
 		}
 
-	elif param.policy_dict["sim_mode"] == "MCTS":
-		sim_result = self_play(param)
-
-	elif param.policy_dict["sim_mode"] == "EXPECTED_VALUE": 
+	elif param.exp4_sim_mode == "MCTS_VALUE": 
 		state = np.array(param.state)
 		value = expected_value(param,state,param.policy_dict) # query tree 
 		sim_result = {
@@ -51,6 +53,15 @@ def eval_value(param):
 			"rewards" : np.array([[value[0],value[1]]]),
 			"param" : param.to_dict(),
 		}
+
+	elif param.exp4_sim_mode == "MCTS_SIM":
+		sim_result = self_play(param)
+
+	elif param.exp4_sim_mode == "GLAS_SIM":
+		sim_result = self_play(param)
+
+	else: 
+		exit('sim_mode not regonzied')
 
 	dh.write_sim_result(sim_result,param.dataset_fn)
 
@@ -76,9 +87,9 @@ def get_params(df_param):
 
 	params = [] 
 	count = 0 
-	total = df_param.num_trials * len(df_param.sim_modes) * len(df_param.dss)
+	total = df_param.num_trials * len(df_param.exp4_sim_modes) * len(df_param.dss)
 	for i_trial in range(df_param.num_trials):
-		for sim_mode in df_param.sim_modes: 
+		for exp4_sim_mode in df_param.exp4_sim_modes: 
 			for pos in df_param.dss: 
 				initial_condition = copy.deepcopy(df_param.state)
 				initial_condition[0][0:2] = pos 
@@ -90,9 +101,16 @@ def get_params(df_param):
 				param.num_trials = df_param.num_trials
 				param.total = total
 				param.mcts_tree_size = df_param.mcts_tree_size
-				param.sim_modes = df_param.sim_modes
+				param.sim_modes = df_param.exp4_sim_modes
+				param.exp4_sim_mode = exp4_sim_mode
 
-				param.policy_dict["sim_mode"] = sim_mode
+				if 'MCTS' in exp4_sim_mode:
+					param.policy_dict["sim_mode"] = "MCTS"
+				elif 'GLAS' in exp4_sim_mode: 
+					param.policy_dict["sim_mode"] = "GLAS"
+				else: 
+					exit('exp4 sim_mode not recognized: ', exp4_sim_mode)
+
 				param.policy_dict["path_glas_model_a"] = df_param.path_glas_model_a
 				param.policy_dict["path_glas_model_b"] = df_param.path_glas_model_b
 				
@@ -132,14 +150,15 @@ def main():
 		df_param.num_trials = 1
 		df_param.env_l = 0.5
 		df_param.make_environment()
-		df_param.sim_modes = ["EXPECTED_VALUE","GLAS"] #["GLAS"]
-		df_param.path_glas_model_a = '../current/models/a10.pt'
-		df_param.path_glas_model_b = '../current/models/b10.pt'
-		df_param.mcts_tree_size = 10000
+		df_param.exp4_sim_modes = ["GLAS_SIM"] # ["MCTS_VALUE", "MCTS_SIM"] #,"GLAS_VALUE"] 
+		df_param.path_glas_model_a = '../current/models/a1.pt'
+		df_param.path_glas_model_b = '../current/models/b1.pt'
+		df_param.mcts_tree_size = 100000
 		dx = 0.05
 		df_param.dss, df_param.X, df_param.Y = discretize_state_space(df_param,dx,dx)
 		pos = {
-			1 : df_param.env_l*np.array((0.35,0.3))
+			# robot idx : position
+			1 : df_param.env_l*np.array((0.35,0.5))
 		}
 		df_param.state = make_initial_condition(df_param,pos)
 
@@ -162,7 +181,7 @@ def main():
 
 	# count = 0 
 	# for sim_result in sim_results:
-	# 	if not sim_result["param"]["sim_mode"] == "EXPECTED_VALUE":
+	# 	if not sim_result["param"]["sim_mode"] == "MCTS_VALUE":
 	# 		plotter.plot_tree_results(sim_result,title=sim_result["param"]["sim_mode"])
 	# 		count += 1 
 	# 	if count > 10:
