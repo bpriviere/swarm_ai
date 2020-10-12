@@ -44,7 +44,7 @@ def param_to_cpp_game(robot_team_composition,robot_types,env_xlim,env_ylim,dt,go
 
 def create_cpp_policy(policy_dict, team):
 	policy = mctscpp.Policy('None')
-	if policy_dict["sim_mode"] in ["GLAS","MCTS"]:
+	if policy_dict["sim_mode"] in ["GLAS","MCTS","D_MCTS"]:
 		file = policy_dict["path_glas_model_{}".format(team)]
 		if file is not None:
 			loadGLAS(policy.glas, file)
