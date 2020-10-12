@@ -547,12 +547,13 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 
 		if parallel:
 			torch.distributed.all_reduce(epoch_loss)
-			train_epoch_loss = float(epoch_loss[0]) / num_train_batches
-			test_epoch_loss = float(epoch_loss[1]) / num_test_batches
-			if np.isnan(train_epoch_loss):
-				if rank == 0:
-					print("WARNING: NAN encountered during training! Aborting.")
-				break
+
+		train_epoch_loss = float(epoch_loss[0]) / num_train_batches
+		test_epoch_loss = float(epoch_loss[1]) / num_test_batches
+		if np.isnan(train_epoch_loss):
+			if rank == 0:
+				print("WARNING: NAN encountered during training! Aborting.")
+			break
 
 		if df_param.l_lr_scheduler == 'ReduceLROnPlateau':
 			scheduler.step(test_epoch_loss)
