@@ -33,15 +33,19 @@ public:
     size_t idx,
     const GameStateT& gameState,
     const Eigen::Matrix<float, Robot::StateDim, 1>& goal,
-    bool deterministic) const
+    bool deterministic,
+    float rollout_beta = -1) const
   {
     if (state.status != RobotState::Status::Active) {
       return robotType.invalidAction;
     }
+    if (rollout_beta == -1) {
+      rollout_beta = m_rollout_beta;
+    }
 
     std::uniform_real_distribution<float> dist(0.0,1.0);
 
-    if (m_rollout_beta > 0 && dist(m_generator) < m_rollout_beta) {
+    if (rollout_beta >= 1 || (rollout_beta > 0 && dist(m_generator) < rollout_beta)) {
       // Use NN if rollout_beta is > 0 probabilistically
       assert(m_glas.valid());
       auto result = m_glas.eval(gameState, goal, robotType, teamAttacker, idx, deterministic);
@@ -88,6 +92,11 @@ public:
   const GLAS<Robot>& glasConst() const
   {
     return m_glas;
+  }
+
+  bool valid() const
+  {
+    return m_glas.valid() || m_rollout_beta <= 0;
   }
 
   friend std::ostream& operator<<(std::ostream& out, const Policy& p)
