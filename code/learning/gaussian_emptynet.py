@@ -62,8 +62,6 @@ class GaussianEmptyNet(nn.Module):
 
 	def __call__(self,o_a,o_b,goal,training=False):
 
-		batch_size = o_a.shape[0]
-
 		# project goal to sensing area
 		goal_norm = goal.norm(p=2,dim=1)
 		scale = 1.0 / torch.clamp(goal_norm/self.r_sense,min=1)
@@ -73,28 +71,31 @@ class GaussianEmptyNet(nn.Module):
 		output_rho_team_a = self.model_team_a(o_a)
 		output_rho_team_b = self.model_team_b(o_b)
 		y = torch.cat((output_rho_team_a, output_rho_team_b, goal),1)
-		y = self.psi(y) 
+		y = self.psi(y)
 
 		# value uses game state condition
-		value = (torch.tanh(self.value(y))+1) / 2 
+		value = (torch.tanh(self.value(y))+1) / 2
 
 		# predict mean and variance 
-		action_dim = 2 
-		dist = self.policy(y) 
+		action_dim = 2
+		dist = self.policy(y)
 		mu = dist[:,0:action_dim]
-		logvar = dist[:,action_dim:]		
-		sd = torch.sqrt(torch.exp(logvar))
-
-		# reparameterization trick 
-		eps = torch.randn(size=(batch_size,action_dim),device=self.device)
-		policy = mu + sd * eps
-
-		# scale policy 
-		policy_norm = policy.norm(p=2,dim=1)
-		scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
-		policy = torch.mul(scale.unsqueeze(1), policy)
+		logvar = dist[:,action_dim:]
 
 		if training:
-			return value, policy, mu, logvar
+			return value, None, mu, logvar
 		else:
+			batch_size = o_a.shape[0]
+
+			sd = torch.sqrt(torch.exp(logvar))
+
+			# reparameterization trick 
+			eps = torch.randn(size=(batch_size,action_dim),device=self.device)
+			policy = mu + sd * eps
+
+			# scale policy 
+			policy_norm = policy.norm(p=2,dim=1)
+			scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
+			policy = torch.mul(scale.unsqueeze(1), policy)
+
 			return value, policy 

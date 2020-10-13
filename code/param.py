@@ -58,23 +58,23 @@ class Param:
 		}
 		
 		# environment
-		self.env_l = 0.5
+		self.env_l = 1.0
 
 		# learning (l) parameters 
-		self.device = 'cpu' # 'cpu', 'cuda'
+		self.device = 'cuda' # 'cpu', 'cuda'
 		self.l_mode = "MICE" # IL, DAgger, ExIt, MICE
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 1
-		self.l_num_file_per_iteration = 10 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 4000
-		self.l_mcts_rollout_beta = 0.25
+		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
+		self.l_num_points_per_file = 5000
+		self.l_mcts_rollout_beta = 0.5
 		self.l_num_learner_nodes = 500
-		self.l_num_expert_nodes = 100000
+		self.l_num_expert_nodes = 10000
 		self.l_env_l0 = 1.0
 		self.l_env_dl = 1.0
-		self.l_warmstart = False # warmstart policies between iterations
+		self.l_warmstart = True # warmstart policies between iterations
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -151,15 +151,15 @@ class Param:
 			["Linear", h, 2*m] 		
 		]
 
-		self.l_gaussian_on = False 
+		self.l_gaussian_on = True
 
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 10000000000 # n_points 
-		self.l_batch_size = 512
-		self.l_n_epoch = 1000
+		self.l_batch_size = 4096 #512
+		self.l_n_epoch = 500
 		self.l_lr = 1e-3
-		self.l_lr_scheduler = None # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
+		self.l_lr_scheduler = 'ReduceLROnPlateau' # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
 		self.l_wd = 0 
 		self.l_log_interval = 1
 		self.l_raw_fn = '{DATADIR}raw_team{TEAM}_i{LEARNING_ITER}_numfn{NUM_FILE}'

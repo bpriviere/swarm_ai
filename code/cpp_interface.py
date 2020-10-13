@@ -49,7 +49,10 @@ def create_cpp_policy(policy_dict, team):
 		if file is not None:
 			loadGLAS(policy.glas, file)
 			policy.name = file
-			policy.rolloutBeta = policy_dict["mcts_rollout_beta"]
+			if policy_dict["sim_mode"] in ["GLAS"]:
+				policy.rolloutBeta = 1.0
+			else:
+				policy.rolloutBeta = policy_dict["mcts_rollout_beta"]
 			return policy
 	policy.rolloutBeta = 0.0
 	return policy
@@ -77,8 +80,8 @@ def loadFeedForwardNNWeights(ff, state_dict, name):
 		if key1 in state_dict and key2 in state_dict:
 			ff.addLayer(state_dict[key1].numpy(), state_dict[key2].numpy())
 		else:
-			if l == 0:
-				print("WARNING: No weights found for {}".format(name))
+			# if l == 0:
+				# print("WARNING: No weights found for {}".format(name))
 			break
 		l += 1
 
@@ -260,8 +263,6 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			success = g.step(gs,action,gs)
 
 		elif policy_dict["sim_mode"] == "GLAS":
-			policy_a.rolloutBeta = 1.0
-			policy_b.rolloutBeta = 1.0
 			action = mctscpp.eval(g, gs, policy_a, policy_b, deterministic)
 			success = g.step(gs, action, gs)
 
@@ -273,8 +274,6 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "RANDOM":
-			policy_a.rolloutBeta = 0.0
-			policy_b.rolloutBeta = 0.0
 			action = mctscpp.eval(g, gs, policy_a, policy_b, False)
 			success = g.step(gs, action, gs)
 

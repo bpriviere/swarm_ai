@@ -14,6 +14,13 @@
 
 #define REWARD_MODEL REWARD_MODEL_BASIC_TERMINAL
 
+#define ROLLOUT_MODE_POLICY          1
+#define ROLLOUT_MODE_RANDOM          2
+#define ROLLOUT_MODE_VALUE_RANDOM    3
+#define ROLLOUT_MODE_VALUE_POLICY    4
+
+#define ROLLOUT_MODE ROLLOUT_MODE_VALUE_RANDOM
+
 typedef std::pair<float, float> Reward;
 
 Reward& operator+=(Reward& r1, const Reward& r2) {
@@ -258,7 +265,8 @@ class Game {
     const GameStateT& state,
     const PolicyT& policyAttacker,
     const PolicyT& policyDefender,
-    bool deterministic)
+    bool deterministic,
+    float rollout_beta = -1)
   {
     size_t NumAttackers = state.attackers.size();
     size_t NumDefenders = state.defenders.size();
@@ -267,7 +275,7 @@ class Game {
 
     if (state.turn == GameStateT::Turn::Attackers) {
       for (size_t i = 0; i < NumAttackers; ++i) {
-        result[i] = policyAttacker.sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state, m_goal, deterministic);
+        result[i] = policyAttacker.sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state, m_goal, deterministic, rollout_beta);
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
         result[NumAttackers + i] = m_defenderTypes[i].invalidAction;
@@ -277,7 +285,7 @@ class Game {
         result[i] = m_attackerTypes[i].invalidAction;
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
-        result[NumAttackers + i] = policyDefender.sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state, m_goal, deterministic);
+        result[NumAttackers + i] = policyDefender.sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state, m_goal, deterministic, rollout_beta);
       }
     }
     return result;
@@ -289,14 +297,29 @@ class Game {
     const PolicyT& policyDefender,
     bool deterministic)
   {
+#if ROLLOUT_MODE == ROLLOUT_MODE_VALUE_POLICY || ROLLOUT_MODE == ROLLOUT_MODE_VALUE_RANDOM
+    // TODO: make 0.5 configurable
+    std::uniform_real_distribution<float> dist(0.0,1.0);
+    if (   policyAttacker.glasConst().valid()
+        && policyDefender.glasConst().valid()
+        && !isTerminal(state)
+        && dist(m_generator) < 0.5) {
+      float reward =  estimateValue(state, policyAttacker, policyDefender);
+      return Reward(reward, 1 - reward);
+    }
+#endif
+
     GameStateT s = state;
     GameStateT nextState;
 
     while (true) {
-      bool valid = true;
-
+#if ROLLOUT_MODE == ROLLOUT_MODE_POLICY || ROLLOUT_MODE == ROLLOUT_MODE_VALUE_POLICY
       const auto action = sampleAction(s, policyAttacker, policyDefender, deterministic);
-      valid &= step(s, action, nextState);
+#elif ROLLOUT_MODE == ROLLOUT_MODE_RANDOM || ROLLOUT_MODE == ROLLOUT_MODE_VALUE_RANDOM
+      const auto action = sampleAction(s, policyAttacker, policyDefender, deterministic, 0.0);
+#endif
+
+      bool valid = step(s, action, nextState);
 
       if (valid) {
         s = nextState;
@@ -318,7 +341,7 @@ class Game {
       reward += remainingTimesteps * r;
     }
     reward /= m_maxDepth;
-#endif
+#endif // REWARD_MODEL_CUMULATIVE
 
 #if REWARD_MODEL == REWARD_MODEL_TIME_EXPANDED_TERMINAL
     // Option 2: accumulate terminal reward
@@ -326,11 +349,11 @@ class Game {
     size_t remainingTimesteps = m_maxDepth + 1 - s.depth;
     float reward = computeReward(s) * (remainingTimesteps + 1);
     reward /= m_maxDepth;
-#endif
+#endif // REWARD_MODEL == REWARD_MODEL_TIME_EXPANDED_TERMINAL
 
 #if REWARD_MODEL == REWARD_MODEL_BASIC_TERMINAL
     float reward = computeReward(s);
-#endif
+#endif // REWARD_MODEL == REWARD_MODEL_BASIC_TERMINAL
 
     return Reward(reward, 1 - reward);
   }
