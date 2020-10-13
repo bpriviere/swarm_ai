@@ -107,41 +107,57 @@ if __name__ == '__main__':
 
 	df_param.env_l = 1.0
 
-	df_param.attackerPolicyDicts = [
-		{
+	df_param.attackerPolicyDicts = [{
 			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		'../current/models/a0.pt',
-			'path_glas_model_b' : 		'../current/models/b0.pt', 
-			'mcts_tree_size' : 			50000,
-			'mcts_rollout_horizon' : 	100,	
+			'path_glas_model_a' : 		None,
+			'path_glas_model_b' : 		None, 
+			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
+			'mcts_rollout_horizon' : 	100,
 			'mcts_rollout_beta' : 		0.0,
-			'mcts_c_param' : 			0.5,
+			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_vf_beta' : 			0.0,
-		},				
+		}]
+	df_param.attackerPolicyDicts.extend(
 		{
-			"sim_mode" : "PANAGOU",
-		},		
-	]
+			'sim_mode' : 				"D_MCTS",
+			'path_glas_model_a' : 		'../current/models/a{}.pt'.format(i) if i > 0  else None,
+			'path_glas_model_b' : 		'../current/models/b{}.pt'.format(i) if i > 0  else None, 
+			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
+			'mcts_rollout_horizon' : 	100,
+			'mcts_rollout_beta' : 		0.25,
+			'mcts_c_param' : 			1.4,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,
+			'mcts_vf_beta' : 			0.0,
+		} for i in range(1,4))
 
-	df_param.defenderPolicyDicts = [				
-		{
+	df_param.defenderPolicyDicts = [{
 			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		'../current/models/a0.pt',
-			'path_glas_model_b' : 		'../current/models/b0.pt', 
-			'mcts_tree_size' : 			50000,
-			'mcts_rollout_horizon' : 	100,	
+			'path_glas_model_a' : 		None,
+			'path_glas_model_b' : 		None, 
+			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
+			'mcts_rollout_horizon' : 	100,
 			'mcts_rollout_beta' : 		0.0,
-			'mcts_c_param' : 			0.5,
+			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_vf_beta' : 			0.0,
-		},	
+		}]
+	df_param.defenderPolicyDicts.extend(
 		{
-			"sim_mode" : "PANAGOU",
-		},
-	]
+			'sim_mode' : 				"D_MCTS",
+			'path_glas_model_a' : 		'../current/models/a{}.pt'.format(i) if i > 0  else None,
+			'path_glas_model_b' : 		'../current/models/b{}.pt'.format(i) if i > 0  else None, 
+			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
+			'mcts_rollout_horizon' : 	100,
+			'mcts_rollout_beta' : 		0.25,
+			'mcts_c_param' : 			1.4,
+			'mcts_pw_C' : 				1.0,
+			'mcts_pw_alpha' : 			0.25,
+			'mcts_vf_beta' : 			0.0,
+		} for i in range(1,4))	
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-game_file", default=None, required=False)
