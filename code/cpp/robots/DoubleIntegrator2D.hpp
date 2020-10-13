@@ -42,7 +42,8 @@ public:
 
   bool isApprox(const RobotStateDoubleIntegrator2D& other) const
   {
-    const float epsilon = 1e-3;
+    // const float epsilon = 1e-3;
+    const float epsilon = 1e-2;
     return status == other.status && (state - other.state).squaredNorm() < epsilon*epsilon;
   }
 
