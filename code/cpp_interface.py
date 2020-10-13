@@ -80,8 +80,8 @@ def loadFeedForwardNNWeights(ff, state_dict, name):
 		if key1 in state_dict and key2 in state_dict:
 			ff.addLayer(state_dict[key1].numpy(), state_dict[key2].numpy())
 		else:
-			if l == 0:
-				print("WARNING: No weights found for {}".format(name))
+			# if l == 0:
+				# print("WARNING: No weights found for {}".format(name))
 			break
 		l += 1
 
