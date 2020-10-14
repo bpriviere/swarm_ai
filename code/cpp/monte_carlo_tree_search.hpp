@@ -339,9 +339,14 @@ class MonteCarloTreeSearch {
     Node* result = nullptr;
     float bestValue = -1;
     for (Node* c : nodePtr->children) {
-      float value =   m_beta1 * c->estimated_value
-                    + (1-m_beta1) * m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits
-                    + Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits);
+      float value = 0;
+      if (!isnan(c->estimated_value)) {
+        value =   m_beta1 * c->estimated_value
+               + (1-m_beta1) * m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits;
+      } else {
+        value = m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits;
+      }
+      value += Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits);
       assert(value >= 0);
       if (value > bestValue) {
         bestValue = value;

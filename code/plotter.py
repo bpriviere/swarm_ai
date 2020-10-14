@@ -441,8 +441,11 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 				continue 
 			else: 
 
-				values = [] 
+				values = []
+				ts = []
 				for t in range(states.shape[0]):
+					if np.isnan(states[t,i,:]).any(): # non active robot 
+						continue
 					o_a,o_b,goal = global_to_local(states[t,:,:],param_obj,i)
 					o_a,o_b,goal = format_data(o_a,o_b,goal)
 					if i in team_1_idxs and not model_fn_a is None:
@@ -450,8 +453,9 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 					elif not model_fn_b is None: 
 						value,action = model_b(o_a,o_b,goal)
 					values.append(value)
+					ts.append(t)
 
-				ax.plot(times,values,color=colors[i])
+				ax.plot(ts,values,color=colors[i])
 
 	# ax.plot(times,rewards[:,0],color=team_1_color,label='attackers')
 	# ax.plot(times,rewards[:,1],color=team_2_color,label='defenders')
