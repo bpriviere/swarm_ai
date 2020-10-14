@@ -655,7 +655,9 @@ def make_dataset(states,params,df_param,testing=None):
 		param.my_policy_dict = expert_policy_dict.copy()
 		if param.i == 0 or param.l_mode in ["IL","DAgger"]:
 			param.my_policy_dict["path_glas_model_{}".format(param.training_team)] = None  
+			param.my_policy_dict["mcts_beta1"] = 0.0 
 			param.my_policy_dict["mcts_beta2"] = 0.0 
+			param.my_policy_dict["mcts_beta3"] = 0.0 
 		else:
 			param.my_policy_dict["path_glas_model_{}".format(param.training_team)] = param.l_model_fn.format(\
 				DATADIR=param.path_current_models,\
