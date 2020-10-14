@@ -220,6 +220,11 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 	invalid_team_action = [np.nan*np.ones(2) for _ in range(param.num_nodes)]
 	team_action = list(invalid_team_action)
 	while True:
+		# Kill the simulation if too many steps
+		if count > (15/max(param.sim_dt,0.001)*2) :
+			print("\t (%7s v %7s) - simulation abandoned, took too long..." % (policy_dict_a["sim_mode"], policy_dict_b["sim_mode"]))
+			break
+
 		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
