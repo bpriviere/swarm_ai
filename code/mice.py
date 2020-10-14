@@ -222,12 +222,12 @@ def get_self_play_samples(params):
 			'path_glas_model_a' : 		path_glas_model_a, 	
 			'path_glas_model_b' : 		path_glas_model_b, 	
 			'mcts_tree_size' : 			param.l_num_learner_nodes,
-			'mcts_c_param' : 			1.4,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,
-			'mcts_beta1' : 				0.0,
+			'mcts_c_param' : 			param.l_mcts_c_param,
+			'mcts_pw_C' : 				param.l_mcts_pw_C,
+			'mcts_pw_alpha' : 			param.l_mcts_pw_alpha,
+			'mcts_beta1' : 				param.l_mcts_beta1,
 			'mcts_beta2' : 				param.l_mcts_beta2,
-			'mcts_beta3' : 				0.5,
+			'mcts_beta3' : 				param.l_mcts_beta3,
 		}
 		param.policy_dict_b = param.policy_dict_a.copy() 
 
@@ -643,12 +643,12 @@ def make_dataset(states,params,df_param,testing=None):
 			'path_glas_model_a' : 		None, 	
 			'path_glas_model_b' : 		None, 	
 			'mcts_tree_size' : 			param.l_num_expert_nodes,
-			'mcts_c_param' : 			1.4,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,
-			'mcts_beta1' : 				0.0,
+			'mcts_c_param' : 			param.l_mcts_c_param,
+			'mcts_pw_C' : 				param.l_mcts_pw_C,
+			'mcts_pw_alpha' : 			param.l_mcts_pw_alpha,
+			'mcts_beta1' : 				param.l_mcts_beta1,
 			'mcts_beta2' : 				0.0,
-			'mcts_beta3' : 				0.5,
+			'mcts_beta3' : 				param.l_mcts_beta3,
 		}
 
 		# my policy 
