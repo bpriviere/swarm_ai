@@ -258,7 +258,10 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				policy_dict["mcts_pw_alpha"],
 				policy_dict["mcts_vf_beta"])
 			if mctsresult.success: 
+				# Take the best action calculated by MCTS
 				action = mctsresult.bestAction
+
+				# Step the state for the robot
 				success = g.step(gs, action, gs)
 			else:
 				success = False
@@ -330,18 +333,26 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 
 			# print('python', action)
 
-
+			# Step the state for the robot
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "PANAGOU":
 
 			pstate = cpp_state_to_pstate(gs)
 			pp.init_sim(pstate)
+
+			# Calculate action
 			action = pp.eval(pstate)
+			
+			# Step robot state
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "RANDOM":
+
+			# Calculate action
 			action = mctscpp.eval(g, gs, 0.0, False)
+
+			# Step robot state
 			success = g.step(gs, action, gs)
 
 		else: 
