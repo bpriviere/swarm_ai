@@ -69,12 +69,13 @@ MCTSResult search(
   float Cp,
   float pw_C,
   float pw_alpha,
-  float vf_beta,
+  float beta1, // gain for best-child
+  float beta3, // gain for rollout
   const char* export_dot = nullptr)
 {
   MCTSResult result;
   libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT, PolicyT> mcts(
-    game, g_generator, num_nodes, Cp, pw_C, pw_alpha, vf_beta);
+    game, g_generator, num_nodes, Cp, pw_C, pw_alpha, beta1, beta3);
   result.success = mcts.search(startState, myPolicy, opponentPolicies, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
@@ -113,7 +114,8 @@ PYBIND11_MODULE(mctscppsi, m) {
     "Cp"_a,
     "pw_C"_a,
     "pw_alpha"_a,
-    "vf_beta"_a,
+    "beta1"_a,
+    "beta3"_a,
     "export_dot"_a = nullptr);
   m.def("eval", &eval);
 
@@ -221,7 +223,7 @@ PYBIND11_MODULE(mctscppsi, m) {
     .def_property_readonly("glas", &PolicyT::glas)
     .def_property("name", &PolicyT::name, &PolicyT::setName)
     .def_property("weight", &PolicyT::weight, &PolicyT::setWeight)
-    .def_property("rolloutBeta", &PolicyT::rolloutBeta, &PolicyT::setRolloutBeta);
+    .def_property("beta2", &PolicyT::beta2, &PolicyT::setBeta2);
 
   // Game
   py::class_<GameT> (m, "Game")

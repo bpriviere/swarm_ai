@@ -50,11 +50,11 @@ def create_cpp_policy(policy_dict, team):
 			loadGLAS(policy.glas, file)
 			policy.name = file
 			if policy_dict["sim_mode"] in ["GLAS"]:
-				policy.rolloutBeta = 1.0
+				policy.beta2 = 1.0
 			else:
-				policy.rolloutBeta = policy_dict["mcts_rollout_beta"]
+				policy.beta2 = policy_dict["mcts_beta2"]
 			return policy
-	policy.rolloutBeta = 0.0
+	policy.beta2 = 0.0
 	return policy
 
 def loadGLAS(glas, file):
@@ -140,7 +140,8 @@ def expected_value(param,state,policy_dict):
 		policy_dict["mcts_c_param"],
 		policy_dict["mcts_pw_C"],
 		policy_dict["mcts_pw_alpha"],
-		policy_dict["mcts_vf_beta"])
+		policy_dict["mcts_beta1"],
+		policy_dict["mcts_beta3"])
 	return mctsresult.expectedReward
 
 def self_play(param,deterministic=True):
@@ -224,7 +225,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				policy_dict["mcts_c_param"],
 				policy_dict["mcts_pw_C"],
 				policy_dict["mcts_pw_alpha"],
-				policy_dict["mcts_vf_beta"])
+				policy_dict["mcts_beta1"],
+				policy_dict["mcts_beta3"])
 			gs.depth = depth
 			if mctsresult.success: 
 				action = mctsresult.bestAction
@@ -252,7 +254,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 					policy_dict["mcts_c_param"],
 					policy_dict["mcts_pw_C"],
 					policy_dict["mcts_pw_alpha"],
-					policy_dict["mcts_vf_beta"])
+					policy_dict["mcts_beta1"],
+					policy_dict["mcts_beta3"])
 
 				if mctsresult.success: 
 					action_i = mctsresult.bestAction
@@ -338,7 +341,8 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 			param.my_policy_dict["mcts_c_param"],
 			param.my_policy_dict["mcts_pw_C"],
 			param.my_policy_dict["mcts_pw_alpha"],
-			param.my_policy_dict["mcts_vf_beta"])
+			param.my_policy_dict["mcts_beta1"],
+			param.my_policy_dict["mcts_beta3"])
 		if mctsresult.success: 
 			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
 			value = mctsresult.expectedReward[0]
@@ -484,7 +488,7 @@ def is_valid_policy_dict(policy_dict):
 		if bad_key(policy_dict,"path_glas_model_a") or \
 			bad_key(policy_dict,"path_glas_model_b") or \
 			bad_key(policy_dict,"mcts_tree_size") or \
-			bad_key(policy_dict,"mcts_rollout_beta") or \
+			bad_key(policy_dict,"mcts_beta2") or \
 			bad_key(policy_dict,"mcts_c_param") or \
 			bad_key(policy_dict,"mcts_pw_C") or \
 			bad_key(policy_dict,"mcts_pw_alpha"): 

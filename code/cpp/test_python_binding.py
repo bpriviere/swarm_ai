@@ -63,22 +63,23 @@ if __name__ == '__main__':
 	dt = 0.25
 	goal = [0.25,0.25,0,0]
 	max_depth = 100
-	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS
+	beta2 = 0.5 # 0 means pure random, 1.0 means pure GLAS
 	Cp = 1.4
 	pw_C = 1.0
 	pw_alpha = 0.25
-	vf_beta = 0
+	beta1 = 0
+	beta3 = 0
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	policyA = mctscpp.Policy('a')
 	policyB = mctscpp.Policy('b')
 	if "GLAS" in mode:
 		loadGLAS(policyA.glas, "../../current/models/a1.pt")
 		loadGLAS(policyB.glas, "../../current/models/b1.pt")
-		policyA.rolloutBeta = rollout_beta
-		policyB.rolloutBeta = rollout_beta
+		policyA.beta2 = beta2
+		policyB.beta2 = beta2
 	if "RANDOM" in mode:
-		policyA.rolloutBeta = 0.0
-		policyB.rolloutBeta = 0.0
+		policyA.beta2 = 0.0
+		policyB.beta2 = 0.0
 		vf_beta = 0
 	print(policyA)
 	print(policyB)
@@ -107,7 +108,7 @@ if __name__ == '__main__':
 				myPolicy = policyB
 				opponentPolicies = [policyA]
 
-			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, num_nodes, Cp, pw_C, pw_alpha, vf_beta, export_dot)
+			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, num_nodes, Cp, pw_C, pw_alpha, beta1, beta3, export_dot)
 			if export_dot:
 				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
 				exit()

@@ -21,12 +21,13 @@ class Param:
 			'sim_mode' : 				"MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
 			'path_glas_model_a' : 		None, 	#'../current/models/a0.pt', 
 			'path_glas_model_b' : 		None, 	#'../current/models/b0.pt', 
-			'mcts_tree_size' : 			100000,
-			'mcts_rollout_beta' : 		0.0,
+			'mcts_tree_size' : 			10000,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
-			'mcts_vf_beta' : 			0.0,
+			'mcts_beta1' : 				0.0,
+			'mcts_beta2' : 				0.0,
+			'mcts_beta3' : 				0.5,
 		}
 
 		# max timesteps until the game terminates
@@ -69,7 +70,12 @@ class Param:
 		self.l_num_iterations = 1
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
 		self.l_num_points_per_file = 5000
-		self.l_mcts_rollout_beta = 0.5
+		self.l_mcts_c_param = 1.4
+		self.l_mcts_pw_C = 1.0
+		self.l_mcts_pw_alpha = 0.25
+		self.l_mcts_beta1 = 0.0
+		self.l_mcts_beta2 = 0.5
+		self.l_mcts_beta3 = 0.5
 		self.l_num_learner_nodes = 500
 		self.l_num_expert_nodes = 10000
 		self.l_env_l0 = 1.0
