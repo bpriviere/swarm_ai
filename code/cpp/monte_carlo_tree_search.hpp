@@ -75,14 +75,16 @@ class MonteCarloTreeSearch {
     float Cp,
     float pw_C,
     float pw_alpha,
-    float vf_beta)
+    float beta1,
+    float beta3)
     : m_env(environment)
     , m_generator(generator)
     , m_num_nodes(num_nodes)
     , m_Cp(Cp)
     , m_pw_C(pw_C)
     , m_pw_alpha(pw_alpha)
-    , m_vf_beta(vf_beta)
+    , m_beta1(beta1)
+    , m_beta3(beta3)
     {}
 
   bool search(
@@ -119,7 +121,7 @@ class MonteCarloTreeSearch {
 //      if (node == nullptr) {
 //        return false;
 //      }
-      Reward reward = m_env.rollout(node->state, policyAttacker, policyDefender, false);
+      Reward reward = m_env.rollout(node->state, policyAttacker, policyDefender, false, m_beta3);
       backpropagation(node, reward);
     }
     // std::cout << "R " << root.reward.first << " " << root.reward.second << std::endl;
@@ -285,7 +287,7 @@ class MonteCarloTreeSearch {
     if (success) {
       newNode.parent = nodePtr;
       newNode.action_to_node = action;
-      if (m_vf_beta > 0) {
+      if (m_beta1 > 0) {
         newNode.estimated_value = m_env.estimateValue(newNode.state, policyAttacker, policyDefender);
       }
       nodePtr->children.push_back(&newNode);
@@ -337,9 +339,9 @@ class MonteCarloTreeSearch {
     Node* result = nullptr;
     float bestValue = -1;
     for (Node* c : nodePtr->children) {
-      float value =   m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits
-                    + (1-m_vf_beta) * Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits)
-                    + m_vf_beta * c->estimated_value;
+      float value =   m_beta1 * c->estimated_value
+                    + (1-m_beta1) * m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits
+                    + Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits);
       assert(value >= 0);
       if (value > bestValue) {
         bestValue = value;
@@ -369,7 +371,8 @@ class MonteCarloTreeSearch {
   float m_Cp;
   float m_pw_C;
   float m_pw_alpha;
-  float m_vf_beta;
+  float m_beta1;
+  float m_beta3;
 };
 
 }  // namespace libMultiRobotPlanning

@@ -26,7 +26,8 @@ class Param:
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
-			'mcts_vf_beta' : 			0.0,
+			'mcts_beta1' : 				0.0,
+			'mcts_beta3' : 				0.5,
 		}
 
 		# max timesteps until the game terminates

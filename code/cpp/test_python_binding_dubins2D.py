@@ -54,7 +54,8 @@ if __name__ == '__main__':
 	Cp = 1.4
 	pw_C = 1.0
 	pw_alpha = 0.25
-	vf_beta = 0
+	beta1 = 0
+	beta3 = 0
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	policyA = mctscpp.Policy('a')
 	policyB = mctscpp.Policy('b')
@@ -89,7 +90,7 @@ if __name__ == '__main__':
 				myPolicy = policyB
 				opponentPolicies = [policyA]
 
-			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, num_nodes, Cp, pw_C, pw_alpha, vf_beta, export_dot)
+			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, num_nodes, Cp, pw_C, pw_alpha, beta1, beta3, export_dot)
 			if export_dot:
 				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
 				exit()

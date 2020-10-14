@@ -117,7 +117,8 @@ if __name__ == '__main__':
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
-			'mcts_vf_beta' : 			0.0,
+			'mcts_beta1' : 				0.0,
+			'mcts_beta3' : 				0.5,
 		}]
 	df_param.attackerPolicyDicts.extend(
 		{
@@ -130,7 +131,8 @@ if __name__ == '__main__':
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
-			'mcts_vf_beta' : 			0.0,
+			'mcts_beta1' : 				0.0,
+			'mcts_beta3' : 				0.5,
 		} for i in range(1,4))
 
 	df_param.defenderPolicyDicts = [{
@@ -143,7 +145,8 @@ if __name__ == '__main__':
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
-			'mcts_vf_beta' : 			0.0,
+			'mcts_beta1' : 				0.0,
+			'mcts_beta3' : 				0.5,
 		}]
 	df_param.defenderPolicyDicts.extend(
 		{
@@ -156,7 +159,8 @@ if __name__ == '__main__':
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
-			'mcts_vf_beta' : 			0.0,
+			'mcts_beta1' : 				0.0,
+			'mcts_beta3' : 				0.5,
 		} for i in range(1,4))	
 
 	parser = argparse.ArgumentParser()

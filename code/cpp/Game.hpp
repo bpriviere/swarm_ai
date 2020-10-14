@@ -19,7 +19,7 @@
 #define ROLLOUT_MODE_VALUE_RANDOM    3
 #define ROLLOUT_MODE_VALUE_POLICY    4
 
-#define ROLLOUT_MODE ROLLOUT_MODE_VALUE_RANDOM
+#define ROLLOUT_MODE ROLLOUT_MODE_VALUE_POLICY
 
 typedef std::pair<float, float> Reward;
 
@@ -295,15 +295,15 @@ class Game {
     const GameStateT& state,
     const PolicyT& policyAttacker,
     const PolicyT& policyDefender,
-    bool deterministic)
+    bool deterministic,
+    float beta3)
   {
 #if ROLLOUT_MODE == ROLLOUT_MODE_VALUE_POLICY || ROLLOUT_MODE == ROLLOUT_MODE_VALUE_RANDOM
-    // TODO: make 0.5 configurable
     std::uniform_real_distribution<float> dist(0.0,1.0);
     if (   policyAttacker.glasConst().valid()
         && policyDefender.glasConst().valid()
         && !isTerminal(state)
-        && dist(m_generator) < 0.5) {
+        && dist(m_generator) < beta3) {
       float reward =  estimateValue(state, policyAttacker, policyDefender);
       return Reward(reward, 1 - reward);
     }

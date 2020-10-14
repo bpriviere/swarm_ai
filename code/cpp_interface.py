@@ -140,7 +140,8 @@ def expected_value(param,state,policy_dict):
 		policy_dict["mcts_c_param"],
 		policy_dict["mcts_pw_C"],
 		policy_dict["mcts_pw_alpha"],
-		policy_dict["mcts_vf_beta"])
+		policy_dict["mcts_beta1"],
+		policy_dict["mcts_beta3"])
 	return mctsresult.expectedReward
 
 def self_play(param,deterministic=True):
@@ -224,7 +225,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				policy_dict["mcts_c_param"],
 				policy_dict["mcts_pw_C"],
 				policy_dict["mcts_pw_alpha"],
-				policy_dict["mcts_vf_beta"])
+				policy_dict["mcts_beta1"],
+				policy_dict["mcts_beta3"])
 			gs.depth = depth
 			if mctsresult.success: 
 				action = mctsresult.bestAction
@@ -252,7 +254,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 					policy_dict["mcts_c_param"],
 					policy_dict["mcts_pw_C"],
 					policy_dict["mcts_pw_alpha"],
-					policy_dict["mcts_vf_beta"])
+					policy_dict["mcts_beta1"],
+					policy_dict["mcts_beta3"])
 
 				if mctsresult.success: 
 					action_i = mctsresult.bestAction
@@ -338,7 +341,8 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 			param.my_policy_dict["mcts_c_param"],
 			param.my_policy_dict["mcts_pw_C"],
 			param.my_policy_dict["mcts_pw_alpha"],
-			param.my_policy_dict["mcts_vf_beta"])
+			param.my_policy_dict["mcts_beta1"],
+			param.my_policy_dict["mcts_beta3"])
 		if mctsresult.success: 
 			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
 			value = mctsresult.expectedReward[0]
