@@ -15,7 +15,7 @@ def wrap_play_game(param):
 	# When using multiprocessing, load cpp_interface per process
 	from cpp_interface import play_game
 	
-	print('playing game {}/{}'.format(param.count,param.total))
+	print('playing game {}/{}'.format(param.count+1,param.total))
 	sim_result = play_game(param,param.policy_a_dict,param.policy_b_dict)
 	dh.write_sim_result(sim_result,param.dataset_fn)
 
@@ -86,7 +86,7 @@ def get_params(df_param,initial_conditions,robot_team_compositions):
 				param.count = count
 				param.total = total
 				param.robot_team_composition = robot_team_composition
-				param.dataset_fn = '{}sim_result_{}'.format(\
+				param.dataset_fn = '{}sim_result_{:03d}'.format(\
 					df_param.path_current_results,count)
 
 				param.update(initial_condition=initial_condition)
@@ -182,19 +182,29 @@ if __name__ == '__main__':
 				wrap_play_game(param) 
 
 	sim_results = [] 
-	for sim_result_dir in glob.glob(df_param.path_current_results + '/*'):
+	files = sorted(glob.glob(df_param.path_current_results + '/*'))
+	for sim_result_dir in files :
 		sim_results.append(dh.load_sim_result(sim_result_dir))
 
+	# Plot results of all the runs
+	print("Generating Plots")
 	plotter.plot_exp3_results(sim_results)
 
+	# Plot results of each run
 	count = 0 
 	for sim_result in sim_results:
-		plotter.plot_tree_results(sim_result,title='T: {}, A:{}, B:{}'.format(\
+		_, filename = os.path.split(files[count])
+
+		# Plot results of each run
+		plotter.plot_tree_results(sim_result,title='Game: {} - File: {} - Time: {:5.2f} s\nA (Blue):{}\n B (Orange):{}'.format(\
 			sim_result["param"]["trial"],
+			filename,
+			max(sim_result["times"]),
 			policy_to_label(sim_result["param"]["policy_a_dict"]),\
 			policy_to_label(sim_result["param"]["policy_b_dict"])))
 		count += 1 
-		if count >= 10:
+		# Limit the maximum number of results files to plot
+		if count >= 50: 
 			break 
 
 	print('saving and opening figs...')
