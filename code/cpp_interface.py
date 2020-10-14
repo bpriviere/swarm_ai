@@ -236,7 +236,15 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 
 		# output result
 		isTerminal = g.isTerminal(gs)
-		if count % 2 == 0 or isTerminal:
+
+		# Check game state is valid
+		if (np.isnan(np.sum(gs.attackers[0].state))) or (np.isnan(np.sum(gs.defenders[0].state))) :
+			# Game state has gone funny, let's just bail out
+			# This seems to happen when an MCTS hits a border
+			print("\t (%7s v %7s) - simulation broken and full of nans, bailing out..." % (policy_dict_a["sim_mode"], policy_dict_b["sim_mode"]))
+			break
+
+		if count % 2 == 0 or isTerminal:  # Store results if both attackers and defenders have had their turn
 			# update sim_result
 			sim_result['states'].append([rs.state.copy() for rs in gs.attackers + gs.defenders])
 			sim_result['actions'].append(team_action.copy())
