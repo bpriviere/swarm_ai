@@ -5,6 +5,8 @@ import torch
 
 def global_to_local(states,param,idx):
 
+	assert(not np.isnan(states[idx,:]).any())
+
 	n_robots, n_state_dim = states.shape
 
 	goal = np.array([param.goal[0],param.goal[1],0,0])
