@@ -50,16 +50,21 @@ if __name__ == '__main__':
 	dt = 0.1
 	goal = [0.25,0.25,0,0]
 	max_depth = 100
-	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS
+	beta2 = 0.5 # 0 means pure random, 1.0 means pure GLAS
 	Cp = 1.4
 	pw_C = 1.0
 	pw_alpha = 0.25
-	vf_beta = 0
+	beta1 = 0
+	beta3 = 0
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
-
+	policyA = mctscpp.Policy('a')
+	policyB = mctscpp.Policy('b')
 	if "RANDOM" in mode:
-		rollout_beta = 0.0
+		policyA.beta2 = 0.0
+		policyB.beta2 = 0.0
 		vf_beta = 0
+	print(policyA)
+	print(policyB)
 	print(g)
 
 	next_state = mctscpp.GameState()
@@ -78,7 +83,14 @@ if __name__ == '__main__':
 			[rs.state[0:2].copy() for rs in gs.attackers],
 			[rs.state[0:2].copy() for rs in gs.defenders]])
 		if "MCTS" in mode:
-			mctsresult = mctscpp.search(g, gs, num_nodes, rollout_beta, Cp, pw_C, pw_alpha, vf_beta, export_dot)
+			if gs.turn == mctscpp.GameState.Turn.Attackers:
+				myPolicy = policyA
+				opponentPolicies = [policyB]
+			else:
+				myPolicy = policyB
+				opponentPolicies = [policyA]
+
+			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, num_nodes, Cp, pw_C, pw_alpha, beta1, beta3, export_dot)
 			if export_dot:
 				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
 				exit()

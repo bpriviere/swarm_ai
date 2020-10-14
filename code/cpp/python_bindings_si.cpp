@@ -16,6 +16,7 @@
 
 #include <yaml-cpp/yaml.h>
 #include "GLAS.hpp"
+#include "Policy.hpp"
 
 #include "Game.hpp"
 #include "monte_carlo_tree_search.hpp"
@@ -31,6 +32,7 @@ typedef Game<RobotT> GameT;
 typedef DeepSetNN<RobotT::StateDim> DeepSetNNT;
 // typedef DiscreteEmptyNet<RobotT::StateDim> DiscreteEmptyNetT;
 typedef GLAS<RobotT> GLAST;
+typedef Policy<RobotT> PolicyT;
 
 // global variables
 std::random_device g_r;
@@ -61,20 +63,20 @@ public:
 MCTSResult search(
   GameT& game,
   const GameT::GameStateT& startState,
+  const PolicyT& myPolicy,
+  const std::vector<PolicyT>& opponentPolicies,
   size_t num_nodes,
-  float rollout_beta,
   float Cp,
   float pw_C,
   float pw_alpha,
-  float vf_beta,
+  float beta1, // gain for best-child
+  float beta3, // gain for rollout
   const char* export_dot = nullptr)
 {
-  float old_rollout_beta = game.rolloutBeta();
-  game.setRolloutBeta(rollout_beta);
   MCTSResult result;
-  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT> mcts(
-    game, g_generator, num_nodes, Cp, pw_C, pw_alpha, vf_beta);
-  result.success = mcts.search(startState, result.bestAction);
+  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT, PolicyT> mcts(
+    game, g_generator, num_nodes, Cp, pw_C, pw_alpha, beta1, beta3);
+  result.success = mcts.search(startState, myPolicy, opponentPolicies, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
     result.valuePerAction = mcts.valuePerAction();
@@ -83,20 +85,17 @@ MCTSResult search(
     std::ofstream stream(export_dot);
     mcts.exportToDot(stream);
   }
-  game.setRolloutBeta(old_rollout_beta);
   return result;
 }
 
 GameT::GameActionT eval(
   GameT& game,
   const GameT::GameStateT& startState,
-  float rollout_beta,
+  const PolicyT& policyAttacker,
+  const PolicyT& policyDefender,
   bool deterministic)
 {
-  float old_rollout_beta = game.rolloutBeta();
-  game.setRolloutBeta(rollout_beta);
-  auto result = game.sampleAction(startState, deterministic);
-  game.setRolloutBeta(old_rollout_beta);
+  auto result = game.sampleAction(startState, policyAttacker, policyDefender, deterministic);
   return result;
 }
 
@@ -109,12 +108,14 @@ PYBIND11_MODULE(mctscppsi, m) {
   m.def("search", &search,
     "game"_a,
     "start_state"_a,
+    "my_policy"_a,
+    "opponent_policies"_a,
     "num_nodes"_a,
-    "rollout_beta"_a,
     "Cp"_a,
     "pw_C"_a,
     "pw_alpha"_a,
-    "vf_beta"_a,
+    "beta1"_a,
+    "beta3"_a,
     "export_dot"_a = nullptr);
   m.def("eval", &eval);
 
@@ -208,7 +209,21 @@ PYBIND11_MODULE(mctscppsi, m) {
     .def_property_readonly("psi", &GLAST::psi)
     .def_property_readonly("encoder", &GLAST::encoder)
     .def_property_readonly("decoder", &GLAST::decoder)
-    .def_property_readonly("value", &GLAST::value);
+    .def_property_readonly("value", &GLAST::value)
+    .def_property_readonly("policy", &GLAST::policy);
+
+  // Policy
+  py::class_<PolicyT> (m, "Policy")
+    .def(py::init<
+      const std::string&,
+      std::default_random_engine&>(),
+      "name"_a,
+      "generator"_a = g_generator)
+    .def("__repr__", &toString<PolicyT>)
+    .def_property_readonly("glas", &PolicyT::glas)
+    .def_property("name", &PolicyT::name, &PolicyT::setName)
+    .def_property("weight", &PolicyT::weight, &PolicyT::setWeight)
+    .def_property("beta2", &PolicyT::beta2, &PolicyT::setBeta2);
 
   // Game
   py::class_<GameT> (m, "Game")
@@ -229,8 +244,6 @@ PYBIND11_MODULE(mctscppsi, m) {
     .def("isTerminal", &GameT::isTerminal)
     .def("isValid", &GameT::isValid)
     .def("computeReward", &GameT::computeReward)
-    .def_property_readonly("glasA", &GameT::glasA)
-    .def_property_readonly("glasB", &GameT::glasB)
     .def_property_readonly("attackerTypes", &GameT::attackerTypes)
     .def_property_readonly("defenderTypes", &GameT::defenderTypes);
 }

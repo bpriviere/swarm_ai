@@ -9,89 +9,67 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingWarmResta
 from torch import nn 
 from collections import defaultdict
 from itertools import repeat
-from multiprocessing import cpu_count, Pool, freeze_support
+# from multiprocessing import cpu_count, Pool, freeze_support, Queue
+import multiprocessing as mp
+from queue import Queue, Empty
 from tqdm import tqdm
 import itertools
 import yaml 
 import random
+import pickle 
+import math 
 
 # custom 
+from testing.test_continuous_glas import test_model, test_evaluate_expert_wrapper, read_testing_yaml, test_evaluate_expert
 import plotter
 import datahandler as dh
 from param import Param 
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
+from learning.gaussian_emptynet import GaussianEmptyNet
+from learning_interface import format_data, global_to_local 
 
-def my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on):
+def my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on):
 	# value \& policy network : https://www.nature.com/articles/nature24270
 	# for kl loss : https://stats.stackexchange.com/questions/318748/deriving-the-kl-divergence-loss-for-vaes/370048#370048
 	# for wmse : https://stackoverflow.com/questions/57004498/weighted-mse-loss-in-pytorch
 
-	if l_subsample_on:
-		criterion = nn.MSELoss(reduction='sum')
-		mse = criterion(policy,target_policy) + criterion(value,target_value)
-		kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) 
-	else: 
-		criterion = nn.MSELoss(reduction='none')
-		# mse = torch.sum(weight*criterion(value, target_value) + weight*criterion(policy, target_policy))
-		mse = torch.sum(weight*(criterion(value, target_value) + criterion(policy, target_policy)))
-		kldiv = 0.5 * torch.sum( weight * (- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2))) 
+	if l_gaussian_on: 
+		# train distribution parameters, mean and variance where target_policy is mean and weight is variance 
+		# criterion = nn.MSELoss(reduction='sum')
+		# action_dim = 2 
+		# mse = criterion(value, target_value) + criterion(mu, target_policy)
+		# kldiv = 0.5 * torch.sum(- 1 - logvar + mu.pow(2) + torch.exp(logvar))
+		# kld_weight = 1e-4
+		# loss = mse + kld_weight * kldiv
+		# loss = loss / value.shape[0]
 
-	kld_weight = 1e-4
-	loss = mse + kld_weight * kldiv
-	loss = loss / value.shape[0]
+		criterion = nn.MSELoss(reduction='none')
+		# action_dim = 2 
+		loss = torch.sum(criterion(mu, target_policy) / (2 * torch.exp(logvar)) + 1/2 * logvar + criterion(value, target_value))
+		loss = loss / value.shape[0]
+
+	else:
+		if l_subsample_on:
+			criterion = nn.MSELoss(reduction='sum')
+			mse = criterion(policy,target_policy) + criterion(value,target_value)
+			# kldiv = 0.5 * torch.sum(- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2)) 
+			kldiv = 0.5 * torch.sum(- 1 - logvar + mu.pow(2) + torch.exp(logvar)) 
+		else: 
+			criterion = nn.MSELoss(reduction='none')
+			# mse = torch.sum(weight*criterion(value, target_value) + weight*criterion(policy, target_policy))
+			mse = torch.sum(weight*(criterion(value, target_value) + criterion(policy, target_policy)))
+			# kldiv = 0.5 * torch.sum( weight * (- 1 - torch.log(sd.pow(2)) + mu.pow(2) + sd.pow(2))) 
+			kldiv = 0.5 * torch.sum( weight * (- 1 - logvar + mu.pow(2) + torch.exp(logvar))) 
+
+		kld_weight = 1e-4
+		loss = mse + kld_weight * kldiv
+		loss = loss / value.shape[0]
 
 	return loss
 
-def relative_state(states,param,idx):
 
-	n_robots, n_state_dim = states.shape
-
-	goal = np.array([param.goal[0],param.goal[1],0,0])
-
-	o_a = []
-	o_b = [] 
-	relative_goal = goal - states[idx,:]
-
-	# projecting goal to radius of sensing 
-	alpha = np.linalg.norm(relative_goal[0:2]) / param.robots[idx]["r_sense"]
-	relative_goal[2:] = relative_goal[2:] / np.max((alpha,1))	
-
-	for idx_j in range(n_robots): 
-		if idx_j != idx and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]: 
-			if idx_j in param.team_1_idxs:  
-				o_a.append(states[idx_j,:] - states[idx,:])
-			elif idx_j in param.team_2_idxs:
-				o_b.append(states[idx_j,:] - states[idx,:])
-
-	return np.array(o_a),np.array(o_b),np.array(relative_goal)
-
-
-def format_data(o_a,o_b,goal):
-	# input: [num_a/b, dim_state_a/b] np array 
-	# output: 1 x something torch float tensor
-
-	# make 0th dim (this matches batch dim in training)
-	if o_a.shape[0] == 0:
-		o_a = np.expand_dims(o_a,axis=0)
-	if o_b.shape[0] == 0:
-		o_b = np.expand_dims(o_b,axis=0)
-	goal = np.expand_dims(goal,axis=0)
-
-	# reshape if more than one element in set
-	if o_a.shape[0] > 1: 
-		o_a = np.reshape(o_a,(1,np.size(o_a)))
-	if o_b.shape[0] > 1: 
-		o_b = np.reshape(o_b,(1,np.size(o_b)))
-
-	o_a = torch.from_numpy(o_a).float() 
-	o_b = torch.from_numpy(o_b).float()
-	goal = torch.from_numpy(goal).float()
-
-	return o_a,o_b,goal
-
-
-def train(model,optimizer,loader,l_subsample_on,l_sync_every,epoch, scheduler=None):
+def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch, scheduler=None):
 
 	epoch_loss = 0
 	for step, (o_a,o_b,goal,target_value,target_policy,weight) in enumerate(loader): 
@@ -103,24 +81,66 @@ def train(model,optimizer,loader,l_subsample_on,l_sync_every,epoch, scheduler=No
 			model.require_backward_grad_sync = False
 			model.require_forward_param_sync = False
 
-		value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
-		loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on)
+		if l_gaussian_on: 
+			value, policy, mu, logvar = model(o_a,o_b,goal,training=True)
+		else:
+			value, policy, mu, logvar = model(o_a,o_b,goal,x=target_policy)
+
+		loss = my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on)
+
 		optimizer.zero_grad()
 		loss.backward()
 		optimizer.step()
 		if scheduler is not None:
 			scheduler.step(epoch + step/len(loader))
 		epoch_loss += float(loss)
+
+		if torch.isnan(loss).any():
+			print('WARNING: NAN FOUND IN TRAIN')
+			if torch.isnan(o_a).any():
+				print(' in o_a')
+			if torch.isnan(o_b).any():
+				print(' in o_b')
+			if torch.isnan(goal).any():
+				print(' in goal')
+			if torch.isnan(target_value).any():
+				print(' in target_value')
+			if torch.isnan(target_policy).any():
+				print(' in target_policy')
+			if torch.isnan(weight).any():
+				print(' in weight')
+			break
+
 	return epoch_loss
 
 
-def test(model,loader,l_subsample_on):
+def test(model,loader,l_subsample_on,l_gaussian_on):
 	epoch_loss = 0
 	with torch.no_grad():
 		for o_a,o_b,goal,target_value,target_policy,weight in loader:
-			value, policy, mu, sd = model(o_a,o_b,goal,x=target_policy)
-			loss = my_loss(value, policy, target_value, target_policy, weight, mu, sd,l_subsample_on)
+			if l_gaussian_on: 
+				value, policy, mu, logvar = model(o_a,o_b,goal,training=True)
+			else:
+				value, policy, mu, logvar = model(o_a,o_b,goal,x=target_policy)
+			loss = my_loss(value, policy, target_value, target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on)
 			epoch_loss += float(loss)
+
+			if torch.isnan(loss).any():
+				print('WARNING: NAN FOUND IN TEST')
+				if torch.isnan(o_a).any():
+					print(' in o_a')
+				if torch.isnan(o_b).any():
+					print(' in o_b')
+				if torch.isnan(goal).any():
+					print(' in goal')
+				if torch.isnan(target_value).any():
+					print(' in target_value')
+				if torch.isnan(target_policy).any():
+					print(' in target_policy')
+				if torch.isnan(weight).any():
+					print(' in weight')
+				break
+
 	return epoch_loss
 
 
@@ -136,6 +156,15 @@ def get_uniform_samples(params):
 	print('getting uniform samples...')
 	states = []
 	for param in params:
+
+		# delta-uniform sampling for curriculum 
+		robot_team_composition, _, _, env_l = sample_curriculum(param.curriculum)
+
+		# update
+		param.robot_team_composition = robot_team_composition
+		param.env_l = env_l
+		param.update()
+
 		states.append(uniform_sample(param,param.l_num_points_per_file))
 	print('uniform samples collection completed.')
 	return states
@@ -143,42 +172,198 @@ def get_uniform_samples(params):
 
 def get_self_play_samples(params):
 	# When using multiprocessing, load cpp_interface per process
-	from cpp_interface import self_play
+	from cpp_interface import play_game
 
 	print('getting self-play samples...')
 	self_play_states = []
 
 	for param in params:
-		if param.iter_i == 0:
-			param.policy_dict["sim_mode"] = "RANDOM"
-		else:
-			param.policy_dict["sim_mode"] = "GLAS"
 
+		# delta-uniform sampling for curriculum 
+		robot_team_composition, skill_a, skill_b, env_l = sample_curriculum(param.curriculum)
+
+		# update
+		param.robot_team_composition = robot_team_composition
+		param.env_l = env_l
+		param.update()
+
+		if param.i == 0:
+			path_glas_model_a = None
+			path_glas_model_b = None
+		else: 
+			if param.training_team == "a" : 
+				path_glas_model_a = param.l_model_fn.format(\
+							DATADIR=param.path_current_models,\
+							TEAM="a",\
+							ITER=param.i)
+				if skill_b is None: 
+					path_glas_model_b = None
+				else: 
+					path_glas_model_b = param.l_model_fn.format(\
+								DATADIR=param.path_current_models,\
+								TEAM="b",\
+								ITER=skill_b)
+
+			elif param.training_team == "b" : 
+				path_glas_model_b = param.l_model_fn.format(\
+							DATADIR=param.path_current_models,\
+							TEAM="b",\
+							ITER=param.i)
+				if skill_a is None: 
+					path_glas_model_a = None
+				else: 
+					path_glas_model_a = param.l_model_fn.format(\
+								DATADIR=param.path_current_models,\
+								TEAM="a",\
+								ITER=skill_a)
+
+		param.policy_dict_a = {
+			'sim_mode' : 				"D_MCTS", 
+			'path_glas_model_a' : 		path_glas_model_a, 	
+			'path_glas_model_b' : 		path_glas_model_b, 	
+			'mcts_tree_size' : 			param.l_num_learner_nodes,
+			'mcts_c_param' : 			param.l_mcts_c_param,
+			'mcts_pw_C' : 				param.l_mcts_pw_C,
+			'mcts_pw_alpha' : 			param.l_mcts_pw_alpha,
+			'mcts_beta1' : 				param.l_mcts_beta1,
+			'mcts_beta2' : 				param.l_mcts_beta2,
+			'mcts_beta3' : 				param.l_mcts_beta3,
+		}
+		param.policy_dict_b = param.policy_dict_a.copy() 
+
+
+	# print policies 
+	print('self-play policies...')
 	for param in params: 
-		states_per_file = []
-		remaining_plots_per_file = 2
-		while len(states_per_file) < param.l_num_points_per_file:
-			param.state = param.make_initial_condition()
-			sim_result = self_play(param,deterministic=False)
+		print('param.policy_dict_a: ',param.policy_dict_a)
+		print('param.policy_dict_b: ',param.policy_dict_b)
 
-			if remaining_plots_per_file > 0:
-				plotter.plot_tree_results(sim_result)
-				remaining_plots_per_file -= 1
 
-			# clean data
-			idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
-			states = sim_result["states"][idxs]
-			states_per_file.extend(states)
-		self_play_states.append(states_per_file[0:param.l_num_points_per_file])
+	# get self play states 
+	if not df_param.l_parallel_on:
+		for param in params: 
+			instance_self_play(0, Queue(), len(params), param)
+
+	else:
+		ncpu = mp.cpu_count()
+		print('ncpu: ', ncpu)
+		num_workers = min(ncpu-1, len(params))
+		with mp.Pool(num_workers) as pool:
+			manager = mp.Manager()
+			queue = manager.Queue()
+			args = list(zip(itertools.count(), itertools.repeat(queue), itertools.repeat(len(params)), params))
+			for _ in pool.imap_unordered(instance_self_play_wrapper, args):
+				pass
+
+	self_play_states = [] 
+	for param in params: 
+		fn = '{}/states_for_{}.pickle'.format(\
+			os.path.dirname(param.dataset_fn),os.path.basename(param.dataset_fn))
+		with open(fn, 'rb') as h:
+			states_per_file = pickle.load(h)
+		self_play_states.append(states_per_file[0:param.l_num_points_per_file]) 
+	
+
+	# for param in params: 
+	# 	states_per_file = []
+	# 	remaining_plots_per_file = 2
+	# 	while len(states_per_file) < param.l_num_points_per_file:
+	# 		param.state = param.make_initial_condition()
+	# 		# sim_result = self_play(param,deterministic=False)
+	# 		sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
+
+	# 		# clean data
+	# 		idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
+	# 		sim_result["states"] = sim_result["states"][idxs]
+	# 		sim_result["actions"] = sim_result["actions"][idxs]
+	# 		sim_result["times"] = sim_result["times"][idxs]
+	# 		sim_result["rewards"] = sim_result["rewards"][idxs]
+
+	# 		if remaining_plots_per_file > 0:
+	# 			title = policy_title(param.policy_dict_a,"a") + " vs " + policy_title(param.policy_dict_b,"b")
+	# 			plotter.plot_tree_results(sim_result, title)
+	# 			remaining_plots_per_file -= 1
+
+	# 		if np.isnan(sim_result["states"]).any(axis=2).any(axis=1).any():
+	# 			print('WARNING: NANS found in self-play states')
+	# 			plotter.plot_tree_results(sim_result, title)
+	# 			plotter.save_figs('../current/models/{}{}_nans.pdf'.format(params[0].training_team, params[0].i+1))
+	# 			exit()
+
+	# 		states_per_file.extend(sim_result["states"])
+	# 	self_play_states.append(states_per_file[0:param.l_num_points_per_file])
+
+	# plotter.save_figs('../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1))
+
+	plotter.merge_figs(glob.glob('../current/models/temp_**'),\
+		'../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1))
 	print('self-play sample collection completed.')
 
-	plotter.save_figs('plots/self_play_samples_team{}_iter{}.pdf'.format(params[0].training_team, params[0].iter_i))
 	return self_play_states
 
+def instance_self_play_wrapper(arg):
+	instance_self_play(*arg)
 
-def increment():
-	exit('not implemented')
+def instance_self_play(rank, queue, total, param):
+	# When using multiprocessing, load cpp_interface per process
+	from cpp_interface import play_game
 
+	if rank == 0:
+		pbar = tqdm(total=param.l_num_points_per_file*total)
+
+	# print('starting self-play states {}'.format(param.dataset_fn))
+	states_per_file = []
+	remaining_plots_per_file = 2
+	while len(states_per_file) < param.l_num_points_per_file:
+		param.state = param.make_initial_condition()
+		# sim_result = self_play(param,deterministic=False)
+		sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
+
+		# clean data
+		# idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
+		# sim_result["states"] = sim_result["states"][idxs]
+		# sim_result["actions"] = sim_result["actions"][idxs]
+		# sim_result["times"] = sim_result["times"][idxs]
+		# sim_result["rewards"] = sim_result["rewards"][idxs]
+
+		if remaining_plots_per_file > 0:
+			title = policy_title(param.policy_dict_a,"a") + " vs " + policy_title(param.policy_dict_b,"b")
+			plotter.plot_tree_results(sim_result, \
+				title = title, \
+				model_fn_a = param.policy_dict_a["path_glas_model_a"], \
+				model_fn_b = param.policy_dict_b["path_glas_model_b"])
+			remaining_plots_per_file -= 1
+		
+		states_per_file.extend(sim_result["states"])
+
+		# update status
+		if rank == 0:
+			count = len(sim_result["states"])
+			try:
+				while True:
+					count += queue.get_nowait()
+			except Empty:
+				pass
+			pbar.update(count)
+		else:
+			queue.put_nowait(len(sim_result["states"]))
+
+	# plot figs 
+	plotter.save_figs('../current/models/temp_{}.pdf'.format(os.path.basename(param.dataset_fn)))
+	
+	# write data
+	fn = '{}/states_for_{}.pickle'.format(\
+		os.path.dirname(param.dataset_fn),os.path.basename(param.dataset_fn)) 
+	with open(fn, 'wb') as h:
+		pickle.dump(states_per_file, h)	
+	# print('completed self-play states {}'.format(param.dataset_fn))
+
+
+def policy_title(policy_dict,team):
+	title = policy_dict["sim_mode"] 
+	if policy_dict["sim_mode"] in ["D_MCTS","MCTS","GLAS"]:
+		title += " {}".format(policy_dict['path_glas_model_{}'.format(team)])
+	return title 
 
 def make_labelled_data(sim_result,oa_pairs_by_size):
 
@@ -194,23 +379,22 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 
 	for timestep,(state,policy_dist,value) in enumerate(zip(states,policy_dists,values)):
 		for robot_idx in robot_idxs:
-			o_a, o_b, goal = relative_state(state,param,robot_idx)
+			
+			if np.isnan(state[robot_idx,:]).any(): # non active robot 
+				continue
+
+			o_a, o_b, goal = global_to_local(state,param,robot_idx)
 			key = (param.training_team,len(o_a),len(o_b))
 
 			for action, weight in zip(policy_dist[robot_idx][:,0],policy_dist[robot_idx][:,1]):
 
-				# o_a2 = o_a + cov_s * np.random.normal(size=o_a.shape)
-				# o_b2 = o_b + cov_s * np.random.normal(size=o_b.shape)
-				# goal2 = goal + cov_s * np.random.normal(size=goal.shape)
-				# action2 = action + cov_a * np.random.normal(size=action.shape)
-				# oa_pairs_by_size[key].append((o_a2, o_b2, goal2, value, action2, weight))
-
-				oa_pairs_by_size[key].append((o_a, o_b, goal, value, action, weight))
+				if not (np.isnan(action).any() or np.isnan(weight).any()):
+					oa_pairs_by_size[key].append((o_a, o_b, goal, value, action, weight))
 
 	return oa_pairs_by_size
 
 
-def write_labelled_data(df_param,oa_pairs_by_size):
+def write_labelled_data(df_param,oa_pairs_by_size,i):
 
 	for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
 		batch_num = 0 
@@ -225,15 +409,26 @@ def write_labelled_data(df_param,oa_pairs_by_size):
 
 			batched_dataset.append(data)
 			if len(batched_dataset) >= df_param.l_batch_size:
-				batch_fn = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,\
-					TEAM=team,NUM_A=num_a,NUM_B=num_b,IDX_TRIAL=batch_num)
+				batch_fn = df_param.l_labelled_fn.format(
+					DATADIR=df_param.path_current_data,\
+					TEAM=team,
+					LEARNING_ITER=i,
+					NUM_A=num_a,
+					NUM_B=num_b,
+					NUM_FILE=batch_num)
 				dh.write_oa_batch(batched_dataset,batch_fn) 
 				batch_num += 1 
 				batched_dataset = [] 
 
+		# last batch 
 		if len(batched_dataset) > 0:
-			batch_fn = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,\
-				TEAM=team,NUM_A=num_a,NUM_B=num_b,IDX_TRIAL=batch_num)
+			batch_fn = df_param.l_labelled_fn.format(\
+				DATADIR=df_param.path_current_data,\
+				TEAM=team,
+				LEARNING_ITER=i,
+				NUM_A=num_a,
+				NUM_B=num_b,
+				NUM_FILE=batch_num)
 			dh.write_oa_batch(batched_dataset,batch_fn) 	
 
 
@@ -242,19 +437,32 @@ def make_loaders(df_param,batched_files):
 	train_loader = [] # lst of batches 
 	test_loader = [] 
 	train_dataset_size, test_dataset_size = 0,0
-	num_train_batches = int(len(batched_files) * df_param.l_test_train_ratio)
+	num_test_batches = math.ceil(len(batched_files) * (1 - df_param.l_test_train_ratio))
+	num_train_batches = len(batched_files) - num_test_batches
 	random.shuffle(batched_files)
 	for k, batched_file in enumerate(batched_files):
 
-		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file)
-		data = [
-			torch.from_numpy(o_a).float().to(df_param.device),
-			torch.from_numpy(o_b).float().to(df_param.device),
-			torch.from_numpy(goal).float().to(df_param.device),
-			torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
-			torch.from_numpy(action).float().to(df_param.device),
-			torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
-			]
+		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_file,df_param.l_gaussian_on)
+
+		if df_param.l_gaussian_on: 
+			data = [
+				torch.from_numpy(o_a).float().to(df_param.device),
+				torch.from_numpy(o_b).float().to(df_param.device),
+				torch.from_numpy(goal).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
+				torch.from_numpy(action).float().to(df_param.device),
+				torch.from_numpy(weight).float().to(df_param.device),
+				]
+
+		else: 
+			data = [
+				torch.from_numpy(o_a).float().to(df_param.device),
+				torch.from_numpy(o_b).float().to(df_param.device),
+				torch.from_numpy(goal).float().to(df_param.device),
+				torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
+				torch.from_numpy(action).float().to(df_param.device),
+				torch.from_numpy(weight).float().to(df_param.device).unsqueeze(1),
+				]
 		
 		if k < num_train_batches:
 			train_loader.append(data)
@@ -265,7 +473,7 @@ def make_loaders(df_param,batched_files):
 
 	return train_loader,test_loader, train_dataset_size, test_dataset_size
 
-def train_model_parallel(rank, world_size, df_param, batched_files, training_team, model_fn, parallel=True):
+def train_model_parallel(rank, world_size, df_param, batched_files, training_team, model_fn, warmstart_fn,parallel=True):
 
 	if parallel:
 		torch.set_num_threads(1)
@@ -309,7 +517,13 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 
 	start_time = time.time()
 
-	single_model = ContinuousEmptyNet(df_param,df_param.device)
+	if df_param.l_gaussian_on: 
+		single_model = GaussianEmptyNet(df_param,df_param.device)
+	else:
+		single_model = ContinuousEmptyNet(df_param,df_param.device)
+
+	if warmstart_fn is not None:
+		single_model.load_state_dict(torch.load(warmstart_fn))
 
 	if parallel:
 		model = torch.nn.parallel.DistributedDataParallel(single_model, find_unused_parameters=True)
@@ -333,19 +547,20 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 		random.shuffle(train_loader)
 		random.shuffle(test_loader)
 
-		train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on,df_param.l_sync_every,epoch,train_scheduler)
-		test_epoch_loss = test(model,test_loader,df_param.l_subsample_on)
+		train_epoch_loss = train(model,optimizer,train_loader,df_param.l_subsample_on,df_param.l_gaussian_on,df_param.l_sync_every,epoch,train_scheduler)
+		test_epoch_loss = test(model,test_loader,df_param.l_subsample_on,df_param.l_gaussian_on)
 
 		epoch_loss = torch.tensor([train_epoch_loss, test_epoch_loss])
 
 		if parallel:
 			torch.distributed.all_reduce(epoch_loss)
-			train_epoch_loss = float(epoch_loss[0]) / num_train_batches
-			test_epoch_loss = float(epoch_loss[1]) / num_test_batches
-			if np.isnan(train_epoch_loss):
-				if rank == 0:
-					print("WARNING: NAN encountered during training! Aborting.")
-				break
+
+		train_epoch_loss = float(epoch_loss[0]) / num_train_batches
+		test_epoch_loss = float(epoch_loss[1]) / num_test_batches
+		if np.isnan(train_epoch_loss):
+			if rank == 0:
+				print("WARNING: NAN encountered during training! Aborting.")
+			break
 
 		if df_param.l_lr_scheduler == 'ReduceLROnPlateau':
 			scheduler.step(test_epoch_loss)
@@ -372,25 +587,31 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 	if rank == 0:
 		print("time for training: ", time.time() - start_time)
 		plotter.plot_loss(losses,lrs,training_team)
-		plotter.save_figs(model_fn + '.pdf')
+		plotter.save_figs("../current/models/{}_losses.pdf".format(os.path.basename(model_fn).split('.')[0]))
+
 		# plotter.open_figs('plots/model.pdf')
+
+		print("visualize training data and model distribution...")
+		plotter.plot_training(df_param,batched_files,model_fn)
+		plotter.save_figs("../current/models/{}_dist_vis.pdf".format(os.path.basename(model_fn).split('.')[0]))
+
 		print('training model complete for {}'.format(model_fn))
 
 	if parallel:
 		torch.distributed.destroy_process_group()
 
 
-def train_model(df_param,batched_files,training_team,model_fn):
+def train_model(df_param,batched_files,training_team,model_fn,warmstart_fn):
 
 	print('training model... {}'.format(model_fn))
 
 	if df_param.device == 'cpu' and df_param.num_cpus is not None:
 		torch.multiprocessing.spawn(train_model_parallel,
-			args=(df_param.num_cpus, df_param, batched_files, training_team, model_fn, True),
+			args=(df_param.num_cpus, df_param, batched_files, training_team, model_fn, warmstart_fn,True),
 			nprocs=df_param.num_cpus,
 			join=True)
 	else:
-		train_model_parallel(0, 1, df_param,batched_files,training_team,model_fn, False)
+		train_model_parallel(0, 1, df_param,batched_files,training_team,model_fn,warmstart_fn,False)
 
 
 def load_param(some_dict):
@@ -403,109 +624,146 @@ def evaluate_expert_wrapper(arg):
 	from cpp_interface import evaluate_expert
 	evaluate_expert(*arg)
 
-def test_evaluate_expert_wrapper(arg):
-	# When using multiprocessing, load cpp_interface per process
-	from cpp_interface import test_evaluate_expert
-	test_evaluate_expert(*arg)
-
 def make_dataset(states,params,df_param,testing=None):
 	print('making dataset...')
 
 	for param in params:
-		param.policy_dict["sim_mode"] = "MCTS"
 
+		# # delta-uniform sampling for curriculum 
+		# robot_team_composition, skill_a, skill_b, env_l = sample_curriculum(param.curriculum)
+
+		# # update
+		# param.robot_team_composition = robot_team_composition
+		# param.env_l = env_l
+		# param.update()
+
+		# imitate expert policy 
+		expert_policy_dict = {
+			'sim_mode' : 				"MCTS", 
+			'path_glas_model_a' : 		None, 	
+			'path_glas_model_b' : 		None, 	
+			'mcts_tree_size' : 			param.l_num_expert_nodes,
+			'mcts_c_param' : 			param.l_mcts_c_param,
+			'mcts_pw_C' : 				param.l_mcts_pw_C,
+			'mcts_pw_alpha' : 			param.l_mcts_pw_alpha,
+			'mcts_beta1' : 				param.l_mcts_beta1,
+			'mcts_beta2' : 				0.0,
+			'mcts_beta3' : 				param.l_mcts_beta3,
+		}
+
+		# my policy 
+		param.my_policy_dict = expert_policy_dict.copy()
+		if param.i == 0 or param.l_mode in ["IL","DAgger"]:
+			param.my_policy_dict["path_glas_model_{}".format(param.training_team)] = None  
+			param.my_policy_dict["mcts_beta1"] = 0.0 
+			param.my_policy_dict["mcts_beta2"] = 0.0 
+			param.my_policy_dict["mcts_beta3"] = 0.0 
+		else:
+			param.my_policy_dict["path_glas_model_{}".format(param.training_team)] = param.l_model_fn.format(\
+				DATADIR=param.path_current_models,\
+				TEAM=param.training_team,\
+				ITER=param.i)
+			param.my_policy_dict["mcts_beta2"] = param.l_mcts_beta2
+
+		opponents_key = "Skill_B" if param.training_team == "a" else "Skill_A"
+		opponents_team = "b" if param.training_team == "a" else "a"
+		param.other_policy_dicts = []
+		for other_policy_skill in param.curriculum[opponents_key]:
+			other_policy_dict = expert_policy_dict.copy()
+			if param.i == 0 or param.l_mode in ["IL","DAgger"] or other_policy_skill is None:
+				other_policy_dict["path_glas_model_{}".format(opponents_team)] = None  
+				other_policy_dict["mcts_beta2"] = 0.0
+			else:
+				other_policy_dict["path_glas_model_{}".format(opponents_team)] = param.l_model_fn.format(\
+					DATADIR=param.path_current_models,\
+					TEAM=opponents_team,\
+					ITER=other_policy_skill)
+			param.other_policy_dicts.append(other_policy_dict)
+
+		print('evaluate-expert policies...')
+		print('param.my_policy_dict: ',param.my_policy_dict)
+		print('param.other_policy_dicts: ',param.other_policy_dicts)
+
+
+		# param.policy_dict["sim_mode"] = "MCTS" 
+
+	total = sum([len(states_per_file) for states_per_file in states])
 	if not df_param.l_parallel_on:
+		from cpp_interface import evaluate_expert
 		if df_param.mice_testing_on:
 			for states_per_file, param in zip(states, params): 
 				test_evaluate_expert(states_per_file,param,testing,quiet_on=True,progress=None) 				
 		else:
 			for states_per_file, param in zip(states, params): 
-				evaluate_expert(states_per_file, param, quiet_on=False)
+				evaluate_expert(0, Queue(), total, states_per_file, param, quiet_on=False)
 	else:
-		global pool_count
-		freeze_support()
-		ncpu = cpu_count()
+		ncpu = mp.cpu_count()
 		print('ncpu: ', ncpu)
 		num_workers = min(ncpu-1, len(params))
-		with Pool(num_workers, initializer=tqdm.set_lock, initargs=(tqdm.get_lock(),)) as p:
+		with mp.Pool(num_workers) as p:
+			manager = mp.Manager()
+			queue = manager.Queue()
 			if df_param.mice_testing_on:
-				args = list(zip(states, params, itertools.repeat(testing), itertools.repeat(True), itertools.repeat(pool_count)))
-				r = list(tqdm(p.imap_unordered(test_evaluate_expert_wrapper, args), total=len(args), position=0))
+				args = list(zip(itertools.count(), itertools.repeat(queue), itertools.repeat(total), states, params, itertools.repeat(testing)))
+				for _ in p.imap_unordered(test_evaluate_expert_wrapper, args):
+					pass
 			else:
-				args = list(zip(states, params, itertools.repeat(True), itertools.repeat(pool_count)))
-				r = list(tqdm(p.imap_unordered(evaluate_expert_wrapper, args), total=len(args), position=0))
+				args = list(zip(itertools.count(), itertools.repeat(queue), itertools.repeat(total), states, params))
+				for _ in p.imap_unordered(evaluate_expert_wrapper, args):
+					pass
 			# p.starmap(evaluate_expert, states, params)
 			# p.starmap(evaluate_expert, list(zip(states, params)))
-		pool_count += num_workers
 
-def make_labelled_dataset(df_param):
-	# labelled dataset 
-	print('cleaning labelled data...')
-	labelled_data_fns = df_param.l_labelled_fn.format(DATADIR=df_param.path_current_data,TEAM='**',NUM_A='**',NUM_B='**',IDX_TRIAL='**')
-	for file in glob.glob(labelled_data_fns+'**'):
-		os.remove(file)
+def make_labelled_dataset(df_param,i):
 
 	print('making labelled data...')
-	sim_result_fns = df_param.l_raw_fn.format(DATADIR=df_param.path_current_data,TEAM='**',NUM_A='**',NUM_B='**',IDX_TRIAL='**')
+	sim_result_fns = df_param.l_raw_fn.format(\
+		DATADIR=df_param.path_current_data,
+		TEAM='**',\
+		LEARNING_ITER=i,
+		NUM_FILE='**')	
 	oa_pairs_by_size = defaultdict(list) 
 	for sim_result_fn in tqdm(glob.glob(sim_result_fns+'**')): 
 		sim_result = dh.load_sim_result(sim_result_fn)
 		oa_pairs_by_size = make_labelled_data(sim_result,oa_pairs_by_size)
 
 	# make actual batches and write to file 
-	write_labelled_data(df_param,oa_pairs_by_size)
+	write_labelled_data(df_param,oa_pairs_by_size,i)
 	print('labelling data completed.')
 	print('dataset completed.')
 
-def get_start(df_param,robot_team_composition):
-	num_nodes_A = 0 
-	for robot_type,number in robot_team_composition["a"].items():
-		num_nodes_A += number
-	num_nodes_B = 0 
-	for robot_type,number in robot_team_composition["b"].items():
-		num_nodes_B += number
-	base_fn = df_param.l_raw_fn.format(DATADIR=df_param.path_current_data,TEAM=training_team,\
-		NUM_A=num_nodes_A,NUM_B=num_nodes_B,IDX_TRIAL="*")
+def get_start(df_param,i):
+	base_fn = df_param.l_raw_fn.format(
+		DATADIR=df_param.path_current_data,\
+		TEAM=training_team,\
+		LEARNING_ITER=i,\
+		NUM_FILE='*')
 	start = len(glob.glob(base_fn+'*'))
 	return start
 
-def get_params(df_param,training_team,iter_i):
+def get_params(df_param,training_team,i,curriculum):
 
 	params = []
 
-	for robot_team_composition in df_param.l_robot_team_composition_cases:
+	start = get_start(df_param,i)
 
-		start = get_start(df_param,robot_team_composition)
+	for trial in range(df_param.l_num_file_per_iteration): 
 
-		for trial in range(df_param.l_num_file_per_iteration): 
+		param = Param() # random seed 
 
-			param = Param() # random seed 
-			param.robot_team_composition = robot_team_composition 
-			param.l_num_points_per_file = df_param.l_num_points_per_file
-			param.training_team = training_team
-			param.iter_i = iter_i 
+		param.curriculum = curriculum 
+		param.training_team = training_team
+		param.i = i 
 
-			param.policy_dict["sim_mode"] = "MCTS"
+		param.update() 
 
-			if iter_i == 0:
-				param.policy_dict["path_glas_model_a"] = None
-				param.policy_dict["path_glas_model_b"] = None
-			else:
-				param.policy_dict["path_glas_model_a"] = df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM="a",ITER=iter_i)
-				param.policy_dict["path_glas_model_b"] = df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM="b",ITER=iter_i)
+		param.dataset_fn = df_param.l_raw_fn.format(
+			DATADIR=df_param.path_current_data,
+			TEAM=training_team,\
+			LEARNING_ITER=i,
+			NUM_FILE=trial+start)
 
-			if df_param.l_mode == "IL" or df_param.l_mode == "DAgger":
-				param.policy_dict["mcts_rollout_beta"] = 0.0 
-			elif df_param.l_mode == "ExIt" or df_param.l_mode == "MICE":
-				param.policy_dict["mcts_rollout_beta"] = df_param.policy_dict["mcts_rollout_beta"]
-
-			param.update() 
-			param.dataset_fn = df_param.l_raw_fn.format(DATADIR=df_param.path_current_data,TEAM=training_team,\
-				NUM_A=param.num_nodes_A,NUM_B=param.num_nodes_B,IDX_TRIAL=trial+start)
-
-			params.append(param)
+		params.append(param)
 
 	return params	
 
@@ -514,7 +772,7 @@ def format_dir(df_param):
 	if df_param.clean_data_on:
 		datadir = df_param.path_current_data
 		if os.path.exists(datadir):
-			for file in glob.glob(datadir + "/raw_*"):
+			for file in glob.glob(datadir + "/*"):
 				os.remove(file)
 		os.makedirs(datadir,exist_ok=True)
 
@@ -525,80 +783,90 @@ def format_dir(df_param):
 				os.remove(file)
 		os.makedirs(modeldir,exist_ok=True)	
 
-def test_model(param,model_fn,testing):
+def sample_curriculum(curriculum):
 
-	print('testing model: {}'.format(model_fn))
+	mode = "uniform"
 
-	stats = {} 
-	model = ContinuousEmptyNet(param, "cpu")
-	model.load_state_dict(torch.load(model_fn))
+	if mode == "naive": 
+		# 'naive' curriculum learning 
+		num_a = curriculum["NumA"][-1]
+		num_b = curriculum["NumB"][-1]
+		skill_a = curriculum["Skill_A"][-1]
+		skill_b = curriculum["Skill_B"][-1]
+		env_l = curriculum["EnvironmentLength"][-1]
 
-	robot_idx = 0 
-	n_samples = 1000
+	elif mode == "uniform":
+		num_a = random.choice(curriculum["NumA"])
+		num_b = random.choice(curriculum["NumB"])
+		skill_a = random.choice(curriculum["Skill_A"])
+		skill_b = random.choice(curriculum["Skill_B"])
+		env_l = random.choice(curriculum["EnvironmentLength"])
 
-	for alpha in range(len(testing)):
-		
-		stats_per_condition = {
-			'learned' : [],
-			'test' : [],
-			'latent' : [], 
-		}
+	robot_team_composition = {
+		'a': {'standard_robot':num_a,'evasive_robot':0},
+		'b': {'standard_robot':num_b,'evasive_robot':0}
+	}
 
-		test_state = np.array(testing[alpha]["test_state"])
-		o_a,o_b,goal = relative_state(test_state,param,robot_idx)
-		o_a,o_b,goal = format_data(o_a,o_b,goal)
+	return robot_team_composition, skill_a, skill_b, env_l 
 
-		value, _ = model(o_a,o_b,goal)
+def initialCurriculum(df_param):
+	curriculum = {
+		'Skill_A' : [None],
+		'Skill_B' : [None],
+		'EnvironmentLength' : [df_param.l_env_l0],
+		'NumA' : [1],
+		'NumB' : [1],
+	}
+	return curriculum 
 
-		print('test num: ', alpha)
-		print('   value: ',value)
-		print('   valuePerAction: ', testing[alpha]["test_valuePerAction"])
+def isTrainingConverged(df_param,i,k):
+	return i >= df_param.l_num_iterations + k * df_param.l_num_iterations
+	# if df_param.l_mode in ["IL"]:
+	# 	return True 
+	# elif df_param.l_mode in ["ExIt","MICE","DAgger"]: 
+	# 	return i >= df_param.l_num_iterations
+	# 	# return True
+	# else: 
+	# 	print('not recognized: ', df_param.l_mode)
+	# 	exit()
 
-		# learned distribution 
-		for i_sample in range(n_samples):
-			_, learned_sample = model(o_a,o_b,goal)
-			stats_per_condition["learned"].append(learned_sample.detach().numpy())
+def isCurriculumConverged(df_param,curriculum,desired_game):
+	# return desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"] and \
+		# desired_game["NumA"] in curriculum["NumA"]
+		# desired_game["NumB"] in curriculum["NumB"]
+	# return True 
+	for key, desired_game_value in desired_game.items():
+		if desired_game_value not in curriculum[key]:
+			return False
+	return True
 
-		# test distribution 
-		weights = []
-		actions = [] 
-		for action in testing[alpha]["test_valuePerAction"]:
-			weights.append(action[-1])
-			actions.append(np.array((action[0],action[1])))
-
-		weights = np.array(weights)
-		actions = np.array(actions)
-		weights /= sum(weights) 
-		choice_idxs = np.random.choice(actions.shape[0],n_samples,p=weights)
-		for choice_idx in choice_idxs:
-			mu = actions[choice_idx,:]
-			test_sample = mu + cov_a * np.random.normal(size=(2,)) 
-			stats_per_condition["test"].append(test_sample)
-
-		stats_per_condition["learned"] = np.array(stats_per_condition["learned"]).squeeze()
-		stats_per_condition["test"] = np.array(stats_per_condition["test"]).squeeze()
-
-		stats[alpha] = stats_per_condition
-
-	return stats
-
-def read_testing_yaml(fn):
+def incrementCurriculum(df_param,curriculum,desired_game):
 	
-	with open(fn) as f:
-		testing_cfg = yaml.load(f, Loader=yaml.FullLoader)
+	done = isCurriculumConverged(df_param,curriculum,desired_game)
 
-	testing = []
-	for test in testing_cfg["test_continuous_glas"]:
-		testing.append(test)
-	return testing
+	if done: 
+		return curriculum, done 
+
+	else: 
+		# if curriculum["Skill_A"] < desired_game["Skill_A"] : 
+		# 	curriculum["Skill_A"].append(len(curriculum["Skill_A"]))
+		# if curriculum["Skill_B"] < desired_game["Skill_B"] : 
+		# 	curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
+		if not desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"]: 
+			curriculum["EnvironmentLength"].append(curriculum["EnvironmentLength"][-1] + df_param.l_env_dl)
+		if not desired_game["NumA"] in curriculum["NumA"]: 
+			curriculum["NumA"].append(curriculum["NumA"][-1] + 1)
+		if not desired_game["NumB"] in curriculum["NumB"]: 
+			curriculum["NumB"].append(curriculum["NumB"][-1] + 1)
+
+		curriculum["Skill_A"].append(len(curriculum["Skill_A"]))
+		curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
+
+		return curriculum , done 
 
 if __name__ == '__main__':
 
-	cov_a = 1e-2
-	cov_s = 1e-2
-
-	pool_count = 0
-
+	# parameters
 	df_param = Param() 
 	df_param.clean_data_on = True
 	df_param.clean_models_on = True
@@ -606,57 +874,112 @@ if __name__ == '__main__':
 	df_param.make_labelled_data_on = True
 	df_param.mice_testing_on = False
 
+	# check batch size 
+	expected_num_datapoints = df_param.l_num_file_per_iteration * \
+		df_param.l_num_points_per_file * df_param.l_num_samples
+	des_num = 10 
+	if des_num*df_param.l_batch_size > expected_num_datapoints:
+		df_param.l_batch_size = expected_num_datapoints // des_num
+		print('changed batch size to: ', df_param.l_batch_size)
+
+	# testing 
 	if df_param.mice_testing_on:
 		testing = read_testing_yaml("testing/test_continuous_glas.yaml")
 	else:
 		testing = None 
 
+	# prints 
+	print('Learning Mode: {}'.format(df_param.l_mode))
 	print('Clean old data on: {}'.format(df_param.clean_data_on))
+	print('Clean old models on: {}'.format(df_param.clean_models_on))
 	print('Make new data on: {}'.format(df_param.make_data_on))
+	print('Testing on: {}'.format(df_param.mice_testing_on))
 
+	# format directory 
+	format_dir(df_param)
 
-	# training loop 
-	for iter_i in range(df_param.l_num_iterations):
-		for training_team in df_param.l_training_teams:
+	# specify desired : for now isolate curriculum to skill of policy 
+	desired_game = {
+		# 'Skill_A' : 'a1.pt',
+		# 'Skill_B' : 'b1.pt',
+		'EnvironmentLength' : 1.0,
+		'NumA' : 3,
+		'NumB' : 3,
+	}
 
-			print('iter: {}/{}, training team: {}'.format(iter_i,df_param.l_num_iterations,training_team))
-			format_dir(df_param)
+	# initial curriculum 
+	curriculum = initialCurriculum(df_param)
+	print('\n\n -------------- {} curriculum: {} -------------- \n\n'.format(0,curriculum))	
 
-			if df_param.make_data_on: 
-				
-				params = get_params(df_param,training_team,iter_i)
-				# if iter_i == 0 or df_param.l_mode == "IL":
-				if df_param.l_mode == "IL":
-					states = get_uniform_samples(params)
-				else: 
-					states = get_self_play_samples(params)
-				
-				make_dataset(states,params,df_param,testing=testing)
+	i = 0 
+	k = 0 
+	# curriculum loop  
+	while True: 
 
-			if df_param.make_labelled_data_on:
-				make_labelled_dataset(df_param)
+		# training loop 
+		while True: 
 
-			model_fn = df_param.l_model_fn.format(\
-					DATADIR=df_param.path_current_models,TEAM=training_team,ITER=iter_i+1)
-			batched_fns = glob.glob(df_param.l_labelled_fn.format(\
-					DATADIR=df_param.path_current_data,NUM_A='**',NUM_B='**',IDX_TRIAL='**',TEAM=training_team,ITER='**'))
+			# team loop 
+			for training_team in df_param.l_training_teams:
 
-			train_model(df_param,\
-				batched_fns, \
-				training_team,\
-				model_fn)
+				print('k: {}, i: {}, training team: {}'.format(k,i,training_team))
 
-			if df_param.mice_testing_on: 
-				stats = test_model(df_param,model_fn,testing)
-				plotter.plot_test_model(df_param,stats)
-				plotter.save_figs('plots/model.pdf')
-				plotter.open_figs('plots/model.pdf')
-				exit()
+				if df_param.make_data_on: 
 
-			if df_param.l_mode == "Mice":
-				increment(df_param)
+					params = get_params(df_param,training_team,i,curriculum)
 
-		if not df_param.make_data_on:
+					if df_param.l_mode == "IL":
+						states = get_uniform_samples(params)
+					else: 
+						states = get_self_play_samples(params)
+					
+					make_dataset(states,params,df_param,testing=testing)
+
+				if df_param.make_labelled_data_on:
+					make_labelled_dataset(df_param,i)
+
+				# model to be trained 
+				model_fn = df_param.l_model_fn.format(\
+						DATADIR=df_param.path_current_models,\
+						TEAM=training_team,\
+						ITER=i+1)
+				if df_param.l_warmstart and i > 0:
+					warmstart_fn = df_param.l_model_fn.format(\
+							DATADIR=df_param.path_current_models,\
+							TEAM=training_team,\
+							ITER=i)
+				else:
+					warmstart_fn = None
+
+				# data to be used 
+				batched_fns = glob.glob(df_param.l_labelled_fn.format(\
+						DATADIR=df_param.path_current_data,\
+						TEAM=training_team,\
+						LEARNING_ITER=i,\
+						# LEARNING_ITER='**',\
+						NUM_A='**',\
+						NUM_B='**',\
+						NUM_FILE='**'))
+
+				train_model(df_param,batched_fns,training_team,model_fn,warmstart_fn)
+
+				if df_param.mice_testing_on: 
+					stats = test_model(df_param,model_fn,testing)
+					plotter.plot_test_model(df_param,stats)
+					plotter.save_figs('plots/model.pdf')
+					plotter.open_figs('plots/model.pdf')
+					exit()
+
+			i = i + 1 
+
+			if isTrainingConverged(df_param,i,k):
+				curriculum, curriculumDone = incrementCurriculum(df_param,curriculum,desired_game)
+				k = k + 1
+				print('\n\n -------------- {} curriculum: {} -------------- \n\n'.format(k,curriculum))
+				break 
+
+		# if isCurriculumConverged(df_param,curriculum,desired_game):
+		if curriculumDone:
 			break 
 
 	print('done!')

@@ -6,13 +6,20 @@
 // #include "robots/RobotType.hpp"
 #include "GameState.hpp"
 
-#include "GLAS.hpp"
+#include "Policy.hpp"
 
 #define REWARD_MODEL_BASIC_TERMINAL         1
 #define REWARD_MODEL_TIME_EXPANDED_TERMINAL 2
 #define REWARD_MODEL_CUMULATIVE             3
 
 #define REWARD_MODEL REWARD_MODEL_BASIC_TERMINAL
+
+#define ROLLOUT_MODE_POLICY          1
+#define ROLLOUT_MODE_RANDOM          2
+#define ROLLOUT_MODE_VALUE_RANDOM    3
+#define ROLLOUT_MODE_VALUE_POLICY    4
+
+#define ROLLOUT_MODE ROLLOUT_MODE_VALUE_POLICY
 
 typedef std::pair<float, float> Reward;
 
@@ -39,6 +46,7 @@ class Game {
 
   typedef GameState<Robot> GameStateT;
   typedef std::vector<RobotActionT> GameActionT;
+  typedef Policy<Robot> PolicyT;
 
   Game(
     const std::vector<RobotTypeT>& attackerTypes,
@@ -53,9 +61,6 @@ class Game {
     , m_goal(goal)
     , m_maxDepth(maxDepth)
     , m_generator(generator)
-    , m_glas_a(generator)
-    , m_glas_b(generator)
-    , m_rollout_beta(0.0)
   {
   }
 
@@ -83,7 +88,15 @@ class Game {
           }
         }
       }
-      nextState.turn = GameStateT::Turn::Defenders;
+
+      nextState.turn = GameStateT::Turn::Attackers;
+      for (size_t i = 0; i < NumDefenders; ++i) {
+        if (state.defenders[i].status == RobotStateT::Status::Active) {
+          nextState.turn = GameStateT::Turn::Defenders;
+          break;
+        }
+      }
+
     } else {
       for (size_t i = 0; i < NumDefenders; ++i) {
         if (nextState.defenders[i].status == RobotStateT::Status::Active) {
@@ -94,8 +107,16 @@ class Game {
           }
         }
       }
-      nextState.turn = GameStateT::Turn::Attackers;
+
+      nextState.turn = GameStateT::Turn::Defenders;
+      for (size_t i = 0; i < NumAttackers; ++i) {
+        if (state.attackers[i].status == RobotStateT::Status::Active) {
+          nextState.turn = GameStateT::Turn::Attackers;
+          break;
+        }
+      }
     }
+
     // Update status
     for (size_t i = 0; i < NumAttackers; ++i) {
       if (nextState.attackers[i].status == RobotStateT::Status::Active) {
@@ -103,6 +124,8 @@ class Game {
         if (distToGoalSquared <= m_attackerTypes[i].tag_radiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
           nextState.attackers[i].status = RobotStateT::Status::ReachedGoal;
+          // mark the robot as not active anymore
+          nextState.attackers[i].state.fill(nanf(""));
         }
 
         for (size_t j = 0; j < NumDefenders; ++j) {
@@ -110,6 +133,8 @@ class Game {
             float distToDefenderSquared = (nextState.attackers[i].position() - nextState.defenders[j].position()).squaredNorm();
             if (distToDefenderSquared <= m_defenderTypes[j].tag_radiusSquared) {
               nextState.attackers[i].status = RobotStateT::Status::Captured;
+              // mark the robot as not active anymore
+              nextState.attackers[i].state.fill(nanf(""));
             }
           }
         }
@@ -216,9 +241,10 @@ class Game {
       }
     }
     // ii) no attacker is active anymore
-    if (!anyActive) {
+    if (state.attackers.size() > 0 && !anyActive) {
       return true;
     }
+
     // iii) maximum time horizon reached
     if (state.depth >= m_maxDepth) {
       return true;
@@ -235,32 +261,12 @@ class Game {
     return reward.second;
   }
 
-  RobotActionT sampleAction(const RobotStateT& state, const RobotTypeT& robotType, bool teamAttacker,
-    size_t idx, const GameStateT& gameState, bool deterministic)
-  {
-    if (state.status != RobotState::Status::Active) {
-      return robotType.invalidAction;
-    }
-
-    std::uniform_real_distribution<float> dist(0.0,1.0);
-
-    if (m_rollout_beta > 0 && dist(m_generator) < m_rollout_beta) {
-      // Use NN if rollout_beta is > 0 probabilistically
-      const auto& glas = teamAttacker ? m_glas_a : m_glas_b;
-      assert(glas.valid());
-      auto result = glas.eval(gameState, m_goal, robotType, teamAttacker, idx, deterministic);
-      return std::get<1>(result);
-    } else {
-      // use uniform random sample (no deterministic option)
-      std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
-      std::uniform_real_distribution<float> distMag(0.0, 1.0);
-      float theta = distTheta(m_generator);
-      float mag = sqrtf(distMag(m_generator)) * robotType.actionLimit();
-      return RobotActionT(cosf(theta) * mag, sinf(theta) * mag);
-    }
-  }
-
-  GameActionT sampleAction(const GameStateT& state, bool deterministic)
+  GameActionT sampleAction(
+    const GameStateT& state,
+    const PolicyT& policyAttacker,
+    const PolicyT& policyDefender,
+    bool deterministic,
+    float beta2 = -1)
   {
     size_t NumAttackers = state.attackers.size();
     size_t NumDefenders = state.defenders.size();
@@ -269,7 +275,7 @@ class Game {
 
     if (state.turn == GameStateT::Turn::Attackers) {
       for (size_t i = 0; i < NumAttackers; ++i) {
-        result[i] = sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state, deterministic);
+        result[i] = policyAttacker.sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state, m_goal, deterministic, beta2);
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
         result[NumAttackers + i] = m_defenderTypes[i].invalidAction;
@@ -279,25 +285,41 @@ class Game {
         result[i] = m_attackerTypes[i].invalidAction;
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
-        result[NumAttackers + i] = sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state, deterministic);
+        result[NumAttackers + i] = policyDefender.sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state, m_goal, deterministic, beta2);
       }
     }
     return result;
   }
 
-  Reward rollout(const GameStateT& state)
+  Reward rollout(
+    const GameStateT& state,
+    const PolicyT& policyAttacker,
+    const PolicyT& policyDefender,
+    bool deterministic,
+    float beta3)
   {
+#if ROLLOUT_MODE == ROLLOUT_MODE_VALUE_POLICY || ROLLOUT_MODE == ROLLOUT_MODE_VALUE_RANDOM
+    std::uniform_real_distribution<float> dist(0.0,1.0);
+    if (   policyAttacker.glasConst().valid()
+        && policyDefender.glasConst().valid()
+        && !isTerminal(state)
+        && dist(m_generator) < beta3) {
+      float reward =  estimateValue(state, policyAttacker, policyDefender);
+      return Reward(reward, 1 - reward);
+    }
+#endif
+
     GameStateT s = state;
     GameStateT nextState;
 
-    std::uniform_real_distribution<float> dist(0.0,1.0);
-    std::vector<std::vector<RobotActionT>> actions;
-
     while (true) {
-      bool valid = true;
+#if ROLLOUT_MODE == ROLLOUT_MODE_POLICY || ROLLOUT_MODE == ROLLOUT_MODE_VALUE_POLICY
+      const auto action = sampleAction(s, policyAttacker, policyDefender, deterministic);
+#elif ROLLOUT_MODE == ROLLOUT_MODE_RANDOM || ROLLOUT_MODE == ROLLOUT_MODE_VALUE_RANDOM
+      const auto action = sampleAction(s, policyAttacker, policyDefender, deterministic, 0.0);
+#endif
 
-      const auto action = sampleAction(s, false);
-      valid &= step(s, action, nextState);
+      bool valid = step(s, action, nextState);
 
       if (valid) {
         s = nextState;
@@ -319,7 +341,7 @@ class Game {
       reward += remainingTimesteps * r;
     }
     reward /= m_maxDepth;
-#endif
+#endif // REWARD_MODEL_CUMULATIVE
 
 #if REWARD_MODEL == REWARD_MODEL_TIME_EXPANDED_TERMINAL
     // Option 2: accumulate terminal reward
@@ -327,11 +349,11 @@ class Game {
     size_t remainingTimesteps = m_maxDepth + 1 - s.depth;
     float reward = computeReward(s) * (remainingTimesteps + 1);
     reward /= m_maxDepth;
-#endif
+#endif // REWARD_MODEL == REWARD_MODEL_TIME_EXPANDED_TERMINAL
 
 #if REWARD_MODEL == REWARD_MODEL_BASIC_TERMINAL
     float reward = computeReward(s);
-#endif
+#endif // REWARD_MODEL == REWARD_MODEL_BASIC_TERMINAL
 
     return Reward(reward, 1 - reward);
   }
@@ -339,42 +361,97 @@ class Game {
 // private:
   float computeReward(const GameStateT& state)
   {
-    // // our reward is the closest distance to the goal
+    // std::cout << "compRew " << state << std::endl;
+    // our reward is the closest distance to the goal
     // float minDistToGoal = std::numeric_limits<float>::infinity();
+    // float minDistToGoal = (1.41 * 0.25);
     // for (const auto& attacker : state.attackers) {
     //   float distToGoal = (attacker.position() - m_goal.template head<2>()).norm();
     //   minDistToGoal = std::min(minDistToGoal, distToGoal);
     // }
     // return expf(10.0 * -minDistToGoal);
-    int numActive = 0;
+    // return 1.0 - minDistToGoal /(1.41 * 0.25);
+
+    int numAttackerActive = 0;
+    int reachedGoal = 0;
     for (const auto& attacker : state.attackers) {
+      if (   attacker.status == RobotStateT::Status::Active
+          || attacker.status == RobotStateT::Status::ReachedGoal) {
+        ++numAttackerActive;
+      }
       if (attacker.status == RobotStateT::Status::ReachedGoal) {
-        return 1;
-      }
-      if (attacker.status == RobotStateT::Status::Active) {
-        ++numActive;
+        // minDistToGoal = 0.0;
+        reachedGoal = 1;
       }
     }
 
-    if (numActive == 0) {
-      return 0;
+    int numDefendersActive = 0;
+    for (const auto& defender : state.defenders) {
+      if (   defender.status == RobotStateT::Status::Active) {
+        ++numDefendersActive;
+      }
     }
 
-    // Tie otherwise (essentially timeout)
-    return 0.5;
+    float r1 = 0.0;
+    if (state.attackers.size() > 0){
+      r1 = numAttackerActive / (float)state.attackers.size();
+    }
+
+    float r2 = 0.0;
+    if (state.defenders.size() > 0){
+      r2 = (1.0f - numDefendersActive / (float)state.defenders.size());
+    }
+
+    return ( r1 + r2 + reachedGoal ) / 3.0f;    
+
+    // return (   numAttackerActive / (float)state.attackers.size()
+    //          + (1.0f - numDefendersActive / (float)state.defenders.size())
+    //          + reachedGoal) / 3.0f;
+          // + (1.0 - minDistToGoal /(1.41 * 0.25))) / 3;
+
+
+    // int numActive = 0;
+    // int numCaptured = 0;
+    // for (const auto& attacker : state.attackers) {
+    //   if (attacker.status == RobotStateT::Status::ReachedGoal) {
+    //     return 1;
+    //   }
+    //   if (attacker.status == RobotStateT::Status::Active) {
+    //     ++numActive;
+    //   }
+    //   if (attacker.status == RobotStateT::Status::Captured) {
+    //     ++numCaptured;
+    //   }
+    // }
+
+    // // 'old' reward: defender wins if no attacker is active
+
+    // // if (numActive == 0) {
+    // //   return 0;
+    // // }
+
+    // // 'new' reward: defender wins if all attackers are tagged
+
+    // if (numCaptured == state.attackers.size()) {
+    //   return 0;
+    // }
+
+    // // Tie otherwise (essentially timeout)
+    // return 0.5;
   }
 
-  float estimateValue(const GameStateT& state)
+  float estimateValue(
+    const GameStateT& state,
+    const PolicyT& policyAttacker,
+    const PolicyT& policyDefender)
   {
-    assert(m_glas_a.valid() && m_glas_b.valid());
-
     if (state.turn == GameStateT::Turn::Defenders)
     {
       // we check the turn on the child node, so in this case compute the reward
       // from the perspective of attackers
       float value_sum = 0;
       for (size_t j = 0; j < state.attackers.size(); ++j) {
-        auto result_a = m_glas_a.eval(state, m_goal, m_attackerTypes[j], true, j, true);
+        auto result_a = policyAttacker.glasConst().eval(state, m_goal, m_attackerTypes[j], true, j, true);
         float value = std::get<0>(result_a);
         value_sum += value;
       }
@@ -383,30 +460,12 @@ class Game {
 
       float value_sum = 0;
       for (size_t j = 0; j < state.defenders.size(); ++j) {
-        auto result_b = m_glas_b.eval(state, m_goal, m_defenderTypes[j], false, j, true);
+        auto result_b = policyDefender.glasConst().eval(state, m_goal, m_defenderTypes[j], false, j, true);
         float value = std::get<0>(result_b);
         value_sum += value;
       }
       return 1.0 - value_sum / state.defenders.size();
     }
-  }
-
-  float rolloutBeta() const {
-    return m_rollout_beta;
-  }
-
-  void setRolloutBeta(float rollout_beta) {
-    m_rollout_beta = rollout_beta;
-  }
-
-  GLAS<Robot>& glasA()
-  {
-    return m_glas_a;
-  }
-
-  GLAS<Robot>& glasB()
-  {
-    return m_glas_b;
   }
 
   const auto& attackerTypes() const
@@ -436,7 +495,4 @@ private:
   Eigen::Matrix<float, Robot::StateDim, 1> m_goal;
   size_t m_maxDepth;
   std::default_random_engine& m_generator;
-  GLAS<Robot> m_glas_a;
-  GLAS<Robot> m_glas_b;
-  float m_rollout_beta;
 };

@@ -59,7 +59,13 @@ purposes.
     \tparam StateHasher A class to convert a state to a hash value. Default:
    std::hash<State>
 */
-template <typename State, typename Action, typename Reward, typename Environment, typename URNG = std::default_random_engine>
+template <
+  typename State,
+  typename Action,
+  typename Reward,
+  typename Environment,
+  typename Policy,
+  typename URNG = std::default_random_engine>
 class MonteCarloTreeSearch {
  public:
   MonteCarloTreeSearch(
@@ -69,17 +75,23 @@ class MonteCarloTreeSearch {
     float Cp,
     float pw_C,
     float pw_alpha,
-    float vf_beta)
+    float beta1,
+    float beta3)
     : m_env(environment)
     , m_generator(generator)
     , m_num_nodes(num_nodes)
     , m_Cp(Cp)
     , m_pw_C(pw_C)
     , m_pw_alpha(pw_alpha)
-    , m_vf_beta(vf_beta)
+    , m_beta1(beta1)
+    , m_beta3(beta3)
     {}
 
-  bool search(const State& startState, Action& result) {
+  bool search(
+    const State& startState,
+    const Policy& myPolicy,
+    const std::vector<Policy>& opponentPolicies,
+    Action& result) {
     // we pre-allocate all memory to ensure that pointers stay valid
     m_nodes.clear();
     m_nodes.reserve(m_num_nodes+1);
@@ -88,14 +100,28 @@ class MonteCarloTreeSearch {
     auto& root = m_nodes[0];
     root.state = startState;
 
+    // prepare sampling of opponent policy
+    std::vector<float> weights(opponentPolicies.size());
+    for (int i = 0; i < weights.size(); ++i) {
+      weights[i] = opponentPolicies[i].weight();
+    }
+    std::discrete_distribution<int> dist(weights.begin(), weights.end());
+
     while (root.number_of_visits < m_num_nodes) {
+      // sample opponent policy
+      int idx = dist(m_generator);
+      const auto& opponentPolicy = opponentPolicies[idx];
+
+      const auto& policyAttacker = startState.turn == State::Turn::Attackers ? myPolicy : opponentPolicy;
+      const auto& policyDefender = startState.turn == State::Turn::Attackers ? opponentPolicy : myPolicy;
+
       // selection + expansion
-      Node* node = treePolicy(root);
+      Node* node = treePolicy(root, policyAttacker, policyDefender);
       assert(node != nullptr);
 //      if (node == nullptr) {
 //        return false;
 //      }
-      Reward reward = m_env.rollout(node->state);
+      Reward reward = m_env.rollout(node->state, policyAttacker, policyDefender, false, m_beta3);
       backpropagation(node, reward);
     }
     // std::cout << "R " << root.reward.first << " " << root.reward.second << std::endl;
@@ -205,7 +231,7 @@ class MonteCarloTreeSearch {
 
   };
 
-  Node* treePolicy(Node& node)
+  Node* treePolicy(Node& node, const Policy& policyAttacker, const Policy& policyDefender)
   {
     Node* nodePtr = &node;
     while (nodePtr && !m_env.isTerminal(nodePtr->state)) {
@@ -217,7 +243,7 @@ class MonteCarloTreeSearch {
       }
 
       if (nodePtr->children.size() < maxChildren) {
-        Node* child = expand(nodePtr);
+        Node* child = expand(nodePtr, policyAttacker, policyDefender);
         if (child != nullptr) {
           return child;
         }
@@ -231,9 +257,9 @@ class MonteCarloTreeSearch {
     return nodePtr;
   }
 
-  Node* expand(Node* nodePtr)
+  Node* expand(Node* nodePtr, const Policy& policyAttacker, const Policy& policyDefender)
   {
-    const auto action = m_env.sampleAction(nodePtr->state, false);
+    const auto action = m_env.sampleAction(nodePtr->state, policyAttacker, policyDefender, false);
 #if CHECK_ACTION_DUPLICATES
     // std::cout << "a " << action[0] << " " << action[1] << std::endl;
     for (const auto c : nodePtr->children) {
@@ -261,8 +287,8 @@ class MonteCarloTreeSearch {
     if (success) {
       newNode.parent = nodePtr;
       newNode.action_to_node = action;
-      if (m_vf_beta > 0) {
-        newNode.estimated_value = m_env.estimateValue(newNode.state);
+      if (m_beta1 > 0) {
+        newNode.estimated_value = m_env.estimateValue(newNode.state, policyAttacker, policyDefender);
       }
       nodePtr->children.push_back(&newNode);
       return &newNode;
@@ -313,9 +339,9 @@ class MonteCarloTreeSearch {
     Node* result = nullptr;
     float bestValue = -1;
     for (Node* c : nodePtr->children) {
-      float value =   m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits
-                    + (1-m_vf_beta) * Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits)
-                    + m_vf_beta * c->estimated_value;
+      float value =   m_beta1 * c->estimated_value
+                    + (1-m_beta1) * m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits
+                    + Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits);
       assert(value >= 0);
       if (value > bestValue) {
         bestValue = value;
@@ -345,7 +371,8 @@ class MonteCarloTreeSearch {
   float m_Cp;
   float m_pw_C;
   float m_pw_alpha;
-  float m_vf_beta;
+  float m_beta1;
+  float m_beta3;
 };
 
 }  // namespace libMultiRobotPlanning

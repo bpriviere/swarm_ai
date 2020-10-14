@@ -11,7 +11,20 @@ The code as it currently stands should take under a minute to run.
 ## Dependencies
 These instructions were developed on Xubuntu 20.04 and use python3.X (X>=6 should be ok). 
 
-The quick way is to run
+Additional dependencies for if running as a VM (reboot requried)
+```
+sudo apt-get install -y perl dkms
+```
+
+### Python3
+Requires python3.X (X>=6 should be ok)
+```
+sudo apt install python3-pip -y
+pip3 install wheel
+pip3 install numpy gym pandas matplotlib opencv-python cvxpy PyPDF2
+```
+For CUDA support (nvidea VGA required)
+>>>>>>> feature_curriculum
 ```
 setup$ ./install_dependencies.sh
 ```

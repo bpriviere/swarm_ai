@@ -3,6 +3,7 @@
 import torch
 import numpy as np
 import tqdm
+from queue import Empty
 from collections import defaultdict
 from multiprocessing import current_process
 
@@ -12,54 +13,49 @@ from benchmark.panagou import PanagouPolicy
 import datahandler as dh
 
 from learning.continuous_emptynet import ContinuousEmptyNet
+from learning_interface import local_to_global, global_to_local
 
-def create_cpp_robot_type(param, robot_type):
-	p_min = [param.env_xlim[0], param.env_ylim[0]]
-	p_max = [param.env_xlim[1], param.env_ylim[1]]
-	velocity_limit = param.__dict__[robot_type]["speed_limit"]
-	acceleration_limit = param.__dict__[robot_type]["acceleration_limit"]
-	tag_radius = param.__dict__[robot_type]["tag_radius"]
-	r_sense = param.__dict__[robot_type]["r_sense"]
-	radius = param.__dict__[robot_type]["radius"]
+def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
+	p_min = [env_xlim[0], env_ylim[0]]
+	p_max = [env_xlim[1], env_ylim[1]]
+	velocity_limit = robot_type["speed_limit"]
+	acceleration_limit = robot_type["acceleration_limit"]
+	tag_radius = robot_type["tag_radius"]
+	r_sense = robot_type["r_sense"]
+	radius = robot_type["radius"]
 	rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)
-	return rt
+	return rt	
 
-def robot_composition_to_cpp_robot_types(param,team):
+
+def robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,team,env_xlim,env_ylim):
 	types = [] 
-	for robot_type, num in param.robot_team_composition[team].items():
-		rt = create_cpp_robot_type(param, robot_type)
+	for robot_type_name, num in robot_team_composition[team].items():
+		rt = create_cpp_robot_type(robot_types[robot_type_name], env_xlim, env_ylim)
 		for _ in range(num):
 			types.append(rt)
 	return types
 
-def param_to_cpp_game(param, policy_dict_a, policy_dict_b):
-	
-	attackerTypes = robot_composition_to_cpp_robot_types(param,"a") 
-	defenderTypes = robot_composition_to_cpp_robot_types(param,"b") 
-	
-	dt = param.sim_dt 
 
-	goal = param.goal 
-
-	# ideally, max_depth should be a policy parameter, not a game parameter 
-	if policy_dict_a["sim_mode"] == "MCTS":
-		max_depth = policy_dict_a["mcts_rollout_horizon"]
-	elif policy_dict_b["sim_mode"] == "MCTS":
-		max_depth = policy_dict_b["mcts_rollout_horizon"]
-	else: 
-		max_depth = param.df_mcts_rollout_horizon
-
-	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
-	
-	if policy_dict_a["sim_mode"] in ["GLAS","MCTS"]:
-		if policy_dict_a["path_glas_model_a"] is not None:
-			loadGLAS(g.glasA, policy_dict_a["path_glas_model_a"])
-
-	if policy_dict_b["sim_mode"] in ["GLAS","MCTS"]:
-		if policy_dict_b["path_glas_model_b"] is not None:
-			loadGLAS(g.glasB, policy_dict_b["path_glas_model_b"])
-
+def param_to_cpp_game(robot_team_composition,robot_types,env_xlim,env_ylim,dt,goal,rollout_horizon):
+	attackerTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"a",env_xlim,env_ylim)
+	defenderTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"b",env_xlim,env_ylim)
+	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, rollout_horizon)
 	return g
+
+def create_cpp_policy(policy_dict, team):
+	policy = mctscpp.Policy('None')
+	if policy_dict["sim_mode"] in ["GLAS","MCTS","D_MCTS"]:
+		file = policy_dict["path_glas_model_{}".format(team)]
+		if file is not None:
+			loadGLAS(policy.glas, file)
+			policy.name = file
+			if policy_dict["sim_mode"] in ["GLAS"]:
+				policy.beta2 = 1.0
+			else:
+				policy.beta2 = policy_dict["mcts_beta2"]
+			return policy
+	policy.beta2 = 0.0
+	return policy
 
 def loadGLAS(glas, file):
 	state_dict = torch.load(file)
@@ -72,6 +68,7 @@ def loadGLAS(glas, file):
 	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
 	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
 	loadFeedForwardNNWeights(glas.value, state_dict, "value")
+	loadFeedForwardNNWeights(glas.policy, state_dict, "policy")
 
 	return glas
 
@@ -83,8 +80,8 @@ def loadFeedForwardNNWeights(ff, state_dict, name):
 		if key1 in state_dict and key2 in state_dict:
 			ff.addLayer(state_dict[key1].numpy(), state_dict[key2].numpy())
 		else:
-			if l == 0:
-				print("WARNING: No weights found for {}".format(name))
+			# if l == 0:
+				# print("WARNING: No weights found for {}".format(name))
 			break
 		l += 1
 
@@ -100,19 +97,15 @@ def cpp_state_to_pstate(gs):
 		idx += 1 		
 	return pstate
 
-def state_to_cpp_game_state(param,state,turn):
-
-	param.state = state
-	param.make_robot_teams()
-	param.assign_initial_condition()
+def state_to_cpp_game_state(state,turn,team_1_idxs,team_2_idxs):
 
 	attackers = [] 
 	defenders = [] 
-	for robot in param.robots: 
-		rs = mctscpp.RobotState(robot["x0"])
-		if robot["team"] == "a":
+	for robot_idx, robot_state in enumerate(state): 
+		rs = mctscpp.RobotState(robot_state)
+		if robot_idx in team_1_idxs: 
 			attackers.append(rs)
-		elif robot["team"] == "b":
+		elif robot_idx in team_2_idxs:
 			defenders.append(rs)		
 
 	if turn == "a":
@@ -129,15 +122,26 @@ def state_to_cpp_game_state(param,state,turn):
 	return game_state 
 
 def expected_value(param,state,policy_dict):
-	g = param_to_cpp_game(param,policy_dict,policy_dict) 
-	gs = state_to_cpp_game_state(param,state,"a")
-	mctsresult = mctscpp.search(g, gs,
+
+	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+		param.sim_dt,param.goal,param.rollout_horizon)	
+	gs = state_to_cpp_game_state(state,"a",param.team_1_idxs,param.team_2_idxs)
+
+	policy_a = create_cpp_policy(policy_dict, 'a')
+	policy_b = create_cpp_policy(policy_dict, 'b')
+
+	my_policy = policy_a 
+	other_policies = [policy_b]
+
+	mctsresult = mctscpp.search(g, gs, \
+		my_policy,
+		other_policies,
 		policy_dict["mcts_tree_size"],
-		policy_dict["mcts_rollout_beta"],
 		policy_dict["mcts_c_param"],
 		policy_dict["mcts_pw_C"],
 		policy_dict["mcts_pw_alpha"],
-		policy_dict["mcts_vf_beta"])
+		policy_dict["mcts_beta1"],
+		policy_dict["mcts_beta3"])
 	return mctsresult.expectedReward
 
 def self_play(param,deterministic=True):
@@ -151,53 +155,6 @@ def self_play(param,deterministic=True):
 
 	return play_game(param,policy_dict_a,policy_dict_b,deterministic=deterministic)
 
-def relative_state(states,param,idx):
-
-	n_robots, n_state_dim = states.shape
-
-	goal = np.array([param.goal[0],param.goal[1],0,0])
-
-	o_a = []
-	o_b = [] 
-	relative_goal = goal - states[idx,:]
-
-	# projecting goal to radius of sensing 
-	alpha = np.linalg.norm(relative_goal[0:2]) / param.robots[idx]["r_sense"]
-	relative_goal[2:] = relative_goal[2:] / np.max((alpha,1))	
-
-	for idx_j in range(n_robots): 
-		if idx_j != idx and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]: 
-			if idx_j in param.team_1_idxs:  
-				o_a.append(states[idx_j,:] - states[idx,:])
-			elif idx_j in param.team_2_idxs:
-				o_b.append(states[idx_j,:] - states[idx,:])
-
-	return np.array(o_a),np.array(o_b),np.array(relative_goal)
-
-
-def format_data(o_a,o_b,goal):
-	# input: [num_a/b, dim_state_a/b] np array 
-	# output: 1 x something torch float tensor
-
-	# make 0th dim (this matches batch dim in training)
-	if o_a.shape[0] == 0:
-		o_a = np.expand_dims(o_a,axis=0)
-	if o_b.shape[0] == 0:
-		o_b = np.expand_dims(o_b,axis=0)
-	goal = np.expand_dims(goal,axis=0)
-
-	# reshape if more than one element in set
-	if o_a.shape[0] > 1: 
-		o_a = np.reshape(o_a,(1,np.size(o_a)))
-	if o_b.shape[0] > 1: 
-		o_b = np.reshape(o_b,(1,np.size(o_b)))
-
-	o_a = torch.from_numpy(o_a).float() 
-	o_b = torch.from_numpy(o_b).float()
-	goal = torch.from_numpy(goal).float()
-
-	return o_a,o_b,goal
-
 
 def play_game(param,policy_dict_a,policy_dict_b,deterministic=True): 
 
@@ -205,7 +162,10 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		pp = PanagouPolicy(param)
 		pp.init_sim(param.state)
 
-	g = param_to_cpp_game(param,policy_dict_a,policy_dict_b) 
+	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+		param.sim_dt,param.goal,param.rollout_horizon)
+	policy_a = create_cpp_policy(policy_dict_a, 'a')
+	policy_b = create_cpp_policy(policy_dict_b, 'b')
 
 	sim_result = {
 		'param' : param.to_dict(),
@@ -215,19 +175,25 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		'rewards' : []
 	}
 
-	gs = state_to_cpp_game_state(param,param.state,"a")
+	gs = state_to_cpp_game_state(param.state,"a",param.team_1_idxs,param.team_2_idxs)
 	count = 0
 	invalid_team_action = [np.nan*np.ones(2) for _ in range(param.num_nodes)]
 	team_action = list(invalid_team_action)
+	gs.depth = 0
 	while True:
-		gs.depth = 0
 
 		if gs.turn == mctscpp.GameState.Turn.Attackers:
 			policy_dict = policy_dict_a
 			team_idx = param.team_1_idxs
+			my_policy = policy_a
+			other_policies = [policy_b]
+			team = 'a'
 		elif gs.turn == mctscpp.GameState.Turn.Defenders:
 			policy_dict = policy_dict_b
 			team_idx = param.team_2_idxs
+			my_policy = policy_b
+			other_policies = [policy_a]
+			team = 'b'
 
 		# output result
 		isTerminal = g.isTerminal(gs)
@@ -241,91 +207,66 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			team_action = list(invalid_team_action)
 
 		if isTerminal:
+			# calc reachedgoal
+			sim_result['reached_goal'] = 0.0 
+			for rs in gs.attackers + gs.defenders:
+				if rs.status == mctscpp.RobotState.Status.ReachedGoal:
+					sim_result['reached_goal'] = 1.0 
+					break 
 			break
 
 		if policy_dict["sim_mode"] == "MCTS":
-			
+			depth = gs.depth
+			gs.depth = 0
 			mctsresult = mctscpp.search(g, gs, \
+				my_policy,
+				other_policies,
 				policy_dict["mcts_tree_size"],
-				policy_dict["mcts_rollout_beta"],
 				policy_dict["mcts_c_param"],
 				policy_dict["mcts_pw_C"],
 				policy_dict["mcts_pw_alpha"],
-				policy_dict["mcts_vf_beta"])
+				policy_dict["mcts_beta1"],
+				policy_dict["mcts_beta3"])
+			gs.depth = depth
 			if mctsresult.success: 
 				action = mctsresult.bestAction
 				success = g.step(gs, action, gs)
 			else:
 				success = False
 
+		elif policy_dict["sim_mode"] == "D_MCTS": 
+			state = np.array([rs.state.copy() for rs in gs.attackers + gs.defenders])
+			action = np.nan*np.zeros((state.shape[0],2))
+			for robot_idx in team_idx: 
+				if np.isnan(state[robot_idx,:]).any(): # non active robot 
+					continue
+				o_a,o_b,goal = global_to_local(state,param,robot_idx)
+				state_i, robot_team_composition_i, self_idx, team_1_idxs_i, team_2_idxs_i = \
+					local_to_global(param,o_a,o_b,goal,team)
+				game_i = param_to_cpp_game(robot_team_composition_i,param.robot_types,param.env_xlim,param.env_ylim,\
+					param.sim_dt,param.goal,param.rollout_horizon)
+				gamestate_i = state_to_cpp_game_state(state_i,team,team_1_idxs_i,team_2_idxs_i)
+				gamestate_i.depth = 0
+				mctsresult = mctscpp.search(game_i, gamestate_i, \
+					my_policy,
+					other_policies,
+					policy_dict["mcts_tree_size"],
+					policy_dict["mcts_c_param"],
+					policy_dict["mcts_pw_C"],
+					policy_dict["mcts_pw_alpha"],
+					policy_dict["mcts_beta1"],
+					policy_dict["mcts_beta3"])
+
+				if mctsresult.success: 
+					action_i = mctsresult.bestAction
+					action[robot_idx,:] = action_i[self_idx]
+				else: 
+					action[robot_idx,:] = np.zeros(2) 
+
+			success = g.step(gs,action,gs)
+
 		elif policy_dict["sim_mode"] == "GLAS":
-			action = mctscpp.eval(g, gs, 1.0, deterministic)
-
-			# testing 
-			# deterministic = False
-			# num_samples = 1000
-
-			# state = cpp_state_to_pstate(gs)
-			# model = ContinuousEmptyNet(param, "cpu")
-			# if gs.turn == mctscpp.GameState.Turn.Attackers: 
-			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
-			# else: 
-			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
-
-			# cpp_actions = []
-			# python_actions = [] 
-			# for i_sample in range(num_samples):
-
-			# 	cpp_action = mctscpp.eval(g, gs, deterministic)
-			# 	cpp_actions.append(cpp_action)
-
-			# 	python_action = np.nan*np.ones((param.num_nodes,2))
-			# 	for robot_idx in range(param.num_nodes): 
-			# 		o_a,o_b,goal = relative_state(state,param,robot_idx)
-			# 		o_a,o_b,goal = format_data(o_a,o_b,goal)					
-			# 		value, policy = model(o_a,o_b,goal)
-			# 		python_action[robot_idx, :] = policy.detach().numpy().flatten()
-
-			# 	python_actions.append(python_action)
-
-			# action = python_action
-
-			# print('cpp_action',cpp_action)
-			# print('python_action',python_action)
-
-			# cpp_actions = np.array(cpp_actions)
-			# python_actions = np.array(python_actions)
-
-			# import matplotlib.pyplot as plt 
-			# fig, axs = plt.subplots(1,2,sharex=True,sharey=True)
-			# axs[0].scatter(cpp_actions[:,0,0], cpp_actions[:,0,1], alpha=0.5)
-			# axs[0].set_title('cpp')
-			# axs[1].scatter(python_actions[:,0,0], python_actions[:,0,1], alpha=0.5)
-			# axs[1].set_title('python')
-
-			# plt.show()
-			# exit()
-
-			# print('cpp', action)
-
-			# # use python to eval model 
-			# state = cpp_state_to_pstate(gs)
-			# action = np.nan*np.ones((param.num_nodes,2))
-			# model = ContinuousEmptyNet(param, "cpu")
-			# if gs.turn == mctscpp.GameState.Turn.Attackers: 
-			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_a"]))
-			# else: 
-			# 	model.load_state_dict(torch.load(policy_dict["path_glas_model_b"]))
-
-			# for robot_idx in team_idx: 
-			# 	o_a,o_b,goal = relative_state(state,param,robot_idx)
-			# 	o_a,o_b,goal = format_data(o_a,o_b,goal)
-			# 	value, policy = model(o_a,o_b,goal)
-			# 	action[robot_idx, :] = policy.detach().numpy().flatten()
-
-			# print('python', action)
-
-
+			action = mctscpp.eval(g, gs, policy_a, policy_b, deterministic)
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "PANAGOU":
@@ -336,7 +277,7 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "RANDOM":
-			action = mctscpp.eval(g, gs, 0.0, False)
+			action = mctscpp.eval(g, gs, policy_a, policy_b, False)
 			success = g.step(gs, action, gs)
 
 		else: 
@@ -364,24 +305,23 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 	return sim_result
 
 
-def evaluate_expert(states,param,quiet_on=True,progress=None):
+def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 	
 	if not quiet_on:
 		print('   running expert for instance {}'.format(param.dataset_fn))
 
-	if progress is not None:
-		progress_pos = current_process()._identity[0] - progress
-		enumeration = tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos)
-	else:
-		enumeration = states
+	if rank == 0:
+		pbar = tqdm.tqdm(total=total)
 
-	if is_valid_policy_dict(param.policy_dict):
-		policy_dict = param.policy_dict
-	else: 
-		print('bad policy dict')
-		exit()
+	game = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+		param.sim_dt,param.goal,param.rollout_horizon)
 
-	game = param_to_cpp_game(param,policy_dict,policy_dict)
+	my_policy = create_cpp_policy(param.my_policy_dict, param.training_team)
+
+	other_team = "b" if param.training_team == "a" else "a"
+	other_policies = []
+	for other_policy_dict in param.other_policy_dicts:
+		other_policies.append(create_cpp_policy(other_policy_dict,other_team))
 
 	sim_result = {
 		'states' : [],
@@ -390,21 +330,37 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 		'param' : param.to_dict()
 		}
 
-	for state in enumeration:
-		game_state = state_to_cpp_game_state(param,state,param.training_team)
-		mctsresult = mctscpp.search(game, game_state,
-			policy_dict["mcts_tree_size"],
-			policy_dict["mcts_rollout_beta"],
-			policy_dict["mcts_c_param"],
-			policy_dict["mcts_pw_C"],
-			policy_dict["mcts_pw_alpha"],
-			policy_dict["mcts_vf_beta"])
+	for state in states:
+		game_state = state_to_cpp_game_state(state,param.training_team,param.team_1_idxs,param.team_2_idxs)
+		game_state.depth = 0 
+		# print(game_state)
+		mctsresult = mctscpp.search(game, game_state, \
+			my_policy,
+			other_policies,
+			param.my_policy_dict["mcts_tree_size"],
+			param.my_policy_dict["mcts_c_param"],
+			param.my_policy_dict["mcts_pw_C"],
+			param.my_policy_dict["mcts_pw_alpha"],
+			param.my_policy_dict["mcts_beta1"],
+			param.my_policy_dict["mcts_beta3"])
 		if mctsresult.success: 
-			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction) # 
+			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
 			value = mctsresult.expectedReward[0]
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["policy_dists"].append(policy_dist)  
 			sim_result["values"].append(value)
+
+		# update status
+		if rank == 0:
+			count = 1
+			try:
+				while True:
+					count += queue.get_nowait()
+			except Empty:
+				pass
+			pbar.update(count)
+		else:
+			queue.put_nowait(1)
 
 	sim_result["states"] = np.array(sim_result["states"])
 	sim_result["policy_dists"] = np.array(sim_result["policy_dists"])
@@ -413,59 +369,8 @@ def evaluate_expert(states,param,quiet_on=True,progress=None):
 	if not quiet_on:
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 
-def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
-	
-	alphas = np.random.randint(low=0,high=len(testing),size=len(states))
-	
-	if not quiet_on:
-		print('   running expert for instance {}'.format(param.dataset_fn))
 
-	if progress is not None:
-		progress_pos = current_process()._identity[0] - progress
-		# enumeration = tqdm.tqdm(states, desc=param.dataset_fn, leave=False, position=progress_pos)
-		enumeration = tqdm.tqdm(zip(alphas,states), desc=param.dataset_fn, leave=False, position=progress_pos)
-	else:
-		enumeration = zip(alphas,states)
-
-	if is_valid_policy_dict(param.policy_dict):
-		policy_dict = param.policy_dict
-	else: 
-		print('bad policy dict')
-		exit()
-
-	game = param_to_cpp_game(param,policy_dict,policy_dict)
-
-	sim_result = {
-		'states' : [],
-		'policy_dists' : [],
-		'values' : [],
-		'param' : param.to_dict()
-		}
-
-	for alpha, state in enumeration:
-
-		test_state = np.array(testing[alpha]["test_state"])
-		test_value = testing[alpha]["test_value"]
-
-		test_valuePerAction = []
-		for valuePerAction in testing[alpha]["test_valuePerAction"]:
-			x = ((np.array((valuePerAction[0],valuePerAction[1]),dtype=float),np.array((np.nan,np.nan),dtype=float)),valuePerAction[-1])
-			test_valuePerAction.append(x)
-
-		test_policy_dist = valuePerAction_to_policy_dist(param,test_valuePerAction) # 
-
-		sim_result["states"].append(test_state)
-		sim_result["policy_dists"].append(test_policy_dist)  		
-		sim_result["values"].append(test_value)
-
-	sim_result["states"] = np.array(sim_result["states"])
-	sim_result["policy_dists"] = np.array(sim_result["policy_dists"])
-	dh.write_sim_result(sim_result,param.dataset_fn)
-
-	if not quiet_on:
-		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))	
-
-def valuePerAction_to_policy_dist(param,valuePerAction):
+def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 
 	if param.training_team == "a":
 		num_robots = param.num_nodes_A
@@ -487,39 +392,84 @@ def valuePerAction_to_policy_dist(param,valuePerAction):
 			choice_idxs = np.random.choice(actions.shape[0],param.l_num_subsamples,p=weights)
 			dist[robot_idx] = np.array([(actions[choice_idx,:],weights[choice_idx]) for choice_idx in choice_idxs])
 
-	else: 
+	elif param.l_gaussian_on: 
+
+		# "first" option 
+		actions = np.array([np.array(a).flatten() for a,_ in valuePerAction])
+		values = np.array([v for _,v in valuePerAction])
 
 		dist = defaultdict(list)
+		for robot_idx in robot_idxs: 
+			action_idx = robot_idx * 2 + np.arange(2)
 
-		actions = [a for a,_ in valuePerAction]
-		values = [v for _,v in valuePerAction]
+			# average = np.average(actions[:,action_idx], weights=values, axis=0)
+			average = np.array(bestAction).flatten()[action_idx]
+			variance = np.average((actions[:,action_idx]-average)**2, weights=values, axis=0)
+			dist[robot_idx] = np.array([[average,variance]])
 
-		actions = [x for _,x in sorted(zip(values,actions), key=lambda pair: -pair[0])]
-		values = sorted(values)
 
-		if len(actions) > param.l_num_samples:
-			actions = actions[0:param.l_num_samples]
-			values = values[0:param.l_num_samples]
+		# "second" option
+		# valuePerActionSorted = sorted(valuePerAction, key=lambda p: p[1], reverse=True)
+		# mean_action = np.array(valuePerActionSorted[0][0]).flatten() # (num_robots,2) -> (2*num_robots,) 
+		# mean_value = np.array(valuePerActionSorted[0][1])
 
-		values = [v/sum(values) for v in values] 
+		# dist = defaultdict(list)
+		# for robot_idx in robot_idxs: 
+		# 	action_idx = robot_idx * 2 + np.arange(2)
 
-		for action,value in zip(actions,values):
+		# 	mean_action_i = mean_action[action_idx]
+		# 	var_action_i = np.zeros((2))
+		# 	for action,value in valuePerAction: 
+		# 		var_action_i += np.power(np.array(action).flatten()[action_idx] - mean_action_i,2)
+		# 		# var_action_i += value*np.power(np.array(action).flatten()[action_idx] - mean_action_i,2)
+		# 	# var_action_i = var_action_i / sum([value for _,value in valuePerAction])
+
+		# 	var_action_i /= len(valuePerAction)
+		# 	dist[robot_idx] = np.array([[mean_action_i,var_action_i]])
+
+	else: 
+		# sort so that highest values are first
+		valuePerActionSorted = sorted(valuePerAction, key=lambda p: p[1], reverse=True)
+
+		# limit to l_num_samples
+		if len(valuePerActionSorted) > param.l_num_samples:
+			valuePerActionSorted = valuePerActionSorted[0:param.l_num_samples]
+
+		# renormalize
+		# norm = sum([value for _, value in valuePerActionSorted])
+
+		normalization = "linear"
+		if normalization == "linear": 
+			norm = sum([value for _, value in valuePerActionSorted])
+			valuePerActionSorted = [ (a, v/norm) for a,v in valuePerActionSorted]
+		elif normalization == "softmax": 
+			beta = 1.0 
+			norm = sum([np.exp(beta*value) for _, value in valuePerActionSorted])
+			valuePerActionSorted = [ (a, np.exp(beta*v) / norm) for a,v in valuePerActionSorted] 
+
+		dist = defaultdict(list)
+		for action,value in valuePerActionSorted:
 
 			action = np.array(action)
 			action = action.flatten()
 
 			for robot_idx in robot_idxs:
 				action_idx = robot_idx * 2 + np.arange(2)
-				# dist[robot_idx].append(np.array([action[action_idx],value]))
+				# v = value/norm if norm > 0 else 1/len(valuePerActionSorted)
+				# dist[robot_idx].append([action[action_idx],v])
 				dist[robot_idx].append([action[action_idx],value])
 
-		# print(dist)
-		# exit()
+		# dist = defaultdict(list)
+		# action = np.array(bestAction)
+		# action = action.flatten()
+		# for robot_idx in robot_idxs:
+		# 	action_idx = robot_idx * 2 + np.arange(2)
+		# 	dist[robot_idx].append([action[action_idx],1.0])
 
 		for robot_idx in dist.keys():
 			dist[robot_idx] = np.array(dist[robot_idx])
 
-	return dist	
+	return dist
 
 def bad_key(some_dict,some_key):
 	if some_key not in some_dict.keys():
@@ -534,12 +484,11 @@ def is_valid_policy_dict(policy_dict):
 			bad_key(policy_dict,"path_glas_model_b"):
 			return False 
 
-	elif policy_dict["sim_mode"] == "MCTS":
+	elif policy_dict["sim_mode"] in ["MCTS","D_MCTS"]:
 		if bad_key(policy_dict,"path_glas_model_a") or \
 			bad_key(policy_dict,"path_glas_model_b") or \
 			bad_key(policy_dict,"mcts_tree_size") or \
-			bad_key(policy_dict,"mcts_rollout_horizon") or \
-			bad_key(policy_dict,"mcts_rollout_beta") or \
+			bad_key(policy_dict,"mcts_beta2") or \
 			bad_key(policy_dict,"mcts_c_param") or \
 			bad_key(policy_dict,"mcts_pw_C") or \
 			bad_key(policy_dict,"mcts_pw_alpha"): 
