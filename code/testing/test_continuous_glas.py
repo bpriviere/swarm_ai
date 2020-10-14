@@ -13,7 +13,8 @@ from learning.continuous_emptynet import ContinuousEmptyNet
 from learning.gaussian_emptynet import GaussianEmptyNet
 from learning_interface import format_data, global_to_local
 
-def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
+# def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
+def test_evaluate_expert(count,queue,total,states,param,testing,quiet_on=True,progress=None):
 	from cpp_interface import param_to_cpp_game, is_valid_policy_dict, valuePerAction_to_policy_dist
 	
 	alphas = np.random.randint(low=0,high=len(testing),size=len(states))
@@ -51,10 +52,21 @@ def test_evaluate_expert(states,param,testing,quiet_on=True,progress=None):
 
 		test_valuePerAction = []
 		for valuePerAction in testing[alpha]["test_valuePerAction"]:
-			x = ((np.array((valuePerAction[0],valuePerAction[1]),dtype=float),np.array((np.nan,np.nan),dtype=float)),valuePerAction[-1])
+
+			if param.l_gaussian_on:
+				std = 1e-2
+				action = (\
+					np.array((valuePerAction[0],valuePerAction[1]),dtype=float) + std * np.random.normal(size=(2,)), \
+					np.array((np.nan,np.nan),dtype=float)) 
+				x = (action,valuePerAction[-1])
+			else:
+				x = ((np.array((valuePerAction[0],valuePerAction[1]),dtype=float),np.array((np.nan,np.nan),dtype=float)),valuePerAction[-1])
 			test_valuePerAction.append(x)
 
-		test_policy_dist = valuePerAction_to_policy_dist(param,test_valuePerAction) # 
+		test_valuePerActionSorted = sorted(test_valuePerAction, key=lambda p: p[1], reverse=True)
+		test_bestAction = test_valuePerActionSorted[0][0]
+
+		test_policy_dist = valuePerAction_to_policy_dist(param,test_valuePerAction,test_bestAction) # 
 
 		sim_result["states"].append(test_state)
 		sim_result["policy_dists"].append(test_policy_dist)  		

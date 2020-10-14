@@ -570,8 +570,17 @@ def plot_training(df_param,batched_fns,path_to_model):
 		if df_param.mice_testing_on: 
 			for _ in range(n_samples):
 				o_a,o_b,goal = format_data(candidate[0],candidate[1],candidate[2])
-				value, policy = model(o_a,o_b,goal)
-				model_actions.append(policy.detach().numpy())
+
+				if df_param.l_gaussian_on:
+					with torch.no_grad():
+						value, policy, mu, logvar = model(o_a, o_b, goal, True)
+					m = mu.numpy()
+					s = torch.sqrt(torch.exp(logvar)).numpy()
+					axs[1][1].add_patch(Ellipse(m[0], width=s[0,0] * 2, height=s[0,1] * 2, alpha=0.5))
+				else: 
+					value, policy = model(o_a,o_b,goal)
+					model_actions.append(policy.detach().numpy())
+					
 		else:
 			for o_a,o_b,goal in conditionals:
 				o_a,o_b,goal = format_data(o_a,o_b,goal)
