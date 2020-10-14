@@ -113,11 +113,11 @@ if __name__ == '__main__':
 			'path_glas_model_b' : 		None, 
 			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
 			'mcts_rollout_horizon' : 	100,
-			'mcts_rollout_beta' : 		0.0,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
+			'mcts_beta2' : 				0.0,
 			'mcts_beta3' : 				0.5,
 		}]
 	df_param.attackerPolicyDicts.extend(
@@ -127,11 +127,11 @@ if __name__ == '__main__':
 			'path_glas_model_b' : 		'../current/models/b{}.pt'.format(i) if i > 0  else None, 
 			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
 			'mcts_rollout_horizon' : 	100,
-			'mcts_rollout_beta' : 		0.25,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
+			'mcts_beta2' : 				0.25,
 			'mcts_beta3' : 				0.5,
 		} for i in range(1,4))
 
@@ -141,11 +141,11 @@ if __name__ == '__main__':
 			'path_glas_model_b' : 		None, 
 			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
 			'mcts_rollout_horizon' : 	100,
-			'mcts_rollout_beta' : 		0.0,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
+			'mcts_beta2' : 				0.0,
 			'mcts_beta3' : 				0.5,
 		}]
 	df_param.defenderPolicyDicts.extend(
@@ -155,11 +155,11 @@ if __name__ == '__main__':
 			'path_glas_model_b' : 		'../current/models/b{}.pt'.format(i) if i > 0  else None, 
 			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
 			'mcts_rollout_horizon' : 	100,
-			'mcts_rollout_beta' : 		0.25,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
+			'mcts_beta2' : 				0.25,
 			'mcts_beta3' : 				0.5,
 		} for i in range(1,4))	
 

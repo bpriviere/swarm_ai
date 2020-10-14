@@ -222,11 +222,11 @@ def get_self_play_samples(params):
 			'path_glas_model_a' : 		path_glas_model_a, 	
 			'path_glas_model_b' : 		path_glas_model_b, 	
 			'mcts_tree_size' : 			param.l_num_learner_nodes,
-			'mcts_rollout_beta' : 		param.l_mcts_rollout_beta,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
+			'mcts_beta2' : 				param.l_mcts_beta2,
 			'mcts_beta3' : 				0.5,
 		}
 		param.policy_dict_b = param.policy_dict_a.copy() 
@@ -643,11 +643,11 @@ def make_dataset(states,params,df_param,testing=None):
 			'path_glas_model_a' : 		None, 	
 			'path_glas_model_b' : 		None, 	
 			'mcts_tree_size' : 			param.l_num_expert_nodes,
-			'mcts_rollout_beta' : 		0.0,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
+			'mcts_beta2' : 				0.0,
 			'mcts_beta3' : 				0.5,
 		}
 
@@ -655,13 +655,13 @@ def make_dataset(states,params,df_param,testing=None):
 		param.my_policy_dict = expert_policy_dict.copy()
 		if param.i == 0 or param.l_mode in ["IL","DAgger"]:
 			param.my_policy_dict["path_glas_model_{}".format(param.training_team)] = None  
-			param.my_policy_dict["mcts_rollout_beta"] = 0.0 
+			param.my_policy_dict["mcts_beta2"] = 0.0 
 		else:
 			param.my_policy_dict["path_glas_model_{}".format(param.training_team)] = param.l_model_fn.format(\
 				DATADIR=param.path_current_models,\
 				TEAM=param.training_team,\
 				ITER=param.i)
-			param.my_policy_dict["mcts_rollout_beta"] = param.l_mcts_rollout_beta 
+			param.my_policy_dict["mcts_beta2"] = param.l_mcts_beta2
 
 		opponents_key = "Skill_B" if param.training_team == "a" else "Skill_A"
 		opponents_team = "b" if param.training_team == "a" else "a"
@@ -670,7 +670,7 @@ def make_dataset(states,params,df_param,testing=None):
 			other_policy_dict = expert_policy_dict.copy()
 			if param.i == 0 or param.l_mode in ["IL","DAgger"] or other_policy_skill is None:
 				other_policy_dict["path_glas_model_{}".format(opponents_team)] = None  
-				other_policy_dict["mcts_rollout_beta"] = 0.0 
+				other_policy_dict["mcts_beta2"] = 0.0
 			else:
 				other_policy_dict["path_glas_model_{}".format(opponents_team)] = param.l_model_fn.format(\
 					DATADIR=param.path_current_models,\

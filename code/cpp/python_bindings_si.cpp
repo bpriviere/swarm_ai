@@ -223,7 +223,7 @@ PYBIND11_MODULE(mctscppsi, m) {
     .def_property_readonly("glas", &PolicyT::glas)
     .def_property("name", &PolicyT::name, &PolicyT::setName)
     .def_property("weight", &PolicyT::weight, &PolicyT::setWeight)
-    .def_property("rolloutBeta", &PolicyT::rolloutBeta, &PolicyT::setRolloutBeta);
+    .def_property("beta2", &PolicyT::beta2, &PolicyT::setBeta2);
 
   // Game
   py::class_<GameT> (m, "Game")

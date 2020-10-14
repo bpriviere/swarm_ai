@@ -266,7 +266,7 @@ class Game {
     const PolicyT& policyAttacker,
     const PolicyT& policyDefender,
     bool deterministic,
-    float rollout_beta = -1)
+    float beta2 = -1)
   {
     size_t NumAttackers = state.attackers.size();
     size_t NumDefenders = state.defenders.size();
@@ -275,7 +275,7 @@ class Game {
 
     if (state.turn == GameStateT::Turn::Attackers) {
       for (size_t i = 0; i < NumAttackers; ++i) {
-        result[i] = policyAttacker.sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state, m_goal, deterministic, rollout_beta);
+        result[i] = policyAttacker.sampleAction(state.attackers[i], m_attackerTypes[i], true, i, state, m_goal, deterministic, beta2);
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
         result[NumAttackers + i] = m_defenderTypes[i].invalidAction;
@@ -285,7 +285,7 @@ class Game {
         result[i] = m_attackerTypes[i].invalidAction;
       }
       for (size_t i = 0; i < NumDefenders; ++i) {
-        result[NumAttackers + i] = policyDefender.sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state, m_goal, deterministic, rollout_beta);
+        result[NumAttackers + i] = policyDefender.sampleAction(state.defenders[i], m_defenderTypes[i], false, i, state, m_goal, deterministic, beta2);
       }
     }
     return result;

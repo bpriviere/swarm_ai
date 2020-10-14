@@ -50,7 +50,7 @@ if __name__ == '__main__':
 	dt = 0.1
 	goal = [0.25,0.25,0,0]
 	max_depth = 100
-	rollout_beta = 0.5 # 0 means pure random, 1.0 means pure GLAS
+	beta2 = 0.5 # 0 means pure random, 1.0 means pure GLAS
 	Cp = 1.4
 	pw_C = 1.0
 	pw_alpha = 0.25
@@ -60,8 +60,8 @@ if __name__ == '__main__':
 	policyA = mctscpp.Policy('a')
 	policyB = mctscpp.Policy('b')
 	if "RANDOM" in mode:
-		policyA.rolloutBeta = 0.0
-		policyB.rolloutBeta = 0.0
+		policyA.beta2 = 0.0
+		policyB.beta2 = 0.0
 		vf_beta = 0
 	print(policyA)
 	print(policyB)

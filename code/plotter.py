@@ -826,7 +826,7 @@ def plot_exp2_results(all_sim_results):
 	tree_sizes = all_sim_results[0]["param"]["mcts_tree_sizes"]
 	num_trials = all_sim_results[0]["param"]["sim_num_trials"]
 	team_comps = all_sim_results[0]["param"]["robot_team_compositions"]
-	mcts_rollout_betas = all_sim_results[0]["param"]["mcts_rollout_betas"]
+	mcts_beta2s = all_sim_results[0]["param"]["mcts_beta2s"]
 
 	# put into easy-to-use dict! 
 	results = dict()
@@ -838,7 +838,7 @@ def plot_exp2_results(all_sim_results):
 		trial = sim_result["param"]["sim_trial"]
 		tree_size = sim_result["param"]["policy_dict"]["mcts_tree_size"]
 		mode = sim_result["param"]["policy_dict"]["sim_mode"]
-		beta = sim_result["param"]["policy_dict"]["mcts_rollout_beta"]
+		beta = sim_result["param"]["policy_dict"]["mcts_beta2"]
 
 		num_nodes_A, num_nodes_B = 0,0
 		for robot_type, robot_number in team_comp["a"].items():
@@ -854,7 +854,7 @@ def plot_exp2_results(all_sim_results):
 		if mode == "GLAS":
 			betas = [0]
 		elif mode == "MCTS":
-			betas = mcts_rollout_betas
+			betas = mcts_beta2s
 		for beta in betas:  
 			num_ims_per_ic += 1
 
@@ -871,7 +871,7 @@ def plot_exp2_results(all_sim_results):
 
 			# plot initial condition
 			fig,ax = plt.subplots()
-			key = (num_nodes_A,num_nodes_B,tree_sizes[0],training_team,modes[0],mcts_rollout_betas[0],i_trial)
+			key = (num_nodes_A,num_nodes_B,tree_sizes[0],training_team,modes[0],mcts_beta2s[0],i_trial)
 			fig.suptitle('Trial {}'.format(results[key]["param"]["curr_ic"]))
 			colors = get_colors(results[key]["param"])
 			ax.scatter(results[key]["param"]["goal"][0],results[key]["param"]["goal"][1],color='green',marker='o',label='goal')
@@ -904,7 +904,7 @@ def plot_exp2_results(all_sim_results):
 						if mode == "GLAS":
 							betas = [0]
 						elif mode == "MCTS":
-							betas = mcts_rollout_betas
+							betas = mcts_beta2s
 												
 						for beta in betas: 
 
@@ -948,9 +948,9 @@ def plot_exp2_results(all_sim_results):
 def policy_to_label(policy):
 	# keys = ["mcts_tree_size"]
 	# keys = ["sim_mode","path","mcts_tree_size"]
-	# keys = ["sim_mode","path","mcts_rollout_beta"] 
-	# keys = ["sim_mode","mcts_rollout_beta"] 
-	keys = ["sim_mode","mcts_rollout_beta","mcts_tree_size","path"]
+	# keys = ["sim_mode","path","mcts_beta2"] 
+	# keys = ["sim_mode","mcts_beta2"] 
+	keys = ["sim_mode","mcts_beta2","mcts_tree_size","path"]
 	# keys = ["path"]
 	label = '' 
 	for key, value in policy.items():
@@ -959,7 +959,7 @@ def policy_to_label(policy):
 				label += 'None'
 			else:
 				label += '{} '.format(os.path.basename(value).split(".")[0])
-		elif key == "mcts_rollout_beta" and key in keys:
+		elif key == "mcts_beta2" and key in keys:
 			if policy["sim_mode"] == "MCTS":
 				label += ', b: {}'.format(value)
 		elif key == "mcts_tree_size" and key in keys:

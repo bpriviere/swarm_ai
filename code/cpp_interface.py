@@ -50,11 +50,11 @@ def create_cpp_policy(policy_dict, team):
 			loadGLAS(policy.glas, file)
 			policy.name = file
 			if policy_dict["sim_mode"] in ["GLAS"]:
-				policy.rolloutBeta = 1.0
+				policy.beta2 = 1.0
 			else:
-				policy.rolloutBeta = policy_dict["mcts_rollout_beta"]
+				policy.beta2 = policy_dict["mcts_beta2"]
 			return policy
-	policy.rolloutBeta = 0.0
+	policy.beta2 = 0.0
 	return policy
 
 def loadGLAS(glas, file):
@@ -488,7 +488,7 @@ def is_valid_policy_dict(policy_dict):
 		if bad_key(policy_dict,"path_glas_model_a") or \
 			bad_key(policy_dict,"path_glas_model_b") or \
 			bad_key(policy_dict,"mcts_tree_size") or \
-			bad_key(policy_dict,"mcts_rollout_beta") or \
+			bad_key(policy_dict,"mcts_beta2") or \
 			bad_key(policy_dict,"mcts_c_param") or \
 			bad_key(policy_dict,"mcts_pw_C") or \
 			bad_key(policy_dict,"mcts_pw_alpha"): 

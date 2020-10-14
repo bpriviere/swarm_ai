@@ -69,7 +69,7 @@ def get_params(df_param):
 	curr_ic = -1
 	count = 0 
 	total = df_param.num_trials*len(df_param.robot_team_compositions)*len(df_param.mcts_tree_sizes)*\
-		len(df_param.training_teams)*len(df_param.mcts_rollout_betas)*len(df_param.sim_modes)
+		len(df_param.training_teams)*len(df_param.mcts_beta2s)*len(df_param.sim_modes)
 	num_ics = df_param.num_trials*len(df_param.robot_team_compositions)
 
 	for robot_team_composition in df_param.robot_team_compositions:
@@ -86,9 +86,9 @@ def get_params(df_param):
 				for training_team in df_param.training_teams:
 					for sim_mode in df_param.sim_modes: 
 
-						betas = df_param.mcts_rollout_betas
+						betas = df_param.mcts_beta2s
 						# if sim_mode == "MCTS":
-						# 	betas = df_param.mcts_rollout_betas
+						# 	betas = df_param.mcts_beta2s
 						# else: 
 						# 	betas = [0.0]
 
@@ -105,11 +105,11 @@ def get_params(df_param):
 							param.l_num_points_per_file = 1 
 							param.sim_num_trials = df_param.num_trials
 							param.num_ics = num_ics
-							param.mcts_rollout_betas = df_param.mcts_rollout_betas
+							param.mcts_beta2s = df_param.mcts_beta2s
 
 							param.policy_dict["path_glas_model_a"] = df_param.policy_dict["path_glas_model_a"]
 							param.policy_dict["path_glas_model_b"] = df_param.policy_dict["path_glas_model_b"]
-							param.policy_dict["mcts_rollout_beta"] = beta
+							param.policy_dict["mcts_beta2"] = beta
 							param.policy_dict["sim_mode"] = sim_mode
 							param.policy_dict["mcts_tree_size"] = tree_size
 
@@ -139,7 +139,7 @@ if __name__ == '__main__':
 	df_param.num_trials = 1
 	df_param.env_l = 1.0 # from 0.5 
 	df_param.sim_modes = ["GLAS","MCTS"]
-	df_param.mcts_rollout_betas = [0,0.5,1.0]
+	df_param.mcts_beta2s = [0,0.5,1.0]
 	df_param.mcts_tree_sizes = [1000,5000,10000,50000] 
 	df_param.policy_dict["path_glas_model_a"] = "../current/models/a1.pt"
 	df_param.policy_dict["path_glas_model_b"] = "../current/models/b1.pt"
