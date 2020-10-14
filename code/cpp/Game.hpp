@@ -231,15 +231,32 @@ class Game {
   {
     // Done if:
     // i) one robot reached the goal
+    // bool anyActive = false;
+    // for (const auto& attacker : state.attackers) {
+    //   if (attacker.status == RobotState::Status::ReachedGoal) {
+    //     return true;
+    //   }
+    //   if (attacker.status == RobotState::Status::Active) {
+    //     anyActive = true;
+    //   }
+    // }
+
+    // i) all robot reached the goal
+    bool allAtGoal = true;
     bool anyActive = false;
     for (const auto& attacker : state.attackers) {
-      if (attacker.status == RobotState::Status::ReachedGoal) {
-        return true;
+      if (not attacker.status == RobotState::Status::ReachedGoal) {
+        allAtGoal = false;
       }
+
       if (attacker.status == RobotState::Status::Active) {
         anyActive = true;
       }
     }
+    if (allAtGoal) {
+      return true; 
+    }
+
     // ii) no attacker is active anymore
     if (state.attackers.size() > 0 && !anyActive) {
       return true;
@@ -381,7 +398,8 @@ class Game {
       }
       if (attacker.status == RobotStateT::Status::ReachedGoal) {
         // minDistToGoal = 0.0;
-        reachedGoal = 1;
+        // reachedGoal = 1;
+        reachedGoal = reachedGoal + 1;
       }
     }
 
