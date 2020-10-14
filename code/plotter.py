@@ -386,7 +386,10 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 
 	colors = get_colors(sim_result["param"])
 
-	fig,axs = plt.subplots(nrows=2,ncols=2,constrained_layout=True)
+	if sim_result["param"]["tree_vis_fn"] is not None:
+		fig,axs = plt.subplots(nrows=2,ncols=3,constrained_layout=True)
+	else:
+		fig,axs = plt.subplots(nrows=2,ncols=2,constrained_layout=True)
 
 	# state space
 	ax = axs[0,0]
@@ -478,6 +481,27 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 		ax.axhline(sim_result["param"]["robots"][i]["acceleration_limit"],color=colors[i],linestyle='--')
 		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=colors[i])
 	ax.set_ylim(bottom=0)
+
+	# tree vis 
+	if sim_result["param"]["tree_vis_fn"] is not None:
+
+		ax = axs[1,2]
+
+		# vis_tree.py code here 
+
+		data = np.loadtxt(sim_result["param"]["tree_vis_fn"], delimiter=",", skiprows=1, ndmin=2)
+
+		for row in data:
+			parentIdx = int(row[0])
+			if parentIdx >= 0:
+				pair = np.vstack([row[1:],data[parentIdx][1:]])
+
+				# for robotIdx in range(2):
+					# ax.plot(pair[:,0+2*robotIdx], pair[:,1+2*robotIdx], marker = 'o')
+					
+				for robotIdx in range(num_nodes):
+					ax.plot(pair[:,0+2*robotIdx], pair[:,1+2*robotIdx],marker='o',color=colors[robotIdx])
+
 
 	if title is not None: 
 		fig.suptitle(title)

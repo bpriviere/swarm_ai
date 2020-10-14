@@ -315,6 +315,13 @@ def instance_self_play(rank, queue, total, param):
 	states_per_file = []
 	remaining_plots_per_file = 2
 	while len(states_per_file) < param.l_num_points_per_file:
+
+		if remaining_plots_per_file > 0: 
+			param.tree_vis_fn = '../current/models/tree_vis_{}.pdf'.format(os.path.basename(param.dataset_fn))
+		else:
+			param.tree_vis_fn = None 
+
+
 		param.state = param.make_initial_condition()
 		# sim_result = self_play(param,deterministic=False)
 		sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
@@ -331,7 +338,8 @@ def instance_self_play(rank, queue, total, param):
 			plotter.plot_tree_results(sim_result, \
 				title = title, \
 				model_fn_a = param.policy_dict_a["path_glas_model_a"], \
-				model_fn_b = param.policy_dict_b["path_glas_model_b"])
+				model_fn_b = param.policy_dict_b["path_glas_model_b"], \
+				tree_vis_fn = param.tree_vis_fn)
 			remaining_plots_per_file -= 1
 		
 		states_per_file.extend(sim_result["states"])

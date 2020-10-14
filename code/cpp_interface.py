@@ -218,15 +218,29 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		if policy_dict["sim_mode"] == "MCTS":
 			depth = gs.depth
 			gs.depth = 0
-			mctsresult = mctscpp.search(g, gs, \
-				my_policy,
-				other_policies,
-				policy_dict["mcts_tree_size"],
-				policy_dict["mcts_c_param"],
-				policy_dict["mcts_pw_C"],
-				policy_dict["mcts_pw_alpha"],
-				policy_dict["mcts_beta1"],
-				policy_dict["mcts_beta3"])
+
+			if param.tree_vis_fn is None:
+				mctsresult = mctscpp.search(g, gs, \
+					my_policy,
+					other_policies,
+					policy_dict["mcts_tree_size"],
+					policy_dict["mcts_c_param"],
+					policy_dict["mcts_pw_C"],
+					policy_dict["mcts_pw_alpha"],
+					policy_dict["mcts_beta1"],
+					policy_dict["mcts_beta3"])
+			else:
+				# todo 
+				mctsresult = mctscpp.search(g, gs, \
+					my_policy,
+					other_policies,
+					policy_dict["mcts_tree_size"],
+					policy_dict["mcts_c_param"],
+					policy_dict["mcts_pw_C"],
+					policy_dict["mcts_pw_alpha"],
+					policy_dict["mcts_beta1"],
+					policy_dict["mcts_beta3"])				
+
 			gs.depth = depth
 			if mctsresult.success: 
 				action = mctsresult.bestAction
@@ -247,15 +261,29 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 					param.sim_dt,param.goal,param.rollout_horizon)
 				gamestate_i = state_to_cpp_game_state(state_i,team,team_1_idxs_i,team_2_idxs_i)
 				gamestate_i.depth = 0
-				mctsresult = mctscpp.search(game_i, gamestate_i, \
-					my_policy,
-					other_policies,
-					policy_dict["mcts_tree_size"],
-					policy_dict["mcts_c_param"],
-					policy_dict["mcts_pw_C"],
-					policy_dict["mcts_pw_alpha"],
-					policy_dict["mcts_beta1"],
-					policy_dict["mcts_beta3"])
+
+				if param.tree_vis_fn is None:
+					mctsresult = mctscpp.search(game_i, gamestate_i, \
+						my_policy,
+						other_policies,
+						policy_dict["mcts_tree_size"],
+						policy_dict["mcts_c_param"],
+						policy_dict["mcts_pw_C"],
+						policy_dict["mcts_pw_alpha"],
+						policy_dict["mcts_beta1"],
+						policy_dict["mcts_beta3"])
+				else: 
+					# todo 
+					mctsresult = mctscpp.search(game_i, gamestate_i, \
+						my_policy,
+						other_policies,
+						policy_dict["mcts_tree_size"],
+						policy_dict["mcts_c_param"],
+						policy_dict["mcts_pw_C"],
+						policy_dict["mcts_pw_alpha"],
+						policy_dict["mcts_beta1"],
+						policy_dict["mcts_beta3"])
+
 
 				if mctsresult.success: 
 					action_i = mctsresult.bestAction

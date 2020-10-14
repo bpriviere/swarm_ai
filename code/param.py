@@ -57,6 +57,9 @@ class Param:
 			'a': {'standard_robot':1,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 		}
+
+		# tree vis
+		self.tree_vis_fn = None
 		
 		# environment
 		self.env_l = 1.0
