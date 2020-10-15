@@ -386,10 +386,7 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 
 	colors = get_colors(sim_result["param"])
 
-	if sim_result["tree"] is not None:
-		fig,axs = plt.subplots(nrows=2,ncols=3,constrained_layout=True)
-	else:
-		fig,axs = plt.subplots(nrows=2,ncols=2,constrained_layout=True)
+	fig,axs = plt.subplots(nrows=2,ncols=2,constrained_layout=True)
 
 	# state space
 	ax = axs[0,0]
@@ -485,49 +482,91 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 	# tree vis 
 	if sim_result["tree"] is not None:
 
-		data = sim_result["tree"]
+		fig,axs = plt.subplots(nrows=len(sim_result["tree"]),ncols=3,squeeze=False,constrained_layout=True)
+		# fig,axs = plt.subplots(nrows=len(sim_result["tree"]),ncols=2,squeeze=False,constrained_layout=True)
 
-		segments = []
-		cs = []
+		for i_tree, data in enumerate(sim_result["tree"]):
 
-		for row in data:
-			parentIdx = int(row[0])
-			if parentIdx >= 0:
-				for i in range(0, num_nodes):
-					segments.append([row[(1+2*i):(3+2*i)], data[parentIdx][(1+2*i):(3+2*i)]])
-					cs.append(colors[i])
+			# [number of nodes x (parentIdx, reward, \{position, velocity\}_{for all robots})]
 
-		ln_coll = matplotlib.collections.LineCollection(segments, colors=colors)
+			tree_timestep = sim_result["param"]["tree_timestep"] 
+			random_factor = 3.0 
+			acceleration_lims = sim_result["param"]["robots"][0]["acceleration_limit"]
 
-		ax = axs[0,2]
-		ax.grid(True)
-		ax.axis('equal')
-		ax.set_title('Search Tree')
-		ax.add_collection(ln_coll)
+			# first col, position 
+			ax = axs[i_tree,0]
+			segments = []
+			cs = []
+			linewidths = []
 
-		ax.set_xlim([env_xlim[0],env_xlim[1]])
-		ax.set_ylim([env_ylim[0],env_ylim[1]])
+			for row in data:
+				parentIdx = int(row[0])
+				if parentIdx >= 0:
+					for i in range(0, num_nodes):
+						segments.append([row[(2+4*i):(4+4*i)], data[parentIdx][(2+4*i):(4+4*i)]])
+						reward = np.min((1,random_factor*row[1])) if i in team_1_idxs else 1.0-row[1]
+						linewidths.append(reward)
+						cs.append((colors[i][0],colors[i][1],colors[i][2],reward))
 
-		# plot histogram of tree depth
-		num_nodes_by_depth = defaultdict(int)
-		for row in data:
-			parentIdx = int(row[0])
-			depth = 0
-			while parentIdx >= 0:
-				parentIdx = int(data[parentIdx,0])
-				depth += 1
-			num_nodes_by_depth[depth] += 1
+			# ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=linewidths)
+			ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=2*linewidths)
 
-		ax = axs[1,2]
-		ax.set_title('Tree Nodes By Depth')
-		ax.bar(list(num_nodes_by_depth.keys()), num_nodes_by_depth.values(), color='g')
+			ax.grid(True)
+			ax.axis('equal')
+			ax.set_title('STP at t = {}'.format(sim_result["times"][tree_timestep//2*i_tree]))
+			ax.add_collection(ln_coll)
+			ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 
-		# num_children = np.zeros(data.shape[0])
-		# for row in data:
-		# 	parentIdx = int(row[0])
-		# 	if parentIdx >= 0:
-		# 		num_children[parentIdx] += 1
-		# axs[0,2].hist(num_children[num_children != 0])
+			ax.set_xlim([env_xlim[0],env_xlim[1]])
+			ax.set_ylim([env_ylim[0],env_ylim[1]])
+
+			# second col, velocity embedding 
+			ax = axs[i_tree,1]
+			segments = []
+			cs = []
+
+			for row in data:
+				parentIdx = int(row[0])
+				if parentIdx >= 0:
+					for i in range(0, num_nodes):
+						segments.append([row[(4+4*i):(6+4*i)], data[parentIdx][(4+4*i):(6+4*i)]])
+						reward = np.min((1,random_factor*row[1])) if i in team_1_idxs else 1.0-row[1]
+						linewidths.append(reward)
+						cs.append((colors[i][0],colors[i][1],colors[i][2],reward))
+
+			ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=2*linewidths)
+
+			ax.grid(True)
+			ax.axis('equal')
+			ax.set_title('STV t = {}'.format(sim_result["times"][tree_timestep//2*i_tree]))
+			ax.add_collection(ln_coll)
+
+			ax.set_xlim([-acceleration_lims,acceleration_lims])
+			ax.set_ylim([-acceleration_lims,acceleration_lims])
+
+			# third col, histogram of tree depth
+			ax = axs[i_tree,2]
+			# ax = axs[i_tree,1]
+			num_nodes_by_depth = defaultdict(int)
+			for row in data:
+				parentIdx = int(row[0])
+				depth = 0
+				while parentIdx >= 0:
+					parentIdx = int(data[parentIdx,0])
+					depth += 1
+				num_nodes_by_depth[depth] += 1
+
+			ax.set_title('Tree Nodes By Depth')
+			ax.bar(list(num_nodes_by_depth.keys()), num_nodes_by_depth.values(), color='g')
+
+			# num_children = np.zeros(data.shape[0])
+			# for row in data:
+			# 	parentIdx = int(row[0])
+			# 	if parentIdx >= 0:
+			# 		num_children[parentIdx] += 1
+			# axs[0,2].hist(num_children[num_children != 0])
+
+			fig.tight_layout()
 
 	if title is not None: 
 		fig.suptitle(title)

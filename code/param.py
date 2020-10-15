@@ -176,6 +176,8 @@ class Param:
 		self.path_current_results = '../current/results/'
 		self.path_current_models = '../current/models/'
 		self.path_current_data = '../current/data/'
+
+		self.tree_timestep = 10
 		
 		self.update()
 

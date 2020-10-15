@@ -233,7 +233,9 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				action = mctsresult.bestAction
 				success = g.step(gs, action, gs)
 				if count == 0:
-					sim_result['tree'] = mctsresult.tree
+					sim_result['tree'] = [] 
+				if count % param.tree_timestep == 0:
+					sim_result['tree'].append(mctsresult.tree)
 			else:
 				success = False
 
@@ -264,7 +266,9 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 					action_i = mctsresult.bestAction
 					action[robot_idx,:] = action_i[self_idx]
 					if count == 0:
-						sim_result['tree'] = mctsresult.tree
+						sim_result['tree'] = [] 
+					if count % param.tree_timestep == 0:
+						sim_result['tree'].append(mctsresult.tree)
 				else: 
 					action[robot_idx,:] = np.zeros(2) 
 

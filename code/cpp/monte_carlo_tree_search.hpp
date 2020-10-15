@@ -197,22 +197,39 @@ class MonteCarloTreeSearch {
 
   Eigen::MatrixXf exportToMatrix() const
   {
-    Eigen::MatrixXf result(m_nodes.size(), 1 + 2*(m_nodes[0].state.attackers.size() + m_nodes[0].state.defenders.size()));
+    // Eigen::MatrixXf result(m_nodes.size(), 1 + 2*(m_nodes[0].state.attackers.size() + m_nodes[0].state.defenders.size()));
+
+    // data row: [parentIdx, reward, state_dim_per_robot] 
+    Eigen::MatrixXf result(m_nodes.size(), 2 + 4*(m_nodes[0].state.attackers.size() + m_nodes[0].state.defenders.size()));
     for (size_t i = 0; i < m_nodes.size(); ++i) {
+      
+      // parent index 
       if (m_nodes[i].parent == nullptr) {
         result(i,0) = -1;
       } else {
         result(i,0) = m_nodes[i].parent - &m_nodes[0];
       }
 
+      // reward 
       int idx = 1;
+      // result(i,idx) = m_nodes[i].reward(0);
+      // result(i,idx) = m_env.rewardToFloat(m_nodes[i].parent->state, m_nodes[i].reward); ++idx;
+      // result(i,idx) = 1.0; ++idx;
+      result(i,idx) = m_nodes[i].reward.first / (float) m_nodes[i].number_of_visits; ++idx;
+      
+      // position and velocity 
       for(const auto& robot : m_nodes[i].state.attackers) {
         result(i,idx) = robot.state(0); ++idx;
         result(i,idx) = robot.state(1); ++idx;
+        result(i,idx) = robot.state(2); ++idx;
+        result(i,idx) = robot.state(3); ++idx;
+
       }
       for(const auto& robot : m_nodes[i].state.defenders) {
         result(i,idx) = robot.state(0); ++idx;
         result(i,idx) = robot.state(1); ++idx;
+        result(i,idx) = robot.state(2); ++idx;
+        result(i,idx) = robot.state(3); ++idx;
       }
     }
     return result;

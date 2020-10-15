@@ -128,7 +128,7 @@ PYBIND11_MODULE(mctscpp, m) {
     .def_readonly("success", &MCTSResult::success)
     .def_readonly("bestAction", &MCTSResult::bestAction)
     .def_readonly("expectedReward", &MCTSResult::expectedReward)
-    .def_readonly("valuePerAction", &MCTSResult::valuePerAction);
+    .def_readonly("valuePerAction", &MCTSResult::valuePerAction)
     .def_readonly("tree", &MCTSResult::tree);
 
   // RobotState
