@@ -389,14 +389,17 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 					path_glas_model_a = other_policy_dict["path_glas_model_a"]
 					
 				policy_dict_a = {
+					'sim_mode' : "GLAS",
 					'path_glas_model_a' : path_glas_model_a,
 					'path_glas_model_b' : path_glas_model_b,
 				}
 				policy_dict_b = {
+					'sim_mode' : "GLAS",
 					'path_glas_model_a' : path_glas_model_a,
 					'path_glas_model_b' : path_glas_model_b,
 				}
 
+				param.state = state
 				glas_rollout_sim_result = play_game(param,policy_dict_a,policy_dict_b,deterministic=False)
 				values.append(glas_rollout_sim_result["rewards"][-1,0]) # take last one and team 1 reward 
 			
