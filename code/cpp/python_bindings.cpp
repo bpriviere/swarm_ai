@@ -58,6 +58,7 @@ public:
   GameT::GameActionT bestAction;
   Reward expectedReward;
   std::vector<std::pair<GameT::GameActionT, float>> valuePerAction;
+  Eigen::MatrixXf tree;
 };
 
 MCTSResult search(
@@ -80,6 +81,7 @@ MCTSResult search(
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
     result.valuePerAction = mcts.valuePerAction();
+    result.tree = mcts.exportToMatrix();
   }
   if (export_dot) {
     std::ofstream stream(export_dot);
@@ -127,6 +129,7 @@ PYBIND11_MODULE(mctscpp, m) {
     .def_readonly("bestAction", &MCTSResult::bestAction)
     .def_readonly("expectedReward", &MCTSResult::expectedReward)
     .def_readonly("valuePerAction", &MCTSResult::valuePerAction);
+    .def_readonly("tree", &MCTSResult::tree);
 
   // RobotState
   py::class_<RobotT::State> robotState(m, "RobotState");

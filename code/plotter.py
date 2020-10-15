@@ -386,7 +386,7 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 
 	colors = get_colors(sim_result["param"])
 
-	if sim_result["param"]["tree_vis_fn"] is not None:
+	if sim_result["tree"] is not None:
 		fig,axs = plt.subplots(nrows=2,ncols=3,constrained_layout=True)
 	else:
 		fig,axs = plt.subplots(nrows=2,ncols=2,constrained_layout=True)
@@ -483,25 +483,51 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 	ax.set_ylim(bottom=0)
 
 	# tree vis 
-	if sim_result["param"]["tree_vis_fn"] is not None:
+	if sim_result["tree"] is not None:
 
-		ax = axs[1,2]
+		data = sim_result["tree"]
 
-		# vis_tree.py code here 
-
-		data = np.loadtxt(sim_result["param"]["tree_vis_fn"], delimiter=",", skiprows=1, ndmin=2)
+		segments = []
+		cs = []
 
 		for row in data:
 			parentIdx = int(row[0])
 			if parentIdx >= 0:
-				pair = np.vstack([row[1:],data[parentIdx][1:]])
+				for i in range(0, num_nodes):
+					segments.append([row[(1+2*i):(3+2*i)], data[parentIdx][(1+2*i):(3+2*i)]])
+					cs.append(colors[i])
 
-				# for robotIdx in range(2):
-					# ax.plot(pair[:,0+2*robotIdx], pair[:,1+2*robotIdx], marker = 'o')
-					
-				for robotIdx in range(num_nodes):
-					ax.plot(pair[:,0+2*robotIdx], pair[:,1+2*robotIdx],marker='o',color=colors[robotIdx])
+		ln_coll = matplotlib.collections.LineCollection(segments, colors=colors)
 
+		ax = axs[0,2]
+		ax.grid(True)
+		ax.axis('equal')
+		ax.set_title('Search Tree')
+		ax.add_collection(ln_coll)
+
+		ax.set_xlim([env_xlim[0],env_xlim[1]])
+		ax.set_ylim([env_ylim[0],env_ylim[1]])
+
+		# plot histogram of tree depth
+		num_nodes_by_depth = defaultdict(int)
+		for row in data:
+			parentIdx = int(row[0])
+			depth = 0
+			while parentIdx >= 0:
+				parentIdx = int(data[parentIdx,0])
+				depth += 1
+			num_nodes_by_depth[depth] += 1
+
+		ax = axs[1,2]
+		ax.set_title('Tree Nodes By Depth')
+		ax.bar(list(num_nodes_by_depth.keys()), num_nodes_by_depth.values(), color='g')
+
+		# num_children = np.zeros(data.shape[0])
+		# for row in data:
+		# 	parentIdx = int(row[0])
+		# 	if parentIdx >= 0:
+		# 		num_children[parentIdx] += 1
+		# axs[0,2].hist(num_children[num_children != 0])
 
 	if title is not None: 
 		fig.suptitle(title)

@@ -195,6 +195,28 @@ class MonteCarloTreeSearch {
     stream << "}\n";
   }
 
+  Eigen::MatrixXf exportToMatrix() const
+  {
+    Eigen::MatrixXf result(m_nodes.size(), 1 + 2*(m_nodes[0].state.attackers.size() + m_nodes[0].state.defenders.size()));
+    for (size_t i = 0; i < m_nodes.size(); ++i) {
+      if (m_nodes[i].parent == nullptr) {
+        result(i,0) = -1;
+      } else {
+        result(i,0) = m_nodes[i].parent - &m_nodes[0];
+      }
+
+      int idx = 1;
+      for(const auto& robot : m_nodes[i].state.attackers) {
+        result(i,idx) = robot.state(0); ++idx;
+        result(i,idx) = robot.state(1); ++idx;
+      }
+      for(const auto& robot : m_nodes[i].state.defenders) {
+        result(i,idx) = robot.state(0); ++idx;
+        result(i,idx) = robot.state(1); ++idx;
+      }
+    }
+    return result;
+  }
 
  private:
   struct Node {
