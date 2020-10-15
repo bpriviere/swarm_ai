@@ -315,21 +315,22 @@ class Game {
     bool deterministic,
     float beta3)
   {
+    bool terminal = isTerminal(state);
 #if ROLLOUT_MODE == ROLLOUT_MODE_VALUE_POLICY || ROLLOUT_MODE == ROLLOUT_MODE_VALUE_RANDOM
     std::uniform_real_distribution<float> dist(0.0,1.0);
-    if (   policyAttacker.glasConst().valid()
-        && policyDefender.glasConst().valid()
-        && !isTerminal(state)
+    if (!terminal
         && dist(m_generator) < beta3) {
       float reward =  estimateValue(state, policyAttacker, policyDefender);
-      return Reward(reward, 1 - reward);
+      if (!isnan(reward)) {
+        return Reward(reward, 1 - reward);
+      }
     }
 #endif
 
     GameStateT s = state;
     GameStateT nextState;
 
-    while (true) {
+    while (!terminal) {
 #if ROLLOUT_MODE == ROLLOUT_MODE_POLICY || ROLLOUT_MODE == ROLLOUT_MODE_VALUE_POLICY
       const auto action = sampleAction(s, policyAttacker, policyDefender, deterministic);
 #elif ROLLOUT_MODE == ROLLOUT_MODE_RANDOM || ROLLOUT_MODE == ROLLOUT_MODE_VALUE_RANDOM
