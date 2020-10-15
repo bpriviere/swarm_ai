@@ -13,7 +13,7 @@ class Param:
 
 		# sim param 
 		self.sim_num_trials = 10
-		self.sim_dt = 0.25
+		self.sim_dt = 0.5
 		self.sim_parallel_on = True
 
 		# these parameters are also used for learning 
@@ -26,8 +26,8 @@ class Param:
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
-			'mcts_beta2' : 				0.0,
-			'mcts_beta3' : 				0.5,
+			'mcts_beta2' : 				0.75,
+			'mcts_beta3' : 				1.0,
 		}
 
 		# max timesteps until the game terminates

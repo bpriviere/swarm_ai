@@ -238,9 +238,9 @@ def get_self_play_samples(params):
 			param.policy_dict_a["mcts_beta2"] = 0.0
 			param.policy_dict_a["mcts_beta3"] = 0.0
 		if param.i == 0 or param.policy_dict_b['path_glas_model_b'] is None:
-			param.policy_dict_a["mcts_beta1"] = 0.0
-			param.policy_dict_a["mcts_beta2"] = 0.0
-			param.policy_dict_a["mcts_beta3"] = 0.0			
+			param.policy_dict_b["mcts_beta1"] = 0.0
+			param.policy_dict_b["mcts_beta2"] = 0.0
+			param.policy_dict_b["mcts_beta3"] = 0.0			
 
 	# print policies 
 	print('self-play policies...')
