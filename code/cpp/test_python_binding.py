@@ -30,13 +30,21 @@ def loadGLAS(glas, file):
 	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
 	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
 	loadFeedForwardNNWeights(glas.value, state_dict, "value")
+	loadFeedForwardNNWeights(glas.policy, state_dict, "policy")
 
 	return glas
 
 if __name__ == '__main__':
 	mode = "MCTS_RANDOM" # one of "GLAS", "MCTS_RANDOM", "MCTS_GLAS"
-	num_nodes = 100000
-	export_dot = None # or "mcts.dot"
+
+	mctssettings = mctscpp.MCTSSettings()
+	mctssettings.num_nodes = 10000
+	mctssettings.export_dot = None
+	mctssettings.Cp = 1.4
+	mctssettings.pw_C = 1.0
+	mctssettings.pw_alpha = 0.25
+	mctssettings.beta1 = 0
+	mctssettings.beta3 = 0
 
 	# test RobotState
 	rs = mctscpp.RobotState([0,1,2,3])
@@ -64,11 +72,7 @@ if __name__ == '__main__':
 	goal = [0.25,0.25,0,0]
 	max_depth = 100
 	beta2 = 0.5 # 0 means pure random, 1.0 means pure GLAS
-	Cp = 1.4
-	pw_C = 1.0
-	pw_alpha = 0.25
-	beta1 = 0
-	beta3 = 0
+
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	policyA = mctscpp.Policy('a')
 	policyB = mctscpp.Policy('b')
@@ -108,8 +112,10 @@ if __name__ == '__main__':
 				myPolicy = policyB
 				opponentPolicies = [policyA]
 
-			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, num_nodes, Cp, pw_C, pw_alpha, beta1, beta3, export_dot)
-			if export_dot:
+
+
+			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, mctssettings)
+			if mctssettings.export_dot:
 				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
 				exit()
 			if mctsresult.success:
