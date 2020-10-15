@@ -245,7 +245,7 @@ class Game {
     bool allAtGoal = true;
     bool anyActive = false;
     for (const auto& attacker : state.attackers) {
-      if (not attacker.status == RobotState::Status::ReachedGoal) {
+      if (attacker.status != RobotState::Status::ReachedGoal) {
         allAtGoal = false;
       }
 
@@ -390,7 +390,7 @@ class Game {
     // return 1.0 - minDistToGoal /(1.41 * 0.25);
 
     int numAttackerActive = 0;
-    int reachedGoal = 0;
+    float reachedGoal = 0.0;
     for (const auto& attacker : state.attackers) {
       if (   attacker.status == RobotStateT::Status::Active
           || attacker.status == RobotStateT::Status::ReachedGoal) {
@@ -399,7 +399,7 @@ class Game {
       if (attacker.status == RobotStateT::Status::ReachedGoal) {
         // minDistToGoal = 0.0;
         // reachedGoal = 1;
-        reachedGoal = reachedGoal + 1;
+        reachedGoal = reachedGoal + 1.0 / (float)state.attackers.size();
       }
     }
 

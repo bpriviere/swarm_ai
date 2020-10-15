@@ -260,7 +260,7 @@ class MonteCarloTreeSearch {
 
       // Use progressive widening, see https://hal.archives-ouvertes.fr/hal-00542673v1/document
       size_t maxChildren = ceil(m_pw_C * powf(nodePtr->number_of_visits, m_pw_alpha));
-      if (node.parent == nullptr) {
+      if (nodePtr->parent == nullptr) {
         maxChildren = std::max<size_t>(maxChildren, 25);
       }
 
