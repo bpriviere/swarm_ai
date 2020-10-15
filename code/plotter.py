@@ -487,7 +487,7 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 
 		for i_tree, data in enumerate(sim_result["tree"]):
 
-			# [number of nodes x (parentIdx, reward, \{position, velocity\}_{for all robots})]
+			# [number of nodes x (parentIdx, reward, isBest, \{position, velocity\}_{for all robots})]
 
 			tree_timestep = sim_result["param"]["tree_timestep"] 
 			random_factor = 3.0 
@@ -496,6 +496,7 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 			# first col, position 
 			ax = axs[i_tree,0]
 			segments = []
+			best_segments = []
 			cs = []
 			linewidths = []
 
@@ -503,17 +504,21 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 				parentIdx = int(row[0])
 				if parentIdx >= 0:
 					for i in range(0, num_nodes):
-						segments.append([row[(2+4*i):(4+4*i)], data[parentIdx][(2+4*i):(4+4*i)]])
+						segments.append([row[(3+4*i):(5+4*i)], data[parentIdx][(3+4*i):(5+4*i)]])
+						if row[2] == 1 and data[parentIdx][2] == 1:
+							best_segments.append(segments[-1])
 						reward = np.min((1,random_factor*row[1])) if i in team_1_idxs else 1.0-row[1]
 						linewidths.append(reward)
 						cs.append((colors[i][0],colors[i][1],colors[i][2],reward))
 
 			# ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=linewidths)
-			ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=2*linewidths)
 
 			ax.grid(True)
 			ax.axis('equal')
 			ax.set_title('STP at t = {}'.format(sim_result["times"][tree_timestep//2*i_tree]))
+			ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=2*linewidths)
+			ax.add_collection(ln_coll)
+			ln_coll = matplotlib.collections.LineCollection(best_segments, colors='k', zorder=3)
 			ax.add_collection(ln_coll)
 			ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 
@@ -523,24 +528,27 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 			# second col, velocity embedding 
 			ax = axs[i_tree,1]
 			segments = []
+			best_segments = []
 			cs = []
 
 			for row in data:
 				parentIdx = int(row[0])
 				if parentIdx >= 0:
 					for i in range(0, num_nodes):
-						segments.append([row[(4+4*i):(6+4*i)], data[parentIdx][(4+4*i):(6+4*i)]])
+						segments.append([row[(5+4*i):(7+4*i)], data[parentIdx][(5+4*i):(7+4*i)]])
+						if row[2] == 1 and data[parentIdx][2] == 1:
+							best_segments.append(segments[-1])
 						reward = np.min((1,random_factor*row[1])) if i in team_1_idxs else 1.0-row[1]
 						linewidths.append(reward)
 						cs.append((colors[i][0],colors[i][1],colors[i][2],reward))
 
-			ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=2*linewidths)
-
 			ax.grid(True)
 			ax.axis('equal')
 			ax.set_title('STV t = {}'.format(sim_result["times"][tree_timestep//2*i_tree]))
+			ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=2*linewidths)
 			ax.add_collection(ln_coll)
-
+			ln_coll = matplotlib.collections.LineCollection(best_segments, colors='k', zorder=3)
+			ax.add_collection(ln_coll)
 			ax.set_xlim([-acceleration_lims,acceleration_lims])
 			ax.set_ylim([-acceleration_lims,acceleration_lims])
 

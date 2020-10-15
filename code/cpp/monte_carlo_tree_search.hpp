@@ -196,11 +196,12 @@ class MonteCarloTreeSearch {
   }
 
   Eigen::MatrixXf exportToMatrix() const
+  Eigen::MatrixXf exportToMatrix()
   {
     // Eigen::MatrixXf result(m_nodes.size(), 1 + 2*(m_nodes[0].state.attackers.size() + m_nodes[0].state.defenders.size()));
 
-    // data row: [parentIdx, reward, state_dim_per_robot] 
-    Eigen::MatrixXf result(m_nodes.size(), 2 + 4*(m_nodes[0].state.attackers.size() + m_nodes[0].state.defenders.size()));
+    // data row: [parentIdx, reward, isBest, state_dim_per_robot] 
+    Eigen::MatrixXf result(m_nodes.size(), 3 + 4*(m_nodes[0].state.attackers.size() + m_nodes[0].state.defenders.size()));
     for (size_t i = 0; i < m_nodes.size(); ++i) {
       
       // parent index 
@@ -216,6 +217,9 @@ class MonteCarloTreeSearch {
       // result(i,idx) = m_env.rewardToFloat(m_nodes[i].parent->state, m_nodes[i].reward); ++idx;
       // result(i,idx) = 1.0; ++idx;
       result(i,idx) = m_nodes[i].reward.first / (float) m_nodes[i].number_of_visits; ++idx;
+
+      // isBest
+      result(i,idx) = 0; ++idx;
       
       // position and velocity 
       for(const auto& robot : m_nodes[i].state.attackers) {
@@ -232,6 +236,16 @@ class MonteCarloTreeSearch {
         result(i,idx) = robot.state(3); ++idx;
       }
     }
+
+    // compute isBest path
+    const Node* node = &m_nodes[0];
+    while (node != nullptr) {
+      const Node* next = bestChild(node, 0);
+      int nodeIdx = node - &m_nodes[0];
+      result(nodeIdx, 2) = 1;
+      node = next;
+    }
+
     return result;
   }
 
