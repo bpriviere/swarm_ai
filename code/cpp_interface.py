@@ -235,7 +235,7 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				if count == 0:
 					sim_result['tree'] = [mctsresult.tree] 
 					sim_result['tree_params'] = [{
-							'tree_team_1_idxs' : team_1_idxs_i,
+							'tree_team_1_idxs' : param.team_1_idxs,
 							'time' : param.sim_dt*len(sim_result['states']),
 							'robot_idx' : 'Centralized',
 						}]
@@ -243,7 +243,7 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				elif count // 2 % param.tree_timestep == 0:
 					sim_result['tree'].append(mctsresult.tree)
 					sim_result['tree_params'].append({
-							'tree_team_1_idxs' : team_1_idxs_i,
+							'tree_team_1_idxs' : param.team_1_idxs,
 							'time' : param.sim_dt*len(sim_result['states']),
 							'robot_idx' : 'Centralized',
 						})
