@@ -229,18 +229,8 @@ def get_self_play_samples(params):
 			'mcts_beta2' : 				param.l_mcts_beta2,
 			'mcts_beta3' : 				param.l_mcts_beta3,
 		}
-
-
 		param.policy_dict_b = param.policy_dict_a.copy() 
 
-		if param.i == 0 or param.policy_dict_a['path_glas_model_a'] is None:
-			param.policy_dict_a["mcts_beta1"] = 0.0
-			param.policy_dict_a["mcts_beta2"] = 0.0
-			param.policy_dict_a["mcts_beta3"] = 0.0
-		if param.i == 0 or param.policy_dict_b['path_glas_model_b'] is None:
-			param.policy_dict_a["mcts_beta1"] = 0.0
-			param.policy_dict_a["mcts_beta2"] = 0.0
-			param.policy_dict_a["mcts_beta3"] = 0.0			
 
 	# print policies 
 	print('self-play policies...')
@@ -682,9 +672,7 @@ def make_dataset(states,params,df_param,testing=None):
 			other_policy_dict = expert_policy_dict.copy()
 			if param.i == 0 or param.l_mode in ["IL","DAgger"] or other_policy_skill is None:
 				other_policy_dict["path_glas_model_{}".format(opponents_team)] = None  
-				other_policy_dict["mcts_beta1"] = 0.0
 				other_policy_dict["mcts_beta2"] = 0.0
-				other_policy_dict["mcts_beta3"] = 0.0
 			else:
 				other_policy_dict["path_glas_model_{}".format(opponents_team)] = param.l_model_fn.format(\
 					DATADIR=param.path_current_models,\
