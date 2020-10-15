@@ -58,6 +58,32 @@ public:
   GameT::GameActionT bestAction;
   Reward expectedReward;
   std::vector<std::pair<GameT::GameActionT, float>> valuePerAction;
+  Eigen::MatrixXf tree;
+};
+
+class MCTSSettings
+{
+public:
+  MCTSSettings()
+    : num_nodes(10000)
+    , Cp(1.4)
+    , pw_C(1.0)
+    , pw_alpha(0.25)
+    , beta1(0)
+    , beta3(0)
+    , export_dot(nullptr)
+    , export_tree(false)
+  {
+  }
+
+  size_t num_nodes;
+  float Cp;
+  float pw_C;
+  float pw_alpha;
+  float beta1; // gain for best-child
+  float beta3; // gain for rollout
+  const char* export_dot;
+  bool export_tree;
 };
 
 MCTSResult search(
@@ -65,24 +91,27 @@ MCTSResult search(
   const GameT::GameStateT& startState,
   const PolicyT& myPolicy,
   const std::vector<PolicyT>& opponentPolicies,
-  size_t num_nodes,
-  float Cp,
-  float pw_C,
-  float pw_alpha,
-  float beta1, // gain for best-child
-  float beta3, // gain for rollout
-  const char* export_dot = nullptr)
+  const MCTSSettings& settings)
 {
   MCTSResult result;
   libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT, PolicyT> mcts(
-    game, g_generator, num_nodes, Cp, pw_C, pw_alpha, beta1, beta3);
+    game, g_generator,
+    settings.num_nodes,
+    settings.Cp,
+    settings.pw_C,
+    settings.pw_alpha,
+    settings.beta1,
+    settings.beta3);
   result.success = mcts.search(startState, myPolicy, opponentPolicies, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
     result.valuePerAction = mcts.valuePerAction();
+    if (settings.export_tree) {
+      result.tree = mcts.exportToMatrix();
+    }
   }
-  if (export_dot) {
-    std::ofstream stream(export_dot);
+  if (settings.export_dot) {
+    std::ofstream stream(settings.export_dot);
     mcts.exportToDot(stream);
   }
   return result;
@@ -110,13 +139,7 @@ PYBIND11_MODULE(mctscppsi, m) {
     "start_state"_a,
     "my_policy"_a,
     "opponent_policies"_a,
-    "num_nodes"_a,
-    "Cp"_a,
-    "pw_C"_a,
-    "pw_alpha"_a,
-    "beta1"_a,
-    "beta3"_a,
-    "export_dot"_a = nullptr);
+    "settings"_a);
   m.def("eval", &eval);
 
   // helper classes
@@ -126,7 +149,19 @@ PYBIND11_MODULE(mctscppsi, m) {
     .def_readonly("success", &MCTSResult::success)
     .def_readonly("bestAction", &MCTSResult::bestAction)
     .def_readonly("expectedReward", &MCTSResult::expectedReward)
-    .def_readonly("valuePerAction", &MCTSResult::valuePerAction);
+    .def_readonly("valuePerAction", &MCTSResult::valuePerAction)
+    .def_readonly("tree", &MCTSResult::tree);
+
+  py::class_<MCTSSettings> (m, "MCTSSettings")
+    .def(py::init())
+    .def_readwrite("num_nodes", &MCTSSettings::num_nodes)
+    .def_readwrite("Cp", &MCTSSettings::Cp)
+    .def_readwrite("pw_C", &MCTSSettings::pw_C)
+    .def_readwrite("pw_alpha", &MCTSSettings::pw_alpha)
+    .def_readwrite("beta1", &MCTSSettings::beta1)
+    .def_readwrite("beta3", &MCTSSettings::beta3)
+    .def_readwrite("export_dot", &MCTSSettings::export_dot)
+    .def_readwrite("export_tree", &MCTSSettings::export_tree);
 
   // RobotState
   py::class_<RobotT::State> robotState(m, "RobotState");

@@ -480,16 +480,16 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 	ax.set_ylim(bottom=0)
 
 	# tree vis 
-	if sim_result["tree"] is not None:
+	if len(sim_result["trees"]) > 0:
 
 		max_trees = 4
-		if len(sim_result["tree"]) > max_trees:
-			sim_result["tree"] = sim_result["tree"][0:max_trees]
+		if len(sim_result["trees"]) > max_trees:
+			sim_result["trees"] = sim_result["trees"][0:max_trees]
 
-		fig,axs = plt.subplots(nrows=len(sim_result["tree"]),ncols=3,squeeze=False,constrained_layout=True)
-		# fig,axs = plt.subplots(nrows=len(sim_result["tree"]),ncols=2,squeeze=False,constrained_layout=True)
+		fig,axs = plt.subplots(nrows=len(sim_result["trees"]),ncols=3,squeeze=False,constrained_layout=True)
+		# fig,axs = plt.subplots(nrows=len(sim_result["trees"]),ncols=2,squeeze=False,constrained_layout=True)
 
-		for i_tree, data in enumerate(sim_result["tree"]):
+		for i_tree, data in enumerate(sim_result["trees"]):
 
 			# [number of nodes x (parentIdx, reward, isBest, \{position, velocity\}_{for all robots})]
 

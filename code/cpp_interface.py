@@ -133,15 +133,18 @@ def expected_value(param,state,policy_dict):
 	my_policy = policy_a 
 	other_policies = [policy_b]
 
+	mctssettings = mctscpp.MCTSSettings()
+	mctssettings.num_nodes = policy_dict["mcts_tree_size"]
+	mctssettings.Cp = policy_dict["mcts_c_param"]
+	mctssettings.pw_C = policy_dict["mcts_pw_C"]
+	mctssettings.pw_alpha = policy_dict["mcts_pw_alpha"]
+	mctssettings.beta1 = policy_dict["mcts_beta1"]
+	mctssettings.beta3 = policy_dict["mcts_beta3"]
+
 	mctsresult = mctscpp.search(g, gs, \
 		my_policy,
 		other_policies,
-		policy_dict["mcts_tree_size"],
-		policy_dict["mcts_c_param"],
-		policy_dict["mcts_pw_C"],
-		policy_dict["mcts_pw_alpha"],
-		policy_dict["mcts_beta1"],
-		policy_dict["mcts_beta3"])
+		mctssettings)
 	return mctsresult.expectedReward
 
 def self_play(param,deterministic=True):
@@ -173,7 +176,8 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 		'actions' : [],
 		'times' : None,
 		'rewards' : [],
-		'tree': None
+		'trees': [],
+		'tree_params': [],
 	}
 
 	gs = state_to_cpp_game_state(param.state,"a",param.team_1_idxs,param.team_2_idxs)
@@ -216,32 +220,28 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 					break 
 			break
 
+		mctssettings = mctscpp.MCTSSettings()
+		mctssettings.num_nodes = policy_dict["mcts_tree_size"]
+		mctssettings.Cp = policy_dict["mcts_c_param"]
+		mctssettings.pw_C = policy_dict["mcts_pw_C"]
+		mctssettings.pw_alpha = policy_dict["mcts_pw_alpha"]
+		mctssettings.beta1 = policy_dict["mcts_beta1"]
+		mctssettings.beta3 = policy_dict["mcts_beta3"]
+		mctssettings.export_tree = (count // 2) % param.tree_timestep == 0
+
 		if policy_dict["sim_mode"] == "MCTS":
 			depth = gs.depth
 			gs.depth = 0
 			mctsresult = mctscpp.search(g, gs, \
 				my_policy,
 				other_policies,
-				policy_dict["mcts_tree_size"],
-				policy_dict["mcts_c_param"],
-				policy_dict["mcts_pw_C"],
-				policy_dict["mcts_pw_alpha"],
-				policy_dict["mcts_beta1"],
-				policy_dict["mcts_beta3"])
+				mctssettings)
 			gs.depth = depth
 			if mctsresult.success: 
 				action = mctsresult.bestAction
 				success = g.step(gs, action, gs)
-				if count == 0:
-					sim_result['tree'] = [mctsresult.tree] 
-					sim_result['tree_params'] = [{
-							'tree_team_1_idxs' : param.team_1_idxs,
-							'time' : param.sim_dt*len(sim_result['states']),
-							'robot_idx' : 'Centralized',
-						}]
-					sim_result['tree_team_1_idxs_is'] = [param.team_1_idxs]
-				elif count // 2 % param.tree_timestep == 0:
-					sim_result['tree'].append(mctsresult.tree)
+				if mctssettings.export_tree:
+					sim_result['trees'].append(mctsresult.tree)
 					sim_result['tree_params'].append({
 							'tree_team_1_idxs' : param.team_1_idxs,
 							'time' : param.sim_dt*len(sim_result['states']),
@@ -266,25 +266,13 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				mctsresult = mctscpp.search(game_i, gamestate_i, \
 					my_policy,
 					other_policies,
-					policy_dict["mcts_tree_size"],
-					policy_dict["mcts_c_param"],
-					policy_dict["mcts_pw_C"],
-					policy_dict["mcts_pw_alpha"],
-					policy_dict["mcts_beta1"],
-					policy_dict["mcts_beta3"])
+					mctssettings)
 
 				if mctsresult.success: 
 					action_i = mctsresult.bestAction
 					action[robot_idx,:] = action_i[self_idx]
-					if count == 0:
-						sim_result['tree'] = [mctsresult.tree] 
-						sim_result['tree_params'] = [{
-							'tree_team_1_idxs' : team_1_idxs_i,
-							'time' : param.sim_dt*len(sim_result['states']),
-							'robot_idx' : robot_idx,
-						}]
-					elif count // 2 % param.tree_timestep == 0:
-						sim_result['tree'].append(mctsresult.tree)
+					if mctssettings.export_tree:
+						sim_result['trees'].append(mctsresult.tree)
 						sim_result['tree_params'].append({
 							'tree_team_1_idxs' : team_1_idxs_i,
 							'time' : param.sim_dt*len(sim_result['states']),
@@ -360,6 +348,14 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 		'param' : param.to_dict()
 		}
 
+	mctssettings = mctscpp.MCTSSettings()
+	mctssettings.num_nodes = param.my_policy_dict["mcts_tree_size"]
+	mctssettings.Cp = param.my_policy_dict["mcts_c_param"]
+	mctssettings.pw_C = param.my_policy_dict["mcts_pw_C"]
+	mctssettings.pw_alpha = param.my_policy_dict["mcts_pw_alpha"]
+	mctssettings.beta1 = param.my_policy_dict["mcts_beta1"]
+	mctssettings.beta3 = param.my_policy_dict["mcts_beta3"]
+
 	for state in states:
 		game_state = state_to_cpp_game_state(state,param.training_team,param.team_1_idxs,param.team_2_idxs)
 		game_state.depth = 0 
@@ -367,12 +363,7 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 		mctsresult = mctscpp.search(game, game_state, \
 			my_policy,
 			other_policies,
-			param.my_policy_dict["mcts_tree_size"],
-			param.my_policy_dict["mcts_c_param"],
-			param.my_policy_dict["mcts_pw_C"],
-			param.my_policy_dict["mcts_pw_alpha"],
-			param.my_policy_dict["mcts_beta1"],
-			param.my_policy_dict["mcts_beta3"])
+			mctssettings)
 		if mctsresult.success: 
 			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
 			value = mctsresult.expectedReward[0]
