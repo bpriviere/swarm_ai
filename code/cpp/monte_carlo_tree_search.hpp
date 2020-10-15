@@ -195,7 +195,6 @@ class MonteCarloTreeSearch {
     stream << "}\n";
   }
 
-  Eigen::MatrixXf exportToMatrix() const
   Eigen::MatrixXf exportToMatrix()
   {
     // Eigen::MatrixXf result(m_nodes.size(), 1 + 2*(m_nodes[0].state.attackers.size() + m_nodes[0].state.defenders.size()));

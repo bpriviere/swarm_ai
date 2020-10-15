@@ -509,7 +509,7 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 			cs = []
 			linewidths = []
 
-			num_nodes = (data.shape[1]-2) // 4 
+			num_nodes = (data.shape[1]-3) // 4 
 
 			for row in data:
 				parentIdx = int(row[0])
