@@ -482,6 +482,10 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 	# tree vis 
 	if sim_result["tree"] is not None:
 
+		max_trees = 4
+		if len(sim_result["tree"]) > max_trees:
+			sim_result["tree"] = sim_result["tree"][0:max_trees]
+
 		fig,axs = plt.subplots(nrows=len(sim_result["tree"]),ncols=3,squeeze=False,constrained_layout=True)
 		# fig,axs = plt.subplots(nrows=len(sim_result["tree"]),ncols=2,squeeze=False,constrained_layout=True)
 
@@ -491,7 +495,12 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 
 			tree_timestep = sim_result["param"]["tree_timestep"] 
 			random_factor = 3.0 
+			goal = sim_result["param"]["goal"]
 			acceleration_lims = sim_result["param"]["robots"][0]["acceleration_limit"]
+			tree_team_1_idxs = sim_result["tree_params"][i_tree]["tree_team_1_idxs"]
+			tree_time = sim_result["tree_params"][i_tree]["time"]
+			tree_robot_idx = sim_result["tree_params"][i_tree]["robot_idx"]
+			tree_colors = get_2_colors(2,1)
 
 			# first col, position 
 			ax = axs[i_tree,0]
@@ -499,21 +508,27 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 			cs = []
 			linewidths = []
 
+			num_nodes = (data.shape[1]-2) // 4 
+
 			for row in data:
 				parentIdx = int(row[0])
 				if parentIdx >= 0:
 					for i in range(0, num_nodes):
 						segments.append([row[(2+4*i):(4+4*i)], data[parentIdx][(2+4*i):(4+4*i)]])
-						reward = np.min((1,random_factor*row[1])) if i in team_1_idxs else 1.0-row[1]
+						reward = np.min((1,random_factor*row[1])) if i in tree_team_1_idxs else 1.0-row[1]
+						color = tree_colors[0] if i in tree_team_1_idxs else tree_colors[1]
 						linewidths.append(reward)
-						cs.append((colors[i][0],colors[i][1],colors[i][2],reward))
+						# cs.append((colors[i][0],colors[i][1],colors[i][2],reward))
+						cs.append((color[0],color[1],color[2],reward))
 
-			# ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=linewidths)
-			ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=2*linewidths)
+			ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=linewidths)
+			# ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=2*linewidths)
+			# ln_coll = matplotlib.collections.LineCollection(segments, colors=cs) #, linewidth=2*linewidths)
 
 			ax.grid(True)
 			ax.axis('equal')
-			ax.set_title('STP at t = {}'.format(sim_result["times"][tree_timestep//2*i_tree]))
+			ax.set_title('STP at i={},t={}'.format(tree_robot_idx,tree_time))
+			# ax.set_title('STP')
 			ax.add_collection(ln_coll)
 			ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 
@@ -530,15 +545,19 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 				if parentIdx >= 0:
 					for i in range(0, num_nodes):
 						segments.append([row[(4+4*i):(6+4*i)], data[parentIdx][(4+4*i):(6+4*i)]])
-						reward = np.min((1,random_factor*row[1])) if i in team_1_idxs else 1.0-row[1]
+						reward = np.min((1,random_factor*row[1])) if i in tree_team_1_idxs else 1.0-row[1]
+						color = tree_colors[0] if i in tree_team_1_idxs else tree_colors[1]
 						linewidths.append(reward)
-						cs.append((colors[i][0],colors[i][1],colors[i][2],reward))
+						# cs.append((colors[i][0],colors[i][1],colors[i][2],reward))
+						cs.append((color[0],color[1],color[2],reward))
 
 			ln_coll = matplotlib.collections.LineCollection(segments, colors=cs, linewidth=2*linewidths)
 
 			ax.grid(True)
 			ax.axis('equal')
-			ax.set_title('STV t = {}'.format(sim_result["times"][tree_timestep//2*i_tree]))
+			# ax.set_title('STV t = {}'.format(sim_result["times"][tree_timestep//2*i_tree]))
+			ax.set_title('STV at i={},t={}'.format(tree_robot_idx,tree_time))
+			# ax.set_title('STV')
 			ax.add_collection(ln_coll)
 
 			ax.set_xlim([-acceleration_lims,acceleration_lims])
@@ -566,7 +585,7 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 			# 		num_children[parentIdx] += 1
 			# axs[0,2].hist(num_children[num_children != 0])
 
-			fig.tight_layout()
+			# fig.tight_layout()
 
 	if title is not None: 
 		fig.suptitle(title)

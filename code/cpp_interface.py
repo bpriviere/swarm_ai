@@ -233,9 +233,20 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 				action = mctsresult.bestAction
 				success = g.step(gs, action, gs)
 				if count == 0:
-					sim_result['tree'] = [] 
-				if count % param.tree_timestep == 0:
+					sim_result['tree'] = [mctsresult.tree] 
+					sim_result['tree_params'] = [{
+							'tree_team_1_idxs' : team_1_idxs_i,
+							'time' : param.sim_dt*len(sim_result['states']),
+							'robot_idx' : 'Centralized',
+						}]
+					sim_result['tree_team_1_idxs_is'] = [param.team_1_idxs]
+				elif count // 2 % param.tree_timestep == 0:
 					sim_result['tree'].append(mctsresult.tree)
+					sim_result['tree_params'].append({
+							'tree_team_1_idxs' : team_1_idxs_i,
+							'time' : param.sim_dt*len(sim_result['states']),
+							'robot_idx' : 'Centralized',
+						})
 			else:
 				success = False
 
@@ -266,9 +277,19 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 					action_i = mctsresult.bestAction
 					action[robot_idx,:] = action_i[self_idx]
 					if count == 0:
-						sim_result['tree'] = [] 
-					if count % param.tree_timestep == 0:
+						sim_result['tree'] = [mctsresult.tree] 
+						sim_result['tree_params'] = [{
+							'tree_team_1_idxs' : team_1_idxs_i,
+							'time' : param.sim_dt*len(sim_result['states']),
+							'robot_idx' : robot_idx,
+						}]
+					elif count // 2 % param.tree_timestep == 0:
 						sim_result['tree'].append(mctsresult.tree)
+						sim_result['tree_params'].append({
+							'tree_team_1_idxs' : team_1_idxs_i,
+							'time' : param.sim_dt*len(sim_result['states']),
+							'robot_idx' : robot_idx,
+							})
 				else: 
 					action[robot_idx,:] = np.zeros(2) 
 
