@@ -443,10 +443,10 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 
 				values = []
 				ts = []
-				for t in range(states.shape[0]):
-					if np.isnan(states[t,i,:]).any(): # non active robot 
+				for k, t in enumerate(times):
+					if np.isnan(states[k,i,:]).any(): # non active robot 
 						continue
-					o_a,o_b,goal = global_to_local(states[t,:,:],param_obj,i)
+					o_a,o_b,goal = global_to_local(states[k,:,:],param_obj,i)
 					o_a,o_b,goal = format_data(o_a,o_b,goal)
 					if i in team_1_idxs and not model_fn_a is None:
 						value,action = model_a(o_a,o_b,goal)
