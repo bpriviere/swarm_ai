@@ -903,8 +903,8 @@ if __name__ == '__main__':
 		# 'Skill_A' : 'a1.pt',
 		# 'Skill_B' : 'b1.pt',
 		'EnvironmentLength' : 1.0,
-		'NumA' : 3,
-		'NumB' : 3,
+		'NumA' : 2,
+		'NumB' : 2,
 	}
 
 	# initial curriculum 

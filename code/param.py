@@ -75,7 +75,7 @@ class Param:
 		self.l_mcts_pw_alpha = 0.25
 		self.l_mcts_beta1 = 0.0
 		self.l_mcts_beta2 = 0.5
-		self.l_mcts_beta3 = 0.5
+		self.l_mcts_beta3 = 0.0
 		self.l_num_learner_nodes = 500
 		self.l_num_expert_nodes = 10000
 		self.l_env_l0 = 1.0
