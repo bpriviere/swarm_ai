@@ -56,7 +56,7 @@ def create_cpp_policy(policy_dict, team):
 		loadGLAS(policy.glas, file)
 		policy.name = file
 		policy.beta2 = 1.0
-
+		return policy
 
 	policy.beta2 = 0.0
 	return policy
