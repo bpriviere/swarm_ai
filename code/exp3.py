@@ -106,8 +106,10 @@ if __name__ == '__main__':
 	df_param = Param()
 
 	df_param.env_l = 1.0
+	max_policy_file = 2
 
-	df_param.attackerPolicyDicts = [{
+	df_param.attackerPolicyDicts = []
+	df_param.attackerPolicyDicts.extend([{
 			'sim_mode' : 				"MCTS",
 			'path_glas_model_a' : 		None,
 			'path_glas_model_b' : 		None, 
@@ -119,8 +121,8 @@ if __name__ == '__main__':
 			'mcts_beta1' : 				df_param.l_mcts_beta1,
 			'mcts_beta2' : 				df_param.l_mcts_beta2,
 			'mcts_beta3' : 				df_param.l_mcts_beta3,
-		}]
-	df_param.attackerPolicyDicts.extend(
+		}])
+	df_param.attackerPolicyDicts.extend([
 		{
 			'sim_mode' : 				"D_MCTS",
 			'path_glas_model_a' : 		'../current/models/a{}.pt'.format(i) if i > 0  else None,
@@ -133,9 +135,16 @@ if __name__ == '__main__':
 			'mcts_beta1' : 				df_param.l_mcts_beta1,
 			'mcts_beta2' : 				df_param.l_mcts_beta2,
 			'mcts_beta3' : 				df_param.l_mcts_beta3,
-		} for i in range(1))
+		} for i in range(max_policy_file+1)])
+	df_param.attackerPolicyDicts.extend([
+		{
+			'sim_mode' : 				"GLAS",
+			'path_glas_model' : 		'../current/models/a{}.pt'.format(i),
+			'deterministic': 			True,
+		} for i in range(1,max_policy_file+1)])
 
-	df_param.defenderPolicyDicts = [{
+	df_param.defenderPolicyDicts = []
+	df_param.defenderPolicyDicts.extend([{
 			'sim_mode' : 				"MCTS",
 			'path_glas_model_a' : 		None,
 			'path_glas_model_b' : 		None, 
@@ -147,8 +156,8 @@ if __name__ == '__main__':
 			'mcts_beta1' : 				df_param.l_mcts_beta1,
 			'mcts_beta2' : 				df_param.l_mcts_beta2,
 			'mcts_beta3' : 				df_param.l_mcts_beta3,
-		}]
-	df_param.defenderPolicyDicts.extend(
+		}])
+	df_param.defenderPolicyDicts.extend([
 		{
 			'sim_mode' : 				"D_MCTS",
 			'path_glas_model_a' : 		'../current/models/a{}.pt'.format(i) if i > 0  else None,
@@ -161,7 +170,13 @@ if __name__ == '__main__':
 			'mcts_beta1' : 				df_param.l_mcts_beta1,
 			'mcts_beta2' : 				df_param.l_mcts_beta2,
 			'mcts_beta3' : 				df_param.l_mcts_beta3,
-		} for i in range(1))	
+		} for i in range(max_policy_file+1)])
+	df_param.defenderPolicyDicts.extend([
+		{
+			'sim_mode' : 				"GLAS",
+			'path_glas_model' : 		'../current/models/b{}.pt'.format(i),
+			'deterministic': 			True,
+		} for i in range(1,max_policy_file+1)])
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-game_file", default=None, required=False)
@@ -170,7 +185,7 @@ if __name__ == '__main__':
 	if not args.game_file is None: 
 		initial_conditions,robot_team_compositions = read_games_file(args.game_file)
 	else: 
-		df_param.num_trials = 2
+		df_param.num_trials = 25
 		df_param.robot_team_compositions = [
 			{
 			'a': {'standard_robot':2,'evasive_robot':0},
@@ -213,9 +228,7 @@ if __name__ == '__main__':
 			title='T: {}, A:{}, B:{}'.format(\
 				sim_result["param"]["trial"],
 				policy_to_label(sim_result["param"]["policy_a_dict"]),\
-				policy_to_label(sim_result["param"]["policy_b_dict"])),
-			model_fn_a=sim_result["param"]["policy_a_dict"]["path_glas_model_a"],
-			model_fn_b=sim_result["param"]["policy_b_dict"]["path_glas_model_b"])
+				policy_to_label(sim_result["param"]["policy_b_dict"])))
 		count += 1 
 		if count >= 10:
 			break 

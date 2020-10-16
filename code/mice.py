@@ -317,7 +317,7 @@ def instance_self_play(rank, queue, total, param):
 	while len(states_per_file) < param.l_num_points_per_file:
 		param.state = param.make_initial_condition()
 		# sim_result = self_play(param,deterministic=False)
-		sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b,deterministic=False)
+		sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b)
 
 		# clean data
 		# idxs = np.logical_not(np.isnan(sim_result["states"]).any(axis=2).any(axis=1))
