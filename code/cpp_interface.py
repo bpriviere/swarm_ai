@@ -44,16 +44,20 @@ def param_to_cpp_game(robot_team_composition,robot_types,env_xlim,env_ylim,dt,go
 
 def create_cpp_policy(policy_dict, team):
 	policy = mctscpp.Policy('None')
-	if policy_dict["sim_mode"] in ["GLAS","MCTS","D_MCTS"]:
+	if policy_dict["sim_mode"] in ["MCTS","D_MCTS"]:
 		file = policy_dict["path_glas_model_{}".format(team)]
 		if file is not None:
 			loadGLAS(policy.glas, file)
 			policy.name = file
-			if policy_dict["sim_mode"] in ["GLAS"]:
-				policy.beta2 = 1.0
-			else:
-				policy.beta2 = policy_dict["mcts_beta2"]
+			policy.beta2 = policy_dict["mcts_beta2"]
 			return policy
+	elif policy_dict["sim_mode"] in ["GLAS"]:
+		file = policy_dict["path_glas_model"]
+		loadGLAS(policy.glas, file)
+		policy.name = file
+		policy.beta2 = 1.0
+
+
 	policy.beta2 = 0.0
 	return policy
 
@@ -147,7 +151,7 @@ def expected_value(param,state,policy_dict):
 		mctssettings)
 	return mctsresult.expectedReward
 
-def self_play(param,deterministic=True):
+def self_play(param):
 
 	if is_valid_policy_dict(param.policy_dict):
 		policy_dict_a = param.policy_dict
@@ -156,10 +160,10 @@ def self_play(param,deterministic=True):
 		print('bad policy dict')
 		exit()
 
-	return play_game(param,policy_dict_a,policy_dict_b,deterministic=deterministic)
+	return play_game(param,policy_dict_a,policy_dict_b)
 
 
-def play_game(param,policy_dict_a,policy_dict_b,deterministic=True): 
+def play_game(param,policy_dict_a,policy_dict_b): 
 
 	if policy_dict_a["sim_mode"] == "PANAGOU" or policy_dict_b["sim_mode"] == "PANAGOU":
 		pp = PanagouPolicy(param)
@@ -220,14 +224,15 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 					break 
 			break
 
-		mctssettings = mctscpp.MCTSSettings()
-		mctssettings.num_nodes = policy_dict["mcts_tree_size"]
-		mctssettings.Cp = policy_dict["mcts_c_param"]
-		mctssettings.pw_C = policy_dict["mcts_pw_C"]
-		mctssettings.pw_alpha = policy_dict["mcts_pw_alpha"]
-		mctssettings.beta1 = policy_dict["mcts_beta1"]
-		mctssettings.beta3 = policy_dict["mcts_beta3"]
-		mctssettings.export_tree = (count // 2) % param.tree_timestep == 0 and param.plot_tree_on 
+		if policy_dict["sim_mode"] in ["MCTS", "D_MCTS"]:
+			mctssettings = mctscpp.MCTSSettings()
+			mctssettings.num_nodes = policy_dict["mcts_tree_size"]
+			mctssettings.Cp = policy_dict["mcts_c_param"]
+			mctssettings.pw_C = policy_dict["mcts_pw_C"]
+			mctssettings.pw_alpha = policy_dict["mcts_pw_alpha"]
+			mctssettings.beta1 = policy_dict["mcts_beta1"]
+			mctssettings.beta3 = policy_dict["mcts_beta3"]
+			mctssettings.export_tree = (count // 2) % param.tree_timestep == 0  and param.plot_tree_on 
 
 		if policy_dict["sim_mode"] == "MCTS":
 			depth = gs.depth
@@ -284,7 +289,7 @@ def play_game(param,policy_dict_a,policy_dict_b,deterministic=True):
 			success = g.step(gs,action,gs)
 
 		elif policy_dict["sim_mode"] == "GLAS":
-			action = mctscpp.eval(g, gs, policy_a, policy_b, deterministic)
+			action = mctscpp.eval(g, gs, policy_a, policy_b, policy_dict["deterministic"])
 			success = g.step(gs, action, gs)
 
 		elif policy_dict["sim_mode"] == "PANAGOU":
@@ -501,8 +506,8 @@ def bad_key(some_dict,some_key):
 def is_valid_policy_dict(policy_dict):
 
 	if policy_dict["sim_mode"] == "GLAS":
-		if bad_key(policy_dict,"path_glas_model_a") or \
-			bad_key(policy_dict,"path_glas_model_b"):
+		if bad_key(policy_dict,"path_glas_model") or \
+			bad_key(policy_dict, "deterministic"):
 			return False 
 
 	elif policy_dict["sim_mode"] in ["MCTS","D_MCTS"]:

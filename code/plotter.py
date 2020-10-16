@@ -349,7 +349,7 @@ def get_n_colors(n):
 	return colors
 
 
-def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None): 
+def plot_tree_results(sim_result,title=None): 
 
 	def team_1_reward_to_gamma(reward_1):
 		# gamma = reward_1 * 2 - 1 
@@ -410,6 +410,13 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 	ax.set_title('Value Function')
 	ax.plot(times,team_1_reward_to_gamma(rewards[:,0]),color=team_1_color)	
 	ax.set_ylim([-1,1])
+
+	model_fn_a = None
+	if "path_glas_model_a" in sim_result["param"]["policy_a_dict"]:
+		model_fn_a = sim_result["param"]["policy_a_dict"]["path_glas_model_a"]
+	model_fn_b = None
+	if "path_glas_model_b" in sim_result["param"]["policy_b_dict"]:
+		model_fn_a = sim_result["param"]["policy_b_dict"]["path_glas_model_b"]
 
 	if model_fn_a is not None or model_fn_b is not None: 
 
