@@ -411,58 +411,58 @@ def plot_tree_results(sim_result,title=None):
 	ax.plot(times,team_1_reward_to_gamma(rewards[:,0]),color=team_1_color)	
 	ax.set_ylim([-1,1])
 
-	model_fn_a = None
-	if "path_glas_model_a" in sim_result["param"]["policy_a_dict"]:
-		model_fn_a = sim_result["param"]["policy_a_dict"]["path_glas_model_a"]
-	model_fn_b = None
-	if "path_glas_model_b" in sim_result["param"]["policy_b_dict"]:
-		model_fn_a = sim_result["param"]["policy_b_dict"]["path_glas_model_b"]
+	# model_fn_a = None
+	# if "path_glas_model_a" in sim_result["param"]["policy_a_dict"]:
+	# 	model_fn_a = sim_result["param"]["policy_a_dict"]["path_glas_model_a"]
+	# model_fn_b = None
+	# if "path_glas_model_b" in sim_result["param"]["policy_b_dict"]:
+	# 	model_fn_a = sim_result["param"]["policy_b_dict"]["path_glas_model_b"]
 
-	if model_fn_a is not None or model_fn_b is not None: 
+	# if model_fn_a is not None or model_fn_b is not None: 
 
-		from learning.continuous_emptynet import ContinuousEmptyNet
-		from learning.gaussian_emptynet import GaussianEmptyNet
-		from learning_interface import format_data, global_to_local 
-		from param import Param 
-		import torch 
+	# 	from learning.continuous_emptynet import ContinuousEmptyNet
+	# 	from learning.gaussian_emptynet import GaussianEmptyNet
+	# 	from learning_interface import format_data, global_to_local 
+	# 	from param import Param 
+	# 	import torch 
 
-		param_obj = Param()
-		param_obj.from_dict(sim_result["param"])
+	# 	param_obj = Param()
+	# 	param_obj.from_dict(sim_result["param"])
 
-		if sim_result["param"]["l_gaussian_on"]: 
-			model_a = GaussianEmptyNet(param_obj,"cpu")
-			model_b = GaussianEmptyNet(param_obj,"cpu")
-		else: 
-			model_a = ContinuousEmptyNet(param_obj,"cpu")
-			model_b = ContinuousEmptyNet(param_obj,"cpu")
+	# 	if sim_result["param"]["l_gaussian_on"]: 
+	# 		model_a = GaussianEmptyNet(param_obj,"cpu")
+	# 		model_b = GaussianEmptyNet(param_obj,"cpu")
+	# 	else: 
+	# 		model_a = ContinuousEmptyNet(param_obj,"cpu")
+	# 		model_b = ContinuousEmptyNet(param_obj,"cpu")
 
-		if not model_fn_a is None:
-			model_a.load_state_dict(torch.load(model_fn_a))
-		if not model_fn_b is None:
-			model_b.load_state_dict(torch.load(model_fn_b))
+	# 	if not model_fn_a is None:
+	# 		model_a.load_state_dict(torch.load(model_fn_a))
+	# 	if not model_fn_b is None:
+	# 		model_b.load_state_dict(torch.load(model_fn_b))
 
-		for i in range(num_nodes):
-			if model_fn_a is None and i in team_1_idxs:
-				continue
-			elif model_fn_b is None and i not in team_1_idxs: 
-				continue 
-			else: 
+	# 	for i in range(num_nodes):
+	# 		if model_fn_a is None and i in team_1_idxs:
+	# 			continue
+	# 		elif model_fn_b is None and i not in team_1_idxs: 
+	# 			continue 
+	# 		else: 
 
-				values = []
-				ts = []
-				for k, t in enumerate(times):
-					if np.isnan(states[k,i,:]).any(): # non active robot 
-						continue
-					o_a,o_b,goal = global_to_local(states[k,:,:],param_obj,i)
-					o_a,o_b,goal = format_data(o_a,o_b,goal)
-					if i in team_1_idxs and not model_fn_a is None:
-						value,action = model_a(o_a,o_b,goal)
-					elif not model_fn_b is None: 
-						value,action = model_b(o_a,o_b,goal)
-					values.append(value)
-					ts.append(t)
+	# 			values = []
+	# 			ts = []
+	# 			for k, t in enumerate(times):
+	# 				if np.isnan(states[k,i,:]).any(): # non active robot 
+	# 					continue
+	# 				o_a,o_b,goal = global_to_local(states[k,:,:],param_obj,i)
+	# 				o_a,o_b,goal = format_data(o_a,o_b,goal)
+	# 				if i in team_1_idxs and not model_fn_a is None:
+	# 					value,action = model_a(o_a,o_b,goal)
+	# 				elif not model_fn_b is None: 
+	# 					value,action = model_b(o_a,o_b,goal)
+	# 				values.append(value)
+	# 				ts.append(t)
 
-				ax.plot(ts,values,color=colors[i])
+	# 			ax.plot(ts,values,color=colors[i])
 
 	# ax.plot(times,rewards[:,0],color=team_1_color,label='attackers')
 	# ax.plot(times,rewards[:,1],color=team_2_color,label='defenders')
