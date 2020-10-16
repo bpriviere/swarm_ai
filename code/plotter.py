@@ -479,6 +479,9 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=colors[i])
 	ax.set_ylim(bottom=0)
 
+	if title is not None: 
+		fig.suptitle(title)	
+
 	# tree vis 
 	if len(sim_result["trees"]) > 0:
 
@@ -590,8 +593,8 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 
 			# fig.tight_layout()
 
-	if title is not None: 
-		fig.suptitle(title)
+		if title is not None: 
+			fig.suptitle(title)
 
 
 def plot_training(df_param,batched_fns,path_to_model):

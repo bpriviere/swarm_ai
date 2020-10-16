@@ -178,6 +178,7 @@ class Param:
 		self.path_current_data = '../current/data/'
 
 		self.tree_timestep = 10
+		self.plot_tree_on = False
 		
 		self.update()
 

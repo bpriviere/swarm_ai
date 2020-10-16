@@ -112,13 +112,13 @@ if __name__ == '__main__':
 			'path_glas_model_a' : 		None,
 			'path_glas_model_b' : 		None, 
 			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
-			'mcts_rollout_horizon' : 	100,
-			'mcts_c_param' : 			1.4,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,
-			'mcts_beta1' : 				0.0,
-			'mcts_beta2' : 				0.0,
-			'mcts_beta3' : 				0.5,
+			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+			'mcts_c_param' : 			df_param.l_mcts_c_param,
+			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+			'mcts_beta1' : 				df_param.l_mcts_beta1,
+			'mcts_beta2' : 				df_param.l_mcts_beta2,
+			'mcts_beta3' : 				df_param.l_mcts_beta3,
 		}]
 	df_param.attackerPolicyDicts.extend(
 		{
@@ -126,27 +126,27 @@ if __name__ == '__main__':
 			'path_glas_model_a' : 		'../current/models/a{}.pt'.format(i) if i > 0  else None,
 			'path_glas_model_b' : 		'../current/models/b{}.pt'.format(i) if i > 0  else None, 
 			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
-			'mcts_rollout_horizon' : 	100,
-			'mcts_c_param' : 			1.4,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,
-			'mcts_beta1' : 				0.0,
-			'mcts_beta2' : 				0.25,
-			'mcts_beta3' : 				0.5,
-		} for i in range(1,4))
+			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+			'mcts_c_param' : 			df_param.l_mcts_c_param,
+			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+			'mcts_beta1' : 				df_param.l_mcts_beta1,
+			'mcts_beta2' : 				df_param.l_mcts_beta2,
+			'mcts_beta3' : 				df_param.l_mcts_beta3,
+		} for i in range(1))
 
 	df_param.defenderPolicyDicts = [{
 			'sim_mode' : 				"MCTS",
 			'path_glas_model_a' : 		None,
 			'path_glas_model_b' : 		None, 
 			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
-			'mcts_rollout_horizon' : 	100,
-			'mcts_c_param' : 			1.4,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,
-			'mcts_beta1' : 				0.0,
-			'mcts_beta2' : 				0.0,
-			'mcts_beta3' : 				0.5,
+			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+			'mcts_c_param' : 			df_param.l_mcts_c_param,
+			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+			'mcts_beta1' : 				df_param.l_mcts_beta1,
+			'mcts_beta2' : 				df_param.l_mcts_beta2,
+			'mcts_beta3' : 				df_param.l_mcts_beta3,
 		}]
 	df_param.defenderPolicyDicts.extend(
 		{
@@ -154,14 +154,14 @@ if __name__ == '__main__':
 			'path_glas_model_a' : 		'../current/models/a{}.pt'.format(i) if i > 0  else None,
 			'path_glas_model_b' : 		'../current/models/b{}.pt'.format(i) if i > 0  else None, 
 			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
-			'mcts_rollout_horizon' : 	100,
-			'mcts_c_param' : 			1.4,
-			'mcts_pw_C' : 				1.0,
-			'mcts_pw_alpha' : 			0.25,
-			'mcts_beta1' : 				0.0,
-			'mcts_beta2' : 				0.25,
-			'mcts_beta3' : 				0.5,
-		} for i in range(1,4))	
+			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+			'mcts_c_param' : 			df_param.l_mcts_c_param,
+			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+			'mcts_beta1' : 				df_param.l_mcts_beta1,
+			'mcts_beta2' : 				df_param.l_mcts_beta2,
+			'mcts_beta3' : 				df_param.l_mcts_beta3,
+		} for i in range(1))	
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-game_file", default=None, required=False)
@@ -173,7 +173,7 @@ if __name__ == '__main__':
 		df_param.num_trials = 2
 		df_param.robot_team_compositions = [
 			{
-			'a': {'standard_robot':1,'evasive_robot':0},
+			'a': {'standard_robot':2,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 			},
 			# {
@@ -209,10 +209,13 @@ if __name__ == '__main__':
 
 	count = 0 
 	for sim_result in sim_results:
-		plotter.plot_tree_results(sim_result,title='T: {}, A:{}, B:{}'.format(\
-			sim_result["param"]["trial"],
-			policy_to_label(sim_result["param"]["policy_a_dict"]),\
-			policy_to_label(sim_result["param"]["policy_b_dict"])))
+		plotter.plot_tree_results(sim_result,\
+			title='T: {}, A:{}, B:{}'.format(\
+				sim_result["param"]["trial"],
+				policy_to_label(sim_result["param"]["policy_a_dict"]),\
+				policy_to_label(sim_result["param"]["policy_b_dict"])),
+			model_fn_a=sim_result["param"]["policy_a_dict"]["path_glas_model_a"],
+			model_fn_b=sim_result["param"]["policy_b_dict"]["path_glas_model_b"])
 		count += 1 
 		if count >= 10:
 			break 
