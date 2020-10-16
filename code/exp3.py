@@ -133,7 +133,7 @@ if __name__ == '__main__':
 			'mcts_beta1' : 				0.0,
 			'mcts_beta2' : 				0.25,
 			'mcts_beta3' : 				0.5,
-		} for i in range(1,4))
+		} for i in range(4))
 
 	df_param.defenderPolicyDicts = [{
 			'sim_mode' : 				"MCTS",
@@ -161,7 +161,7 @@ if __name__ == '__main__':
 			'mcts_beta1' : 				0.0,
 			'mcts_beta2' : 				0.25,
 			'mcts_beta3' : 				0.5,
-		} for i in range(1,4))	
+		} for i in range(4))	
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-game_file", default=None, required=False)
@@ -209,10 +209,13 @@ if __name__ == '__main__':
 
 	count = 0 
 	for sim_result in sim_results:
-		plotter.plot_tree_results(sim_result,title='T: {}, A:{}, B:{}'.format(\
-			sim_result["param"]["trial"],
-			policy_to_label(sim_result["param"]["policy_a_dict"]),\
-			policy_to_label(sim_result["param"]["policy_b_dict"])))
+		plotter.plot_tree_results(sim_result,\
+			title='T: {}, A:{}, B:{}'.format(\
+				sim_result["param"]["trial"],
+				policy_to_label(sim_result["param"]["policy_a_dict"]),\
+				policy_to_label(sim_result["param"]["policy_b_dict"])),
+			model_fn_a=sim_result["param"]["policy_a_dict"]["path_glas_model_a"],
+			model_fn_b=sim_result["param"]["policy_b_dict"]["path_glas_model_b"])
 		count += 1 
 		if count >= 10:
 			break 

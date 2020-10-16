@@ -479,6 +479,9 @@ def plot_tree_results(sim_result,title=None,model_fn_a=None,model_fn_b=None):
 		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=colors[i])
 	ax.set_ylim(bottom=0)
 
+	if title is not None: 
+		fig.suptitle(title)	
+
 	# tree vis 
 	if sim_result["tree"] is not None:
 

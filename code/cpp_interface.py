@@ -382,10 +382,10 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 			for other_policy_dict in param.other_policy_dicts:
 
 				if param.training_team == "a":
-					path_glas_model_a = my_policy_dict["path_glas_model_a"]
+					path_glas_model_a = param.my_policy_dict["path_glas_model_a"]
 					path_glas_model_b = other_policy_dict["path_glas_model_b"]
 				elif param.training_team == "b": 
-					path_glas_model_b = my_policy_dict["path_glas_model_b"]
+					path_glas_model_b = param.my_policy_dict["path_glas_model_b"]
 					path_glas_model_a = other_policy_dict["path_glas_model_a"]
 					
 				policy_dict_a = {
