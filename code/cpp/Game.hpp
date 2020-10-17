@@ -466,31 +466,30 @@ class Game {
     const PolicyT& policyAttacker,
     const PolicyT& policyDefender)
   {
-    if (state.turn == GameStateT::Turn::Defenders)
-    {
-      if (policyAttacker.glasConst().valid()) {
-        // we check the turn on the child node, so in this case compute the reward
-        // from the perspective of attackers
-        float value_sum = 0;
-        for (size_t j = 0; j < state.attackers.size(); ++j) {
-          auto result_a = policyAttacker.glasConst().eval(state, m_goal, m_attackerTypes[j], true, j, true);
-          float value = std::get<0>(result_a);
-          value_sum += value;
-        }
-        return value_sum / state.attackers.size();
-      }
-    } else {
-      if (policyDefender.glasConst().valid()) {
-        float value_sum = 0;
-        for (size_t j = 0; j < state.defenders.size(); ++j) {
-          auto result_b = policyDefender.glasConst().eval(state, m_goal, m_defenderTypes[j], false, j, true);
-          float value = std::get<0>(result_b);
-          value_sum += value;
-        }
-        return value_sum / state.defenders.size();
+    float value_sum = 0;
+    int num_robots = 0;
+    if (policyAttacker.glasConst().valid()) {
+      for (size_t j = 0; j < state.attackers.size(); ++j) {
+        auto result_a = policyAttacker.glasConst().eval(state, m_goal, m_attackerTypes[j], true, j, true);
+        float value = std::get<0>(result_a);
+        value_sum += value;
+        ++num_robots;
       }
     }
-    return std::nanf("");
+    if (policyDefender.glasConst().valid()) {
+      for (size_t j = 0; j < state.defenders.size(); ++j) {
+        auto result_b = policyDefender.glasConst().eval(state, m_goal, m_defenderTypes[j], false, j, true);
+        float value = std::get<0>(result_b);
+        value_sum += value;
+        ++num_robots;
+      }
+    }
+
+    if (num_robots > 0) {
+      return value_sum / num_robots;
+    } else {
+      return std::nanf("");
+    }
   }
 
 
