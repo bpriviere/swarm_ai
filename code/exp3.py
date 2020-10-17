@@ -185,7 +185,7 @@ if __name__ == '__main__':
 	if not args.game_file is None: 
 		initial_conditions,robot_team_compositions = read_games_file(args.game_file)
 	else: 
-		df_param.num_trials = 25
+		df_param.num_trials = 100
 		df_param.robot_team_compositions = [
 			{
 			'a': {'standard_robot':2,'evasive_robot':0},
