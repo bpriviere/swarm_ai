@@ -1109,27 +1109,35 @@ def policy_to_label(policy):
 
 def plot_exp3_results(all_sim_results):
 
-	results = defaultdict(list)
+	rw_results = defaultdict(list)
+	rg_results = defaultdict(list)
 	for sim_result in all_sim_results:
 		key = (\
 			policy_to_label(sim_result["param"]["policy_a_dict"]),
 			policy_to_label(sim_result["param"]["policy_b_dict"]))
 		# results[key].append(sim_result["rewards"][-1,0])
-		results[key].append(sim_result["reached_goal"])
+		# results[key].append(sim_result["reached_goal"])
+		rw_results[key].append(sim_result["rewards"][-1,0])
+		rg_results[key].append(sim_result["reached_goal"])
 
 	attackerPolicies = all_sim_results[0]["param"]["attackerPolicyDicts"]
 	defenderPolicies = all_sim_results[0]["param"]["defenderPolicyDicts"]
 
-	mean_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
-	std_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	mean_rw_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	std_rw_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	mean_rg_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	std_rg_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
 	for a_idx, policy_a_dict in enumerate(attackerPolicies):
 		for b_idx, policy_b_dict in enumerate(defenderPolicies):
 			# key = (sim_mode_a, path_glas_model_a,sim_mode_b,path_glas_model_b)
 			key = (\
 				policy_to_label(policy_a_dict),
 				policy_to_label(policy_b_dict))			
-			mean_result[a_idx,b_idx] = np.mean(results[key])
-			std_result[a_idx,b_idx] = np.std(results[key])
+			mean_rw_result[a_idx,b_idx] = np.mean(rw_results[key])
+			std_rw_result[a_idx,b_idx] = np.std(rw_results[key])
+
+			mean_rg_result[a_idx,b_idx] = np.mean(rg_results[key])
+			std_rg_result[a_idx,b_idx] = np.std(rg_results[key])
 
 	xticklabels = []
 	for policy_a_dict in attackerPolicies:
@@ -1139,20 +1147,23 @@ def plot_exp3_results(all_sim_results):
 	for policy_b_dict in defenderPolicies:
 		yticklabels.append(policy_to_label(policy_b_dict))
 
-	fig,ax = plt.subplots()
-	# im = ax.imshow(mean_result,origin='lower',vmin=0,vmax=1,cmap=cm.seaborn)
-	ax = sns.heatmap(mean_result.T,vmin=0,vmax=1,annot=True)
-	# fig.colorbar(im)
-	# ax.set_xticks(range(len(attackerPolicies)))
-	# ax.set_yticks(range(len(defenderPolicies)))
-	ax.set_xticklabels(xticklabels,rotation=45)
-	ax.set_yticklabels(yticklabels,rotation=45)
-	ax.tick_params(axis='both',labelsize=5)
-	ax.set_xlabel('attackers')
-	ax.set_ylabel('defenders')
-	fig.tight_layout()
-	# ax.legend()
-	# ax.grid(True)
+	for mean_result, title in zip([mean_rw_result, mean_rg_result],["Game Reward","Reached Goal"]): 
+
+		fig,ax = plt.subplots()
+		# im = ax.imshow(mean_result,origin='lower',vmin=0,vmax=1,cmap=cm.seaborn)
+		ax = sns.heatmap(mean_result.T,vmin=0,vmax=1,annot=True)
+		# fig.colorbar(im)
+		# ax.set_xticks(range(len(attackerPolicies)))
+		# ax.set_yticks(range(len(defenderPolicies)))
+		ax.set_xticklabels(xticklabels,rotation=45)
+		ax.set_yticklabels(yticklabels,rotation=45)
+		ax.tick_params(axis='both',labelsize=5)
+		ax.set_xlabel('attackers')
+		ax.set_ylabel('defenders')
+		fig.suptitle(title)
+		fig.tight_layout()
+		# ax.legend()
+		# ax.grid(True)
 
 
 def plot_test_model(df_param,stats):

@@ -217,11 +217,11 @@ def play_game(param,policy_dict_a,policy_dict_b):
 
 		if isTerminal:
 			# calc reachedgoal
-			sim_result['reached_goal'] = 0.0 
-			for rs in gs.attackers + gs.defenders:
+			reachedGoal = 0.0 
+			for rs in gs.attackers:
 				if rs.status == mctscpp.RobotState.Status.ReachedGoal:
-					sim_result['reached_goal'] = 1.0 
-					break 
+					reachedGoal += 1.0
+			sim_result['reached_goal'] = reachedGoal / len(gs.attackers)
 			break
 
 		if policy_dict["sim_mode"] in ["MCTS", "D_MCTS"]:
