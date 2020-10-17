@@ -371,10 +371,33 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 			mctssettings)
 		if mctsresult.success: 
 			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
-			value = mctsresult.expectedReward[0]
+			# value = mctsresult.expectedReward[0]
+
+			values = []
+			for other_policy_dict in param.other_policy_dicts:
+
+				if param.training_team == "a":
+					path_glas_model_a = param.my_policy_dict["path_glas_model_a"]
+					path_glas_model_b = other_policy_dict["path_glas_model_b"]
+				elif param.training_team == "b": 
+					path_glas_model_b = param.my_policy_dict["path_glas_model_b"]
+					path_glas_model_a = other_policy_dict["path_glas_model_a"]
+
+				policy_dict_a = {
+					'path_glas_model_a' : path_glas_model_a,
+					'path_glas_model_b' : path_glas_model_b,
+				}
+				policy_dict_b = {
+					'path_glas_model_a' : path_glas_model_a,
+					'path_glas_model_b' : path_glas_model_b,
+				}
+
+				glas_rollout_sim_result = play_game(param,policy_dict_a,policy_dict_b,deterministic=False)
+				values.append(glas_rollout_sim_result["rewards"][-1,0]) # take last one and team 1 reward 
+
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["policy_dists"].append(policy_dist)  
-			sim_result["values"].append(value)
+			sim_result["values"].append(sum(values)/len(values))
 
 		# update status
 		if rank == 0:
