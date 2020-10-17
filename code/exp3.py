@@ -106,7 +106,9 @@ if __name__ == '__main__':
 	df_param = Param()
 
 	df_param.env_l = 1.0
+	df_param.num_trials = 100
 	max_policy_file = 2
+	name = "models"
 
 	df_param.attackerPolicyDicts = []
 	df_param.attackerPolicyDicts.extend([{
@@ -125,8 +127,8 @@ if __name__ == '__main__':
 	df_param.attackerPolicyDicts.extend([
 		{
 			'sim_mode' : 				"D_MCTS",
-			'path_glas_model_a' : 		'../current/models/a{}.pt'.format(i) if i > 0  else None,
-			'path_glas_model_b' : 		'../current/models/b{}.pt'.format(i) if i > 0  else None, 
+			'path_glas_model_a' : 		'../current/{}/a{}.pt'.format(name,i) if i > 0  else None,
+			'path_glas_model_b' : 		'../current/{}/b{}.pt'.format(name,i) if i > 0  else None, 
 			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
 			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
 			'mcts_c_param' : 			df_param.l_mcts_c_param,
@@ -139,7 +141,7 @@ if __name__ == '__main__':
 	df_param.attackerPolicyDicts.extend([
 		{
 			'sim_mode' : 				"GLAS",
-			'path_glas_model' : 		'../current/models/a{}.pt'.format(i),
+			'path_glas_model' : 		'../current/{}/a{}.pt'.format(name,i),
 			'deterministic': 			True,
 		} for i in range(1,max_policy_file+1)])
 
@@ -160,8 +162,8 @@ if __name__ == '__main__':
 	df_param.defenderPolicyDicts.extend([
 		{
 			'sim_mode' : 				"D_MCTS",
-			'path_glas_model_a' : 		'../current/models/a{}.pt'.format(i) if i > 0  else None,
-			'path_glas_model_b' : 		'../current/models/b{}.pt'.format(i) if i > 0  else None, 
+			'path_glas_model_a' : 		'../current/{}/a{}.pt'.format(name,i) if i > 0  else None,
+			'path_glas_model_b' : 		'../current/{}/b{}.pt'.format(name,i) if i > 0  else None, 
 			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
 			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
 			'mcts_c_param' : 			df_param.l_mcts_c_param,
@@ -174,7 +176,7 @@ if __name__ == '__main__':
 	df_param.defenderPolicyDicts.extend([
 		{
 			'sim_mode' : 				"GLAS",
-			'path_glas_model' : 		'../current/models/b{}.pt'.format(i),
+			'path_glas_model' : 		'../current/{}/b{}.pt'.format(name,i),
 			'deterministic': 			True,
 		} for i in range(1,max_policy_file+1)])
 
@@ -185,7 +187,6 @@ if __name__ == '__main__':
 	if not args.game_file is None: 
 		initial_conditions,robot_team_compositions = read_games_file(args.game_file)
 	else: 
-		df_param.num_trials = 100
 		df_param.robot_team_compositions = [
 			{
 			'a': {'standard_robot':2,'evasive_robot':0},
@@ -209,9 +210,9 @@ if __name__ == '__main__':
 		format_dir(df_param)
 
 		if df_param.sim_parallel_on: 	
-			pool = mp.Pool(mp.cpu_count()-1)
-			for _ in pool.imap_unordered(wrap_play_game, params):
-				pass 
+			with mp.Pool(mp.cpu_count()-1) as pool:
+				for _ in pool.imap_unordered(wrap_play_game, params):
+					pass
 		else:
 			for param in params: 
 				wrap_play_game(param) 
