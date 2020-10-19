@@ -552,14 +552,12 @@ def theta_to_u(robot,theta):
 def main():
 
 	set_ic = False
-	set_ic = True
+	#set_ic = True
 	if set_ic: 
 		print("====\nUsing Fixed Initial Conditions\n====")
 		# make sure this matches the teams match up in the param file
 		initial_condition = np.array( [ \
-		    [ 0.144,   0.647,  -0.000,   0.000], \
-			[ 0.140,   0.139,   0.000,  -0.000 ], \
-			[ 0.810,   0.148,   0.000,  -0.000 ], \
+			[ 0.210,   0.148,   0.000,  -0.000 ], \
 			[ 0.817,   0.465,   0.000,   0.000 ]  ])
 
 		df_param = Param()
