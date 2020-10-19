@@ -342,10 +342,15 @@ def get_2_colors(total,split):
 	return colors
 
 
-def get_n_colors(n):
+def get_n_colors(n,cmap=None):
 	colors = []
-	cm_subsection = np.linspace(0, 1, n) 
-	colors = [ cm.tab20(x) for x in cm_subsection]
+	cm_subsection = np.linspace(0, 1, n)
+
+	if cmap is None:
+		cmap = cm.tab20
+
+	colors = [ cmap(x) for x in cm_subsection]
+	# colors = [ cm.tab20(x) for x in cm_subsection]
 	return colors
 
 
@@ -1103,10 +1108,74 @@ def policy_to_label(policy):
 	
 	return label
 
+def plot_exp5_results(all_sim_results):
+
+	# read results into dict 
+	rw_results = defaultdict(list) # game reward
+	rg_results = defaultdict(list) # reached goal reward 
+	model_names_a = set()
+	model_names_b = set()
+	for sim_result in all_sim_results: 
+		# key = (test_team, tree size, model)
+		test_team = sim_result["param"]["test_team"]
+		if test_team == "a":
+			tree_size = sim_result["param"]["policy_dict_a"]["mcts_tree_size"]
+			model_name = sim_result["param"]["policy_dict_a"]["path_glas_model_a"]
+			model_names_a.add(model_name)
+		elif test_team == "b":
+			tree_size = sim_result["param"]["policy_dict_b"]["mcts_tree_size"]
+			model_name = sim_result["param"]["policy_dict_b"]["path_glas_model_b"]
+			model_names_b.add(model_name)
+
+		key = (test_team, tree_size, model_name)
+		rw_results[key].append(sim_result["rewards"][-1,0])
+		rg_results[key].append(sim_result["reached_goal"])
+
+	# 
+	tree_sizes = all_sim_results[0]["param"]["tree_sizes"]
+	colors = [get_n_colors(len(model_names_a),cmap=cm.Set1),get_n_colors(len(model_names_b),cmap=cm.Set1)]
+
+	# plots: 
+	# 	x-axis: tree size 
+	# 	y-axis: value for each bias
+	fig,axs = plt.subplots(ncols=2,sharey=True,squeeze=False)
+	for i_ax, (test_team, model_names, title) in enumerate(zip(["a","b"],[model_names_a,model_names_b],["Attacking","Defending"])):
+		ax = axs[0,i_ax]
+
+		for i_model, model_name in enumerate(model_names):
+
+			mean_data = []
+			std_data = []
+			for tree_size in tree_sizes:
+				key = (test_team, tree_size, model_name)
+				mean_data.append(np.mean(np.array(rg_results[key])))
+				std_data.append(np.std(np.array(rg_results[key])))
+
+			label = 'None' if model_name is None else os.path.basename(model_name)
+			ax.plot(tree_sizes,mean_data,color=colors[i_ax][i_model],label=label)
+			ax.errorbar(tree_sizes,mean_data,yerr=std_data,color=colors[i_ax][i_model],alpha=0.5,linewidth=1)
+
+		ax.set_xlabel('Tree Size')
+		ax.set_xscale('log')
+		if i_ax == 0:
+			ax.set_ylabel('Reached Goal Reward')
+			ax.legend()
+
+		ax.set_title(title)
+		ax.set_ylim([0,1])
+		ax.grid(True)
+
+		ax.set_xticks(tree_sizes)
+		ax.set_xticklabels(tree_sizes,rotation=45)
+		# ax.set_xticklabels(rotation=45)
+
+	fig.suptitle('Reached Goal Reward vs Tree Size')
+	# fig.tight_layout()
+
 def plot_exp3_results(all_sim_results):
 
-	rw_results = defaultdict(list)
-	rg_results = defaultdict(list)
+	rw_results = defaultdict(list) # game reward
+	rg_results = defaultdict(list) # reached goal reward 
 	for sim_result in all_sim_results:
 		key = (\
 			policy_to_label(sim_result["param"]["policy_dict_a"]),
