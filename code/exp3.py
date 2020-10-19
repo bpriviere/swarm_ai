@@ -16,7 +16,7 @@ def wrap_play_game(param):
 	from cpp_interface import play_game
 	
 	print('playing game {}/{}'.format(param.count,param.total))
-	sim_result = play_game(param,param.policy_a_dict,param.policy_b_dict)
+	sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b)
 	dh.write_sim_result(sim_result,param.dataset_fn)
 
 
@@ -73,13 +73,13 @@ def get_params(df_param,initial_conditions,robot_team_compositions):
 		len(df_param.defenderPolicyDicts)
 
 	for trial, (initial_condition,robot_team_composition) in enumerate(zip(initial_conditions,robot_team_compositions)):
-		for policy_a_dict in df_param.attackerPolicyDicts:
-			for policy_b_dict in df_param.defenderPolicyDicts:
+		for policy_dict_a in df_param.attackerPolicyDicts:
+			for policy_dict_b in df_param.defenderPolicyDicts:
 
 				param = Param() 
 				param.env_l = df_param.env_l
-				param.policy_a_dict = policy_a_dict
-				param.policy_b_dict = policy_b_dict
+				param.policy_dict_a = policy_dict_a
+				param.policy_dict_b = policy_dict_b
 				param.attackerPolicyDicts = df_param.attackerPolicyDicts
 				param.defenderPolicyDicts = df_param.defenderPolicyDicts
 				param.trial = trial 
@@ -228,8 +228,8 @@ if __name__ == '__main__':
 		plotter.plot_tree_results(sim_result,\
 			title='T: {}, A:{}, B:{}'.format(\
 				sim_result["param"]["trial"],
-				policy_to_label(sim_result["param"]["policy_a_dict"]),\
-				policy_to_label(sim_result["param"]["policy_b_dict"])))
+				policy_to_label(sim_result["param"]["policy_dict_a"]),\
+				policy_to_label(sim_result["param"]["policy_dict_b"])))
 		count += 1 
 		if count >= 10:
 			break 
