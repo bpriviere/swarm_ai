@@ -408,65 +408,61 @@ def plot_tree_results(sim_result,title=None):
 	ax = axs[0,1] 
 	ax.grid(True)
 	ax.set_title('Value Function')
-	ax.plot(times,team_1_reward_to_gamma(rewards[:,0]),color=team_1_color)	
-	ax.set_ylim([-1,1])
+	ax.plot(times,rewards[:,0],color='black',alpha=0.75)
+	ax.set_ylim([0,1])
 
-	# model_fn_a = None
-	# if "path_glas_model_a" in sim_result["param"]["policy_a_dict"]:
-	# 	model_fn_a = sim_result["param"]["policy_a_dict"]["path_glas_model_a"]
-	# model_fn_b = None
-	# if "path_glas_model_b" in sim_result["param"]["policy_b_dict"]:
-	# 	model_fn_a = sim_result["param"]["policy_b_dict"]["path_glas_model_b"]
+	model_fn_a = None
+	if "path_glas_model_a" in sim_result["param"]["policy_dict_a"]:
+		model_fn_a = sim_result["param"]["policy_dict_a"]["path_glas_model_a"]
+	model_fn_b = None
+	if "path_glas_model_b" in sim_result["param"]["policy_dict_b"]:
+		model_fn_b = sim_result["param"]["policy_dict_b"]["path_glas_model_b"]
 
-	# if model_fn_a is not None or model_fn_b is not None: 
+	if model_fn_a is not None or model_fn_b is not None: 
 
-	# 	from learning.continuous_emptynet import ContinuousEmptyNet
-	# 	from learning.gaussian_emptynet import GaussianEmptyNet
-	# 	from learning_interface import format_data, global_to_local 
-	# 	from param import Param 
-	# 	import torch 
+		from learning.continuous_emptynet import ContinuousEmptyNet
+		from learning.gaussian_emptynet import GaussianEmptyNet
+		from learning_interface import format_data, global_to_local 
+		from param import Param 
+		import torch 
 
-	# 	param_obj = Param()
-	# 	param_obj.from_dict(sim_result["param"])
+		param_obj = Param()
+		param_obj.from_dict(sim_result["param"])
 
-	# 	if sim_result["param"]["l_gaussian_on"]: 
-	# 		model_a = GaussianEmptyNet(param_obj,"cpu")
-	# 		model_b = GaussianEmptyNet(param_obj,"cpu")
-	# 	else: 
-	# 		model_a = ContinuousEmptyNet(param_obj,"cpu")
-	# 		model_b = ContinuousEmptyNet(param_obj,"cpu")
+		if sim_result["param"]["l_gaussian_on"]: 
+			model_a = GaussianEmptyNet(param_obj,"cpu")
+			model_b = GaussianEmptyNet(param_obj,"cpu")
+		else: 
+			model_a = ContinuousEmptyNet(param_obj,"cpu")
+			model_b = ContinuousEmptyNet(param_obj,"cpu")
 
-	# 	if not model_fn_a is None:
-	# 		model_a.load_state_dict(torch.load(model_fn_a))
-	# 	if not model_fn_b is None:
-	# 		model_b.load_state_dict(torch.load(model_fn_b))
+		if not model_fn_a is None:
+			model_a.load_state_dict(torch.load(model_fn_a))
+		if not model_fn_b is None:
+			model_b.load_state_dict(torch.load(model_fn_b))
 
-	# 	for i in range(num_nodes):
-	# 		if model_fn_a is None and i in team_1_idxs:
-	# 			continue
-	# 		elif model_fn_b is None and i not in team_1_idxs: 
-	# 			continue 
-	# 		else: 
+		for i in range(num_nodes):
+			if model_fn_a is None and i in team_1_idxs:
+				continue
+			elif model_fn_b is None and i not in team_1_idxs: 
+				continue 
+			else: 
 
-	# 			values = []
-	# 			ts = []
-	# 			for k, t in enumerate(times):
-	# 				if np.isnan(states[k,i,:]).any(): # non active robot 
-	# 					continue
-	# 				o_a,o_b,goal = global_to_local(states[k,:,:],param_obj,i)
-	# 				o_a,o_b,goal = format_data(o_a,o_b,goal)
-	# 				if i in team_1_idxs and not model_fn_a is None:
-	# 					value,action = model_a(o_a,o_b,goal)
-	# 				elif not model_fn_b is None: 
-	# 					value,action = model_b(o_a,o_b,goal)
-	# 				values.append(value)
-	# 				ts.append(t)
+				values = []
+				ts = []
+				for k, t in enumerate(times):
+					if np.isnan(states[k,i,:]).any(): # non active robot 
+						continue
+					o_a,o_b,goal = global_to_local(states[k,:,:],param_obj,i)
+					o_a,o_b,goal = format_data(o_a,o_b,goal)
+					if i in team_1_idxs and not model_fn_a is None:
+						value,action = model_a(o_a,o_b,goal)
+					elif not model_fn_b is None: 
+						value,action = model_b(o_a,o_b,goal)
+					values.append(value)
+					ts.append(t)
 
-	# 			ax.plot(ts,values,color=colors[i])
-
-	# ax.plot(times,rewards[:,0],color=team_1_color,label='attackers')
-	# ax.plot(times,rewards[:,1],color=team_2_color,label='defenders')
-	# ax.legend()
+				ax.plot(ts,values,color=colors[i])
 
 	# time varying velocity
 	ax = axs[1,0]
@@ -492,7 +488,7 @@ def plot_tree_results(sim_result,title=None):
 	# tree vis 
 	if len(sim_result["trees"]) > 0:
 
-		max_trees = 4
+		max_trees = 2
 		if len(sim_result["trees"]) > max_trees:
 			sim_result["trees"] = sim_result["trees"][0:max_trees]
 
@@ -1113,8 +1109,8 @@ def plot_exp3_results(all_sim_results):
 	rg_results = defaultdict(list)
 	for sim_result in all_sim_results:
 		key = (\
-			policy_to_label(sim_result["param"]["policy_a_dict"]),
-			policy_to_label(sim_result["param"]["policy_b_dict"]))
+			policy_to_label(sim_result["param"]["policy_dict_a"]),
+			policy_to_label(sim_result["param"]["policy_dict_b"]))
 		# results[key].append(sim_result["rewards"][-1,0])
 		# results[key].append(sim_result["reached_goal"])
 		rw_results[key].append(sim_result["rewards"][-1,0])
@@ -1127,12 +1123,12 @@ def plot_exp3_results(all_sim_results):
 	std_rw_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
 	mean_rg_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
 	std_rg_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
-	for a_idx, policy_a_dict in enumerate(attackerPolicies):
-		for b_idx, policy_b_dict in enumerate(defenderPolicies):
+	for a_idx, policy_dict_a in enumerate(attackerPolicies):
+		for b_idx, policy_dict_b in enumerate(defenderPolicies):
 			# key = (sim_mode_a, path_glas_model_a,sim_mode_b,path_glas_model_b)
 			key = (\
-				policy_to_label(policy_a_dict),
-				policy_to_label(policy_b_dict))			
+				policy_to_label(policy_dict_a),
+				policy_to_label(policy_dict_b))			
 			mean_rw_result[a_idx,b_idx] = np.mean(rw_results[key])
 			std_rw_result[a_idx,b_idx] = np.std(rw_results[key])
 
@@ -1140,12 +1136,12 @@ def plot_exp3_results(all_sim_results):
 			std_rg_result[a_idx,b_idx] = np.std(rg_results[key])
 
 	xticklabels = []
-	for policy_a_dict in attackerPolicies:
-		xticklabels.append(policy_to_label(policy_a_dict))
+	for policy_dict_a in attackerPolicies:
+		xticklabels.append(policy_to_label(policy_dict_a))
 
 	yticklabels = []
-	for policy_b_dict in defenderPolicies:
-		yticklabels.append(policy_to_label(policy_b_dict))
+	for policy_dict_b in defenderPolicies:
+		yticklabels.append(policy_to_label(policy_dict_b))
 
 	for mean_result, title in zip([mean_rw_result, mean_rg_result],["Game Reward","Reached Goal"]): 
 

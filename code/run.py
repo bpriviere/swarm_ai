@@ -77,10 +77,8 @@ if __name__ == '__main__':
 	# plotting 
 	print('plotting sim results...')
 	for sim_result in sim_results:
-		plotter.plot_tree_results(sim_result,
-			model_fn_a = sim_result["param"]["policy_dict"]["path_glas_model_a"], \
-			model_fn_b = sim_result["param"]["policy_dict"]["path_glas_model_b"])
-
+		plotter.plot_tree_results(sim_result) 
+		
 	print('saving and opening figs...')
 	plotter.save_figs('plots/run.pdf')
 	plotter.open_figs('plots/run.pdf')

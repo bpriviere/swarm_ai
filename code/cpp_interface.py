@@ -156,6 +156,8 @@ def self_play(param):
 	if is_valid_policy_dict(param.policy_dict):
 		policy_dict_a = param.policy_dict
 		policy_dict_b = param.policy_dict 
+		param.policy_dict_a = policy_dict_a 
+		param.policy_dict_b = policy_dict_b 
 	else: 
 		print('bad policy dict')
 		exit()
