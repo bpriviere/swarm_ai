@@ -254,7 +254,7 @@ class Game {
         anyActive = true;
       }
     }
-    if (allAtGoal) {
+    if (state.attackers.size() > 0 && allAtGoal) {
       return true; 
     }
 
