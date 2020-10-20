@@ -39,7 +39,7 @@ public:
     int num_reached_goal = 0;
     for (size_t i = 0; i < NumAttackers; ++i) {
       if (state.attackers[i].status == Robot::State::Status::Active) {
-        auto relState = state.attackers[i].state - goal;
+        auto relState = goal - state.attackers[i].state;
         input_a.push_back(relState);
       }
       if (state.attackers[i].status == Robot::State::Status::ReachedGoal) {
@@ -50,7 +50,7 @@ public:
     // compute input_b
     for (size_t i = 0; i < NumDefenders; ++i) {
       if (state.defenders[i].status == Robot::State::Status::Active) {
-        auto relState = state.defenders[i].state - goal;
+        auto relState = goal - state.defenders[i].state;
         input_b.push_back(relState);
       }
     }
