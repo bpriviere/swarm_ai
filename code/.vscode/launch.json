@@ -3,7 +3,7 @@
     // Hover to view descriptions of existing attributes.
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
-    "configurations": [
+    "configurations": [    
 
         {
             "name": "Python: Current File",
@@ -18,8 +18,8 @@
             "type": "python",
             "request": "launch",
             "program": "${workspaceRoot}/plotter.py",  //${file}, ${workspaceFolder}, 
-            "args": ["../current_results/sim_result_1.pickle",
-                "--outputPDF","../plots/test.pdf",
+            "args": ["../current_results/sim_result_4.pickle",
+               // "--outputPDF","../plots/test.pdf",
                 "--outputMP4","../plots/test.mp4"],
             "console": "integratedTerminal"
         },
@@ -32,6 +32,24 @@
             "args": ["${workspaceRoot}/../current_results/",
                 "--outputPDF","../plots/test.pdf",
                 "--outputMP4","../plots/test.mp4"],
+            "console": "integratedTerminal"
+        }
+
+        {
+            "name": "Benchmark - Panagou",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceRoot}/benchmark/panagou.py",  //${file}, ${workspaceFolder}, ${fileDirname}
+            "cwd": "${workspaceRoot}/benchmark",
+            "console": "integratedTerminal"
+        }
+
+        {
+            "name": "exp3.py",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceRoot}/exp3.py",  //${file}, ${workspaceFolder}, 
+            "cwd": "${workspaceRoot}",
             "console": "integratedTerminal"
         }
     ]
