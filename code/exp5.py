@@ -90,9 +90,10 @@ if __name__ == '__main__':
 
 	# params 
 	df_param = Param()
-	df_param.max_policy = 1
-	df_param.tree_sizes = [100,500,1000] # ,1000,10000,50000] #1000] #,5000,10000]
-	df_param.num_trials = 2
+	df_param.max_policy = 2
+	df_param.tree_sizes = [100,500,1000,10000,50000] # ,1000,10000,50000] #1000] #,5000,10000]
+	df_param.num_trials = 100
+	name = "models_s13"
 
 	# attackers 
 	df_param.attackerBaselineDict = {
@@ -117,8 +118,8 @@ if __name__ == '__main__':
 			for policy_dicts in [df_param.attackerPolicyDicts,df_param.defenderPolicyDicts]:
 				policy_dicts.append({
 					'sim_mode' : 				"MCTS",
-					'path_glas_model_a' : 		'../current/models/a{}.pt'.format(policy_i) if policy_i > 0  else None,
-					'path_glas_model_b' : 		'../current/models/b{}.pt'.format(policy_i) if policy_i > 0  else None, 
+					'path_glas_model_a' : 		'../current/{}/a{}.pt'.format(name,policy_i) if policy_i > 0  else None,
+					'path_glas_model_b' : 		'../current/{}/b{}.pt'.format(name,policy_i) if policy_i > 0  else None, 
 					'mcts_tree_size' : 			tree_size,
 					'mcts_rollout_horizon' : 	df_param.rollout_horizon,
 					'mcts_c_param' : 			df_param.l_mcts_c_param,

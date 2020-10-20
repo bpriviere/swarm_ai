@@ -811,8 +811,8 @@ def initialCurriculum(df_param):
 		'Skill_A' : [None],
 		'Skill_B' : [None],
 		'EnvironmentLength' : [df_param.l_env_l0],
-		'NumA' : [1],
-		'NumB' : [1],
+		'NumA' : [1,2],
+		'NumB' : [1,2],
 	}
 	return curriculum 
 
@@ -900,8 +900,8 @@ if __name__ == '__main__':
 		# 'Skill_A' : 'a1.pt',
 		# 'Skill_B' : 'b1.pt',
 		'EnvironmentLength' : 1.0,
-		'NumA' : 2,
-		'NumB' : 2,
+		'NumA' : 3,
+		'NumB' : 3,
 	}
 
 	# initial curriculum 
