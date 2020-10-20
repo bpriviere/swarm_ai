@@ -33,11 +33,6 @@ class PolicyEmptyNet(nn.Module):
 			param.l_network_activation,
 			device)
 
-		self.psi = FeedForward(
-			param.l_conditional_network_architecture,
-			param.l_network_activation,
-			device)
-
 		self.policy = FeedForward(
 			param.l_policy_network_architecture,
 			param.l_network_activation,
@@ -50,7 +45,6 @@ class PolicyEmptyNet(nn.Module):
 		self.device = device
 		self.model_team_a.to(device)
 		self.model_team_b.to(device)
-		self.psi.to(device)
 		self.policy.to(device)
 		return super().to(device)
 
@@ -65,8 +59,7 @@ class PolicyEmptyNet(nn.Module):
 		output_rho_team_a = self.model_team_a(o_a)
 		output_rho_team_b = self.model_team_b(o_b)
 		y = torch.cat((output_rho_team_a, output_rho_team_b, goal),1)
-		y = self.psi(y)
-
+		
 		# predict mean and variance 
 		action_dim = 2
 		dist = self.policy(y)
