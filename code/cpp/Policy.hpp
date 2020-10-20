@@ -49,7 +49,7 @@ public:
       // Use NN if beta2 is > 0 probabilistically
       assert(m_glas.valid());
       auto result = m_glas.eval(gameState, goal, robotType, teamAttacker, idx, deterministic);
-      return std::get<1>(result);
+      return result;
     } else {
       // use uniform random sample (no deterministic option)
       std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);

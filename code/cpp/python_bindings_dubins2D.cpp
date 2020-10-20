@@ -33,6 +33,7 @@ typedef DeepSetNN<RobotT::StateDim> DeepSetNNT;
 // typedef DiscreteEmptyNet<RobotT::StateDim> DiscreteEmptyNetT;
 typedef GLAS<RobotT> GLAST;
 typedef Policy<RobotT> PolicyT;
+typedef ValuePredictor<RobotT> ValuePredictorT;
 
 // global variables
 std::random_device g_r;
@@ -91,10 +92,11 @@ MCTSResult search(
   const GameT::GameStateT& startState,
   const PolicyT& myPolicy,
   const std::vector<PolicyT>& opponentPolicies,
+  const ValuePredictorT& valuePredictor,
   const MCTSSettings& settings)
 {
   MCTSResult result;
-  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT, PolicyT> mcts(
+  libMultiRobotPlanning::MonteCarloTreeSearch<GameT::GameStateT, GameT::GameActionT, Reward, GameT, PolicyT, ValuePredictorT> mcts(
     game, g_generator,
     settings.num_nodes,
     settings.Cp,
@@ -102,7 +104,7 @@ MCTSResult search(
     settings.pw_alpha,
     settings.beta1,
     settings.beta3);
-  result.success = mcts.search(startState, myPolicy, opponentPolicies, result.bestAction);
+  result.success = mcts.search(startState, myPolicy, opponentPolicies, valuePredictor, result.bestAction);
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
     result.valuePerAction = mcts.valuePerAction();
@@ -139,6 +141,7 @@ PYBIND11_MODULE(mctscppdubins2D, m) {
     "start_state"_a,
     "my_policy"_a,
     "opponent_policies"_a,
+    "value_predictor"_a,
     "settings"_a);
   m.def("eval", &eval);
 
@@ -241,10 +244,10 @@ PYBIND11_MODULE(mctscppdubins2D, m) {
     // .def("computeAction", &GLAST::computeAction)
     .def_property_readonly("deepSetA", &GLAST::deepSetA)
     .def_property_readonly("deepSetB", &GLAST::deepSetB)
-    .def_property_readonly("psi", &GLAST::psi)
-    .def_property_readonly("encoder", &GLAST::encoder)
-    .def_property_readonly("decoder", &GLAST::decoder)
-    .def_property_readonly("value", &GLAST::value)
+    // .def_property_readonly("psi", &GLAST::psi)
+    // .def_property_readonly("encoder", &GLAST::encoder)
+    // .def_property_readonly("decoder", &GLAST::decoder)
+    // .def_property_readonly("value", &GLAST::value)
     .def_property_readonly("policy", &GLAST::policy);
 
   // Policy
@@ -259,6 +262,17 @@ PYBIND11_MODULE(mctscppdubins2D, m) {
     .def_property("name", &PolicyT::name, &PolicyT::setName)
     .def_property("weight", &PolicyT::weight, &PolicyT::setWeight)
     .def_property("beta2", &PolicyT::beta2, &PolicyT::setBeta2);
+
+  // ValuePredictor
+  py::class_<ValuePredictorT> (m, "ValuePredictor")
+    .def(py::init<
+      const std::string&>(),
+      "name"_a)
+    .def("__repr__", &toString<ValuePredictorT>)
+    .def_property("name", &ValuePredictorT::name, &ValuePredictorT::setName)
+    .def_property_readonly("deepSetA", &ValuePredictorT::deepSetA)
+    .def_property_readonly("deepSetB", &ValuePredictorT::deepSetB)
+    .def_property_readonly("value", &ValuePredictorT::value);
 
   // Game
   py::class_<GameT> (m, "Game")
