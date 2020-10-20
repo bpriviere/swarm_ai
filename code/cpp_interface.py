@@ -406,6 +406,7 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 						'deterministic': False,
 					}
 
+				param.state = state
 				glas_rollout_sim_result = play_game(param,policy_dict_a,policy_dict_b)
 				values.append(glas_rollout_sim_result["rewards"][-1,0]) # take last one and team 1 reward 
 
