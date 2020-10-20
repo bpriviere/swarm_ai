@@ -32,38 +32,14 @@ class PanagouPolicy:
 		self.initial_condition = initial_condition
 		self.robots = self.param.robots 
 
-		# find angles and times to goal 
-		self.theta_noms, self.terminal_times = find_nominal_solns(self.param,self.robots)
+		# Calculate intial actions
+		self = self.update_actions(np.array(initial_condition),1)
 
-		# discretize
-		num_theta = 50
-		self.thetas = 2*np.pi/num_theta * np.arange(num_theta)
-		self.times = np.arange(0,1.5*max(self.terminal_times),self.param.sim_dt) 	# Extend time so that collisions can be calculated
-																					# Our survival time might be longer than it takes for
-																					# us to reach the goal if there were no attacker
-
-		# trajectories
-		self.R_nom = calculate_nominal_trajectories(self.param,self.robots,self.times,self.theta_noms)
-		self.R = calculate_all_trajectories(self.param,self.robots,self.times,self.thetas)
-
-		# intersections
-		self.I = calculate_intersections(self.param,self.robots,self.times,self.R)
-
-		# matching polciies
-		self.matching_policies = calculate_matching_policies(self.param,self.I,self.R)
-
-		# match
-		self.matching = calculate_defender_matching(self.param,self.matching_policies,self.times,self.terminal_times)
-
-	def update_actions(self,state):
+	def update_actions(self,state,recalculate_actions):
 		# update conditions, i.e. capture, new attacker in sensing radius, etc. at each time step
 		# Probably a good spot to check that the goal changing is working
-		return True 
-
-	def eval(self,state):
-
 		# Re-calculate the game to force a closed-loop game
-		if self.update_actions(state):
+		if (recalculate_actions) :
 
 			# Update the robots thing so it knows where to start
 			for ii in range(len(self.robots)) :
@@ -75,11 +51,13 @@ class PanagouPolicy:
 			# discretize
 			num_theta = 50
 			self.thetas = 2*np.pi/num_theta * np.arange(num_theta)
-			self.times = np.arange(0,1.5*max(self.terminal_times),self.param.sim_dt)
+			self.times = np.arange(0,1.5*max(self.terminal_times),self.param.sim_dt)	# Extend time so that collisions can be calculated
+																						# Our survival time might be longer than it takes for
+																						# us to reach the goal if there were no attacker
 
 			# trajectories
-			self.R_nom = calculate_nominal_trajectories(self.param,self.robots,self.times,self.theta_noms)
-			self.R = calculate_all_trajectories(self.param,self.robots,self.times,self.thetas)
+			self.R_nom = calculate_nominal_trajectories(self.param,self.robots,self.times,self.theta_noms)  # Constant acceleration to goal (only needed for plots)
+			self.R = calculate_all_trajectories(self.param,self.robots,self.times,self.thetas)              # Expanding reachable space for each robot
 
 			# intersections
 			self.I = calculate_intersections(self.param,self.robots,self.times,self.R)
@@ -90,10 +68,19 @@ class PanagouPolicy:
 			# match
 			self.matching = calculate_defender_matching(self.param,self.matching_policies,self.times,self.terminal_times)
 
+		return self 
+
+	def eval(self,state):
+
+		# Recalculate reachable set and attacker/defender matching
+		recalculate_actions = 1
+		self = self.update_actions(state,recalculate_actions)
+
 		actions = np.zeros((len(self.robots),2))
 		terminal_times = np.zeros((1,len(self.robots)))
 
 		done = [] 
+		# Calculate robot actions
 		for i_robot,robot in enumerate(self.robots):
 
 			if i_robot not in done: 
@@ -114,16 +101,25 @@ class PanagouPolicy:
 						(i_theta_star,j_theta_star,idx_t_capture,_) = self.matching_policies[i_robot,j_robot]
 
 						# Update the actions with the capture case
-						actions[i_robot,:] = theta_to_u(robot,self.thetas[i_theta_star]) 
-						# I think this is wrong and we should probably get the defender to decide
-						# where he wants to go, rather than taking the solution from the attacker
-						actions[j_robot,:] = theta_to_u(robot,self.thetas[j_theta_star])
+						attacker_action_theta = self.thetas[i_theta_star]
+						defender_action_guess = self.thetas[j_theta_star]
+						actions[i_robot,:] = theta_to_u(robot,attacker_action_theta) 
 
+						# Calculate the best accelerations to minimise the time to intercept the 
+						# attacker based on the attacker's known acceleration direction (and hence trajectory).				
+						if (0) : print(" Isoline intercept theta %6.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, self.times[idx_t_capture]))
+						def_theta,Tend = find_best_intercept( \
+							self.robots[i_robot],self.robots[j_robot],attacker_action_theta,defender_action_guess,self.param.sim_dt)
+						
+						# Convert action into accelX and accelY
+						actions[j_robot,:] = theta_to_u(self.robots[j_robot],def_theta) 
+
+						# Mark j_robot as calculated
 						done.append(j_robot)
 
 						# Update the terminal time for the robots
-						terminal_times[0,i_robot] = self.times[idx_t_capture] 
-						terminal_times[0,j_robot] = self.times[idx_t_capture] 
+						terminal_times[0,i_robot] = Tend
+						terminal_times[0,j_robot] = Tend
 
 
 				elif robot["team"] == "b":   # defenders
@@ -160,18 +156,10 @@ class PanagouPolicy:
 
 		states = [np.array(initial_condition)]
 
-		# Simulation ends either at
-		#	attacker captures (defender victory)
-		#	attacker reaches the goal (attacker victory)
-		if self.terminal_times[0] < self.terminal_times[1] :
-			# Attacker wins, stop at attackers terminal time
-			t_end = self.terminal_times[0]
-		else : 
-			# Defender wins, stop at intersection time
-			# Just stop at the max terminal time, that'll cover our bases
-			t_end = np.max(self.terminal_times)+self.param.sim_dt
+		# Simulation end
+		t_end = np.max(self.terminal_times)+self.param.sim_dt
 
-		t_end = 6
+		#t_end = 5
 		print("t_end = %.2f" % (t_end))
 		times = np.arange(0,t_end,self.param.sim_dt)
 		game_over = np.zeros((len(self.robots),1))
@@ -180,14 +168,6 @@ class PanagouPolicy:
 		for time in times: 
 
 			print("t: %5.2f || " % (time),end='')
-
-			# Change the goal at t = 2
-			'''
-			if (time > 1.5) :
-				self.param.goal = [0.1,0.4,0,0]
-			else :
-				self.param.goal = np.array([0.3,0.1,0,0])   # goalX, goalY, 0, 0
-			'''
 
 			state = np.zeros((len(self.robots),4))
 
@@ -265,7 +245,7 @@ class PanagouPolicy:
 def calculate_matching_policies(param,I,R):
 	# calculate attacker policies (and resulting defender policy) for each possible defender matchup
 	# Policies
-	# 	[ attacker_heading, defender_heading, idx_time, min_distance_to_goal ]
+	# 	[ att_heading_idx, def_heading_idx, idx_time, min_distance_to_goal ]
 	policies = dict()
 	for (ii_robot, jj_robot), intersections in I.items():
 
@@ -287,21 +267,33 @@ def calculate_matching_policies(param,I,R):
 
 def calculate_defender_matching(param,policies,times,terminal_times):
 	# greedy match defenders to attackers, who pick to maximize intersection distance to goal
-	# policies = [ attacker_heading, defender_heading, idx_time, min_distance_to_goal ]
+	# policies = [ att_heading_idx, def_heading_idx, idx_time, min_distance_to_goal ]
 	matching = dict()
 	done = [] 
+
+	# Loop through each attacker
 	for i_robot in param.team_1_idxs: 
 		matching[i_robot] = None
 		max_dist = 0 
+
 		# ii_robot = attacker, jj_robot = defender
 		for (ii_robot,jj_robot), (ii_theta,jj_theta,ii_time,dist_to_goal) in policies.items():
 			# Match the robots up
 			if i_robot == ii_robot and dist_to_goal > max_dist and not jj_robot in done :
-				# Check to see if the defender can make it to the goal first, and if so, this will be a capture			
-				if (terminal_times[jj_robot] < terminal_times[ii_robot]) :
+				t_goal = terminal_times[ii_robot]
+				t_capture = times[ii_time]
+
+				if (t_capture < t_goal) :
+				# Check to see if the time until intercept is less than the time for the attacker to reach the goal,
+				# if so, this would be a capture and we should add it to the matching list
 					matching[ii_robot] = jj_robot
 					done.append(jj_robot)
 					max_dist = dist_to_goal
+
+		#if (matching[i_robot] == None) :
+			# print("No match found!")
+			# Pause when there's no match found for debugging
+	
 	return matching 
 
 def calculate_nominal_trajectories(param,robots,times,theta_noms):
@@ -326,7 +318,7 @@ def calculate_intersections(param,robots,times,R):
 
 	# calculate intersections
 	I = defaultdict(list) 
-
+	
 	# Loop through each attacker
 	for i_robot in param.team_1_idxs:
 
@@ -386,7 +378,8 @@ def calculate_intersections(param,robots,times,R):
 					I[key].append((idx_theta,idx_dist2_store,idx_t_store))
 
 					#print("t_death = %5.2f [ s ]" % (times[idx_t_store]))
-				
+	
+
 	return I 
 
 def calculate_all_trajectories(param,robots,times,thetas):
@@ -456,11 +449,9 @@ def step(robot, x0, U, dt):  # Change to an X and Y acceleration
 	V_new = math.sqrt(Vx_new*Vx_new + Vy_new*Vy_new)
 
 	speed_limit = robot["speed_limit"]
-	#speed_limit = 1000  # Override the speed limit
 
 	# Limit the velocity
 	if (V_new > speed_limit):
-		#print("Limiting Velocity")
 		V_scalar = min((speed_limit / V_new),1.0)
 
 	else:
@@ -528,23 +519,71 @@ def find_nominal_soln(param,robot,state):
 	theta_guess = np.arctan2(param.goal[1]-state[1],param.goal[0]-state[0]) 
 	Tend_guess = 3
 
+	# Solve using the approximate equations to improve the initial guess
 	th_tilde, T_tilde = fsolve(approx_equations, (theta_guess, Tend_guess))
+
+	# Calculate the best solution using the full dynamics
 	th, T =  fsolve(equations, (th_tilde, T_tilde))
 
-	# check quality 
-	times = np.arange(0,T,param.sim_dt)	
-	U = theta_to_u(robot,th)
+	# Make sure the goal was acheived 
+	if (0) :
+		times = np.arange(0,T,param.sim_dt)	
+		U = theta_to_u(robot,th)
+		states = integrate(robot,np.array(robot["x0"]),U, times,param.sim_dt)
 
-	states = integrate(robot,np.array(robot["x0"]),U, times,param.sim_dt)
-
-	if np.linalg.norm(states[-1,0:2] - param.goal[0:2]) > robot["radius"]:
-		# exit('bad nominal solution')
-		print('\tbad nominal solution')
+		if np.linalg.norm(states[-1,0:2] - param.goal[0:2]) > 1.1*robot["radius"]:
+			# exit('bad nominal solution')
+			print('\tbad nominal solution')
+			# Wait here so we can debug what happened
+			a = 1
 	
 	# Print debugging information
 	#print("[ %c ] Theta: %5.2f [ rad ] , Terminal time: %5.2f [ s ]" % (robot["team"], T_tilde, T))
 
 	return th,T
+
+def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_dt) :
+	# Calculates the trajectory to minimum-time-to-intercept for an attacker/defender 
+	# pair when the attacker's trajectory is known.
+
+	def equations(p):
+		def_theta, Tend = p
+		# This should be 10 iterations between now and capture (rather than a fixed dt time)
+		times = np.arange(0,Tend,sim_dt)
+
+		# Convert theta (th) into U = [ accX, accY ]
+		att_U = theta_to_u(att_robot,att_theta)
+		def_U = theta_to_u(def_robot,def_theta)
+
+		# Simulate system
+		att_states = integrate(att_robot,att_robot["x0"],att_U,times,sim_dt)
+		def_states = integrate(def_robot,def_robot["x0"],def_U,times,sim_dt)
+
+		# Extract useful information
+		eqns = (
+			att_states[-1,0] - def_states[-1,0], 
+			att_states[-1,1] - def_states[-1,1], 
+			)
+		return eqns
+
+	def approx_equations(p):
+		def_theta, Tend = p
+		eqns = (
+			(att_robot['x0'][0] + att_robot['x0'][2]*Tend + ((att_robot["acceleration_limit"]*Tend**2)/2)*np.cos(att_theta)) - (def_robot['x0'][0] + def_robot['x0'][2]*Tend + ((def_robot["acceleration_limit"]*Tend**2)/2)*np.cos(def_theta)), 
+			(att_robot['x0'][1] + att_robot['x0'][3]*Tend + ((att_robot["acceleration_limit"]*Tend**2)/2)*np.sin(att_theta)) - (def_robot['x0'][1] + def_robot['x0'][3]*Tend + ((def_robot["acceleration_limit"]*Tend**2)/2)*np.sin(def_theta)),
+			)
+		return eqns
+
+	# Initial conditions for approx equations come from inputs into function
+	# tbh we probably don't need ot use this step and can just use those calcualted before
+	def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, 3))
+	if (0) : print("\t      Approx intercept theta %6.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
+
+	# Solve using the full simulator
+	def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx))
+	if (0) : print("\t       Exact intercept theta %6.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
+
+	return def_theta,Tend
 
 def theta_to_u(robot,theta):
 	return robot["acceleration_limit"]*np.array((np.cos(theta),np.sin(theta)))
@@ -552,19 +591,19 @@ def theta_to_u(robot,theta):
 def main():
 
 	set_ic = False
-	#set_ic = True
+	set_ic = True
 	if set_ic: 
 		print("====\nUsing Fixed Initial Conditions\n====")
 		# make sure this matches the teams match up in the param file
 		initial_condition = np.array( [ \
-			[ 0.210,   0.148,   0.000,  -0.000 ], \
-			[ 0.817,   0.465,   0.000,   0.000 ]  ])
+			[   0.127,   0.578,   0.000,   0.000 ], \
+			[   0.700,   0.800,  -0.000,   0.000 ] ]) 
 
 		df_param = Param()
 		df_param.update(initial_condition=initial_condition)
 
 		# Set the goal
-		df_param.goal = [0.375, 0.375, 0.   , 0.   ]
+		df_param.goal = [0.6, 0.5, 0.   , 0.   ]
 
 	else: 
 		print("====\nUsing Random Initial Conditions\n====")
@@ -574,8 +613,8 @@ def main():
 	print("\n\n====== Initial Conditions =====\n")
 	print("goal: ( %.3f, %.3f )\n" % (df_param.goal[0],df_param.goal[1]))
 	for ii in range(np.size(initial_condition,0)) :
-		print(" [ %7.3f, %7.3f, %7.3f, %7.3f ], \ # [%d]" % \
-			(initial_condition[ii][0],initial_condition[ii][1],initial_condition[ii][2],initial_condition[ii][3],ii))
+		print(" [ %7.3f, %7.3f, %7.3f, %7.3f ], \ " % \
+			(initial_condition[ii][0],initial_condition[ii][1],initial_condition[ii][2],initial_condition[ii][3]))
 
 	print("\n\n====== Panagou Policy =====\n")
 	pp = PanagouPolicy(df_param)

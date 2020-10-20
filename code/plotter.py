@@ -196,6 +196,7 @@ def plot_panagou(R,R_nom,I,states,param,plot_isochrones=True,plot_nominal=True,p
 	ax.set_xlim([param.env_xlim[0],param.env_xlim[1]])
 	ax.set_ylim([param.env_ylim[0],param.env_ylim[1]])
 	ax.grid(True)
+	ax.axis('equal')
 
 	# Add textbox to identify attacker and defender
 	textstr = '\n'.join((r'blue: attacker',r'orange: defender'))
