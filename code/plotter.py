@@ -657,9 +657,10 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 		# append all identical ones (should be # subsamples)
 		conditionals = [] 
+		dataset_values = []
 		dataset_actions = []
 		dataset_weights = []
-		for o_a,o_b,goal,action,weight in zip(o_as,o_bs,goals,actions,weights):
+		for o_a,o_b,goal,value,action,weight in zip(o_as,o_bs,goals,values,actions,weights):
 			if o_a.shape == candidate[0].shape and \
 				o_b.shape == candidate[1].shape and \
 				goal.shape == candidate[2].shape: 
@@ -669,6 +670,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 					(np.linalg.norm(goal - candidate[2]) <= eps):
 
 					conditionals.append((o_a,o_b,goal))
+					dataset_values.append(value)
 					dataset_actions.append(action)
 					dataset_weights.append(weight)
 
@@ -691,6 +693,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# print('dataset_actions',dataset_actions)
 
 		# query model 
+		model_values = []
 		model_actions = [] 
 
 		if df_param.mice_testing_on: 
@@ -716,12 +719,14 @@ def plot_training(df_param,batched_fns,path_to_model):
 					m = mu.numpy()
 					s = torch.sqrt(torch.exp(logvar)).numpy()
 					axs[1][1].add_patch(Ellipse(m[0], width=s[0,0] * 2, height=s[0,1] * 2, alpha=0.5))
+					model_values.append(value.detach().numpy())
 				else:
 					for _ in range(n_samples):
 						value, policy = model(o_a,o_b,goal)
 						model_actions.append(policy.detach().numpy())
 
 		# convert for easy plot
+		model_values = np.array(model_values).squeeze()
 		model_actions = np.array(model_actions).squeeze()
 		dataset_actions = np.array(dataset_actions)
 		
@@ -729,7 +734,13 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# fig: game state encoding  
 
 		# 
-		axs[0][1].set_axis_off()
+		axs[0][1].set_title('value')
+		axs[0][1].hist(model_values, bins=20, range=[0,1],alpha=0.5, label="NN")
+		axs[0][1].hist(dataset_values, bins=20, range=[0,1],alpha=0.5, label="data")
+		axs[0][1].set_xlim([0,1])
+		axs[1][0].set_xlabel('value')
+		axs[1][0].set_ylabel('count')
+		axs[0][1].legend()
 
 		# - self 
 		vx = -1*candidate[2][2]
