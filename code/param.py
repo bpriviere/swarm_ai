@@ -101,6 +101,21 @@ class Param:
 			# },			
 		]
 
+		self.l_desired_game = {
+			# 'Skill_A' : 'a1.pt',
+			# 'Skill_B' : 'b1.pt',
+			'EnvironmentLength' : 1.0,
+			'NumA' : 2,
+			'NumB' : 2,
+		}
+		self.l_initial_curiculum = {
+			'Skill_A' : [None],
+			'Skill_B' : [None],
+			'EnvironmentLength' : [1.0],
+			'NumA' : [1,2],
+			'NumB' : [1,2],
+		}
+
 		self.l_subsample_on = False
 		self.l_num_subsamples = 5
 
@@ -151,8 +166,14 @@ class Param:
 			["Linear", h, 1] 
 		]
 
+		self.l_xi_network_architecture = [
+			["Linear", 2*h + 3, h], 
+			["Linear", h, h],
+			["Linear", h, 1] 
+		]		
+
 		self.l_policy_network_architecture = [
-			["Linear", h, h], 
+			["Linear", 2*h+n, h], 
 			["Linear", h, h],
 			["Linear", h, 2*m] 		
 		]

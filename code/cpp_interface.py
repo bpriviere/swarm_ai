@@ -175,6 +175,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 		param.sim_dt,param.goal,param.rollout_horizon)
 	policy_a = create_cpp_policy(policy_dict_a, 'a')
 	policy_b = create_cpp_policy(policy_dict_b, 'b')
+	valuePredictor = mctscpp.ValuePredictor('ab')
 
 	sim_result = {
 		'param' : param.to_dict(),
@@ -242,6 +243,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 			mctsresult = mctscpp.search(g, gs, \
 				my_policy,
 				other_policies,
+				valuePredictor,
 				mctssettings)
 			gs.depth = depth
 			if mctsresult.success: 
@@ -273,6 +275,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 				mctsresult = mctscpp.search(game_i, gamestate_i, \
 					my_policy,
 					other_policies,
+					valuePredictor,
 					mctssettings)
 
 				if mctsresult.success: 
@@ -342,6 +345,7 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 		param.sim_dt,param.goal,param.rollout_horizon)
 
 	my_policy = create_cpp_policy(param.my_policy_dict, param.training_team)
+	valuePredictor = mctscpp.ValuePredictor('ab')
 
 	other_team = "b" if param.training_team == "a" else "a"
 	other_policies = []
@@ -370,49 +374,12 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 		mctsresult = mctscpp.search(game, game_state, \
 			my_policy,
 			other_policies,
+			valuePredictor,
 			mctssettings)
 		if mctsresult.success: 
 			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
-			# value = mctsresult.expectedReward[0]
-
-			values = []
-			for other_policy_dict in param.other_policy_dicts:
-
-				if param.training_team == "a":
-					path_glas_model_a = param.my_policy_dict["path_glas_model_a"]
-					path_glas_model_b = other_policy_dict["path_glas_model_b"]
-				elif param.training_team == "b": 
-					path_glas_model_b = param.my_policy_dict["path_glas_model_b"]
-					path_glas_model_a = other_policy_dict["path_glas_model_a"]
-
-				if path_glas_model_a is None:
-					policy_dict_a = {
-						'sim_mode': 'RANDOM',
-					}
-				else:
-					policy_dict_a = {
-						'sim_mode': 'GLAS',
-						'path_glas_model' : path_glas_model_a,
-						'deterministic': False,
-					}
-				if path_glas_model_b is None:
-					policy_dict_b = {
-						'sim_mode': 'RANDOM',
-					}
-				else:
-					policy_dict_b = {
-						'sim_mode': 'GLAS',
-						'path_glas_model' : path_glas_model_b,
-						'deterministic': False,
-					}
-
-				param.state = state
-				glas_rollout_sim_result = play_game(param,policy_dict_a,policy_dict_b)
-				values.append(glas_rollout_sim_result["rewards"][-1,0]) # take last one and team 1 reward 
-
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["policy_dists"].append(policy_dist)  
-			sim_result["values"].append(sum(values)/len(values))
 
 		# update status
 		if rank == 0:
@@ -432,6 +399,48 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 
 	if not quiet_on:
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
+
+# def evaluate_value_expert(rank, queue, total, states,param,quiet_on=True):
+
+
+# 			values = []
+# 			for other_policy_dict in param.other_policy_dicts:
+
+# 				if param.training_team == "a":
+# 					path_glas_model_a = param.my_policy_dict["path_glas_model_a"]
+# 					path_glas_model_b = other_policy_dict["path_glas_model_b"]
+# 				elif param.training_team == "b": 
+# 					path_glas_model_b = param.my_policy_dict["path_glas_model_b"]
+# 					path_glas_model_a = other_policy_dict["path_glas_model_a"]
+
+# 				if path_glas_model_a is None:
+# 					policy_dict_a = {
+# 						'sim_mode': 'RANDOM',
+# 					}
+# 				else:
+# 					policy_dict_a = {
+# 						'sim_mode': 'GLAS',
+# 						'path_glas_model' : path_glas_model_a,
+# 						'deterministic': False,
+# 					}
+# 				if path_glas_model_b is None:
+# 					policy_dict_b = {
+# 						'sim_mode': 'RANDOM',
+# 					}
+# 				else:
+# 					policy_dict_b = {
+# 						'sim_mode': 'GLAS',
+# 						'path_glas_model' : path_glas_model_b,
+# 						'deterministic': False,
+# 					}
+
+# 				param.state = state
+# 				glas_rollout_sim_result = play_game(param,policy_dict_a,policy_dict_b)
+# 				values.append(glas_rollout_sim_result["rewards"][-1,0]) # take last one and team 1 reward 
+
+# 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
+# 			sim_result["values"].append(sum(values)/len(values))
+
 
 
 def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):

@@ -608,7 +608,8 @@ def plot_tree_results(sim_result,title=None):
 def plot_training(df_param,batched_fns,path_to_model):
 	import torch 
 	from learning.continuous_emptynet import ContinuousEmptyNet
-	from learning.gaussian_emptynet import GaussianEmptyNet
+	# from learning.gaussian_emptynet import GaussianEmptyNet
+	from learning.policy_emptynet import PolicyEmptyNet
 	from mice import format_data
 
 	# - vis 
@@ -625,19 +626,18 @@ def plot_training(df_param,batched_fns,path_to_model):
 	n_samples = 100
 	eps = 0.01  
 
-	o_as,o_bs,goals,values,actions,weights = [],[],[],[],[],[]
+	o_as,o_bs,goals,actions,weights = [],[],[],[],[]
 	for batched_fn in batched_fns:
-		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_fn,df_param.l_gaussian_on)
+		o_a,o_b,goal,action,weight = dh.read_oa_batch(batched_fn,df_param.l_gaussian_on)
 		o_as.extend(o_a)
 		o_bs.extend(o_b)
 		goals.extend(goal)
-		values.extend(value)
 		actions.extend(action)
 		weights.extend(weight)
 
 	# load models
 	if df_param.l_gaussian_on:
-		model = GaussianEmptyNet(df_param,"cpu")
+		model = PolicyEmptyNet(df_param,"cpu")
 	else:
 		model = ContinuousEmptyNet(df_param,"cpu")
 	model.load_state_dict(torch.load(path_to_model))
@@ -657,10 +657,9 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 		# append all identical ones (should be # subsamples)
 		conditionals = [] 
-		dataset_values = []
 		dataset_actions = []
 		dataset_weights = []
-		for o_a,o_b,goal,value,action,weight in zip(o_as,o_bs,goals,values,actions,weights):
+		for o_a,o_b,goal,action,weight in zip(o_as,o_bs,goals,actions,weights):
 			if o_a.shape == candidate[0].shape and \
 				o_b.shape == candidate[1].shape and \
 				goal.shape == candidate[2].shape: 
@@ -670,7 +669,6 @@ def plot_training(df_param,batched_fns,path_to_model):
 					(np.linalg.norm(goal - candidate[2]) <= eps):
 
 					conditionals.append((o_a,o_b,goal))
-					dataset_values.append(value)
 					dataset_actions.append(action)
 					dataset_weights.append(weight)
 
@@ -693,7 +691,6 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# print('dataset_actions',dataset_actions)
 
 		# query model 
-		model_values = []
 		model_actions = [] 
 
 		if df_param.mice_testing_on: 
@@ -707,7 +704,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 					s = torch.sqrt(torch.exp(logvar)).numpy()
 					axs[1][1].add_patch(Ellipse(m[0], width=s[0,0] * 2, height=s[0,1] * 2, alpha=0.5))
 				else: 
-					value, policy = model(o_a,o_b,goal)
+					policy = model(o_a,o_b,goal)
 					model_actions.append(policy.detach().numpy())
 					
 		else:
@@ -715,18 +712,16 @@ def plot_training(df_param,batched_fns,path_to_model):
 				o_a,o_b,goal = format_data(o_a,o_b,goal)
 				if df_param.l_gaussian_on:
 					with torch.no_grad():
-						value, policy, mu, logvar = model(o_a, o_b, goal, True)
+						_, mu, logvar = model(o_a, o_b, goal, True)
 					m = mu.numpy()
 					s = torch.sqrt(torch.exp(logvar)).numpy()
 					axs[1][1].add_patch(Ellipse(m[0], width=s[0,0] * 2, height=s[0,1] * 2, alpha=0.5))
-					model_values.append(value.detach().numpy())
 				else:
 					for _ in range(n_samples):
-						value, policy = model(o_a,o_b,goal)
+						policy = model(o_a,o_b,goal)
 						model_actions.append(policy.detach().numpy())
 
 		# convert for easy plot
-		model_values = np.array(model_values).squeeze()
 		model_actions = np.array(model_actions).squeeze()
 		dataset_actions = np.array(dataset_actions)
 		
@@ -734,13 +729,13 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# fig: game state encoding  
 
 		# 
-		axs[0][1].set_title('value')
-		axs[0][1].hist(model_values, bins=20, range=[0,1],alpha=0.5, label="NN")
-		axs[0][1].hist(dataset_values, bins=20, range=[0,1],alpha=0.5, label="data")
-		axs[0][1].set_xlim([0,1])
-		axs[1][0].set_xlabel('value')
-		axs[1][0].set_ylabel('count')
-		axs[0][1].legend()
+		# axs[0][1].set_title('value')
+		# axs[0][1].hist(model_values, bins=20, range=[0,1],alpha=0.5, label="NN")
+		# axs[0][1].hist(dataset_values, bins=20, range=[0,1],alpha=0.5, label="data")
+		# axs[0][1].set_xlim([0,1])
+		# axs[1][0].set_xlabel('value')
+		# axs[1][0].set_ylabel('count')
+		# axs[0][1].legend()
 
 		# - self 
 		vx = -1*candidate[2][2]
