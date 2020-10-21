@@ -190,8 +190,11 @@ class Param:
 		self.l_wd = 0 
 		self.l_log_interval = 1
 		self.l_raw_fn = '{DATADIR}raw_team{TEAM}_i{LEARNING_ITER}_numfn{NUM_FILE}'
+		self.l_raw_value_fn = '{DATADIR}raw_value_i{LEARNING_ITER}_numfn{NUM_FILE}'
 		self.l_labelled_fn = '{DATADIR}labelled_team{TEAM}_i{LEARNING_ITER}_numa{NUM_A}_numb{NUM_B}_numfn{NUM_FILE}.npy'
+		self.l_labelled_value_fn = '{DATADIR}labelled_value_i{LEARNING_ITER}_numa{NUM_A}_numb{NUM_B}_numfn{NUM_FILE}.npy'
 		self.l_model_fn = '{DATADIR}{TEAM}{ITER}.pt'
+		self.l_value_model_fn = '{DATADIR}v{ITER}.pt'
 
 		# path stuff
 		self.path_current_results = '../current/results/'

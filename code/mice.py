@@ -28,7 +28,8 @@ from param import Param
 # from learning.continuous_emptynet import ContinuousEmptyNet
 # from learning.gaussian_emptynet import GaussianEmptyNet
 from learning.policy_emptynet import PolicyEmptyNet
-from learning_interface import format_data, global_to_local 
+from learning.value_emptynet import ValueEmptyNet
+from learning_interface import format_data, global_to_local, global_to_value 
 
 def my_loss(target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on):
 	# value \& policy network : https://www.nature.com/articles/nature24270
@@ -89,6 +90,29 @@ def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch
 
 	return epoch_loss
 
+def train_value(model,optimizer,loader,scheduler=None):
+	epoch_loss = 0
+	loss_fnc = nn.MSELoss()
+	for step, (v_a,v_b,n_a,n_b,n_rg,target_value) in enumerate(loader):
+		value = model(v_a,v_b,n_a,n_b,n_rg)
+		loss = loss_fnc(target_value,value)
+		optimizer.zero_grad()
+		loss.backward()
+		optimizer.step()
+		if scheduler is not None:
+			scheduler.step(epoch + step/len(loader))
+		epoch_loss += float(loss)
+	return epoch_loss	
+
+def test_value(model,loader):
+	epoch_loss = 0
+	loss_fnc = nn.MSELoss()
+	with torch.no_grad():
+		for v_a,v_b,n_a,n_b,n_rg,target_value in loader:
+			value = model(v_a,v_b,n_a,n_b,n_rg)
+			epoch_loss += float(loss_fnc(target_value,value))
+
+	return epoch_loss
 
 def test(model,loader,l_subsample_on,l_gaussian_on):
 	epoch_loss = 0
@@ -309,6 +333,58 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 	return oa_pairs_by_size
 
 
+def make_labelled_value_data(sim_result,sv_pairs_by_size):
+
+	param = load_param(sim_result["param"])
+	states = sim_result["states"] # nt x nrobots x nstate_per_robot
+	values = sim_result["values"] 
+	n_rgs = sim_result["n_rgs"] 
+	n_a = len(param.team_1_idxs)
+	n_b = len(param.team_2_idxs)
+	
+	for timestep,(state,n_rg,value) in enumerate(zip(states,n_rgs,values)):
+		v_a,v_b = global_to_value(param,state) 
+		key = (len(v_a),len(v_b))
+		sv_pairs_by_size[key].append((v_a,v_b,n_a,n_b,n_rg,value)) 
+
+	return sv_pairs_by_size
+
+def write_labelled_value_data(df_param,sv_pairs_by_size,i):
+
+	for (num_a, num_b), sv_pairs in sv_pairs_by_size.items():
+		batch_num = 0 
+		batched_dataset = [] 
+
+		random.shuffle(sv_pairs)
+
+		for (v_a,v_b,n_a,n_b,n_rg,value) in sv_pairs:
+			data = np.concatenate((np.array(v_a).flatten(),\
+				np.array(v_b).flatten(),np.array(n_a).flatten(),\
+				np.array(n_b).flatten(),np.array(n_rg).flatten(),\
+				np.array(value).flatten()))
+
+			batched_dataset.append(data)
+			if len(batched_dataset) >= df_param.l_batch_size:
+				batch_fn = df_param.l_labelled_value_fn.format(
+					DATADIR=df_param.path_current_data,\
+					LEARNING_ITER=i,
+					NUM_A=num_a,
+					NUM_B=num_b,
+					NUM_FILE=batch_num)
+				dh.write_sv_batch(batched_dataset,batch_fn) 
+				batch_num += 1 
+				batched_dataset = [] 
+
+		# last batch 
+		if len(batched_dataset) > 0:
+			batch_fn = df_param.l_labelled_value_fn.format(\
+				DATADIR=df_param.path_current_data,\
+				LEARNING_ITER=i,
+				NUM_A=num_a,
+				NUM_B=num_b,
+				NUM_FILE=batch_num)
+			dh.write_sv_batch(batched_dataset,batch_fn) 
+
 def write_labelled_data(df_param,oa_pairs_by_size,i):
 
 	for (team, num_a, num_b), oa_pairs in oa_pairs_by_size.items():
@@ -385,6 +461,36 @@ def make_loaders(df_param,batched_files):
 			test_dataset_size += goal.shape[0]
 
 	return train_loader,test_loader, train_dataset_size, test_dataset_size
+
+def make_loaders_value(df_param,batched_files):
+
+	train_loader = [] # lst of batches 
+	test_loader = [] 
+	train_dataset_size, test_dataset_size = 0,0
+	num_test_batches = math.ceil(len(batched_files) * (1 - df_param.l_test_train_ratio))
+	num_train_batches = len(batched_files) - num_test_batches
+	random.shuffle(batched_files)
+	for k, batched_file in enumerate(batched_files):
+
+		v_a,v_b,n_a,n_b,n_rg,value = dh.read_sv_batch(batched_file)
+
+		data = [
+			torch.from_numpy(v_a).float().to(df_param.device),
+			torch.from_numpy(v_b).float().to(df_param.device),
+			torch.from_numpy(n_a).float().to(df_param.device).unsqueeze(1),
+			torch.from_numpy(n_b).float().to(df_param.device).unsqueeze(1),
+			torch.from_numpy(n_rg).float().to(df_param.device).unsqueeze(1),
+			torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
+			]
+		
+		if k < num_train_batches:
+			train_loader.append(data)
+			train_dataset_size += value.shape[0]
+		else:
+			test_loader.append(data)
+			test_dataset_size += value.shape[0]
+
+	return train_loader,test_loader, train_dataset_size, test_dataset_size	
 
 def train_model_parallel(rank, world_size, df_param, batched_files, training_team, model_fn, warmstart_fn,parallel=True):
 
@@ -527,6 +633,46 @@ def train_model(df_param,batched_files,training_team,model_fn,warmstart_fn):
 	else:
 		train_model_parallel(0, 1, df_param,batched_files,training_team,model_fn,warmstart_fn,False)
 
+def train_model_value(df_param,batched_files,model_fn):
+	
+	print('training model... {}'.format(model_fn))
+
+	train_loader,test_loader,train_dataset_size,test_dataset_size = make_loaders_value(df_param,batched_files)
+
+	print('train dataset size: ', train_dataset_size)
+	print('test dataset size: ', test_dataset_size)
+
+	print('device: ',df_param.device)
+	model = ValueEmptyNet(df_param,df_param.device)
+	optimizer = torch.optim.Adam(model.parameters(), lr=df_param.l_lr, weight_decay=df_param.l_wd)
+	
+	# train 
+	losses = []
+	with open(model_fn + ".csv", 'w') as log_file:
+		log_file.write("time,epoch,train_loss,test_loss\n")
+		start_time = time.time()
+		best_test_loss = np.Inf
+		# scheduler = ReduceLROnPlateau(optimizer, 'min')
+		pbar = tqdm(range(1,df_param.l_n_epoch+1))
+		for epoch in pbar:
+
+			random.shuffle(train_loader)
+			random.shuffle(test_loader)
+
+			train_epoch_loss = train_value(model,optimizer,train_loader)
+			test_epoch_loss = test_value(model,test_loader)
+			# scheduler.step(test_epoch_loss)
+			losses.append((train_epoch_loss,test_epoch_loss))
+			if epoch%df_param.l_log_interval==0:
+				if test_epoch_loss < best_test_loss:
+					best_test_loss = test_epoch_loss
+					pbar.set_description("Best Test Loss: {:.5f}".format(best_test_loss))
+					torch.save(model.to('cpu').state_dict(), model_fn)
+					model.to(df_param.device)
+			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
+
+	print('training model complete for {}'.format(model_fn))
+
 
 def load_param(some_dict):
 	param = Param()
@@ -537,6 +683,32 @@ def evaluate_expert_wrapper(arg):
 	# When using multiprocessing, load cpp_interface per process
 	from cpp_interface import evaluate_expert
 	evaluate_expert(*arg)
+
+def evaluate_expert_value_wrapper(arg):
+	# When using multiprocessing, load cpp_interface per process
+	from cpp_interface import evaluate_expert_value
+	evaluate_expert_value(*arg)	
+
+def make_dataset_value(states,params,df_param,policy_fn_a,policy_fn_b):
+
+	total = sum([len(states_per_file) for states_per_file in states])
+	if not df_param.l_parallel_on:
+	# if True:
+		from cpp_interface import evaluate_expert_value
+		for states_per_file, param in zip(states, params): 
+			evaluate_expert_value(0, Queue(), total, states_per_file, param, policy_fn_a, policy_fn_b, quiet_on=False)
+	else:
+		ncpu = mp.cpu_count()
+		print('ncpu: ', ncpu)
+		num_workers = min(ncpu-1, len(params))
+		with mp.Pool(num_workers) as p:
+			manager = mp.Manager()
+			queue = manager.Queue()
+			args = list(zip(itertools.count(), itertools.repeat(queue), itertools.repeat(total), \
+				states, params, itertools.repeat(policy_fn_a), itertools.repeat(policy_fn_b)))
+			for _ in p.imap_unordered(evaluate_expert_value_wrapper, args):
+				pass
+
 
 def make_dataset(states,params,df_param,testing=None):
 	print('making dataset...')
@@ -585,9 +757,6 @@ def make_dataset(states,params,df_param,testing=None):
 		print('param.my_policy_dict: ',param.my_policy_dict)
 		print('param.other_policy_dicts: ',param.other_policy_dicts)
 
-
-		# param.policy_dict["sim_mode"] = "MCTS" 
-
 	total = sum([len(states_per_file) for states_per_file in states])
 	if not df_param.l_parallel_on:
 		from cpp_interface import evaluate_expert
@@ -614,6 +783,23 @@ def make_dataset(states,params,df_param,testing=None):
 					pass
 			# p.starmap(evaluate_expert, states, params)
 			# p.starmap(evaluate_expert, list(zip(states, params)))
+
+def make_labelled_dataset_value(df_param,i):
+	print('making labelled value data...')
+	sim_result_fns = df_param.l_raw_value_fn.format(\
+		DATADIR=df_param.path_current_data,
+		LEARNING_ITER=i,
+		NUM_FILE='**')
+
+	sv_pairs_by_size = defaultdict(list)
+	for sim_result_fn in tqdm(glob.glob(sim_result_fns+'**')):
+		sim_result = dh.load_sim_result(sim_result_fn)
+		sv_pairs_by_size = make_labelled_value_data(sim_result,sv_pairs_by_size)
+
+	# make actual batches and write to file 
+	write_labelled_value_data(df_param,sv_pairs_by_size,i)
+	print('labelling value data completed.')
+	print('value dataset completed.')
 
 def make_labelled_dataset(df_param,i):
 
@@ -661,6 +847,11 @@ def get_params(df_param,training_team,i,curriculum):
 		param.dataset_fn = df_param.l_raw_fn.format(
 			DATADIR=df_param.path_current_data,
 			TEAM=training_team,\
+			LEARNING_ITER=i,
+			NUM_FILE=trial+start)
+
+		param.value_dataset_fn = df_param.l_raw_value_fn.format(
+			DATADIR=df_param.path_current_data,
 			LEARNING_ITER=i,
 			NUM_FILE=trial+start)
 
@@ -836,16 +1027,40 @@ if __name__ == '__main__':
 					plotter.open_figs('plots/model.pdf')
 					exit()
 
-			# value training 
-			# params = get_params(df_param,training_team,i,curriculum)
+			# value
+			print('k: {}, i: {}, value'.format(k,i)) 
 
-			# if df_param.l_mode == "IL":
-			# 	states = get_uniform_samples(params)
-			# else: 
-			# 	states = get_self_play_samples(params)
+			# get initial state distribution 
+			params = get_params(df_param,training_team,i,curriculum)
+
+			if df_param.l_mode == "IL":
+				states = get_uniform_samples(params)
+			else: 
+				states = get_self_play_samples(params)
 			
-			# make_dataset(states,params,df_param,testing=testing)
+			# make labelled data 
+			policy_fn_a = df_param.l_model_fn.format(\
+						DATADIR=df_param.path_current_models,\
+						TEAM="a",\
+						ITER=i+1)
+			policy_fn_b = df_param.l_model_fn.format(\
+						DATADIR=df_param.path_current_models,\
+						TEAM="b",\
+						ITER=i+1)
+			make_dataset_value(states,params,df_param,policy_fn_a,policy_fn_b)
+			make_labelled_dataset_value(df_param,i)
 
+			# train value 
+			batched_fns = glob.glob(df_param.l_labelled_value_fn.format(\
+						DATADIR=df_param.path_current_data,\
+						LEARNING_ITER=i,\
+						NUM_A='**',\
+						NUM_B='**',\
+						NUM_FILE='**'))
+			model_fn = df_param.l_value_model_fn.format(\
+						DATADIR=df_param.path_current_models,\
+						ITER=i+1)
+			train_model_value(df_param,batched_fns,model_fn)
 
 			i = i + 1 
 

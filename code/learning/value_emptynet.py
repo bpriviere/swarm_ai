@@ -43,7 +43,6 @@ class ValueEmptyNet(nn.Module):
 		self.device = device
 		self.model_team_a.to(device)
 		self.model_team_b.to(device)
-		self.psi.to(device)
 		self.value.to(device)
 		return super().to(device)
 
@@ -54,4 +53,5 @@ class ValueEmptyNet(nn.Module):
 
 		y = torch.cat((output_rho_team_a,output_rho_team_b,num_a,num_b,num_rg),1)
 		value = self.value(y)
+		value = (F.tanh(value)+1)/2 
 		return value

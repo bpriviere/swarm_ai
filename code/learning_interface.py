@@ -30,6 +30,29 @@ def global_to_local(states,param,idx):
 
 	return np.array(o_a),np.array(o_b),np.array(relative_goal)
 
+def global_to_value(param,state): 
+
+	# v_a = {s^j - g}
+	# v_b = {s^j - g}
+	# num-attackers, num-reached-goal, num-defenders
+
+	n_robots, n_state_dim = state.shape
+
+	goal = np.array([param.goal[0],param.goal[1],0,0])
+
+	v_a = []
+	v_b = [] 
+
+	for idx_j in range(n_robots):
+		if not np.isnan(state[idx_j,:]).any(): 
+			if idx_j in param.team_1_idxs:  
+				# v_a.append(state[idx_j,:] - goal)
+				v_a.append(goal - state[idx_j,:])
+			elif idx_j in param.team_2_idxs:
+				# v_b.append(state[idx_j,:] - goal)
+				v_b.append(goal - state[idx_j,:])
+
+	return np.array(v_a),np.array(v_b)
 
 def local_to_global(param,o_a,o_b,relative_goal,team):
 
