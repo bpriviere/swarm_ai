@@ -129,3 +129,27 @@ def format_data(o_a,o_b,goal):
 	goal = torch.from_numpy(goal).float()
 
 	return o_a,o_b,goal
+
+def format_data_value(v_a,v_b,n_a,n_b,n_rg):
+	# input: [num_a/b, dim_state_a/b] np array 
+	# output: 1 x something torch float tensor
+
+	v_a = np.array(v_a,ndmin=2)
+	v_b = np.array(v_b,ndmin=2)
+	n_a = np.array(n_a,ndmin=2)
+	n_b = np.array(n_b,ndmin=2)
+	n_rg = np.array(n_rg,ndmin=2)
+
+	# reshape if more than one element in set
+	if v_a.shape[0] > 1: 
+		v_a = np.reshape(v_a,(1,np.size(v_a)))
+	if v_b.shape[0] > 1: 
+		v_b = np.reshape(v_b,(1,np.size(v_b)))
+
+	v_a = torch.from_numpy(v_a).float() 
+	v_b = torch.from_numpy(v_b).float()
+	n_a = torch.from_numpy(n_a).float()
+	n_b = torch.from_numpy(n_b).float()
+	n_rg = torch.from_numpy(n_rg).float()
+
+	return v_a,v_b,n_a,n_b,n_rg

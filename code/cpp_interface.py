@@ -61,36 +61,33 @@ def create_cpp_policy(policy_dict, team):
 	policy.beta2 = 0.0
 	return policy
 
-def create_cpp_value():
-	print('todo')
-	exit()
-	pass 
+def create_cpp_value(file):
+	value = mctscpp.ValuePredictor('None')
+	if file is not None: 
+		loadValue(value,file)
+	return value 
 
-# def loadGLAS(glas, file):
-# 	state_dict = torch.load(file)
-
-# 	loadFeedForwardNNWeights(glas.deepSetA.phi, state_dict, "model_team_a.phi")
-# 	loadFeedForwardNNWeights(glas.deepSetA.rho, state_dict, "model_team_a.rho")
-# 	loadFeedForwardNNWeights(glas.deepSetB.phi, state_dict, "model_team_b.phi")
-# 	loadFeedForwardNNWeights(glas.deepSetB.rho, state_dict, "model_team_b.rho")
-# 	loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
-# 	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
-# 	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
-# 	loadFeedForwardNNWeights(glas.value, state_dict, "value")
-# 	loadFeedForwardNNWeights(glas.policy, state_dict, "policy")
-
-# 	return glas
-
-def loadPolicy(glas, file):
+def loadValue(value,file):
 	state_dict = torch.load(file)
 
-	loadFeedForwardNNWeights(glas.deepSetA.phi, state_dict, "model_team_a.phi")
-	loadFeedForwardNNWeights(glas.deepSetA.rho, state_dict, "model_team_a.rho")
-	loadFeedForwardNNWeights(glas.deepSetB.phi, state_dict, "model_team_b.phi")
-	loadFeedForwardNNWeights(glas.deepSetB.rho, state_dict, "model_team_b.rho")
-	loadFeedForwardNNWeights(glas.policy, state_dict, "policy")
+	loadFeedForwardNNWeights(value.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(value.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(value.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(value.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(value.value, state_dict, "value")
 
-	return glas	
+	return value 
+
+def loadPolicy(policy, file):
+	state_dict = torch.load(file)
+
+	loadFeedForwardNNWeights(policy.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(policy.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(policy.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(policy.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(policy.policy, state_dict, "policy")
+
+	return policy	
 
 def loadFeedForwardNNWeights(ff, state_dict, name):
 	l = 0
@@ -191,7 +188,8 @@ def play_game(param,policy_dict_a,policy_dict_b):
 		param.sim_dt,param.goal,param.rollout_horizon)
 	policy_a = create_cpp_policy(policy_dict_a, 'a')
 	policy_b = create_cpp_policy(policy_dict_b, 'b')
-	valuePredictor = mctscpp.ValuePredictor('ab')
+
+	valuePredictor = create_cpp_value('../current/models/v1.pt')
 
 	sim_result = {
 		'param' : param.to_dict(),

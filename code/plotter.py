@@ -413,61 +413,36 @@ def plot_tree_results(sim_result,title=None):
 	ax = axs[0,1] 
 	ax.grid(True)
 	ax.set_title('Value Function')
-	ax.plot(times,rewards[:,0],color='black',alpha=0.75)
+	ax.plot(times,rewards[:,0],color='black',alpha=0.75,label='truth')
 	ax.set_ylim([0,1])
 
-	model_fn_a = None
-	if "path_glas_model_a" in sim_result["param"]["policy_dict_a"]:
-		model_fn_a = sim_result["param"]["policy_dict_a"]["path_glas_model_a"]
-	model_fn_b = None
-	if "path_glas_model_b" in sim_result["param"]["policy_dict_b"]:
-		model_fn_b = sim_result["param"]["policy_dict_b"]["path_glas_model_b"]
+	path_value_fnc = None
+	if "path_value_fnc" in sim_result["param"]["policy_dict_a"]: 
+		path_value_fnc = sim_result["param"]["policy_dict_a"]["path_value_fnc"]
 
-	if model_fn_a is not None or model_fn_b is not None: 
+	if path_value_fnc is not None: 
 
-		from learning.continuous_emptynet import ContinuousEmptyNet
-		from learning.gaussian_emptynet import GaussianEmptyNet
-		from learning_interface import format_data, global_to_local 
+		# from learning.continuous_emptynet import ContinuousEmptyNet
+		from learning.value_emptynet import ValueEmptyNet
+		from learning_interface import format_data_value, global_to_value 
 		from param import Param 
 		import torch 
 
 		param_obj = Param()
 		param_obj.from_dict(sim_result["param"])
 
-		if sim_result["param"]["l_gaussian_on"]: 
-			model_a = GaussianEmptyNet(param_obj,"cpu")
-			model_b = GaussianEmptyNet(param_obj,"cpu")
-		else: 
-			model_a = ContinuousEmptyNet(param_obj,"cpu")
-			model_b = ContinuousEmptyNet(param_obj,"cpu")
+		model = ValueEmptyNet(param_obj,"cpu")
 
-		if not model_fn_a is None:
-			model_a.load_state_dict(torch.load(model_fn_a))
-		if not model_fn_b is None:
-			model_b.load_state_dict(torch.load(model_fn_b))
-
-		for i in range(num_nodes):
-			if model_fn_a is None and i in team_1_idxs:
-				continue
-			elif model_fn_b is None and i not in team_1_idxs: 
-				continue 
-			else: 
-
-				values = []
-				ts = []
-				for k, t in enumerate(times):
-					if np.isnan(states[k,i,:]).any(): # non active robot 
-						continue
-					o_a,o_b,goal = global_to_local(states[k,:,:],param_obj,i)
-					o_a,o_b,goal = format_data(o_a,o_b,goal)
-					if i in team_1_idxs and not model_fn_a is None:
-						value,action = model_a(o_a,o_b,goal)
-					elif not model_fn_b is None: 
-						value,action = model_b(o_a,o_b,goal)
-					values.append(value)
-					ts.append(t)
-
-				ax.plot(ts,values,color=colors[i])
+		values = [] 
+		n_a = len(param_obj.team_1_idxs)
+		n_b = len(param_obj.team_2_idxs)
+		for k,(t,n_rg) in enumerate(zip(times,sim_result["n_rgs"])):
+			v_a,v_b = global_to_value(param_obj,states[k,:,:])
+			v_a,v_b,n_a,n_b,n_rg = format_data_value(v_a,v_b,n_a,n_b,n_rg)
+			value = model(v_a,v_b,n_a,n_b,n_rg)
+			values.append(value)
+		ax.plot(times,values,color='green',label='learned') 
+		ax.legend()
 
 	# time varying velocity
 	ax = axs[1,0]
