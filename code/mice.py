@@ -201,6 +201,23 @@ def get_self_play_samples(params):
 								TEAM="a",\
 								ITER=skill_a)
 
+			elif param.training_team == "v":
+
+				if i == 0:
+					path_glas_model_a = None
+					path_glas_model_b = None 
+
+				else: 
+					path_glas_model_a = param.l_model_fn.format(\
+								DATADIR=param.path_current_models,\
+								TEAM="a",\
+								ITER=param.i)
+
+					path_glas_model_b = param.l_model_fn.format(\
+								DATADIR=param.path_current_models,\
+								TEAM="b",\
+								ITER=param.i)
+
 		if i > 0:
 			path_value_fnc = param.l_value_model_fn.format(\
 								DATADIR=param.path_current_models,\
@@ -712,6 +729,19 @@ def evaluate_expert_value_wrapper(arg):
 
 def make_dataset_value(states,params,df_param,policy_fn_a,policy_fn_b):
 
+	policy_dict_a = {
+			'sim_mode': 'GLAS',
+			'path_glas_model' : policy_fn_a,
+			'deterministic': False,
+		}
+	policy_dict_b = {
+			'sim_mode': 'GLAS',
+			'path_glas_model' : policy_fn_b,
+			'deterministic': False,
+		}	
+
+	print('evaluate_expert_value \n policy_dict_a: {} \n policy_dict_b: {}'.format(policy_dict_a,policy_dict_b))
+	
 	total = sum([len(states_per_file) for states_per_file in states])
 	if not df_param.l_parallel_on:
 	# if True:
@@ -898,7 +928,7 @@ def format_dir(df_param):
 
 def sample_curriculum(curriculum):
 
-	mode = "uniform"
+	mode = "special"
 
 	if mode == "naive": 
 		# 'naive' curriculum learning 
@@ -914,6 +944,13 @@ def sample_curriculum(curriculum):
 		skill_a = random.choice(curriculum["Skill_A"])
 		skill_b = random.choice(curriculum["Skill_B"])
 		env_l = random.choice(curriculum["EnvironmentLength"])
+
+	elif mode == "special":
+		num_a = random.choice(curriculum["NumA"])
+		num_b = random.choice(curriculum["NumB"])
+		skill_a = curriculum["Skill_A"][-1]
+		skill_b = curriculum["Skill_B"][-1]
+		env_l = random.choice(curriculum["EnvironmentLength"])		
 
 	robot_team_composition = {
 		'a': {'standard_robot':num_a,'evasive_robot':0},
@@ -945,10 +982,10 @@ def incrementCurriculum(df_param,curriculum,desired_game):
 			curriculum["NumA"].append(curriculum["NumA"][-1] + 1)
 		if not desired_game["NumB"] in curriculum["NumB"]: 
 			curriculum["NumB"].append(curriculum["NumB"][-1] + 1)
-
-		curriculum["Skill_A"] = [len(curriculum["Skill_A"])]
-		curriculum["Skill_B"] = [len(curriculum["Skill_B"])]
-
+		if not desired_game["Skill_A"] in curriculum["Skill_A"]: 
+			curriculum["Skill_A"].append(len(curriculum["Skill_A"]))
+		if not desired_game["Skill_B"] in curriculum["Skill_B"]: 
+			curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
 		return curriculum , done 
 
 if __name__ == '__main__':
@@ -1052,7 +1089,7 @@ if __name__ == '__main__':
 			print('k: {}, i: {}, value'.format(k,i)) 
 
 			# get initial state distribution 
-			params = get_params(df_param,training_team,i,curriculum)
+			params = get_params(df_param,"v",i,curriculum)
 
 			if df_param.l_mode == "IL":
 				states = get_uniform_samples(params)

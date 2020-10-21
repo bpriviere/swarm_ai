@@ -103,8 +103,8 @@ class Param:
 		]
 
 		self.l_desired_game = {
-			# 'Skill_A' : 'a1.pt',
-			# 'Skill_B' : 'b1.pt',
+			'Skill_A' : 2, #'a1.pt',
+			'Skill_B' : 2, #'b1.pt',
 			'EnvironmentLength' : 1.0,
 			'NumA' : 2,
 			'NumB' : 2,
