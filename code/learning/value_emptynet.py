@@ -53,5 +53,5 @@ class ValueEmptyNet(nn.Module):
 
 		y = torch.cat((output_rho_team_a,output_rho_team_b,num_a,num_b,num_rg),1)
 		value = self.value(y)
-		value = (F.tanh(value)+1)/2 
+		value = (torch.tanh(value)+1)/2 
 		return value
