@@ -283,7 +283,7 @@ def calculate_defender_matching(param,policies,times,terminal_times):
 				t_goal = terminal_times[ii_robot]
 				t_capture = times[ii_time]
 
-				if (t_capture < t_goal) :
+				if (t_capture < t_goal+1.0) : # Chase the attacker if there's a chance we might catch him
 				# Check to see if the time until intercept is less than the time for the attacker to reach the goal,
 				# if so, this would be a capture and we should add it to the matching list
 					matching[ii_robot] = jj_robot
