@@ -413,61 +413,36 @@ def plot_tree_results(sim_result,title=None):
 	ax = axs[0,1] 
 	ax.grid(True)
 	ax.set_title('Value Function')
-	ax.plot(times,rewards[:,0],color='black',alpha=0.75)
+	ax.plot(times,rewards[:,0],color='black',alpha=0.75,label='truth')
 	ax.set_ylim([0,1])
 
-	model_fn_a = None
-	if "path_glas_model_a" in sim_result["param"]["policy_dict_a"]:
-		model_fn_a = sim_result["param"]["policy_dict_a"]["path_glas_model_a"]
-	model_fn_b = None
-	if "path_glas_model_b" in sim_result["param"]["policy_dict_b"]:
-		model_fn_b = sim_result["param"]["policy_dict_b"]["path_glas_model_b"]
+	path_value_fnc = None
+	if "path_value_fnc" in sim_result["param"]["policy_dict_a"]: 
+		path_value_fnc = sim_result["param"]["policy_dict_a"]["path_value_fnc"]
 
-	if model_fn_a is not None or model_fn_b is not None: 
+	if path_value_fnc is not None: 
 
-		from learning.continuous_emptynet import ContinuousEmptyNet
-		from learning.gaussian_emptynet import GaussianEmptyNet
-		from learning_interface import format_data, global_to_local 
+		# from learning.continuous_emptynet import ContinuousEmptyNet
+		from learning.value_emptynet import ValueEmptyNet
+		from learning_interface import format_data_value, global_to_value 
 		from param import Param 
 		import torch 
 
 		param_obj = Param()
 		param_obj.from_dict(sim_result["param"])
 
-		if sim_result["param"]["l_gaussian_on"]: 
-			model_a = GaussianEmptyNet(param_obj,"cpu")
-			model_b = GaussianEmptyNet(param_obj,"cpu")
-		else: 
-			model_a = ContinuousEmptyNet(param_obj,"cpu")
-			model_b = ContinuousEmptyNet(param_obj,"cpu")
+		model = ValueEmptyNet(param_obj,"cpu")
 
-		if not model_fn_a is None:
-			model_a.load_state_dict(torch.load(model_fn_a))
-		if not model_fn_b is None:
-			model_b.load_state_dict(torch.load(model_fn_b))
-
-		for i in range(num_nodes):
-			if model_fn_a is None and i in team_1_idxs:
-				continue
-			elif model_fn_b is None and i not in team_1_idxs: 
-				continue 
-			else: 
-
-				values = []
-				ts = []
-				for k, t in enumerate(times):
-					if np.isnan(states[k,i,:]).any(): # non active robot 
-						continue
-					o_a,o_b,goal = global_to_local(states[k,:,:],param_obj,i)
-					o_a,o_b,goal = format_data(o_a,o_b,goal)
-					if i in team_1_idxs and not model_fn_a is None:
-						value,action = model_a(o_a,o_b,goal)
-					elif not model_fn_b is None: 
-						value,action = model_b(o_a,o_b,goal)
-					values.append(value)
-					ts.append(t)
-
-				ax.plot(ts,values,color=colors[i])
+		values = [] 
+		n_a = len(param_obj.team_1_idxs)
+		n_b = len(param_obj.team_2_idxs)
+		for k,(t,n_rg) in enumerate(zip(times,sim_result["n_rgs"])):
+			v_a,v_b = global_to_value(param_obj,states[k,:,:])
+			v_a,v_b,n_a,n_b,n_rg = format_data_value(v_a,v_b,n_a,n_b,n_rg)
+			value = model(v_a,v_b,n_a,n_b,n_rg)
+			values.append(value)
+		ax.plot(times,values,color='green',label='learned') 
+		ax.legend()
 
 	# time varying velocity
 	ax = axs[1,0]
@@ -608,7 +583,8 @@ def plot_tree_results(sim_result,title=None):
 def plot_training(df_param,batched_fns,path_to_model):
 	import torch 
 	from learning.continuous_emptynet import ContinuousEmptyNet
-	from learning.gaussian_emptynet import GaussianEmptyNet
+	# from learning.gaussian_emptynet import GaussianEmptyNet
+	from learning.policy_emptynet import PolicyEmptyNet
 	from mice import format_data
 
 	# - vis 
@@ -625,19 +601,18 @@ def plot_training(df_param,batched_fns,path_to_model):
 	n_samples = 100
 	eps = 0.01  
 
-	o_as,o_bs,goals,values,actions,weights = [],[],[],[],[],[]
+	o_as,o_bs,goals,actions,weights = [],[],[],[],[]
 	for batched_fn in batched_fns:
-		o_a,o_b,goal,value,action,weight = dh.read_oa_batch(batched_fn,df_param.l_gaussian_on)
+		o_a,o_b,goal,action,weight = dh.read_oa_batch(batched_fn,df_param.l_gaussian_on)
 		o_as.extend(o_a)
 		o_bs.extend(o_b)
 		goals.extend(goal)
-		values.extend(value)
 		actions.extend(action)
 		weights.extend(weight)
 
 	# load models
 	if df_param.l_gaussian_on:
-		model = GaussianEmptyNet(df_param,"cpu")
+		model = PolicyEmptyNet(df_param,"cpu")
 	else:
 		model = ContinuousEmptyNet(df_param,"cpu")
 	model.load_state_dict(torch.load(path_to_model))
@@ -657,10 +632,9 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 		# append all identical ones (should be # subsamples)
 		conditionals = [] 
-		dataset_values = []
 		dataset_actions = []
 		dataset_weights = []
-		for o_a,o_b,goal,value,action,weight in zip(o_as,o_bs,goals,values,actions,weights):
+		for o_a,o_b,goal,action,weight in zip(o_as,o_bs,goals,actions,weights):
 			if o_a.shape == candidate[0].shape and \
 				o_b.shape == candidate[1].shape and \
 				goal.shape == candidate[2].shape: 
@@ -670,7 +644,6 @@ def plot_training(df_param,batched_fns,path_to_model):
 					(np.linalg.norm(goal - candidate[2]) <= eps):
 
 					conditionals.append((o_a,o_b,goal))
-					dataset_values.append(value)
 					dataset_actions.append(action)
 					dataset_weights.append(weight)
 
@@ -693,7 +666,6 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# print('dataset_actions',dataset_actions)
 
 		# query model 
-		model_values = []
 		model_actions = [] 
 
 		if df_param.mice_testing_on: 
@@ -707,7 +679,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 					s = torch.sqrt(torch.exp(logvar)).numpy()
 					axs[1][1].add_patch(Ellipse(m[0], width=s[0,0] * 2, height=s[0,1] * 2, alpha=0.5))
 				else: 
-					value, policy = model(o_a,o_b,goal)
+					policy = model(o_a,o_b,goal)
 					model_actions.append(policy.detach().numpy())
 					
 		else:
@@ -715,18 +687,16 @@ def plot_training(df_param,batched_fns,path_to_model):
 				o_a,o_b,goal = format_data(o_a,o_b,goal)
 				if df_param.l_gaussian_on:
 					with torch.no_grad():
-						value, policy, mu, logvar = model(o_a, o_b, goal, True)
+						_, mu, logvar = model(o_a, o_b, goal, True)
 					m = mu.numpy()
 					s = torch.sqrt(torch.exp(logvar)).numpy()
 					axs[1][1].add_patch(Ellipse(m[0], width=s[0,0] * 2, height=s[0,1] * 2, alpha=0.5))
-					model_values.append(value.detach().numpy())
 				else:
 					for _ in range(n_samples):
-						value, policy = model(o_a,o_b,goal)
+						policy = model(o_a,o_b,goal)
 						model_actions.append(policy.detach().numpy())
 
 		# convert for easy plot
-		model_values = np.array(model_values).squeeze()
 		model_actions = np.array(model_actions).squeeze()
 		dataset_actions = np.array(dataset_actions)
 		
@@ -734,13 +704,13 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# fig: game state encoding  
 
 		# 
-		axs[0][1].set_title('value')
-		axs[0][1].hist(model_values, bins=20, range=[0,1],alpha=0.5, label="NN")
-		axs[0][1].hist(dataset_values, bins=20, range=[0,1],alpha=0.5, label="data")
-		axs[0][1].set_xlim([0,1])
-		axs[1][0].set_xlabel('value')
-		axs[1][0].set_ylabel('count')
-		axs[0][1].legend()
+		# axs[0][1].set_title('value')
+		# axs[0][1].hist(model_values, bins=20, range=[0,1],alpha=0.5, label="NN")
+		# axs[0][1].hist(dataset_values, bins=20, range=[0,1],alpha=0.5, label="data")
+		# axs[0][1].set_xlim([0,1])
+		# axs[1][0].set_xlabel('value')
+		# axs[1][0].set_ylabel('count')
+		# axs[0][1].legend()
 
 		# - self 
 		vx = -1*candidate[2][2]

@@ -19,8 +19,9 @@ class Param:
 		# these parameters are also used for learning 
 		self.policy_dict = {
 			'sim_mode' : 				"MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
-			'path_glas_model_a' : 		None, 	#'../current/models/a0.pt', 
-			'path_glas_model_b' : 		None, 	#'../current/models/b0.pt', 
+			'path_glas_model_a' : 		None, 	#'../current/models/a1.pt', 
+			'path_glas_model_b' : 		None, 	#'../current/models/b1.pt', 
+			'path_value_fnc' : 			None, 	#'../current/models/v1.pt', 
 			'mcts_tree_size' : 			10000,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
@@ -101,6 +102,21 @@ class Param:
 			# },			
 		]
 
+		self.l_desired_game = {
+			# 'Skill_A' : 'a1.pt',
+			# 'Skill_B' : 'b1.pt',
+			'EnvironmentLength' : 1.0,
+			'NumA' : 2,
+			'NumB' : 2,
+		}
+		self.l_initial_curiculum = {
+			'Skill_A' : [None],
+			'Skill_B' : [None],
+			'EnvironmentLength' : [1.0],
+			'NumA' : [1,2],
+			'NumB' : [1,2],
+		}
+
 		self.l_subsample_on = False
 		self.l_num_subsamples = 5
 
@@ -151,8 +167,14 @@ class Param:
 			["Linear", h, 1] 
 		]
 
+		self.l_xi_network_architecture = [
+			["Linear", 2*h + 3, h], 
+			["Linear", h, h],
+			["Linear", h, 1] 
+		]		
+
 		self.l_policy_network_architecture = [
-			["Linear", h, h], 
+			["Linear", 2*h+n, h], 
 			["Linear", h, h],
 			["Linear", h, 2*m] 		
 		]
@@ -169,8 +191,11 @@ class Param:
 		self.l_wd = 0 
 		self.l_log_interval = 1
 		self.l_raw_fn = '{DATADIR}raw_team{TEAM}_i{LEARNING_ITER}_numfn{NUM_FILE}'
+		self.l_raw_value_fn = '{DATADIR}raw_value_i{LEARNING_ITER}_numfn{NUM_FILE}'
 		self.l_labelled_fn = '{DATADIR}labelled_team{TEAM}_i{LEARNING_ITER}_numa{NUM_A}_numb{NUM_B}_numfn{NUM_FILE}.npy'
+		self.l_labelled_value_fn = '{DATADIR}labelled_value_i{LEARNING_ITER}_numa{NUM_A}_numb{NUM_B}_numfn{NUM_FILE}.npy'
 		self.l_model_fn = '{DATADIR}{TEAM}{ITER}.pt'
+		self.l_value_model_fn = '{DATADIR}v{ITER}.pt'
 
 		# path stuff
 		self.path_current_results = '../current/results/'

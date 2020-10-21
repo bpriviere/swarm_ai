@@ -47,13 +47,13 @@ def create_cpp_policy(policy_dict, team):
 	if policy_dict["sim_mode"] in ["MCTS","D_MCTS"]:
 		file = policy_dict["path_glas_model_{}".format(team)]
 		if file is not None:
-			loadGLAS(policy.glas, file)
+			loadPolicy(policy.glas, file)
 			policy.name = file
 			policy.beta2 = policy_dict["mcts_beta2"]
 			return policy
 	elif policy_dict["sim_mode"] in ["GLAS"]:
 		file = policy_dict["path_glas_model"]
-		loadGLAS(policy.glas, file)
+		loadPolicy(policy.glas, file)
 		policy.name = file
 		policy.beta2 = 1.0
 		return policy
@@ -61,20 +61,33 @@ def create_cpp_policy(policy_dict, team):
 	policy.beta2 = 0.0
 	return policy
 
-def loadGLAS(glas, file):
+def create_cpp_value(file):
+	value = mctscpp.ValuePredictor('None')
+	if file is not None: 
+		loadValue(value,file)
+	return value 
+
+def loadValue(value,file):
 	state_dict = torch.load(file)
 
-	loadFeedForwardNNWeights(glas.deepSetA.phi, state_dict, "model_team_a.phi")
-	loadFeedForwardNNWeights(glas.deepSetA.rho, state_dict, "model_team_a.rho")
-	loadFeedForwardNNWeights(glas.deepSetB.phi, state_dict, "model_team_b.phi")
-	loadFeedForwardNNWeights(glas.deepSetB.rho, state_dict, "model_team_b.rho")
-	loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
-	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
-	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
-	loadFeedForwardNNWeights(glas.value, state_dict, "value")
-	loadFeedForwardNNWeights(glas.policy, state_dict, "policy")
+	loadFeedForwardNNWeights(value.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(value.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(value.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(value.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(value.value, state_dict, "value")
 
-	return glas
+	return value 
+
+def loadPolicy(policy, file):
+	state_dict = torch.load(file)
+
+	loadFeedForwardNNWeights(policy.deepSetA.phi, state_dict, "model_team_a.phi")
+	loadFeedForwardNNWeights(policy.deepSetA.rho, state_dict, "model_team_a.rho")
+	loadFeedForwardNNWeights(policy.deepSetB.phi, state_dict, "model_team_b.phi")
+	loadFeedForwardNNWeights(policy.deepSetB.rho, state_dict, "model_team_b.rho")
+	loadFeedForwardNNWeights(policy.policy, state_dict, "policy")
+
+	return policy	
 
 def loadFeedForwardNNWeights(ff, state_dict, name):
 	l = 0
@@ -125,31 +138,31 @@ def state_to_cpp_game_state(state,turn,team_1_idxs,team_2_idxs):
 
 	return game_state 
 
-def expected_value(param,state,policy_dict):
+# def expected_value(param,state,policy_dict):
 
-	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
-		param.sim_dt,param.goal,param.rollout_horizon)	
-	gs = state_to_cpp_game_state(state,"a",param.team_1_idxs,param.team_2_idxs)
+# 	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+# 		param.sim_dt,param.goal,param.rollout_horizon)	
+# 	gs = state_to_cpp_game_state(state,"a",param.team_1_idxs,param.team_2_idxs)
 
-	policy_a = create_cpp_policy(policy_dict, 'a')
-	policy_b = create_cpp_policy(policy_dict, 'b')
+# 	policy_a = create_cpp_policy(policy_dict, 'a')
+# 	policy_b = create_cpp_policy(policy_dict, 'b')
 
-	my_policy = policy_a 
-	other_policies = [policy_b]
+# 	my_policy = policy_a 
+# 	other_policies = [policy_b]
 
-	mctssettings = mctscpp.MCTSSettings()
-	mctssettings.num_nodes = policy_dict["mcts_tree_size"]
-	mctssettings.Cp = policy_dict["mcts_c_param"]
-	mctssettings.pw_C = policy_dict["mcts_pw_C"]
-	mctssettings.pw_alpha = policy_dict["mcts_pw_alpha"]
-	mctssettings.beta1 = policy_dict["mcts_beta1"]
-	mctssettings.beta3 = policy_dict["mcts_beta3"]
+# 	mctssettings = mctscpp.MCTSSettings()
+# 	mctssettings.num_nodes = policy_dict["mcts_tree_size"]
+# 	mctssettings.Cp = policy_dict["mcts_c_param"]
+# 	mctssettings.pw_C = policy_dict["mcts_pw_C"]
+# 	mctssettings.pw_alpha = policy_dict["mcts_pw_alpha"]
+# 	mctssettings.beta1 = policy_dict["mcts_beta1"]
+# 	mctssettings.beta3 = policy_dict["mcts_beta3"]
 
-	mctsresult = mctscpp.search(g, gs, \
-		my_policy,
-		other_policies,
-		mctssettings)
-	return mctsresult.expectedReward
+# 	mctsresult = mctscpp.search(g, gs, \
+# 		my_policy,
+# 		other_policies,
+# 		mctssettings)
+# 	return mctsresult.expectedReward
 
 def self_play(param):
 
@@ -176,6 +189,12 @@ def play_game(param,policy_dict_a,policy_dict_b):
 	policy_a = create_cpp_policy(policy_dict_a, 'a')
 	policy_b = create_cpp_policy(policy_dict_b, 'b')
 
+	if (policy_dict_a["sim_mode"] in ["MCTS","D_MCTS"] and policy_dict_b["sim_mode"] in ["MCTS","D_MCTS"]) \
+		and policy_dict_a["path_value_fnc"] == policy_dict_b["path_value_fnc"]:
+			valuePredictor = create_cpp_value(policy_dict_a["path_value_fnc"])
+	else:
+		valuePredictor = create_cpp_value(None)
+
 	sim_result = {
 		'param' : param.to_dict(),
 		'states' : [],
@@ -184,6 +203,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 		'rewards' : [],
 		'trees': [],
 		'tree_params': [],
+		'n_rgs': [],
 	}
 
 	gs = state_to_cpp_game_state(param.state,"a",param.team_1_idxs,param.team_2_idxs)
@@ -217,6 +237,13 @@ def play_game(param,policy_dict_a,policy_dict_b):
 			# prepare for next update
 			team_action = list(invalid_team_action)
 
+			# calc reachedgoal
+			reachedGoal = 0.0 
+			for rs in gs.attackers:
+				if rs.status == mctscpp.RobotState.Status.ReachedGoal:
+					reachedGoal += 1.0
+			sim_result['n_rgs'].append(reachedGoal)
+
 		if isTerminal:
 			# calc reachedgoal
 			reachedGoal = 0.0 
@@ -242,6 +269,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 			mctsresult = mctscpp.search(g, gs, \
 				my_policy,
 				other_policies,
+				valuePredictor,
 				mctssettings)
 			gs.depth = depth
 			if mctsresult.success: 
@@ -273,6 +301,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 				mctsresult = mctscpp.search(game_i, gamestate_i, \
 					my_policy,
 					other_policies,
+					valuePredictor,
 					mctssettings)
 
 				if mctsresult.success: 
@@ -342,6 +371,7 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 		param.sim_dt,param.goal,param.rollout_horizon)
 
 	my_policy = create_cpp_policy(param.my_policy_dict, param.training_team)
+	valuePredictor = mctscpp.ValuePredictor('ab')
 
 	other_team = "b" if param.training_team == "a" else "a"
 	other_policies = []
@@ -370,49 +400,12 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 		mctsresult = mctscpp.search(game, game_state, \
 			my_policy,
 			other_policies,
+			valuePredictor,
 			mctssettings)
 		if mctsresult.success: 
 			policy_dist = valuePerAction_to_policy_dist(param,mctsresult.valuePerAction,mctsresult.bestAction) # 
-			# value = mctsresult.expectedReward[0]
-
-			values = []
-			for other_policy_dict in param.other_policy_dicts:
-
-				if param.training_team == "a":
-					path_glas_model_a = param.my_policy_dict["path_glas_model_a"]
-					path_glas_model_b = other_policy_dict["path_glas_model_b"]
-				elif param.training_team == "b": 
-					path_glas_model_b = param.my_policy_dict["path_glas_model_b"]
-					path_glas_model_a = other_policy_dict["path_glas_model_a"]
-
-				if path_glas_model_a is None:
-					policy_dict_a = {
-						'sim_mode': 'RANDOM',
-					}
-				else:
-					policy_dict_a = {
-						'sim_mode': 'GLAS',
-						'path_glas_model' : path_glas_model_a,
-						'deterministic': False,
-					}
-				if path_glas_model_b is None:
-					policy_dict_b = {
-						'sim_mode': 'RANDOM',
-					}
-				else:
-					policy_dict_b = {
-						'sim_mode': 'GLAS',
-						'path_glas_model' : path_glas_model_b,
-						'deterministic': False,
-					}
-
-				param.state = state
-				glas_rollout_sim_result = play_game(param,policy_dict_a,policy_dict_b)
-				values.append(glas_rollout_sim_result["rewards"][-1,0]) # take last one and team 1 reward 
-
 			sim_result["states"].append(state) # total number of robots x state dimension per robot 
 			sim_result["policy_dists"].append(policy_dist)  
-			sim_result["values"].append(sum(values)/len(values))
 
 		# update status
 		if rank == 0:
@@ -433,6 +426,61 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 	if not quiet_on:
 		print('   completed instance {} with {} dp.'.format(param.dataset_fn,sim_result["states"].shape[0]))
 
+
+def evaluate_expert_value(rank, queue, total, states, param, policy_fn_a, policy_fn_b, quiet_on=True):
+
+	if not quiet_on:
+		print('   running expert for instance {}'.format(param.dataset_fn))
+
+	if rank == 0:
+		pbar = tqdm.tqdm(total=total)
+
+	sim_result = {
+		'states' : [],
+		'policy_dists' : [],
+		'values' : [],
+		'n_rgs' : [],
+		'param' : param.to_dict()
+		}
+
+	for state in states:
+
+		policy_dict_a = {
+			'sim_mode': 'GLAS',
+			'path_glas_model' : policy_fn_a,
+			'deterministic': False,
+		}
+
+		policy_dict_b = {
+			'sim_mode': 'GLAS',
+			'path_glas_model' : policy_fn_b,
+			'deterministic': False,
+		}
+
+		param.state = state
+
+		values = [] 
+		for _ in range(1):
+			glas_rollout_sim_result = play_game(param,policy_dict_a,policy_dict_b)
+			values = glas_rollout_sim_result["rewards"][-1,0] * np.ones((glas_rollout_sim_result["states"].shape[0],1)) 
+
+			sim_result["states"].extend(glas_rollout_sim_result["states"])
+			sim_result["n_rgs"].extend(glas_rollout_sim_result["n_rgs"])
+			sim_result["values"].extend(values)
+
+		# update status
+		if rank == 0:
+			count = 1
+			try:
+				while True:
+					count += queue.get_nowait()
+			except Empty:
+				pass
+			pbar.update(count)
+		else:
+			queue.put_nowait(1)			
+
+	dh.write_sim_result(sim_result,param.value_dataset_fn)
 
 def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 
