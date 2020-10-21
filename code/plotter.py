@@ -434,8 +434,8 @@ def plot_tree_results(sim_result,title=None):
 		model = ValueEmptyNet(param_obj,"cpu")
 
 		values = [] 
-		n_a = len(param_obj.team_1_idxs)
-		n_b = len(param_obj.team_2_idxs)
+		n_a = param_obj.num_nodes_A
+		n_b = param_obj.num_nodes_B
 		for k,(t,n_rg) in enumerate(zip(times,sim_result["n_rgs"])):
 			v_a,v_b = global_to_value(param_obj,states[k,:,:])
 			v_a,v_b,n_a,n_b,n_rg = format_data_value(v_a,v_b,n_a,n_b,n_rg)
@@ -652,7 +652,7 @@ def plot_training_value(df_param,batched_fns,path_to_model):
 
 		# value func histogram  
 		axs[0][1].set_title('value: n_a = {}, n_b = {}, n_rg = {}'.format(\
-			len(model_values),int(candidate[2]),int(candidate[3]),int(candidate[4])))
+			int(candidate[2]),int(candidate[3]),int(candidate[4])))
 		axs[0][1].hist(model_values, bins=20, range=[0,1],alpha=0.5, label="NN")
 		axs[0][1].hist(dataset_values, bins=20, range=[0,1],alpha=0.5, label="data")
 		axs[0][1].set_xlim([0,1])

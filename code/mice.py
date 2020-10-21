@@ -347,8 +347,8 @@ def make_labelled_value_data(sim_result,sv_pairs_by_size):
 	states = sim_result["states"] # nt x nrobots x nstate_per_robot
 	values = sim_result["values"] 
 	n_rgs = sim_result["n_rgs"] 
-	n_a = len(param.team_1_idxs)
-	n_b = len(param.team_2_idxs)
+	n_a = param.num_nodes_A
+	n_b = param.num_nodes_B
 	
 	for timestep,(state,n_rg,value) in enumerate(zip(states,n_rgs,values)):
 		v_a,v_b = global_to_value(param,state) 
@@ -653,6 +653,9 @@ def train_model_value(df_param,batched_files,model_fn):
 	print('device: ',df_param.device)
 	model = ValueEmptyNet(df_param,df_param.device)
 	optimizer = torch.optim.Adam(model.parameters(), lr=df_param.l_lr, weight_decay=df_param.l_wd)
+
+	num_train_batches = len(train_loader)
+	num_test_batches = len(test_loader)
 	
 	# train 
 	losses = []
@@ -669,7 +672,11 @@ def train_model_value(df_param,batched_files,model_fn):
 			random.shuffle(test_loader)
 
 			train_epoch_loss = train_value(model,optimizer,train_loader)
+			train_epoch_loss /= num_train_batches
+
 			test_epoch_loss = test_value(model,test_loader)
+			test_epoch_loss /= num_test_batches
+
 			# scheduler.step(test_epoch_loss)
 			losses.append((train_epoch_loss,test_epoch_loss))
 			if epoch%df_param.l_log_interval==0:
@@ -681,7 +688,7 @@ def train_model_value(df_param,batched_files,model_fn):
 			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
 
 	print("time for training: ", time.time() - start_time)
-	plotter.plot_loss(losses,lrs,training_team)
+	plotter.plot_loss(losses,lrs,"Value")
 	plotter.save_figs("../current/models/{}_losses.pdf".format(os.path.basename(model_fn).split('.')[0]))
 	plotter.plot_training_value(df_param,batched_files,model_fn)
 	plotter.save_figs("../current/models/{}_dist_vis.pdf".format(os.path.basename(model_fn).split('.')[0]))
@@ -833,7 +840,7 @@ def make_labelled_dataset(df_param,i):
 	print('labelling data completed.')
 	print('dataset completed.')
 
-def get_start(df_param,i):
+def get_start(df_param,training_team,i):
 	base_fn = df_param.l_raw_fn.format(
 		DATADIR=df_param.path_current_data,\
 		TEAM=training_team,\
@@ -846,7 +853,7 @@ def get_params(df_param,training_team,i,curriculum):
 
 	params = []
 
-	start = get_start(df_param,i)
+	start = get_start(df_param,training_team,i)
 
 	for trial in range(df_param.l_num_file_per_iteration): 
 
