@@ -559,6 +559,9 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 		att_states = integrate(att_robot,att_robot["x0"],att_U,times,sim_dt)
 		def_states = integrate(def_robot,def_robot["x0"],def_U,times,sim_dt)
 
+		# Interpolate to find the state at Tend (rather than states[-1])
+		
+
 		# Extract useful information
 		eqns = (
 			att_states[-1,0] - def_states[-1,0], 
