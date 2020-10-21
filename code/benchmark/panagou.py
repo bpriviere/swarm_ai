@@ -556,16 +556,25 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 		def_U = theta_to_u(def_robot,def_theta)
 
 		# Simulate system
-		att_states = integrate(att_robot,att_robot["x0"],att_U,times,sim_dt)
-		def_states = integrate(def_robot,def_robot["x0"],def_U,times,sim_dt)
+		att_states = integrate(att_robot,att_robot["x0"],att_U,times[1:],sim_dt)
+		def_states = integrate(def_robot,def_robot["x0"],def_U,times[1:],sim_dt)
 
-		# Interpolate to find the state at Tend (rather than states[-1])
-		
+		# Interpolate to find the state at Tend (rather than times[-1])
+		if (0) :
+			att_X = np.interp(Tend, times, att_states[:,0])
+			att_Y = np.interp(Tend, times, att_states[:,1])
+			def_X = np.interp(Tend, times, def_states[:,0])
+			def_Y = np.interp(Tend, times, def_states[:,1])
+		else :
+			att_X = att_states[-1,0]
+			att_Y = att_states[-1,1]
+			def_X = def_states[-1,0]
+			def_Y = def_states[-1,1]
 
-		# Extract useful information
+		# Calculate the distance between the attacker and defender in the x- and y-axes
 		eqns = (
-			att_states[-1,0] - def_states[-1,0], 
-			att_states[-1,1] - def_states[-1,1], 
+			att_X - def_X, 
+			att_Y - def_Y, 
 			)
 		return eqns
 
@@ -594,13 +603,13 @@ def theta_to_u(robot,theta):
 def main():
 
 	set_ic = False
-	#set_ic = True
+	set_ic = True
 	if set_ic: 
 		print("====\nUsing Fixed Initial Conditions\n====")
 		# make sure this matches the teams match up in the param file
 		initial_condition = np.array( [ \
-			[   0.127,   0.578,   0.000,   0.000 ], \
-			[   0.700,   0.800,  -0.000,   0.000 ] ]) 
+			[   0.166,   0.675,   0.000,   0.000 ], \
+			[   0.862,   0.852,  -0.000,   0.000 ] ]) 
 
 		df_param = Param()
 		df_param.update(initial_condition=initial_condition)
