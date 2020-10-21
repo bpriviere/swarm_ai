@@ -189,7 +189,11 @@ def play_game(param,policy_dict_a,policy_dict_b):
 	policy_a = create_cpp_policy(policy_dict_a, 'a')
 	policy_b = create_cpp_policy(policy_dict_b, 'b')
 
-	valuePredictor = create_cpp_value('../current/models/v1.pt')
+	if (policy_dict_a["sim_mode"] in ["MCTS","D_MCTS"] and policy_dict_b["sim_mode"] in ["MCTS","D_MCTS"]) \
+		and policy_dict_a["path_value_fnc"] == policy_dict_b["path_value_fnc"]:
+			valuePredictor = create_cpp_value(policy_dict_a["path_value_fnc"])
+	else:
+		valuePredictor = create_cpp_value(None)
 
 	sim_result = {
 		'param' : param.to_dict(),

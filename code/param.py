@@ -19,8 +19,9 @@ class Param:
 		# these parameters are also used for learning 
 		self.policy_dict = {
 			'sim_mode' : 				"MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
-			'path_glas_model_a' : 		None, 	#'../current/models/a0.pt', 
-			'path_glas_model_b' : 		None, 	#'../current/models/b0.pt', 
+			'path_glas_model_a' : 		None, 	#'../current/models/a1.pt', 
+			'path_glas_model_b' : 		None, 	#'../current/models/b1.pt', 
+			'path_value_fnc' : 			None, 	#'../current/models/v1.pt', 
 			'mcts_tree_size' : 			10000,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,

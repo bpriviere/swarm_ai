@@ -201,10 +201,18 @@ def get_self_play_samples(params):
 								TEAM="a",\
 								ITER=skill_a)
 
+		if i > 0:
+			path_value_fnc = param.l_value_model_fn.format(\
+								DATADIR=param.path_current_models,\
+								ITER=param.i)
+		else:
+			path_value_fnc = None 
+
 		param.policy_dict_a = {
 			'sim_mode' : 				"D_MCTS", 
 			'path_glas_model_a' : 		path_glas_model_a, 	
 			'path_glas_model_b' : 		path_glas_model_b, 	
+			'path_value_fnc' : 			path_value_fnc, 	
 			'mcts_tree_size' : 			param.l_num_learner_nodes,
 			'mcts_c_param' : 			param.l_mcts_c_param,
 			'mcts_pw_C' : 				param.l_mcts_pw_C,
@@ -648,6 +656,7 @@ def train_model_value(df_param,batched_files,model_fn):
 	
 	# train 
 	losses = []
+	lrs = [] 
 	with open(model_fn + ".csv", 'w') as log_file:
 		log_file.write("time,epoch,train_loss,test_loss\n")
 		start_time = time.time()
@@ -671,6 +680,9 @@ def train_model_value(df_param,batched_files,model_fn):
 					model.to(df_param.device)
 			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
 
+	print("time for training: ", time.time() - start_time)
+	plotter.plot_loss(losses,lrs,training_team)
+	plotter.save_figs("../current/models/{}_losses.pdf".format(os.path.basename(model_fn).split('.')[0]))
 	print('training model complete for {}'.format(model_fn))
 
 
