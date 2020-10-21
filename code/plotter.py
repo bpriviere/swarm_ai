@@ -1255,11 +1255,11 @@ def plot_exp5_results(all_sim_results):
 			for tree_size in tree_sizes:
 				key = (test_team, tree_size, model_name)
 				mean_data.append(np.mean(np.array(rg_results[key])))
-				std_data.append(np.std(np.array(rg_results[key])))
+				# std_data.append(np.std(np.array(rg_results[key])))
 
 			label = 'None' if model_name is None else os.path.basename(model_name)
 			ax.plot(tree_sizes,mean_data,color=colors[i_ax][i_model],label=label)
-			ax.errorbar(tree_sizes,mean_data,yerr=std_data,color=colors[i_ax][i_model],alpha=0.5,linewidth=1)
+			# ax.errorbar(tree_sizes,mean_data,yerr=std_data,color=colors[i_ax][i_model],alpha=0.5,linewidth=1)
 
 		ax.set_xlabel('Tree Size')
 		ax.set_xscale('log')
