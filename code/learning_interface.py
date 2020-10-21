@@ -46,11 +46,9 @@ def global_to_value(param,state):
 	for idx_j in range(n_robots):
 		if not np.isnan(state[idx_j,:]).any(): 
 			if idx_j in param.team_1_idxs:  
-				# v_a.append(state[idx_j,:] - goal)
-				v_a.append(goal - state[idx_j,:])
+				v_a.append(state[idx_j,:] - goal)
 			elif idx_j in param.team_2_idxs:
-				# v_b.append(state[idx_j,:] - goal)
-				v_b.append(goal - state[idx_j,:])
+				v_b.append(state[idx_j,:] - goal)
 
 	return np.array(v_a),np.array(v_b)
 

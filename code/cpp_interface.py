@@ -3,6 +3,7 @@
 import torch
 import numpy as np
 import tqdm
+import os 
 from queue import Empty
 from collections import defaultdict
 from multiprocessing import current_process
@@ -189,11 +190,25 @@ def play_game(param,policy_dict_a,policy_dict_b):
 	policy_a = create_cpp_policy(policy_dict_a, 'a')
 	policy_b = create_cpp_policy(policy_dict_b, 'b')
 
-	if (policy_dict_a["sim_mode"] in ["MCTS","D_MCTS"] and policy_dict_b["sim_mode"] in ["MCTS","D_MCTS"]) \
-		and policy_dict_a["path_value_fnc"] == policy_dict_b["path_value_fnc"]:
-			valuePredictor = create_cpp_value(policy_dict_a["path_value_fnc"])
-	else:
-		valuePredictor = create_cpp_value(None)
+	valuePredictor_a = None 
+	if policy_dict_a["sim_mode"] in ["MCTS","D_MCTS"]:
+		value_path_a = None 
+		if policy_dict_a["path_glas_model_a"] is not None:
+			model_num = int(os.path.basename(policy_dict_a["path_glas_model_a"])[1])
+			value_path_a = param.l_value_model_fn.format(\
+				DATADIR=param.path_current_models,\
+				ITER=model_num)  
+		valuePredictor_a = create_cpp_value(value_path_a)
+
+	valuePredictor_b = None
+	if policy_dict_b["sim_mode"] in ["MCTS","D_MCTS"]:
+		value_path_b = None 
+		if policy_dict_b["path_glas_model_b"] is not None:
+			model_num = int(os.path.basename(policy_dict_b["path_glas_model_b"])[1])
+			value_path_b = param.l_value_model_fn.format(\
+				DATADIR=param.path_current_models,\
+				ITER=model_num)
+		valuePredictor_b = create_cpp_value(value_path_b) 	
 
 	sim_result = {
 		'param' : param.to_dict(),
@@ -218,12 +233,14 @@ def play_game(param,policy_dict_a,policy_dict_b):
 			team_idx = param.team_1_idxs
 			my_policy = policy_a
 			other_policies = [policy_b]
+			valuePredictor = valuePredictor_a
 			team = 'a'
 		elif gs.turn == mctscpp.GameState.Turn.Defenders:
 			policy_dict = policy_dict_b
 			team_idx = param.team_2_idxs
 			my_policy = policy_b
 			other_policies = [policy_a]
+			valuePredictor = valuePredictor_b
 			team = 'b'
 
 		# output result
@@ -371,7 +388,10 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 		param.sim_dt,param.goal,param.rollout_horizon)
 
 	my_policy = create_cpp_policy(param.my_policy_dict, param.training_team)
-	valuePredictor = mctscpp.ValuePredictor('ab')
+	value_path = param.l_value_model_fn.format(\
+		DATADIR=param.path_current_models,\
+		ITER=param.i) if param.i > 0 else None 
+	valuePredictor = create_cpp_value(value_path) 
 
 	other_team = "b" if param.training_team == "a" else "a"
 	other_policies = []
@@ -464,9 +484,13 @@ def evaluate_expert_value(rank, queue, total, states, param, policy_fn_a, policy
 			glas_rollout_sim_result = play_game(param,policy_dict_a,policy_dict_b)
 			values = glas_rollout_sim_result["rewards"][-1,0] * np.ones((glas_rollout_sim_result["states"].shape[0],1)) 
 
-			sim_result["states"].extend(glas_rollout_sim_result["states"])
-			sim_result["n_rgs"].extend(glas_rollout_sim_result["n_rgs"])
-			sim_result["values"].extend(values)
+			# sim_result["states"].extend(glas_rollout_sim_result["states"])
+			# sim_result["n_rgs"].extend(glas_rollout_sim_result["n_rgs"])
+			# sim_result["values"].extend(values)
+
+			sim_result["states"].append(glas_rollout_sim_result["states"][0]) 
+			sim_result["n_rgs"].append(glas_rollout_sim_result["n_rgs"][0])
+			sim_result["values"].append(values[[0]])			
 
 		# update status
 		if rank == 0:

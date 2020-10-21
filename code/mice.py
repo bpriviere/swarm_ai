@@ -683,6 +683,8 @@ def train_model_value(df_param,batched_files,model_fn):
 	print("time for training: ", time.time() - start_time)
 	plotter.plot_loss(losses,lrs,training_team)
 	plotter.save_figs("../current/models/{}_losses.pdf".format(os.path.basename(model_fn).split('.')[0]))
+	plotter.plot_training_value(df_param,batched_files,model_fn)
+	plotter.save_figs("../current/models/{}_dist_vis.pdf".format(os.path.basename(model_fn).split('.')[0]))
 	print('training model complete for {}'.format(model_fn))
 
 

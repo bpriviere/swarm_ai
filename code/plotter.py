@@ -579,6 +579,133 @@ def plot_tree_results(sim_result,title=None):
 		if title is not None: 
 			fig.suptitle(title)
 
+def plot_training_value(df_param,batched_fns,path_to_model):
+	import torch 
+	# from learning.continuous_emptynet import ContinuousEmptyNet
+	# from learning.gaussian_emptynet import GaussianEmptyNet
+	from learning.value_emptynet import ValueEmptyNet
+	from learning_interface import format_data_value
+
+	# - vis 
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
+	self_color = 'black'
+	LIMS = df_param.robot_types["standard_robot"]["acceleration_limit"]*np.array([[-1,1],[-1,1]])
+	rsense = df_param.robot_types["standard_robot"]["r_sense"]
+	env_xlim = df_param.env_xlim 
+	env_ylim = df_param.env_ylim 
+	nbins = 20
+	num_vis = 10
+	n_samples = 100
+	eps = 0.01  
+
+	v_as,v_bs,n_as,n_bs,n_rgs,values = [],[],[],[],[],[]
+	for batched_fn in batched_fns:
+		v_a,v_b,n_a,n_b,n_rg,value = dh.read_sv_batch(batched_fn)
+		v_as.extend(v_a)
+		v_bs.extend(v_b)
+		n_as.extend(n_a)
+		n_bs.extend(n_b)
+		n_rgs.extend(n_rg)
+		values.extend(value)
+
+	# load models
+	model = ValueEmptyNet(df_param,"cpu")
+	model.load_state_dict(torch.load(path_to_model))
+
+	# pick random observations	
+	idxs = np.random.choice(len(v_as),num_vis)
+
+	for i_state in range(num_vis):
+
+		# pick random observation 
+
+		# select candidate observations 
+		candidate = (v_as[idxs[i_state]],v_bs[idxs[i_state]],n_as[idxs[i_state]],n_bs[idxs[i_state]],n_rgs[idxs[i_state]])
+		print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
+
+		fig, axs = plt.subplots(nrows=1,ncols=2,squeeze=False)
+
+		# append all eps-close ones and record dataset values 
+		neighbors = [candidate] 
+		dataset_values = [values[idxs[i_state]]]
+		for v_a,v_b,n_a,n_b,n_rg,value in zip(v_as,v_bs,n_as,n_bs,n_rgs,values):
+			if v_a.shape == candidate[0].shape and \
+				v_b.shape == candidate[1].shape and \
+				n_a == candidate[2] and \
+				n_b == candidate[3] and \
+				n_rg == candidate[4]: 
+
+				if (np.linalg.norm(v_a - candidate[0]) <= eps) and \
+					(np.linalg.norm(v_b - candidate[1]) <= eps): 
+
+					neighbors.append((v_a,v_b,n_a,n_b,n_rg))
+					dataset_values.append(value)
+
+		# query model for all neighbors 
+		model_values = []
+		for v_a,v_b,n_a,n_b,n_rg in neighbors: 
+			v_a,v_b,n_a,n_b,n_rg = format_data_value(v_a,v_b,n_a,n_b,n_rg)
+			model_value = model(v_a,v_b,n_a,n_b,n_rg)
+			model_values.append(model_value.detach().numpy().squeeze())
+
+		# value func histogram  
+		axs[0][1].set_title('value: n_a = {}, n_b = {}, n_rg = {}'.format(\
+			len(model_values),int(candidate[2]),int(candidate[3]),int(candidate[4])))
+		axs[0][1].hist(model_values, bins=20, range=[0,1],alpha=0.5, label="NN")
+		axs[0][1].hist(dataset_values, bins=20, range=[0,1],alpha=0.5, label="data")
+		axs[0][1].set_xlim([0,1])
+		axs[0][1].set_xlabel('value')
+		axs[0][1].set_ylabel('count')
+		x0,x1 = axs[0][1].get_xlim()
+		y0,y1 = axs[0][1].get_ylim()
+		axs[0][1].set_aspect(abs(x1-x0)/abs(y1-y0))
+		axs[0][1].legend()
+		axs[0][1].grid(True)
+
+		# game state encoding  
+
+		# - goal 
+		axs[0][0].scatter(0,0,color=goal_color,alpha=0.5)
+
+		# - neighbors 
+		num_a = int(len(candidate[0])/4)
+		num_b = int(len(candidate[1])/4)
+		goal = np.array([df_param.goal[0],df_param.goal[1],0,0])
+		for robot_idx in range(num_a):
+			# v_a = s^j - g
+			v_a_idxs = np.arange(4) + 4*robot_idx 
+			sj = candidate[0][v_a_idxs] + goal 
+			axs[0][0].scatter(sj[0],sj[1],color=team_1_color)
+			axs[0][0].arrow(sj[0],sj[1],sj[2],sj[3],color=team_1_color,alpha=0.5)
+		for robot_idx in range(num_b):
+			# v_b = s^j - g
+			v_b_idxs = np.arange(4) + 4*robot_idx 
+			sj = candidate[1][v_b_idxs] + goal 
+			axs[0][0].scatter(sj[0],sj[1],color=team_2_color)
+			axs[0][0].arrow(sj[0],sj[1],sj[2],sj[3],color=team_2_color,alpha=0.5)
+
+		# - arrange  
+		l = np.max((np.abs(axs[0][0].get_xlim()),np.abs(axs[0][0].get_ylim())))
+		axs[0][0].set_xlim([-l,l])
+		axs[0][0].set_ylim([-l,l])
+		# axs[0][0].set_xlim([np.min((axs[0][0].get_xlim()[0],axs[0][0].get_ylim()[0])),np.max((axs[0][0].get_xlim()[1],axs[0][0].get_ylim()[1]))])
+		# axs[0][0].set_ylim([np.min((axs[0][0].get_xlim()[0],axs[0][0].get_ylim()[0])),np.max((axs[0][0].get_xlim()[1],axs[0][0].get_ylim()[1]))])
+		# axs[0][0].set_xlim([np.max((-rsense,-env_xlim[1])),np.min((rsense,env_xlim[1]))])
+		# axs[0][0].set_ylim([np.max((-rsense,-env_ylim[1])),np.min((rsense,env_ylim[1]))])
+		# axs[0][0].set_xlim([-rsense,rsense])
+		# axs[0][0].set_ylim([-rsense,rsense])
+
+		# - sensing radius 
+		axs[0][0].add_patch(mpatches.Circle((0,0), rsense, color='black',alpha=0.1))
+		axs[0][0].set_title('game state: {}'.format(i_state))
+		axs[0][0].set_aspect('equal')
+
+		fig.tight_layout()
+
+
+
 
 def plot_training(df_param,batched_fns,path_to_model):
 	import torch 
@@ -674,7 +801,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 				if df_param.l_gaussian_on:
 					with torch.no_grad():
-						value, policy, mu, logvar = model(o_a, o_b, goal, True)
+						_, mu, logvar = model(o_a, o_b, goal, True)
 					m = mu.numpy()
 					s = torch.sqrt(torch.exp(logvar)).numpy()
 					axs[1][1].add_patch(Ellipse(m[0], width=s[0,0] * 2, height=s[0,1] * 2, alpha=0.5))
@@ -700,10 +827,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 		model_actions = np.array(model_actions).squeeze()
 		dataset_actions = np.array(dataset_actions)
 		
-		# vis 
-		# fig: game state encoding  
-
-		# 
+		# value func histogram  
 		# axs[0][1].set_title('value')
 		# axs[0][1].hist(model_values, bins=20, range=[0,1],alpha=0.5, label="NN")
 		# axs[0][1].hist(dataset_values, bins=20, range=[0,1],alpha=0.5, label="data")
@@ -712,6 +836,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# axs[1][0].set_ylabel('count')
 		# axs[0][1].legend()
 
+		# game state encoding  
 		# - self 
 		vx = -1*candidate[2][2]
 		vy = -1*candidate[2][3]
@@ -747,7 +872,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 		# axs[0][0].set_xlim([-rsense,rsense])
 		# axs[0][0].set_ylim([-rsense,rsense])
 
-		# sensing radius 
+		# - sensing radius 
 		axs[0][0].add_patch(mpatches.Circle((0,0), rsense, color='black',alpha=0.1))
 		
 		axs[0][0].set_title('game state: {}'.format(i_state))
