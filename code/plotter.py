@@ -438,12 +438,13 @@ def plot_tree_results(sim_result,title=None):
 	ax.set_title('State Space')
 	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 	for i in range(num_nodes):
-		for t in range(states.shape[0]):
-			ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
-				color=colors[i],alpha=0.2,fill=False))
-			ax.arrow(states[t,i,0],states[t,i,1],states[t,i,2],states[t,i,3],color=colors[i])
-		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
-		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i],alpha=0.75)
+		#for t in range(states.shape[0]):
+		#	ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
+		#		color=colors[i],alpha=0.2,fill=False))
+		#	ax.arrow(states[t,i,0],states[t,i,1],states[t,i,2],states[t,i,3],color=colors[i])
+		ax.plot(states[:,i,0],states[:,i,1],linewidth=1,color=colors[i],marker="o",markersize=0.75)
+		ax.add_patch(mpatches.Circle(states[-1,i,0:2], sim_result["param"]["robots"][i]["tag_radius"],color=colors[i],alpha=0.2,fill=False))
+		#ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i],alpha=0.75)
 	ax.set_xlim([env_xlim[0],env_xlim[1]])
 	ax.set_ylim([env_ylim[0],env_ylim[1]])
 

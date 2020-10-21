@@ -591,7 +591,7 @@ def theta_to_u(robot,theta):
 def main():
 
 	set_ic = False
-	set_ic = True
+	#set_ic = True
 	if set_ic: 
 		print("====\nUsing Fixed Initial Conditions\n====")
 		# make sure this matches the teams match up in the param file

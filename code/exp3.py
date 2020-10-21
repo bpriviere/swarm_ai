@@ -14,9 +14,9 @@ from param import Param
 def wrap_play_game(param):
 	# When using multiprocessing, load cpp_interface per process
 	from cpp_interface import play_game
-	
-	sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b)
+
 	print('playing game {}/{}'.format(param.count+1,param.total))
+	sim_result = play_game(param,param.policy_dict_a,param.policy_dict_b)
 	dh.write_sim_result(sim_result,param.dataset_fn)
 
 
@@ -214,6 +214,7 @@ if __name__ == '__main__':
 
 	run_on = True
 	if run_on: 
+		print("\nRunning Games")
 
 		params = get_params(df_param,initial_conditions,robot_team_compositions)
 		format_dir(df_param)
