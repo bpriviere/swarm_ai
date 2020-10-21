@@ -108,8 +108,19 @@ class PanagouPolicy:
 						# Calculate the best accelerations to minimise the time to intercept the 
 						# attacker based on the attacker's known acceleration direction (and hence trajectory).				
 						if (0) : print(" Isoline intercept theta %6.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, self.times[idx_t_capture]))
-						def_theta,Tend = find_best_intercept( \
-							self.robots[i_robot],self.robots[j_robot],attacker_action_theta,defender_action_guess,self.param.sim_dt)
+						
+						# If we're close and slow, go for the attacker, otherwise, do the interception thing
+						att_pos = state[i_robot,0:2]
+						def_pos = state[j_robot,0:2]
+						if (np.linalg.norm(att_pos - def_pos) < 2.5*self.robots[j_robot]["tag_radius"]) :
+							# Lunge for the attacker
+							def_theta = defender_action_guess
+							Tend = 1.0
+
+						else :
+							# Try and reach the attacker at the predicted interception point
+							def_theta,Tend = find_best_intercept( \
+								self.robots[i_robot],self.robots[j_robot],attacker_action_theta,defender_action_guess,self.param.sim_dt)
 						
 						# Convert action into accelX and accelY
 						actions[j_robot,:] = theta_to_u(self.robots[j_robot],def_theta) 
