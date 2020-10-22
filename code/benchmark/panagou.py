@@ -86,7 +86,7 @@ class PanagouPolicy:
 			
 			if (np.any(np.isnan(state[i_robot]))) :
 				# Robot is dead, we can consider it done
-				done.append(j_robot)
+				done.append(i_robot)
 
 			if i_robot not in done: 
 
