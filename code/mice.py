@@ -62,6 +62,13 @@ def my_loss(target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on):
 	return loss
 
 
+def my_loss_value(target_value, mu, logvar):
+	criterion = nn.MSELoss(reduction='none')
+	loss = torch.sum(criterion(mu, target_value) / (2 * torch.exp(logvar)) + 1/2 * logvar)
+	loss = loss / mu.shape[0]
+	return loss 
+
+
 def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch, scheduler=None):
 
 	epoch_loss = 0
@@ -92,10 +99,9 @@ def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch
 
 def train_value(model,optimizer,loader,scheduler=None):
 	epoch_loss = 0
-	loss_fnc = nn.MSELoss()
 	for step, (v_a,v_b,n_a,n_b,n_rg,target_value) in enumerate(loader):
-		value = model(v_a,v_b,n_a,n_b,n_rg)
-		loss = loss_fnc(target_value,value)
+		_,mu,logvar = model(v_a,v_b,n_a,n_b,n_rg,training=True)
+		loss = my_loss_value(target_value,mu,logvar)
 		optimizer.zero_grad()
 		loss.backward()
 		optimizer.step()
@@ -106,11 +112,10 @@ def train_value(model,optimizer,loader,scheduler=None):
 
 def test_value(model,loader):
 	epoch_loss = 0
-	loss_fnc = nn.MSELoss()
 	with torch.no_grad():
 		for v_a,v_b,n_a,n_b,n_rg,target_value in loader:
-			value = model(v_a,v_b,n_a,n_b,n_rg)
-			epoch_loss += float(loss_fnc(target_value,value))
+			_,mu,logvar = model(v_a,v_b,n_a,n_b,n_rg,training=True)
+			epoch_loss += float(my_loss_value(target_value,mu,logvar))
 
 	return epoch_loss
 

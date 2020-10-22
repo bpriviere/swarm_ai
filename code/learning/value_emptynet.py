@@ -46,12 +46,30 @@ class ValueEmptyNet(nn.Module):
 		self.value.to(device)
 		return super().to(device)
 
-	def __call__(self,v_a,v_b,num_a,num_b,num_rg):
+	def __call__(self,v_a,v_b,num_a,num_b,num_rg,training=False):
 
 		output_rho_team_a = self.model_team_a(v_a)
 		output_rho_team_b = self.model_team_b(v_b)
 
 		y = torch.cat((output_rho_team_a,output_rho_team_b,num_a,num_b,num_rg),1)
-		value = self.value(y)
-		value = (torch.tanh(value)+1)/2 
-		return value
+		
+		# predict mean and variance 
+		dist = self.value(y)
+		mu = torch.unsqueeze(dist[:,0],1)
+		logvar = torch.unsqueeze(dist[:,1],1)
+
+		if training: 
+			return None, mu, logvar 
+		else: 
+
+			batch_size = v_a.shape[0]
+
+			# reparameterization trick 
+			sd = torch.sqrt(torch.exp(logvar))
+			eps = torch.randn(size=(batch_size,1),device=self.device)
+			value = mu + sd * eps
+
+			# scale 
+			value = (torch.tanh(value)+1)/2
+
+			return value

@@ -598,6 +598,9 @@ def plot_training_value(df_param,batched_fns,path_to_model):
 	from learning.value_emptynet import ValueEmptyNet
 	from learning_interface import format_data_value
 
+	def gaussian(x, mu, sigma):
+	    return 1./(np.sqrt(2.*np.pi)*sigma)*np.exp(-np.power((x - mu)/sigma, 2.)/2)
+
 	# - vis 
 	team_1_color = 'blue'
 	team_2_color = 'orange'
@@ -662,11 +665,21 @@ def plot_training_value(df_param,batched_fns,path_to_model):
 			model_value = model(v_a,v_b,n_a,n_b,n_rg)
 			model_values.append(model_value.detach().numpy().squeeze())
 
+		# query model training for candidate 
+		x = np.linspace(0,1,50)
+		v_a,v_b,n_a,n_b,n_rg = format_data_value(v_a,v_b,n_a,n_b,n_rg)
+		_,mu,logvar = model(v_a,v_b,n_a,n_b,n_rg,training=True)
+		mu = mu.detach().numpy().squeeze()
+		sigma = torch.sqrt(torch.exp(logvar)).detach().numpy().squeeze()
+		y = gaussian(x,mu,sigma)
+
 		# value func histogram  
 		axs[0][1].set_title('value: n_a = {}, n_b = {}, n_rg = {}'.format(\
 			int(candidate[2]),int(candidate[3]),int(candidate[4])))
 		axs[0][1].hist(model_values, bins=20, range=[0,1],alpha=0.5, label="NN")
 		axs[0][1].hist(dataset_values, bins=20, range=[0,1],alpha=0.5, label="data")
+		axs[0][1].plot(x,y,color='green',alpha=0.5)
+		axs[0][1].axvline(mu,color='green',alpha=0.5)
 		axs[0][1].set_xlim([0,1])
 		axs[0][1].set_xlabel('value')
 		axs[0][1].set_ylabel('count')
