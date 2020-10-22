@@ -30,8 +30,6 @@ class Param:
 			'mcts_beta3' : 				0.5,
 		}
 
-		# max timesteps until the game terminates
-		self.rollout_horizon = 100
 
 		# robot types 
 		self.robot_types = {
@@ -330,6 +328,9 @@ class Param:
 
 		# actions 
 		self.actions = np.asarray(list(itertools.product(*[[-1,0,1],[-1,0,1]])))
+
+		# max timesteps until the game terminates
+		self.rollout_horizon = int(100 * self.env_l)
 
 
 	def get_random_position_inside(self,xlim,ylim):
