@@ -313,7 +313,10 @@ class MonteCarloTreeSearch {
 
   Node* expand(Node* nodePtr, const Policy& policyAttacker, const Policy& policyDefender, const ValuePredictor& valuePredictor)
   {
-    const auto action = m_env.sampleAction(nodePtr->state, policyAttacker, policyDefender, false);
+    // for the first expansion use the deterministic mode; afterwards stochastic mode
+    // this should help for narrow trees
+    bool deterministic = nodePtr->children.size() == 0;
+    const auto action = m_env.sampleAction(nodePtr->state, policyAttacker, policyDefender, deterministic);
 #if CHECK_ACTION_DUPLICATES
     // std::cout << "a " << action[0] << " " << action[1] << std::endl;
     for (const auto c : nodePtr->children) {
