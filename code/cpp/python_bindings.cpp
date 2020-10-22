@@ -269,6 +269,7 @@ PYBIND11_MODULE(mctscpp, m) {
       const std::string&>(),
       "name"_a)
     .def("__repr__", &toString<ValuePredictorT>)
+    .def("estimate", &ValuePredictorT::estimate)
     .def_property("name", &ValuePredictorT::name, &ValuePredictorT::setName)
     .def_property_readonly("deepSetA", &ValuePredictorT::deepSetA)
     .def_property_readonly("deepSetB", &ValuePredictorT::deepSetB)
