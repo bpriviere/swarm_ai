@@ -22,6 +22,14 @@ Action Vector
 
 """
 
+'''
+TODO List
+- Greedy matching to something intelligent
+	- https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.optimize.linear_sum_assignment.html
+- Fix dumb panagou behaviour
+	- choosing to get killed...
+'''
+
 class PanagouPolicy:
 
 	def __init__(self,param):
@@ -82,6 +90,11 @@ class PanagouPolicy:
 		done = [] 
 		# Calculate robot actions
 		for i_robot,robot in enumerate(self.robots):
+
+			
+			if (np.any(np.isnan(state[i_robot]))) :
+				# Robot is dead, we can consider it done
+				done.append(i_robot)
 
 			if i_robot not in done: 
 
@@ -301,10 +314,18 @@ def calculate_nominal_trajectories(param,robots,times,theta_noms):
 	R_nom = np.zeros((len(robots),len(times),4))
 	for i_robot,robot in enumerate(robots): 
 		curr_state = np.array(robot["x0"])
-		for i_time,time in enumerate(times):
-			R_nom[i_robot,i_time,:] = curr_state
-			U = theta_to_u(robot,theta_noms[i_robot])
-			curr_state = step(robot, curr_state, U, param.sim_dt)	
+
+		if np.any(np.isnan(curr_state)) :
+			# Robot dead, ignore it
+			pass
+
+		else :
+			for i_time,time in enumerate(times):
+				R_nom[i_robot,i_time,:] = curr_state
+				U = theta_to_u(robot,theta_noms[i_robot])
+				curr_state = step(robot, curr_state, U, param.sim_dt)
+	
+	# All done
 	return R_nom 
 
 def calculate_intersections(param,robots,times,R):
@@ -323,63 +344,70 @@ def calculate_intersections(param,robots,times,R):
 	for i_robot in param.team_1_idxs:
 
 		# Check with each defender for intersections
-		for j_robot in param.team_2_idxs: 
+		for j_robot in param.team_2_idxs:
+			
+			# Check both robots are alive
+			if ( np.any(np.isnan(R[i_robot])) or np.any(np.isnan(R[j_robot])) ) :
+				# One of the robots is dead, don't add anything to the I matrix
+				pass
 
-			# Loop through each theta
-			for idx_theta in range(R.shape[2]):
-				#print("theta idx %d" % (idx_theta))
+			else : 
 
-				min_dist2_store = math.inf 
-				idx_dist2_store = 0
-				idx_t_store     = 0
+				# Loop through each theta
+				for idx_theta in range(R.shape[2]):
+					#print("theta idx %d" % (idx_theta))
 
-				# Loop through each time step
-				max_allowed_distance2 = np.power(robots[j_robot]["tag_radius"],2)
-				max_allowed_distance2 = 0.01**2
-				getting_closer = 1
+					min_dist2_store = math.inf 
+					idx_dist2_store = 0
+					idx_t_store     = 0
 
-				for idx_time in range(R.shape[1]):
-					# Find the distance between the agents across all the defender's thetas
-					posX1 = R[i_robot,idx_time,idx_theta,0] # attacker
-					posY1 = R[i_robot,idx_time,idx_theta,1]
+					# Loop through each time step
+					max_allowed_distance2 = np.power(robots[j_robot]["tag_radius"],2)
+					max_allowed_distance2 = 0.01**2
+					getting_closer = 1
 
-					posX2s = R[j_robot,idx_time,:,0] # defender
-					posY2s = R[j_robot,idx_time,:,1]
+					for idx_time in range(R.shape[1]):
+						# Find the distance between the agents across all the defender's thetas
+						posX1 = R[i_robot,idx_time,idx_theta,0] # attacker
+						posY1 = R[i_robot,idx_time,idx_theta,1]
 
-					dist2 = np.power(posX2s-posX1,2) + np.power(posY2s-posY1,2) 
+						posX2s = R[j_robot,idx_time,:,0] # defender
+						posY2s = R[j_robot,idx_time,:,1]
 
-					# Find the closest (smallest) distance index
-					idx_dist2 = np.where(dist2 == min(dist2))[0]
-					idx_dist2 = idx_dist2[0]
-					min_dist2 = dist2[idx_dist2]
+						dist2 = np.power(posX2s-posX1,2) + np.power(posY2s-posY1,2) 
 
-					# Replace theta and time if closer than previous best
-					# If we're moving away, we also don't want to store the value
-					if (min_dist2 <= min_dist2_store) and getting_closer:
-						min_dist2_store = min_dist2
-						idx_dist2_store = idx_dist2  # attacker's theta idx
-						idx_t_store = idx_time
-						#print("\t\tFound a closer point (%f at idx %d)" % (min_dist2_store, idx_dist2_store ))
+						# Find the closest (smallest) distance index
+						idx_dist2 = np.where(dist2 == min(dist2))[0]
+						idx_dist2 = idx_dist2[0]
+						min_dist2 = dist2[idx_dist2]
 
-					else :
-						getting_closer = 0
-						
-				# Check how close the defender actually got for this theta angle
-				# If sufficently close, store the indicies for
-				#     attacker_theta
-				#     defender_theta
-				#     time
-				if (min_dist2_store < max_allowed_distance2): 
-					if (0) :
-						print("Storing Intersection : dist2: %.4f" % (min_dist2_store), end='')
-						print(", idx_dist2: %d" % (idx_dist2_store), end='')
-						print(", idx_t: %d\n" % (idx_t_store), end='')
-					key = (i_robot,j_robot) 
-					I[key].append((idx_theta,idx_dist2_store,idx_t_store))
+						# Replace theta and time if closer than previous best
+						# If we're moving away, we also don't want to store the value
+						if (min_dist2 <= min_dist2_store) and getting_closer:
+							min_dist2_store = min_dist2
+							idx_dist2_store = idx_dist2  # attacker's theta idx
+							idx_t_store = idx_time
+							#print("\t\tFound a closer point (%f at idx %d)" % (min_dist2_store, idx_dist2_store ))
 
-					#print("t_death = %5.2f [ s ]" % (times[idx_t_store]))
+						else :
+							getting_closer = 0
+							
+					# Check how close the defender actually got for this theta angle
+					# If sufficently close, store the indicies for
+					#     attacker_theta
+					#     defender_theta
+					#     time
+					if (min_dist2_store < max_allowed_distance2): 
+						if (0) :
+							print("Storing Intersection : dist2: %.4f" % (min_dist2_store), end='')
+							print(", idx_dist2: %d" % (idx_dist2_store), end='')
+							print(", idx_t: %d\n" % (idx_t_store), end='')
+						key = (i_robot,j_robot) 
+						I[key].append((idx_theta,idx_dist2_store,idx_t_store))
+
+						#print("t_death = %5.2f [ s ]" % (times[idx_t_store]))
 	
-
+	# All done
 	return I 
 
 def calculate_all_trajectories(param,robots,times,thetas):
@@ -388,11 +416,18 @@ def calculate_all_trajectories(param,robots,times,thetas):
 	for i_robot,robot in enumerate(robots): 
 		for i_theta,theta in enumerate(thetas):
 			curr_state = np.array(robot["x0"])
-			for i_time,time in enumerate(times): 
-				R[i_robot,i_time,i_theta,:] = curr_state
-				U = theta_to_u(robot,theta)
 
-				curr_state = step(robot, curr_state, U, param.sim_dt)
+			for i_time,time in enumerate(times): 
+
+				R[i_robot,i_time,i_theta,:] = curr_state
+
+				if np.any(np.isnan(curr_state)) :
+					# Robot dead, ignore it
+					curr_state = np.array([np.nan, np.nan, np.nan, np.nan])
+				else : 
+					U = theta_to_u(robot,theta)
+					curr_state = step(robot, curr_state, U, param.sim_dt)
+	# All done
 	return R 
 
 def find_nominal_solns(param,robots):
@@ -400,9 +435,19 @@ def find_nominal_solns(param,robots):
 	theta_noms, terminal_times = [], []
 	for robot in robots: 
 		state = np.array(robot["x0"])
-		theta_nom, terminal_time = find_nominal_soln(param,robot,state)
+
+		if np.any(np.isnan(state)) :
+			# Robot dead, ignore it
+			theta_nom = 0
+			terminal_time = 0
+		else :
+			# Robot alive, calculate solutions
+			theta_nom, terminal_time = find_nominal_soln(param,robot,state)
+
 		theta_noms.append(theta_nom)
 		terminal_times.append(terminal_time)
+	
+	# Return, we have what we need
 	return theta_noms, terminal_times 
 
 def clamp_action(robot, X0, U0, dt) :
@@ -548,21 +593,30 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 
 	def equations(p):
 		def_theta, Tend = p
+
 		# This should be 10 iterations between now and capture (rather than a fixed dt time)
-		times = np.arange(0,Tend,sim_dt)
+		times = np.arange(0,max(Tend,sim_dt*2),sim_dt)
 
 		# Convert theta (th) into U = [ accX, accY ]
 		att_U = theta_to_u(att_robot,att_theta)
 		def_U = theta_to_u(def_robot,def_theta)
 
 		# Simulate system
-		att_states = integrate(att_robot,att_robot["x0"],att_U,times,sim_dt)
-		def_states = integrate(def_robot,def_robot["x0"],def_U,times,sim_dt)
+		att_states = integrate(att_robot,att_robot["x0"],att_U,times[1:],sim_dt)
+		def_states = integrate(def_robot,def_robot["x0"],def_U,times[1:],sim_dt)
 
-		# Extract useful information
+		# Interpolate to find the state at Tend (rather than times[-1])
+		Tsample = max(Tend,sim_dt/3) 
+
+		att_X = np.interp(Tsample, times, att_states[:,0])
+		att_Y = np.interp(Tsample, times, att_states[:,1])
+		def_X = np.interp(Tsample, times, def_states[:,0])
+		def_Y = np.interp(Tsample, times, def_states[:,1])
+
+		# Calculate the distance between the attacker and defender in the x- and y-axes
 		eqns = (
-			att_states[-1,0] - def_states[-1,0], 
-			att_states[-1,1] - def_states[-1,1], 
+			att_X - def_X, 
+			att_Y - def_Y, 
 			)
 		return eqns
 
@@ -591,13 +645,13 @@ def theta_to_u(robot,theta):
 def main():
 
 	set_ic = False
-	set_ic = True
+	#set_ic = True
 	if set_ic: 
 		print("====\nUsing Fixed Initial Conditions\n====")
 		# make sure this matches the teams match up in the param file
 		initial_condition = np.array( [ \
-			[   0.127,   0.578,   0.000,   0.000 ], \
-			[   0.700,   0.800,  -0.000,   0.000 ] ]) 
+			[   0.166,   0.675,   0.000,   0.000 ], \
+			[   0.862,   0.852,  -0.000,   0.000 ] ]) 
 
 		df_param = Param()
 		df_param.update(initial_condition=initial_condition)
