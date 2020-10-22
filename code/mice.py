@@ -729,19 +729,6 @@ def evaluate_expert_value_wrapper(arg):
 
 def make_dataset_value(states,params,df_param,policy_fn_a,policy_fn_b):
 
-	policy_dict_a = {
-			'sim_mode': 'GLAS',
-			'path_glas_model' : policy_fn_a,
-			'deterministic': False,
-		}
-	policy_dict_b = {
-			'sim_mode': 'GLAS',
-			'path_glas_model' : policy_fn_b,
-			'deterministic': False,
-		}	
-
-	print('evaluate_expert_value \n policy_dict_a: {} \n policy_dict_b: {}'.format(policy_dict_a,policy_dict_b))
-	
 	total = sum([len(states_per_file) for states_per_file in states])
 	if not df_param.l_parallel_on:
 	# if True:

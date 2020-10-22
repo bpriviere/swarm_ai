@@ -463,20 +463,20 @@ def evaluate_expert_value(rank, queue, total, states, param, policy_fn_a, policy
 		'param' : param.to_dict()
 		}
 
+
+	policy_dict_a = {
+		'sim_mode': 'GLAS',
+		'path_glas_model' : policy_fn_a,
+		'deterministic': True,
+	}
+
+	policy_dict_b = {
+		'sim_mode': 'GLAS',
+		'path_glas_model' : policy_fn_b,
+		'deterministic': True,
+	}
+
 	for state in states:
-
-		policy_dict_a = {
-			'sim_mode': 'GLAS',
-			'path_glas_model' : policy_fn_a,
-			'deterministic': False,
-		}
-
-		policy_dict_b = {
-			'sim_mode': 'GLAS',
-			'path_glas_model' : policy_fn_b,
-			'deterministic': False,
-		}
-
 		param.state = state
 
 		values = [] 

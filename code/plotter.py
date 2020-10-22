@@ -432,6 +432,7 @@ def plot_tree_results(sim_result,title=None):
 		param_obj.from_dict(sim_result["param"])
 
 		model = ValueEmptyNet(param_obj,"cpu")
+		model.load_state_dict(torch.load(path_value_fnc))
 
 		values = [] 
 		n_a = param_obj.num_nodes_A
