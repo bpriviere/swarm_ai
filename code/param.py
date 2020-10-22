@@ -79,7 +79,6 @@ class Param:
 		self.l_mcts_beta3 = 0.0
 		self.l_num_learner_nodes = 500
 		self.l_num_expert_nodes = 10000
-		self.l_env_l0 = 1.0
 		self.l_env_dl = 1.0
 		self.l_warmstart = True # warmstart policies between iterations
 		self.l_training_teams = ["a","b"]
