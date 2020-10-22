@@ -199,25 +199,20 @@ def play_game(param,policy_dict_a,policy_dict_b):
 	policy_a = create_cpp_policy(policy_dict_a, 'a')
 	policy_b = create_cpp_policy(policy_dict_b, 'b')
 
-	valuePredictor_a = None 
+	valuePredictor_a = create_cpp_value(None)
 	if policy_dict_a["sim_mode"] in ["MCTS","D_MCTS"]:
-		value_path_a = None 
 		if policy_dict_a["path_glas_model_a"] is not None:
 			model_num = int(os.path.basename(policy_dict_a["path_glas_model_a"])[1])
-			value_path_a = param.l_value_model_fn.format(\
-				DATADIR=param.path_current_models,\
-				ITER=model_num)  
-		valuePredictor_a = create_cpp_value(value_path_a)
+		if policy_dict_a["path_value_fnc"] is not None:
+			valuePredictor_a = create_cpp_value(policy_dict_a["path_value_fnc"])
 
-	valuePredictor_b = None
+	valuePredictor_b = create_cpp_value(None)
 	if policy_dict_b["sim_mode"] in ["MCTS","D_MCTS"]:
 		value_path_b = None 
 		if policy_dict_b["path_glas_model_b"] is not None:
 			model_num = int(os.path.basename(policy_dict_b["path_glas_model_b"])[1])
-			value_path_b = param.l_value_model_fn.format(\
-				DATADIR=param.path_current_models,\
-				ITER=model_num)
-		valuePredictor_b = create_cpp_value(value_path_b) 	
+		if policy_dict_b["path_value_fnc"] is not None:
+			valuePredictor_b = create_cpp_value(policy_dict_b["path_value_fnc"])
 
 	sim_result = {
 		'param' : param.to_dict(),
