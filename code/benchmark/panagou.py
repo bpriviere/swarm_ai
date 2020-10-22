@@ -22,6 +22,14 @@ Action Vector
 
 """
 
+'''
+TODO List
+- Greedy matching to something intelligent
+	- https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.optimize.linear_sum_assignment.html
+- Fix dumb panagou behaviour
+	- choosing to get killed...
+'''
+
 class PanagouPolicy:
 
 	def __init__(self,param):
