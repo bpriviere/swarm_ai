@@ -344,7 +344,7 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 	for timestep,(state,policy_dist) in enumerate(zip(states,policy_dists)):
 		for robot_idx in robot_idxs:
 			
-			if np.isnan(state[robot_idx,:]).any(): # non active robot 
+			if not np.isfinite(state[robot_idx,:]).all(): # non active robot 
 				continue
 
 			o_a, o_b, goal = global_to_local(state,param,robot_idx)
@@ -352,7 +352,7 @@ def make_labelled_data(sim_result,oa_pairs_by_size):
 
 			for action, weight in zip(policy_dist[robot_idx][:,0],policy_dist[robot_idx][:,1]):
 
-				if not (np.isnan(action).any() or np.isnan(weight).any()):
+				if np.isfinite(action).all() and np.isfinite(weight).all():
 					oa_pairs_by_size[key].append((o_a, o_b, goal, action, weight))
 
 	return oa_pairs_by_size

@@ -127,8 +127,8 @@ class Game {
         if (distToGoalSquared <= m_attackerTypes[i].tag_radiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
           nextState.attackers[i].status = RobotStateT::Status::ReachedGoal;
-          // mark the robot as not active anymore
-          nextState.attackers[i].state.fill(nanf(""));
+          // mark the robot as not active anymore (use infinity for the Python side to know the state)
+          nextState.attackers[i].state.fill(std::numeric_limits<float>::infinity());
         }
 
         for (size_t j = 0; j < NumDefenders; ++j) {
@@ -136,8 +136,8 @@ class Game {
             float distToDefenderSquared = (nextState.attackers[i].position() - nextState.defenders[j].position()).squaredNorm();
             if (distToDefenderSquared <= m_defenderTypes[j].tag_radiusSquared) {
               nextState.attackers[i].status = RobotStateT::Status::Captured;
-              // mark the robot as not active anymore
-              nextState.attackers[i].state.fill(nanf(""));
+              // mark the robot as not active anymore (use infinity for the Python side to know the state)
+              nextState.attackers[i].state.fill(-std::numeric_limits<float>::infinity());
             }
           }
         }

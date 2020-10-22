@@ -121,6 +121,15 @@ def state_to_cpp_game_state(state,turn,team_1_idxs,team_2_idxs):
 	defenders = [] 
 	for robot_idx, robot_state in enumerate(state): 
 		rs = mctscpp.RobotState(robot_state)
+		if np.isnan(robot_state).any():
+			rs.status = mctscpp.RobotState.Status.Invalid
+		elif np.isposinf(robot_state).any():
+			rs.status = mctscpp.RobotState.Status.ReachedGoal
+		elif np.isneginf(robot_state).any():
+			rs.status = mctscpp.RobotState.Status.Captured
+		else:
+			rs.status = mctscpp.RobotState.Status.Active
+
 		if robot_idx in team_1_idxs: 
 			attackers.append(rs)
 		elif robot_idx in team_2_idxs:
@@ -306,7 +315,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 			state = np.array([rs.state.copy() for rs in gs.attackers + gs.defenders])
 			action = np.nan*np.zeros((state.shape[0],2))
 			for robot_idx in team_idx: 
-				if np.isnan(state[robot_idx,:]).any(): # non active robot 
+				if not np.isfinite(state[robot_idx,:]).all(): # non active robot 
 					continue
 				o_a,o_b,goal = global_to_local(state,param,robot_idx)
 				state_i, robot_team_composition_i, self_idx, team_1_idxs_i, team_2_idxs_i = \

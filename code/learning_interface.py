@@ -5,7 +5,7 @@ import torch
 
 def global_to_local(states,param,idx):
 
-	assert(not np.isnan(states[idx,:]).any())
+	assert(np.isfinite(states[idx,:]).all())
 
 	n_robots, n_state_dim = states.shape
 
@@ -21,7 +21,7 @@ def global_to_local(states,param,idx):
 
 	for idx_j in range(n_robots):
 		if idx_j != idx \
-		and not np.isnan(states[idx_j,:]).any() \
+		and np.isfinite(states[idx_j,:]).all() \
 		and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]:
 			if idx_j in param.team_1_idxs:  
 				o_a.append(states[idx_j,:] - states[idx,:])
@@ -44,7 +44,7 @@ def global_to_value(param,state):
 	v_b = [] 
 
 	for idx_j in range(n_robots):
-		if not np.isnan(state[idx_j,:]).any(): 
+		if np.isfinite(state[idx_j,:]).all(): 
 			if idx_j in param.team_1_idxs:  
 				v_a.append(state[idx_j,:] - goal)
 			elif idx_j in param.team_2_idxs:
