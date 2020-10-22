@@ -577,7 +577,7 @@ def find_nominal_soln(param,robot,state):
 		U = theta_to_u(robot,th)
 		states = integrate(robot,np.array(robot["x0"]),U, times,param.sim_dt)
 
-		if np.linalg.norm(states[-1,0:2] - param.goal[0:2]) > 1.1*robot["radius"]:
+		if np.linalg.norm(states[-1,0:2] - param.goal[0:2]) > 1.1*robot["tag_radius"]:
 			# exit('bad nominal solution')
 			print('\tbad nominal solution')
 			# Wait here so we can debug what happened
