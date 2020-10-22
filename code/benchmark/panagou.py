@@ -117,7 +117,7 @@ class PanagouPolicy:
 						# If we're close and slow, go for the attacker, otherwise, do the interception thing
 						att_pos = state[i_robot,0:2]
 						def_pos = state[j_robot,0:2]
-						if (np.linalg.norm(att_pos - def_pos) < 2.5*self.robots[j_robot]["tag_radius"]) :
+						if (0) : #(np.linalg.norm(att_pos - def_pos) < 2.5*self.robots[j_robot]["tag_radius"]) :
 							# Lunge for the attacker
 							def_theta = defender_action_guess
 							Tend = 1.0
