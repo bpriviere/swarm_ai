@@ -148,31 +148,34 @@ def state_to_cpp_game_state(state,turn,team_1_idxs,team_2_idxs):
 
 	return game_state 
 
-# def expected_value(param,state,policy_dict):
+def expected_value(param,state,policy_dict,team):
 
-# 	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
-# 		param.sim_dt,param.goal,param.rollout_horizon)	
-# 	gs = state_to_cpp_game_state(state,"a",param.team_1_idxs,param.team_2_idxs)
+	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
+		param.sim_dt,param.goal,param.rollout_horizon)	
+	gs = state_to_cpp_game_state(state,team,param.team_1_idxs,param.team_2_idxs)
 
-# 	policy_a = create_cpp_policy(policy_dict, 'a')
-# 	policy_b = create_cpp_policy(policy_dict, 'b')
+	policy_a = create_cpp_policy(policy_dict, 'a')
+	policy_b = create_cpp_policy(policy_dict, 'b')
 
-# 	my_policy = policy_a 
-# 	other_policies = [policy_b]
+	my_policy = policy_a 
+	other_policies = [policy_b]
+	valuePredictor = create_cpp_value(policy_dict["path_value_fnc"])	
 
-# 	mctssettings = mctscpp.MCTSSettings()
-# 	mctssettings.num_nodes = policy_dict["mcts_tree_size"]
-# 	mctssettings.Cp = policy_dict["mcts_c_param"]
-# 	mctssettings.pw_C = policy_dict["mcts_pw_C"]
-# 	mctssettings.pw_alpha = policy_dict["mcts_pw_alpha"]
-# 	mctssettings.beta1 = policy_dict["mcts_beta1"]
-# 	mctssettings.beta3 = policy_dict["mcts_beta3"]
+	mctssettings = mctscpp.MCTSSettings()
+	mctssettings.num_nodes = policy_dict["mcts_tree_size"]
+	mctssettings.Cp = policy_dict["mcts_c_param"]
+	mctssettings.pw_C = policy_dict["mcts_pw_C"]
+	mctssettings.pw_alpha = policy_dict["mcts_pw_alpha"]
+	mctssettings.beta1 = policy_dict["mcts_beta1"]
+	mctssettings.beta3 = policy_dict["mcts_beta3"]
 
-# 	mctsresult = mctscpp.search(g, gs, \
-# 		my_policy,
-# 		other_policies,
-# 		mctssettings)
-# 	return mctsresult.expectedReward
+	mctsresult = mctscpp.search(g, gs, \
+		my_policy,
+		other_policies,
+		valuePredictor,
+		mctssettings)
+
+	return mctsresult.expectedReward[0]
 
 def self_play(param):
 

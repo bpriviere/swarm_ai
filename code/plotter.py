@@ -12,6 +12,7 @@ from matplotlib import cm
 from matplotlib.backends.backend_pdf import PdfPages 
 from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from collections import defaultdict
+from matplotlib.ticker import MaxNLocator
 
 import seaborn as sns
 
@@ -1037,62 +1038,172 @@ def plot_exp1_results(all_sim_results):
 
 def plot_exp4_results(all_sim_results):
 
-	def get_initial_condition(param,X,Y):
-		pos = np.zeros(2)
-		pos[0] = param["state"][0][0]
-		pos[1] = param["state"][0][1]
-		i_x = np.where(pos[0] == X)[0][0]
-		i_y = np.where(pos[1] == Y)[0][0]
-		return pos, i_x, i_y 
+	def policy_to_label(policy_dict):
+		label = policy_dict["sim_mode"]
+		label += policy_dict["team"]
+		if "path_glas_model_a" in policy_dict.keys() and policy_dict["path_glas_model_a"] is not None: 
+			label += ' ' + os.path.basename(policy_dict["path_glas_model_a"]).split('.')[0]
+		if "path_glas_model_b" in policy_dict.keys() and policy_dict["path_glas_model_b"] is not None: 
+			label += ' ' + os.path.basename(policy_dict["path_glas_model_b"]).split('.')[0]
+		if "path_value_fnc" in policy_dict.keys() and policy_dict["path_value_fnc"] is not None: 
+			label += ' ' + os.path.basename(policy_dict["path_value_fnc"]).split('.')[0]
+		if policy_dict["sim_mode"] in ["MCTS","D_MCTS"]:
+			label += ' |n|:{}'.format(policy_dict["mcts_tree_size"]).split('.')[0]
+		return label
 
-	X = all_sim_results[0]["param"]["X"]
-	Y = all_sim_results[0]["param"]["Y"]
-	num_trials = all_sim_results[0]["param"]["num_trials"]
-	exp4_sim_modes = all_sim_results[0]["param"]["sim_modes"]
-	xlim = [all_sim_results[0]["param"]["env_xlim"][0],all_sim_results[0]["param"]["env_xlim"][1]]
-	ylim = [all_sim_results[0]["param"]["env_ylim"][0],all_sim_results[0]["param"]["env_ylim"][1]]
+	# key = (trial, prediction_type, exp4_sim_mode)
+	# value = (forallrobots, image)
+	exp4_sim_modes = set()
+	value_ims = dict()
+	for sim_result in all_sim_results: 
+		trial = sim_result["param"]["trial"]
+		prediction_type = sim_result["param"]["exp4_prediction_type"]
+		exp4_sim_mode = policy_to_label(sim_result["param"]["policy_dict"])
+		key = (trial, prediction_type, exp4_sim_mode)
+		value_ims[key] = sim_result["value_ims"] 
+		exp4_sim_modes.add(exp4_sim_mode)
 
-	results = dict() 
-	for exp4_sim_mode in exp4_sim_modes: 
-		results[exp4_sim_mode] = np.zeros((X.shape[0],Y.shape[0],num_trials))
+	print('value_ims.keys()',value_ims.keys())
 
-	for sim_result in all_sim_results:
-		pos,i_x,i_y = get_initial_condition(sim_result["param"],X,Y)
-		exp4_sim_mode = sim_result["param"]["exp4_sim_mode"]
-		results[exp4_sim_mode][i_x,i_y,sim_result["param"]["i_trial"]] = sim_result["rewards"][-1,0]
+	nbins = 10
 
-	# values = np.zeros((X.shape[0],Y.shape[0],num_trials)) 
-	# for sim_result in all_sim_results:
-	# 	pos,i_x,i_y = get_initial_condition(sim_result["param"],X,Y)
-	# 	values[i_x,i_y,sim_result["param"]["i_trial"]] = sim_result["rewards"][-1,0]
+	plotted_trials = []
+	for sim_result in all_sim_results: 
 
-	# print(values.shape)
-	# print(np.mean(values,axis=2).shape)
-	# exit()
+		trial = sim_result["param"]["trial"]
+		if trial in plotted_trials: 
+			continue
+		else:
+			plotted_trials.append(trial)
+
+		X = sim_result["X"]
+		Y = sim_result["Y"]
+		nominal_state = sim_result["nominal_state"]
+		num_robots = sim_result["param"]["num_nodes"]
+		goal = sim_result["param"]["goal"]
+		env_xlim = sim_result["param"]["env_xlim"]
+		env_ylim = sim_result["param"]["env_ylim"]
+		team_1_idxs = sim_result["param"]["team_1_idxs"]
+		exp4_prediction_types = sim_result["param"]["exp4_prediction_types"]
+
+		colors = get_colors(sim_result["param"])
+
+		for robot_idx in range(num_robots):
+			
+			fig,axs = plt.subplots(nrows=len(exp4_prediction_types),ncols=len(exp4_sim_modes)//2,squeeze=False) 
+
+			curr_pt = -1
+			for prediction_type in exp4_prediction_types: 
+				curr_pt += 1
+				curr_sm = -1
+				for exp4_sim_mode in exp4_sim_modes:
+
+					key = (trial, prediction_type, exp4_sim_mode)
+
+					if not key in value_ims.keys() or np.isnan(value_ims[key][robot_idx,:,:]).any():
+						continue
+
+					curr_sm += 1
+
+					ax = axs[curr_pt,curr_sm]
+
+					# plot heatmap 
+					# levels = MaxNLocator(nbins=nbins).tick_values(0,1)
+					# levels = MaxNLocator(nbins=nbins).tick_values(value_ims[key][robot_idx,:,:].min(),value_ims[key][robot_idx,:,:].max())
+					# im = ax.contourf(X,Y,value_ims[key][robot_idx,:,:],levels=levels)
+					im = ax.imshow(value_ims[key][robot_idx,:,:],origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]))
+
+					# plot state 
+					ax.scatter(goal[0],goal[1],color='green')
+					for robot_idx_j, robot_state_j in enumerate(nominal_state):
+						if robot_idx_j == robot_idx: 
+							continue 
+						ax.scatter(robot_state_j[0],robot_state_j[1],color=colors[robot_idx_j])
+
+					# labels 
+					if curr_pt == 0:
+						# ax.set_xlabel(prediction_type)
+						ax.set_xlabel(exp4_sim_mode)
+						ax.xaxis.set_label_position('top')
+					if curr_sm == 0:
+						# ax.set_ylabel(exp4_sim_mode)
+						ax.set_ylabel(prediction_type)
+
+					# arrange 
+					ax.set_xticks(X)
+					ax.set_yticks(Y)
+					ax.set_xticklabels([])
+					ax.set_yticklabels([])
+					ax.grid(True,linestyle='-',linewidth=1,alpha=0.2,color='black')
+
+			# title 
+			team = "b"
+			if robot_idx in team_1_idxs:
+				team = "a"
+			title = 'Trial {}, Placing Robot From Team {}'.format(trial,team)
+			fig.suptitle(title)
+			
 
 
-	colors = get_n_colors(len(sim_result["param"]["robots"]))
 
-	for sim_mode, values in results.items():
-		fig,ax = plt.subplots()
-		im = ax.imshow(np.mean(values,axis=2).T,origin='lower',extent=(xlim[0],xlim[1],ylim[0],ylim[1]),vmin=0,vmax=1)
-		fig.colorbar(im)
-		ax.scatter(sim_result["param"]["goal"][0],sim_result["param"]["goal"][1],color='green',marker='o',label='goal')
-		for robot_idx in range(sim_result["param"]["num_nodes"]):
-			if not robot_idx == 0:
-				ax.scatter(sim_result["states"][0,robot_idx,0],sim_result["states"][0,robot_idx,1],marker='o',color=colors[robot_idx],label=str(robot_idx))
-				ax.arrow(sim_result["states"][0,robot_idx,0], sim_result["states"][0,robot_idx,1], \
-					sim_result["states"][0,robot_idx,2], sim_result["states"][0,robot_idx,3], color=colors[robot_idx])
-		ax.set_xlim([xlim[0],xlim[1]])
-		ax.set_ylim([ylim[0],ylim[1]])
+# def plot_exp4_results(all_sim_results):
 
-		dx = xlim[1] - X[-1]
-		ax.set_xticks(X - dx)
-		ax.set_yticks(Y - dx)
-		ax.grid(True)
-		ax.set_aspect('equal')
-		ax.legend(loc='upper left')
-		ax.set_title(sim_mode)
+# 	def get_initial_condition(param,X,Y):
+# 		pos = np.zeros(2)
+# 		pos[0] = param["state"][0][0]
+# 		pos[1] = param["state"][0][1]
+# 		i_x = np.where(pos[0] == X)[0][0]
+# 		i_y = np.where(pos[1] == Y)[0][0]
+# 		return pos, i_x, i_y 
+
+# 	X = all_sim_results[0]["param"]["X"]
+# 	Y = all_sim_results[0]["param"]["Y"]
+# 	num_trials = all_sim_results[0]["param"]["num_trials"]
+# 	exp4_sim_modes = all_sim_results[0]["param"]["sim_modes"]
+# 	xlim = [all_sim_results[0]["param"]["env_xlim"][0],all_sim_results[0]["param"]["env_xlim"][1]]
+# 	ylim = [all_sim_results[0]["param"]["env_ylim"][0],all_sim_results[0]["param"]["env_ylim"][1]]
+
+# 	results = dict() 
+# 	for exp4_sim_mode in exp4_sim_modes: 
+# 		results[exp4_sim_mode] = np.zeros((X.shape[0],Y.shape[0],num_trials))
+
+# 	for sim_result in all_sim_results:
+# 		pos,i_x,i_y = get_initial_condition(sim_result["param"],X,Y)
+# 		exp4_sim_mode = sim_result["param"]["exp4_sim_mode"]
+# 		results[exp4_sim_mode][i_x,i_y,sim_result["param"]["i_trial"]] = sim_result["rewards"][-1,0]
+
+# 	# values = np.zeros((X.shape[0],Y.shape[0],num_trials)) 
+# 	# for sim_result in all_sim_results:
+# 	# 	pos,i_x,i_y = get_initial_condition(sim_result["param"],X,Y)
+# 	# 	values[i_x,i_y,sim_result["param"]["i_trial"]] = sim_result["rewards"][-1,0]
+
+# 	# print(values.shape)
+# 	# print(np.mean(values,axis=2).shape)
+# 	# exit()
+
+
+# 	colors = get_n_colors(len(sim_result["param"]["robots"]))
+
+# 	for sim_mode, values in results.items():
+# 		fig,ax = plt.subplots()
+# 		im = ax.imshow(np.mean(values,axis=2).T,origin='lower',extent=(xlim[0],xlim[1],ylim[0],ylim[1]),vmin=0,vmax=1)
+# 		fig.colorbar(im)
+# 		ax.scatter(sim_result["param"]["goal"][0],sim_result["param"]["goal"][1],color='green',marker='o',label='goal')
+# 		for robot_idx in range(sim_result["param"]["num_nodes"]):
+# 			if not robot_idx == 0:
+# 				ax.scatter(sim_result["states"][0,robot_idx,0],sim_result["states"][0,robot_idx,1],marker='o',color=colors[robot_idx],label=str(robot_idx))
+# 				ax.arrow(sim_result["states"][0,robot_idx,0], sim_result["states"][0,robot_idx,1], \
+# 					sim_result["states"][0,robot_idx,2], sim_result["states"][0,robot_idx,3], color=colors[robot_idx])
+# 		ax.set_xlim([xlim[0],xlim[1]])
+# 		ax.set_ylim([ylim[0],ylim[1]])
+
+# 		dx = xlim[1] - X[-1]
+# 		ax.set_xticks(X - dx)
+# 		ax.set_yticks(Y - dx)
+# 		ax.grid(True)
+# 		ax.set_aspect('equal')
+# 		ax.legend(loc='upper left')
+# 		ax.set_title(sim_mode)
 
 
 def plot_exp2_results(all_sim_results):
