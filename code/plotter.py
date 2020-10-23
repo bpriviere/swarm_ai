@@ -439,21 +439,31 @@ def plot_tree_results(sim_result,title=None):
 			# import cpp_interface
 			# valPred = cpp_interface.create_cpp_value(path_value_fnc)
 
-			values = [] 
+			mus = [] 
+			sigmas = [] 
 			n_a = param_obj.num_nodes_A
 			n_b = param_obj.num_nodes_B
 			for k,(t,n_rg) in enumerate(zip(times,sim_result["n_rgs"])):
 				v_a,v_b = global_to_value(param_obj,states[k,:,:])
 				v_a,v_b,n_a,n_b,n_rg = format_data_value(v_a,v_b,n_a,n_b,n_rg)
-				value = model(v_a,v_b,n_a,n_b,n_rg)
+				_,mu,logvar = model(v_a,v_b,n_a,n_b,n_rg,training=True)
+
+				mu = mu.detach().numpy().squeeze()
+				sigma = torch.sqrt(torch.exp(logvar)).detach().numpy().squeeze()
+
+				mus.append(mu)
+				sigmas.append(sigma)
 
 				# cppstate = cpp_interface.state_to_cpp_game_state(states[k,:,:],"a",param_obj.team_1_idxs,param_obj.team_2_idxs)
 				# cppvalue = valPred.estimate(cppstate, param_obj.goal)
 
 				# print(value, cppvalue)
 
-				values.append(value)
-		ax.plot(times,values,color='green',label='learned') 
+		mus = np.array(mus)
+		sigmas = np.array(sigmas)
+
+		ax.plot(times,mus,color='green',label='learned') 
+		ax.fill_between(times,mus-sigmas,mus+sigmas,color='green',alpha=0.5) 
 		ax.legend()
 
 	# time varying velocity
