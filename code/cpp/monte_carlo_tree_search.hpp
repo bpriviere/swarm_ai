@@ -345,7 +345,7 @@ class MonteCarloTreeSearch {
       newNode.parent = nodePtr;
       newNode.action_to_node = action;
       if (m_beta1 > 0) {
-        newNode.estimated_value = m_env.estimateValue(newNode.state, valuePredictor);
+        newNode.estimated_value = m_env.estimateValue(newNode.state, valuePredictor, false);
         // TODO: would need to switch based on which turn it is!
         assert(false);
       }
