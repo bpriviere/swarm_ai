@@ -421,6 +421,8 @@ def plot_tree_results(sim_result,title=None):
 	path_value_fnc = None
 	if "path_value_fnc" in sim_result["param"]["policy_dict_a"]: 
 		path_value_fnc = sim_result["param"]["policy_dict_a"]["path_value_fnc"]
+	elif "path_value_fnc" in sim_result["param"]["policy_dict_b"]:  # weird logic here in case of "MCTS(unbiased) vs MCTS(biased)"
+		path_value_fnc = sim_result["param"]["policy_dict_b"]["path_value_fnc"]
 
 	if path_value_fnc is not None: 
 
@@ -437,9 +439,6 @@ def plot_tree_results(sim_result,title=None):
 			model = ValueEmptyNet(param_obj,"cpu")
 			model.load_state_dict(torch.load(path_value_fnc))
 
-			# import cpp_interface
-			# valPred = cpp_interface.create_cpp_value(path_value_fnc)
-
 			mus = [] 
 			sigmas = [] 
 			n_a = param_obj.num_nodes_A
@@ -454,11 +453,6 @@ def plot_tree_results(sim_result,title=None):
 
 				mus.append(mu)
 				sigmas.append(sigma)
-
-				# cppstate = cpp_interface.state_to_cpp_game_state(states[k,:,:],"a",param_obj.team_1_idxs,param_obj.team_2_idxs)
-				# cppvalue = valPred.estimate(cppstate, param_obj.goal)
-
-				# print(value, cppvalue)
 
 		mus = np.array(mus)
 		sigmas = np.array(sigmas)
@@ -485,6 +479,86 @@ def plot_tree_results(sim_result,title=None):
 		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=colors[i])
 	ax.set_ylim(bottom=0)
 
+	# velociy-space trajectories
+	# ax = axs[2,0]
+	# ax.grid(True)
+	# ax.set_title('Velocity Trajectories')
+	# for i in range(num_nodes):
+	# 	# ax.axhline(sim_result["param"]["robots"][i]["speed_limit"],color=colors[i],linestyle='--')
+	# 	ax.plot(states[:,i,2],states[:,i,3],color=colors[i])
+	# 	arrow_dirs_x = states[1:,i,2] - states[0:-1,i,2]
+	# 	arrow_dirs_y = states[1:,i,3] - states[0:-1,i,3]
+	# 	for k,t in enumerate(times[0:-1]):
+	# 		ax.arrow(states[k,i,2],states[k,i,3],arrow_dirs_x[k],arrow_dirs_y[k],color=colors[i])
+	# ax.set_xlabel('v_x')
+	# ax.set_ylabel('v_y')
+
+	# # acceleration-space trajectories 
+	# ax = axs[2,1]
+	# ax.grid(True)
+	# ax.set_title('Acceleration Trajectories')
+	# for i in range(num_nodes):
+	# 	# ax.axhline(sim_result["param"]["robots"][i]["speed_limit"],color=colors[i],linestyle='--')
+	# 	ax.plot(actions[:,i,0],actions[:,i,1],color=colors[i])
+	# 	arrow_dirs_x = actions[1:,i,0] - actions[0:-1,i,0]
+	# 	arrow_dirs_y = actions[1:,i,1] - actions[0:-1,i,1]
+	# 	for k,t in enumerate(times[0:-1]):
+	# 		ax.arrow(actions[k,i,0],actions[k,i,1],arrow_dirs_x[k],arrow_dirs_y[k],color=colors[i])
+	# ax.set_xlabel('a_x')
+	# ax.set_ylabel('a_y')
+
+	# path_policy_ = None
+	# if "path_value_fnc" in sim_result["param"]["policy_dict_a"]: 
+	# 	path_value_fnc = sim_result["param"]["policy_dict_a"]["path_value_fnc"]
+
+	# 
+
+	# for team in ["a","b"]:
+
+	# if path_value_fnc is not None: 
+	# if path_value_fnc is not None: 
+
+	# 	# from learning.continuous_emptynet import ContinuousEmptyNet
+	# 	from learning.value_emptynet import ValueEmptyNet
+	# 	from learning_interface import format_data_value, global_to_value 
+	# 	from param import Param 
+	# 	import torch 
+
+	# 	param_obj = Param()
+	# 	param_obj.from_dict(sim_result["param"])
+
+	# 	with torch.no_grad():
+	# 		model = ValueEmptyNet(param_obj,"cpu")
+	# 		model.load_state_dict(torch.load(path_value_fnc))
+
+	# 		mus = [] 
+	# 		sigmas = [] 
+	# 		n_a = param_obj.num_nodes_A
+	# 		n_b = param_obj.num_nodes_B
+	# 		for k,(t,n_rg) in enumerate(zip(times,sim_result["n_rgs"])):
+	# 			v_a,v_b = global_to_value(param_obj,states[k,:,:])
+	# 			v_a,v_b,n_a,n_b,n_rg = format_data_value(v_a,v_b,n_a,n_b,n_rg)
+	# 			_,mu,logvar = model(v_a,v_b,n_a,n_b,n_rg,training=True)
+
+	# 			mu = mu.detach().numpy().squeeze()
+	# 			sigma = torch.sqrt(torch.exp(logvar)).detach().numpy().squeeze()
+
+	# 			mus.append(mu)
+	# 			sigmas.append(sigma)
+
+	# 			# cppstate = cpp_interface.state_to_cpp_game_state(states[k,:,:],"a",param_obj.team_1_idxs,param_obj.team_2_idxs)
+	# 			# cppvalue = valPred.estimate(cppstate, param_obj.goal)
+
+	# 			# print(value, cppvalue)
+
+	# 	mus = np.array(mus)
+	# 	sigmas = np.array(sigmas)
+
+	# 	ax.plot(times,mus,color='green',label='learned') 
+	# 	ax.fill_between(times,mus-sigmas,mus+sigmas,color='green',alpha=0.5) 
+	# 	ax.legend()
+
+	# add figure title 
 	if title is not None: 
 		fig.suptitle(title)	
 
@@ -1051,46 +1125,75 @@ def plot_exp4_results(all_sim_results):
 			label += ' |n|:{}'.format(policy_dict["mcts_tree_size"]).split('.')[0]
 		return label
 
-	# key = (trial, prediction_type, exp4_sim_mode)
-	# value = (forallrobots, image)
-	exp4_sim_modes = set()
-	value_ims = dict()
-	for sim_result in all_sim_results: 
-		trial = sim_result["param"]["trial"]
-		prediction_type = sim_result["param"]["exp4_prediction_type"]
-		exp4_sim_mode = policy_to_label(sim_result["param"]["policy_dict"])
-		key = (trial, prediction_type, exp4_sim_mode)
-		value_ims[key] = sim_result["value_ims"] 
-		exp4_sim_modes.add(exp4_sim_mode)
-
-	print('value_ims.keys()',value_ims.keys())
-
 	nbins = 10
 
-	plotted_trials = []
+	# key = (trial, team, prediction_type, exp4_sim_mode)
+	# value = (forallrobots, image)
+	exp4_sim_modes = set()
+	value_ims = defaultdict(list)
+	policy_ims = defaultdict(list)
+	sim_results_by_key = defaultdict(list)
 	for sim_result in all_sim_results: 
+		i_case = sim_result["param"]["i_case"]
+		prediction_type = sim_result["param"]["exp4_prediction_type"]
+		exp4_sim_mode = policy_to_label(sim_result["param"]["policy_dict"])
+		team = sim_result["param"]["team"]
+	
+		key = (i_case, team, prediction_type, exp4_sim_mode)
+		exp4_sim_modes.add(exp4_sim_mode)
+	
+		value_ims[key].append(sim_result["value_ims"])
+		policy_ims[key].append(sim_result["policy_ims"])
+		sim_results_by_key[key].append(sim_result)
 
-		trial = sim_result["param"]["trial"]
-		if trial in plotted_trials: 
+
+	# print('sim_results_by_key',sim_results_by_key)
+	# for (trial, team, prediction_type, exp4_sim_mode), data_value in value_ims.items():
+	# 	print('trial',trial)
+	# 	print('team',team)
+	# exit()
+
+
+	plotted = []
+	for (i_case, team, prediction_type, exp4_sim_mode), data_value in value_ims.items():
+
+		key = (i_case, team, prediction_type, exp4_sim_mode)
+
+		if (i_case,team) in plotted:
 			continue
 		else:
-			plotted_trials.append(trial)
+			plotted.append((i_case,team))
+
+		sim_result = sim_results_by_key[key][0]
 
 		X = sim_result["X"]
 		Y = sim_result["Y"]
 		nominal_state = sim_result["nominal_state"]
 		num_robots = sim_result["param"]["num_nodes"]
 		goal = sim_result["param"]["goal"]
+		team = sim_result["param"]["team"]
 		env_xlim = sim_result["param"]["env_xlim"]
 		env_ylim = sim_result["param"]["env_ylim"]
 		team_1_idxs = sim_result["param"]["team_1_idxs"]
+		team_2_idxs = sim_result["param"]["team_2_idxs"]
+		team_idxs = team_1_idxs if team =="a" else team_2_idxs
 		exp4_prediction_types = sim_result["param"]["exp4_prediction_types"]
 
 		colors = get_colors(sim_result["param"])
 
 		for robot_idx in range(num_robots):
+
+			if not robot_idx in team_idxs: 
+				continue
 			
-			fig,axs = plt.subplots(nrows=len(exp4_prediction_types),ncols=len(exp4_sim_modes)//2,squeeze=False) 
+			fig,axs = plt.subplots(nrows=len(exp4_prediction_types)+1,ncols=len(exp4_sim_modes)//2,squeeze=False) 
+
+			# fig title 
+			team = "b"
+			if robot_idx in team_1_idxs:
+				team = "a"
+			title = 'Initial Condition {}, Placing Robot From Team {}'.format(i_case,team)
+			fig.suptitle(title)	
 
 			curr_pt = -1
 			for prediction_type in exp4_prediction_types: 
@@ -1098,20 +1201,25 @@ def plot_exp4_results(all_sim_results):
 				curr_sm = -1
 				for exp4_sim_mode in exp4_sim_modes:
 
-					key = (trial, prediction_type, exp4_sim_mode)
+					key = (i_case, team, prediction_type, exp4_sim_mode)
 
-					if not key in value_ims.keys() or np.isnan(value_ims[key][robot_idx,:,:]).any():
+					if not key in value_ims.keys() or np.isnan(np.array(value_ims[key])[:,robot_idx,:,:]).any():
 						continue
 
 					curr_sm += 1
 
 					ax = axs[curr_pt,curr_sm]
 
+					data = np.mean(np.array(value_ims[key]),axis=0)
+
 					# plot heatmap 
 					# levels = MaxNLocator(nbins=nbins).tick_values(0,1)
 					# levels = MaxNLocator(nbins=nbins).tick_values(value_ims[key][robot_idx,:,:].min(),value_ims[key][robot_idx,:,:].max())
 					# im = ax.contourf(X,Y,value_ims[key][robot_idx,:,:],levels=levels)
-					im = ax.imshow(value_ims[key][robot_idx,:,:],origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]))
+					
+					# im = ax.imshow(value_ims[key][robot_idx,:,:].T,origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]))
+					# im = ax.imshow(value_ims[key][robot_idx,:,:].T,origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]),vmin=0,vmax=1)
+					im = ax.imshow(data[robot_idx,:,:].T,origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]),vmin=0,vmax=1)
 
 					# plot state 
 					ax.scatter(goal[0],goal[1],color='green')
@@ -1136,12 +1244,34 @@ def plot_exp4_results(all_sim_results):
 					ax.set_yticklabels([])
 					ax.grid(True,linestyle='-',linewidth=1,alpha=0.2,color='black')
 
-			# title 
-			team = "b"
-			if robot_idx in team_1_idxs:
-				team = "a"
-			title = 'Trial {}, Placing Robot From Team {}'.format(trial,team)
-			fig.suptitle(title)
+
+			curr_sm = 0 
+			for exp4_sim_mode in exp4_sim_modes: 
+
+				key = (i_case, team, prediction_type, exp4_sim_mode)
+
+				# plot policy quiver for each exp4simmode 
+				# if not key in policy_ims.keys() or np.isnan(np.array(policy_ims[key])[:,robot_idx,:,:]).any():
+				if not key in policy_ims.keys(): # or np.isnan(np.array(policy_ims[key])[:,robot_idx,:,:]).any():
+					continue
+
+				ax = axs[len(exp4_prediction_types),curr_sm]
+				data = np.mean(np.array(policy_ims[key])[:,robot_idx,:,:],axis=0)
+				C = np.linalg.norm(data,axis=2)
+				ax.quiver(np.array(X),np.array(Y),data[:,:,0],data[:,:,1],width=0.01)
+				ax.imshow(C.T,origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]))
+
+				if curr_sm == 0:
+					ax.set_ylabel("Policy")
+				curr_sm += 1
+
+				# arrange 
+				ax.set_xticks(X)
+				ax.set_yticks(Y)
+				ax.set_xticklabels([])
+				ax.set_yticklabels([])
+				# ax.grid(True,linestyle='-',linewidth=1,alpha=0.2,color='black')
+
 			
 
 

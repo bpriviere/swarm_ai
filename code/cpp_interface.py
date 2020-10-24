@@ -175,7 +175,7 @@ def expected_value(param,state,policy_dict,team):
 		valuePredictor,
 		mctssettings)
 
-	return mctsresult.expectedReward[0]
+	return mctsresult.expectedReward[0], mctsresult.bestAction
 
 def self_play(param):
 
