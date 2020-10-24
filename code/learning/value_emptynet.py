@@ -69,7 +69,7 @@ class ValueEmptyNet(nn.Module):
 			eps = torch.randn(size=(batch_size,1),device=self.device)
 			value = mu + sd * eps
 
-			# scale 
-			value = (torch.tanh(value)+1)/2
+			# clamp
+			value = torch.clamp(value, 0, 1)
 
 			return value

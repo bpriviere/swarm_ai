@@ -266,9 +266,12 @@ PYBIND11_MODULE(mctscppdubins2D, m) {
   // ValuePredictor
   py::class_<ValuePredictorT> (m, "ValuePredictor")
     .def(py::init<
-      const std::string&>(),
-      "name"_a)
+      const std::string&,
+      std::default_random_engine&>(),
+      "name"_a,
+      "generator"_a = g_generator)
     .def("__repr__", &toString<ValuePredictorT>)
+    .def("estimate", &ValuePredictorT::estimate)
     .def_property("name", &ValuePredictorT::name, &ValuePredictorT::setName)
     .def_property_readonly("deepSetA", &ValuePredictorT::deepSetA)
     .def_property_readonly("deepSetB", &ValuePredictorT::deepSetB)
