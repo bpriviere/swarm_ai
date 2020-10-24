@@ -324,7 +324,7 @@ class Game {
     std::uniform_real_distribution<float> dist(0.0,1.0);
     if (!terminal
         && dist(m_generator) < beta3) {
-      float reward =  estimateValue(state, valuePredictor);
+      float reward =  estimateValue(state, valuePredictor, false);
       if (!isnan(reward)) {
         return Reward(reward, 1 - reward);
       }
@@ -425,7 +425,12 @@ class Game {
       r2 = (1.0f - numDefendersActive / (float)state.defenders.size());
     }
 
-    return ( r1 + r2 + reachedGoal ) / 3.0f;    
+    float w1 = 0.1; 
+    float w2 = 0.1; 
+    float w3 = 0.8; 
+
+    return ( w1*r1 + w2*r2 + w3*reachedGoal ) / (w1+w2+w3);    
+    // return ( r1 + r2 + reachedGoal ) / 3.0f;    
 
     // return (   numAttackerActive / (float)state.attackers.size()
     //          + (1.0f - numDefendersActive / (float)state.defenders.size())
@@ -498,10 +503,11 @@ class Game {
 
   float estimateValue(
     const GameStateT& state,
-    const ValuePredictorT& value)
+    const ValuePredictorT& value,
+    bool deterministic)
   {
     if (value.valid()) {
-      return value.estimate(state, m_goal);
+      return value.estimate(state, m_goal, deterministic);
     }
     return std::nanf("");
   }

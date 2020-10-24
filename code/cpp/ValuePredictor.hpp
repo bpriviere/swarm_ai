@@ -1,6 +1,7 @@
 #pragma once
 
 #include <random>
+#include <algorithm>
 
 #include "GLAS.hpp"
 
@@ -17,8 +18,10 @@ public:
   // typedef std::vector<RobotActionT> GameActionT;
 
   ValuePredictor(
-    const std::string& name)
+    const std::string& name,
+    std::default_random_engine& generator)
     : m_name(name)
+    , m_generator(generator)
     , m_ds_a()
     , m_ds_b()
     , m_value()
@@ -27,7 +30,8 @@ public:
 
   float estimate(
     const GameStateT& state,
-    const Eigen::Matrix<float, Robot::StateDim, 1>& goal) const
+    const Eigen::Matrix<float, Robot::StateDim, 1>& goal,
+    bool deterministic) const
   {
     const size_t NumAttackers = state.attackers.size();
     const size_t NumDefenders = state.defenders.size();
@@ -63,8 +67,19 @@ public:
     value_input(m_ds_a.sizeOut()+m_ds_b.sizeOut()+2) = num_reached_goal;
 
     auto val = m_value.eval(value_input);
-    float value = (tanh(val(0))+1)/2;
 
+    auto mu = val.segment<1>(0);
+    float value;
+    if (deterministic) {
+      value = mu(0);
+    } else {
+      auto logvar = val.segment<1>(1);
+      auto sd = logvar.array().exp().sqrt();
+      std::normal_distribution<float> dist(mu(0),sd(0));
+      value = dist(m_generator);
+    }
+    // value = std::clamp(value, 0, 1);
+    value = std::min(std::max(value, 0.0f), 1.0f);
     return value;
   }
 
@@ -105,6 +120,7 @@ public:
 
 private:
   std::string m_name;
+  std::default_random_engine& m_generator;
 
   DeepSetNN<Robot::StateDim> m_ds_a;
   DeepSetNN<Robot::StateDim> m_ds_b;
