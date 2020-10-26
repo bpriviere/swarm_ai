@@ -39,7 +39,7 @@ class Param:
 				'acceleration_limit':0.125,
 				'tag_radius': 0.025,
 				'dynamics':'double_integrator',
-				'r_sense': 5.0,
+				'r_sense': 1.0,
 				'radius': 0.025,
 			},
 			'evasive_robot' : {
@@ -68,17 +68,17 @@ class Param:
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 1
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 5000
+		self.l_num_points_per_file = 10000
 		self.l_mcts_c_param = 1.4
-		self.l_mcts_pw_C = 1.0
+		self.l_mcts_pw_C = 2.0
 		self.l_mcts_pw_alpha = 0.25
 		self.l_mcts_beta1 = 0.0
 		self.l_mcts_beta2 = 0.5
-		self.l_mcts_beta3 = 0.0
+		self.l_mcts_beta3 = 0.5
 		self.l_num_learner_nodes = 500
 		self.l_num_expert_nodes = 10000
 		self.l_env_dl = 1.0
-		self.l_warmstart = True # warmstart policies between iterations
+		self.l_warmstart = False # warmstart policies between iterations
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -100,18 +100,18 @@ class Param:
 		]
 
 		self.l_desired_game = {
-			'Skill_A' : 2, #'a1.pt',
-			'Skill_B' : 2, #'b1.pt',
-			'EnvironmentLength' : 1.0,
-			'NumA' : 2,
-			'NumB' : 2,
+			'Skill_A' : 10, #'a1.pt',
+			'Skill_B' : 10, #'b1.pt',
+			'EnvironmentLength' : 3.0,
+			'NumA' : 3,
+			'NumB' : 3,
 		}
 		self.l_initial_curiculum = {
 			'Skill_A' : [None],
 			'Skill_B' : [None],
-			'EnvironmentLength' : [1.0],
-			'NumA' : [1,2],
-			'NumB' : [1,2],
+			'EnvironmentLength' : [1.0,2.0,3.0],
+			'NumA' : [1,2,3],
+			'NumB' : [1,2,3],
 		}
 
 		self.l_subsample_on = False
