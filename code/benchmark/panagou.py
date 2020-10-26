@@ -116,9 +116,14 @@ class PanagouPolicy:
 						# Update the actions with the capture case
 						attacker_action_theta = self.thetas[i_theta_star]
 						defender_action_guess = self.thetas[j_theta_star]
-						actions[i_robot,:] = theta_to_u(robot,attacker_action_theta) 
 
-						# Calculate the best accelerations to minimise the time to intercept the 
+						# Just take the nominal path to the goal
+						attacker_action_theta = self.theta_noms[i_robot]
+
+						# Put the action into [ accX , accY ] space
+						actions[i_robot,:] = theta_to_u(robot,attacker_action_theta)
+
+						# [ Defender ] Calculate the best accelerations to minimise the time to intercept the 
 						# attacker based on the attacker's known acceleration direction (and hence trajectory).				
 						if (0) : print(" Isoline intercept theta %6.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, self.times[idx_t_capture]))
 						
@@ -272,6 +277,7 @@ def calculate_matching_policies(param,I,R):
 		for (ii_theta,jj_theta,ii_time) in intersections:
 			intersection_dist_to_goal = np.linalg.norm(R[ii_robot,ii_time,ii_theta,0:2] - param.goal[0:2])
 			if min_dist_to_goal > intersection_dist_to_goal:
+				# I think this is a match
 				ii_theta_star = ii_theta
 				jj_theta_star = jj_theta
 				ii_time_star = ii_time
