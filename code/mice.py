@@ -1058,15 +1058,27 @@ if __name__ == '__main__':
 				else:
 					warmstart_fn = None
 
-				# data to be used 
-				batched_fns = glob.glob(df_param.l_labelled_fn.format(\
-						DATADIR=df_param.path_current_data,\
-						TEAM=training_team,\
-						LEARNING_ITER=i,\
-						# LEARNING_ITER='**',\
-						NUM_A='**',\
-						NUM_B='**',\
-						NUM_FILE='**'))
+				# data to be used
+				# batched_fns = glob.glob(df_param.l_labelled_fn.format(\
+				# 		DATADIR=df_param.path_current_data,\
+				# 		TEAM=training_team,\
+				# 		LEARNING_ITER=i,\
+				# 		# LEARNING_ITER='**',\
+				# 		NUM_A='**',\
+				# 		NUM_B='**',\
+				# 		NUM_FILE='**'))
+
+				batched_fns = []
+				for unused_var in range(0, i+1):
+					batched_fns.extend(glob.glob(df_param.l_labelled_fn.format(\
+							DATADIR=df_param.path_current_data,\
+							TEAM=training_team,\
+							# LEARNING_ITER=i,\
+							LEARNING_ITER=unused_var,\
+							# LEARNING_ITER='**',\
+							NUM_A='**',\
+							NUM_B='**',\
+							NUM_FILE='**')))
 
 				train_model(df_param,batched_fns,training_team,model_fn,warmstart_fn)
 
@@ -1081,32 +1093,43 @@ if __name__ == '__main__':
 			print('k: {}, i: {}, value'.format(k,i)) 
 
 			# get initial state distribution 
-			params = get_params(df_param,"v",i,curriculum)
+			if df_param.make_data_on: 
+				params = get_params(df_param,"v",i,curriculum)
 
-			if df_param.l_mode == "IL":
-				states = get_uniform_samples(params)
-			else: 
-				states = get_self_play_samples(params)
+				if df_param.l_mode == "IL":
+					states = get_uniform_samples(params)
+				else: 
+					states = get_self_play_samples(params)
 			
-			# make labelled data 
-			policy_fn_a = df_param.l_model_fn.format(\
-						DATADIR=df_param.path_current_models,\
-						TEAM="a",\
-						ITER=i+1)
-			policy_fn_b = df_param.l_model_fn.format(\
-						DATADIR=df_param.path_current_models,\
-						TEAM="b",\
-						ITER=i+1)
-			make_dataset_value(states,params,df_param,policy_fn_a,policy_fn_b)
-			make_labelled_dataset_value(df_param,i)
+				# make labelled data 
+				policy_fn_a = df_param.l_model_fn.format(\
+							DATADIR=df_param.path_current_models,\
+							TEAM="a",\
+							ITER=i+1)
+				policy_fn_b = df_param.l_model_fn.format(\
+							DATADIR=df_param.path_current_models,\
+							TEAM="b",\
+							ITER=i+1)
+				make_dataset_value(states,params,df_param,policy_fn_a,policy_fn_b)
+
+			if df_param.make_labelled_data_on:
+				make_labelled_dataset_value(df_param,i)
 
 			# train value 
-			batched_fns = glob.glob(df_param.l_labelled_value_fn.format(\
-						DATADIR=df_param.path_current_data,\
-						LEARNING_ITER=i,\
-						NUM_A='**',\
-						NUM_B='**',\
-						NUM_FILE='**'))
+			# batched_fns = glob.glob(df_param.l_labelled_value_fn.format(\
+			# 			DATADIR=df_param.path_current_data,\
+			# 			LEARNING_ITER=i,\
+			# 			NUM_A='**',\
+			# 			NUM_B='**',\
+			# 			NUM_FILE='**'))
+			batched_fns = []
+			for unused_var in range(0, i+1):
+				batched_fns.extend(glob.glob(df_param.l_labelled_value_fn.format(\
+					DATADIR=df_param.path_current_data,\
+					LEARNING_ITER=unused_var,\
+					NUM_A='**',\
+					NUM_B='**',\
+					NUM_FILE='**')))
 			model_fn = df_param.l_value_model_fn.format(\
 						DATADIR=df_param.path_current_models,\
 						ITER=i+1)
