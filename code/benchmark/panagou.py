@@ -92,7 +92,7 @@ class PanagouPolicy:
 		for i_robot,robot in enumerate(self.robots):
 
 			
-			if (np.any(np.isnan(state[i_robot]))) :
+			if (robot_dead(state[i_robot])) :
 				# Robot is dead, we can consider it done
 				done.append(i_robot)
 
@@ -324,7 +324,7 @@ def calculate_nominal_trajectories(param,robots,times,theta_noms):
 	for i_robot,robot in enumerate(robots): 
 		curr_state = np.array(robot["x0"])
 
-		if np.any(np.isnan(curr_state)) :
+		if robot_dead(curr_state) :
 			# Robot dead, ignore it
 			pass
 
@@ -356,7 +356,7 @@ def calculate_intersections(param,robots,times,R):
 		for j_robot in param.team_2_idxs:
 			
 			# Check both robots are alive
-			if ( np.any(np.isnan(R[i_robot])) or np.any(np.isnan(R[j_robot])) ) :
+			if ( robot_dead(R[i_robot]) or robot_dead(R[j_robot]) ) :
 				# One of the robots is dead, don't add anything to the I matrix
 				pass
 
@@ -430,7 +430,7 @@ def calculate_all_trajectories(param,robots,times,thetas):
 
 				R[i_robot,i_time,i_theta,:] = curr_state
 
-				if np.any(np.isnan(curr_state)) :
+				if robot_dead(curr_state) : 
 					# Robot dead, ignore it
 					curr_state = np.array([np.nan, np.nan, np.nan, np.nan])
 				else : 
@@ -445,7 +445,7 @@ def find_nominal_solns(param,robots):
 	for robot in robots: 
 		state = np.array(robot["x0"])
 
-		if np.any(np.isnan(state)) :
+		if robot_dead(state) :
 			# Robot dead, ignore it
 			theta_nom = 0
 			terminal_time = 0
@@ -471,6 +471,17 @@ def clamp_action(robot, X0, U0, dt) :
 
 	# Return the new control input
 	return U
+
+def robot_dead(state) :
+	# Checks if the robot is dead
+	if np.any(np.isnan(state))  or \
+		np.any(np.isinf(state)) :
+		return True
+	else :
+		return False
+
+	# No idea how we got here, probably safest to kill the robot...
+	return True
 
 def step(robot, x0, U, dt):  # Change to an X and Y acceleration
 	# x0 = [ posX, posY, Vx, Vy ]
