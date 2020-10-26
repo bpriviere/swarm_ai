@@ -12,128 +12,201 @@ from param import Param
 # from learning.discrete_emptynet import DiscreteEmptyNet
 from learning.continuous_emptynet import ContinuousEmptyNet
 from learning.gaussian_emptynet import GaussianEmptyNet
-from learning_interface import format_data, global_to_local 
+from learning.value_emptynet import ValueEmptyNet
+from learning.policy_emptynet import PolicyEmptyNet
+from learning_interface import format_data, global_to_local, global_to_value, format_data_value
 import plotter 
 import datahandler as dh
 
 def eval_value(param):
-	# When using multiprocessing, load cpp_interface per process
-	from cpp_interface import self_play, expected_value
-	
-	print('{}/{}'.format(param.count,param.total))
 
-	if param.exp4_sim_mode == "GLAS_VALUE":
+	# exp4_sim_modes:
+	# 	- "VALUE"
+	#	 	- if MCTS: plots expected reward at root node corresponding to start state
+	# 		- if GLAS: evaluates value model at start state
+	# 	- "SIM":
+	# 		- plays game, evaluates reward at final state 
 
-		state = np.array(param.state)
-		robot_idx = 0 
+	from cpp_interface import play_game, expected_value
 
-		o_a,o_b,goal = global_to_local(state,param,robot_idx)
-		o_a,o_b,goal = format_data(o_a,o_b,goal)
+	print('running {} vs {}, {}/{}'.format(param.policy_dict_a["sim_mode"],param.policy_dict_b["sim_mode"],param.count,param.total))
 
-		if param.l_gaussian_on: 
-			model = GaussianEmptyNet(param,"cpu")
-		else: 
-			model = ContinuousEmptyNet(param,"cpu")
+	# save first state 
+	nominal_state = copy.deepcopy(param.state)
 
-		model.load_state_dict(torch.load(param.policy_dict["path_glas_model_a"]))
+	# 
+	X,Y = discretize_state_space(param.env_xlim,param.env_ylim,param.exp4_dx,param.exp4_dx)
 
-		value,action = model(o_a,o_b,goal)
+	value_ims = np.nan * np.ones((param.num_nodes,X.shape[0],Y.shape[0]))
+	policy_ims = np.nan * np.ones((param.num_nodes,X.shape[0],Y.shape[0],2))
 
-		sim_result = {
-			"states" : np.array([param.state]),
-			"rewards" : np.array([[value,1-value]]),
-			"param" : param.to_dict(),
-		}
+	for robot_idx in range(param.num_nodes):
 
-	elif param.exp4_sim_mode == "MCTS_VALUE": 
-		state = np.array(param.state)
-		value = expected_value(param,state,param.policy_dict) # query tree 
-		sim_result = {
-			"states" : np.array([param.state]),
-			"rewards" : np.array([[value[0],value[1]]]),
-			"param" : param.to_dict(),
-		}
+		team_idxs = param.team_1_idxs if param.team == "a" else param.team_2_idxs
+		if robot_idx not in team_idxs: 
+			continue
 
-	elif param.exp4_sim_mode == "MCTS_SIM":
-		sim_result = self_play(param)
+		policy_dict = param.policy_dict_a if param.team == "a" else param.policy_dict_b
 
-	elif param.exp4_sim_mode == "GLAS_SIM":
-		sim_result = self_play(param)
+		if policy_dict["sim_mode"] == "GLAS":
+			path_glas_model = policy_dict["path_glas_model"]
+		else:
+			path_glas_model = param.policy_dict_a["path_glas_model_a"] if param.team == "a" else \
+				param.policy_dict_b["path_glas_model_b"]
 
-	else: 
-		exit('sim_mode not regonzied')
+		# assign to param 
+		param.policy_dict = policy_dict
+		param.policy_dict["team"] = param.team
+
+		for i_x,x in enumerate(X): 
+			for i_y,y in enumerate(Y): 
+
+				param.state[robot_idx] = [x,y,0,0]
+				state = np.array(param.state)
+
+				if param.exp4_prediction_type == "VALUE":
+
+					if policy_dict["sim_mode"] == "MCTS": 
+						# value = expected_value(param,state,policy_dict,param.team) # query tree 
+						value,policy = expected_value(param,state,policy_dict,param.team) # query tree 
+						policy = policy[robot_idx]
+
+					if policy_dict["sim_mode"] == "GLAS":
+
+						# format state into value func input 
+						n_a = param.num_nodes_A
+						n_b = param.num_nodes_B
+						n_rg = 0 
+						v_a, v_b = global_to_value(param,state)
+						v_a,v_b,n_a,n_b,n_rg = format_data_value(v_a,v_b,n_a,n_b,n_rg)
+
+						# init value_model 
+						value_model = ValueEmptyNet(param,"cpu")
+						value_model.load_state_dict(torch.load(policy_dict["path_value_fnc"]))
+
+						# call value_model 
+						# value = value_model(v_a,v_b,n_a,n_b,n_rg) # deterministic 
+						_,mu,logvar = value_model(v_a,v_b,n_a,n_b,n_rg,training=True) # also deterministic 
+						value = mu.detach().numpy().squeeze()
+
+						# format state into policy func input
+						o_a,o_b,relative_goal = global_to_local(state,param,robot_idx)
+						o_a,o_b,relative_goal = format_data(o_a,o_b,relative_goal)
+
+						# init policy_model 
+						policy_model = PolicyEmptyNet(param,"cpu")
+						policy_model.load_state_dict(torch.load(path_glas_model))
+
+						# call policy model 
+						_,mu,logvar = policy_model(o_a,o_b,relative_goal,training=True) # also deterministic 
+						policy = mu.detach().numpy().squeeze()
+
+				if param.exp4_prediction_type == "SIM":
+
+					temp_sr = play_game(param,param.policy_dict_a,param.policy_dict_b)
+					value = temp_sr["rewards"][-1,0]
+					policy = temp_sr["actions"][0,robot_idx,:]
+
+				# print('policy',policy)
+
+				value_ims[robot_idx,i_x,i_y] = value 
+				policy_ims[robot_idx,i_x,i_y,:] = policy 
+
+	sim_result = {
+		'X' : X,
+		'Y' : Y,
+		'value_ims' : value_ims,
+		'policy_ims' : policy_ims,
+		'param' : param.to_dict(),
+		'nominal_state' : nominal_state,
+	}
 
 	dh.write_sim_result(sim_result,param.dataset_fn)
 
-def make_initial_condition(df_param,pos):
-
-	initial_condition = [] 
-	for i_robot in range(len(df_param.robots)):
-		if i_robot == 0:
-			pos_x = 0 # temp, will be overwritten
-			pos_y = 0 
-		elif i_robot in pos.keys():
-			pos_x = pos[i_robot][0]
-			pos_y = pos[i_robot][1]
-		else: 
-			print(i_robot)
-			exit('initial condition not well specified')
-
-		initial_condition.append([pos_x,pos_y,0,0])
-	return initial_condition
+	print('completed {}/{}'.format(param.count,param.total))
 
 
-def get_params(df_param):
+def exp4_get_params(df_param,initial_conditions,robot_team_compositions):
 
 	params = [] 
 	count = 0 
-	total = df_param.num_trials * len(df_param.exp4_sim_modes) * len(df_param.dss)
-	for i_trial in range(df_param.num_trials):
-		for exp4_sim_mode in df_param.exp4_sim_modes: 
-			for pos in df_param.dss: 
-				initial_condition = copy.deepcopy(df_param.state)
-				initial_condition[0][0:2] = pos 
 
-				param = Param() 
-				param.env_l = df_param.env_l
-				param.X = df_param.X
-				param.Y = df_param.Y
-				param.num_trials = df_param.num_trials
-				param.total = total
-				param.mcts_tree_size = df_param.mcts_tree_size
-				param.sim_modes = df_param.exp4_sim_modes
-				param.exp4_sim_mode = exp4_sim_mode
+	for exp4_prediction_type in df_param.exp4_prediction_types:
+		for i_case, (initial_condition,robot_team_composition) in enumerate(zip(initial_conditions,robot_team_compositions)):
+			for trial in range(df_param.exp4_num_trials):
+				for team in ["a","b"]:
+					if team == "a": 
+						for policy_dict_a in df_param.attackerPolicyDicts:
 
-				if 'MCTS' in exp4_sim_mode:
-					param.policy_dict["sim_mode"] = "MCTS"
-				elif 'GLAS' in exp4_sim_mode: 
-					param.policy_dict["sim_mode"] = "GLAS"
-				else: 
-					exit('exp4 sim_mode not recognized: ', exp4_sim_mode)
+							param = Param() 
+							param.env_l = df_param.env_l
+							param.policy_dict_a = policy_dict_a
+							param.policy_dict_b = df_param.defenderBaselineDict
+							param.exp4_prediction_type = exp4_prediction_type
+							param.exp4_sim_modes = df_param.exp4_sim_modes
+							param.exp4_prediction_types = df_param.exp4_prediction_types
+							param.exp4_dx = df_param.exp4_dx
+							param.attackerPolicyDicts = df_param.attackerPolicyDicts
+							param.defenderPolicyDicts = df_param.defenderPolicyDicts
+							param.i_case = i_case 
+							param.trial = trial 
+							param.count = count
+							param.team = team
+							param.robot_team_composition = robot_team_composition
+							param.dataset_fn = '{}sim_result_{}'.format(\
+								df_param.path_current_results,count)
 
-				param.policy_dict["path_glas_model_a"] = df_param.path_glas_model_a
-				param.policy_dict["path_glas_model_b"] = df_param.path_glas_model_b
-				
-				param.i_trial = i_trial 
-				param.dataset_fn = df_param.path_current_results + 'sim_result_{}'.format(count)
-				param.count = count 
-				param.update(initial_condition=initial_condition)
+							param.update(initial_condition=initial_condition)
+							params.append(param)
+							count += 1 
 
-				params.append(param)
-				count += 1 
-	return params 
+					elif team == "b":
+						for policy_dict_b in df_param.defenderPolicyDicts:
+
+							param = Param() 
+							param.env_l = df_param.env_l
+							param.policy_dict_a = df_param.attackerBaselineDict
+							param.policy_dict_b = policy_dict_b
+							param.exp4_prediction_type = exp4_prediction_type
+							param.exp4_sim_modes = df_param.exp4_sim_modes
+							param.exp4_prediction_types = df_param.exp4_prediction_types
+							param.exp4_dx = df_param.exp4_dx
+							param.attackerPolicyDicts = df_param.attackerPolicyDicts
+							param.defenderPolicyDicts = df_param.defenderPolicyDicts
+							param.i_case = i_case 
+							param.trial = trial 
+							param.count = count
+							param.team = team
+							param.robot_team_composition = robot_team_composition
+							param.dataset_fn = '{}sim_result_{}'.format(\
+								df_param.path_current_results,count)
+
+							param.update(initial_condition=initial_condition)
+							params.append(param)
+							count += 1 
+
+	total = count 
+	for param in params: 
+		param.total = total
+
+	return params
 
 
-def discretize_state_space(df_param,dx,dy):
+def discretize_state_space(env_xlim,env_ylim,dx,dy):
+	X = np.arange(env_xlim[0],env_xlim[1],dx) # + dx / 2.0
+	Y = np.arange(env_ylim[0],env_ylim[1],dy) # + dy / 2.0 
+	return X,Y
 
-	dss = [] 
-	X = np.arange(df_param.env_xlim[0],df_param.env_xlim[1],dx) + dx / 2.0
-	Y = np.arange(df_param.env_ylim[0],df_param.env_ylim[1],dy) + dy / 2.0 
-	for x in X: 
-		for y in Y: 
-			dss.append(np.array((x,y)))
-	return dss, X, Y
+def exp4_make_games(df_param):	
+	initial_conditions,robot_team_compositions = [],[]
+	for robot_team_composition in df_param.robot_team_compositions:
+		df_param.robot_team_composition = robot_team_composition
+		df_param.update()
+		for trial in range(df_param.exp4_num_trials):
+			initial_conditions.append(df_param.make_initial_condition())
+			robot_team_compositions.append(robot_team_composition)
 
+	return initial_conditions,robot_team_compositions
 
 def format_dir(df_param):
 	if os.path.exists(df_param.path_current_results):
@@ -143,54 +216,117 @@ def format_dir(df_param):
 
 
 def main():
-	run_on = True
+
+	sim_parallel_on = True
+	run_on = False
+	model_dir = '../current/models'
+
 	df_param = Param()
+	df_param.exp4_prediction_types = ["VALUE","SIM"] 
+	df_param.exp4_sim_modes = ["MCTS","GLAS"] 
+	df_param.exp4_max_policy = 1
+	df_param.exp4_dx = 0.05
+	df_param.exp4_num_trials = 5
+	df_param.exp4_num_ics = 2
+	df_param.exp4_tree_sizes = [100] 
+	df_param.l_num_expert_nodes = 100
+
+	# attackers 
+	# df_param.attackerBaselineDict = {
+	# 	'sim_mode' : 				"MCTS",
+	# 	'path_glas_model_a' : 		None,
+	# 	'path_glas_model_b' : 		None, 
+	# 	'path_value_fnc' : 			None, 
+	# 	'mcts_tree_size' : 			df_param.l_num_expert_nodes,
+	# 	'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+	# 	'mcts_c_param' : 			df_param.l_mcts_c_param,
+	# 	'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+	# 	'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+	# 	'mcts_beta1' : 				df_param.l_mcts_beta1,
+	# 	'mcts_beta2' : 				df_param.l_mcts_beta2,
+	# 	'mcts_beta3' : 				df_param.l_mcts_beta3,
+	# }
+	# df_param.defenderBaselineDict = df_param.attackerBaselineDict.copy()
+	df_param.attackerBaselineDict = {
+		'sim_mode' : 				"GLAS",
+		'path_glas_model' : 		'{}/a{}.pt'.format(model_dir,1),
+		'deterministic': 			True,
+	}
+	df_param.defenderBaselineDict = {
+		'sim_mode' : 				"GLAS",
+		'path_glas_model' : 		'{}/b{}.pt'.format(model_dir,1),
+		'deterministic': 			True,
+	}
+
+	df_param.attackerPolicyDicts = []
+	df_param.defenderPolicyDicts = []
+	for policy_i in range(df_param.exp4_max_policy+1):
+		for team,policy_dicts in list(zip(["a","b"],[df_param.attackerPolicyDicts,df_param.defenderPolicyDicts])):
+			for tree_size in df_param.exp4_tree_sizes: 
+				# policy_dicts.append({
+				# 	'sim_mode' : 				"MCTS",
+				# 	'path_glas_model_a' : 		'{}/a{}.pt'.format(model_dir,policy_i) if policy_i > 0  else None,
+				# 	'path_glas_model_b' : 		'{}/b{}.pt'.format(model_dir,policy_i) if policy_i > 0  else None, 
+				# 	'path_value_fnc' : 			'{}/v{}.pt'.format(model_dir,policy_i) if policy_i > 0  else None, 
+				# 	'mcts_tree_size' : 			tree_size,
+				# 	'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+				# 	'mcts_c_param' : 			df_param.l_mcts_c_param,
+				# 	'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+				# 	'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+				# 	'mcts_beta1' : 				df_param.l_mcts_beta1,
+				# 	'mcts_beta2' : 				df_param.l_mcts_beta2,
+				# 	'mcts_beta3' : 				df_param.l_mcts_beta3,
+				# 	})
+				pass 
+
+			if policy_i > 0:
+				policy_dicts.append({
+					'sim_mode' : 				"GLAS",
+					'path_glas_model' : 		'{}/{}{}.pt'.format(model_dir,team,policy_i),
+					'path_value_fnc' : 			'{}/v{}.pt'.format(model_dir,policy_i),
+					'deterministic': 			True,
+				})
+
+	# games 
+	df_param.robot_team_compositions = [
+		{
+		'a': {'standard_robot':1,'evasive_robot':0},
+		'b': {'standard_robot':1,'evasive_robot':0}
+		},
+		# {
+		# 'a': {'standard_robot':2,'evasive_robot':0},
+		# 'b': {'standard_robot':1,'evasive_robot':0}
+		# },
+		# {
+		# 'a': {'standard_robot':1,'evasive_robot':0},
+		# 'b': {'standard_robot':2,'evasive_robot':0}
+		# },						
+	]
+
+	initial_conditions, robot_team_compositions = exp4_make_games(df_param) 
 
 	if run_on: 
-		df_param.num_trials = 1
-		df_param.env_l = 0.5
-		df_param.make_environment()
-		df_param.exp4_sim_modes = ["GLAS_SIM"] # ["MCTS_VALUE", "MCTS_SIM"] #,"GLAS_VALUE"] 
-		df_param.path_glas_model_a = '../current/models/a1.pt'
-		df_param.path_glas_model_b = '../current/models/b1.pt'
-		df_param.mcts_tree_size = 100000
-		dx = 0.05
-		df_param.dss, df_param.X, df_param.Y = discretize_state_space(df_param,dx,dx)
-		pos = {
-			# robot idx : position
-			1 : df_param.env_l*np.array((0.35,0.5))
-		}
-		df_param.state = make_initial_condition(df_param,pos)
-
 		format_dir(df_param)
-		params = get_params(df_param)
+		params = exp4_get_params(df_param,initial_conditions,robot_team_compositions)
 
-		if df_param.sim_parallel_on: 	
+		if sim_parallel_on: 	
 			pool = mp.Pool(mp.cpu_count()-1)
 			for _ in pool.imap_unordered(eval_value, params):
 				pass 
 		else:
 			for param in params: 
-				eval_value(param)
+				eval_value(param)	
 
 	sim_results = [] 
 	for sim_result_dir in glob.glob(df_param.path_current_results + '/*'):
 		sim_results.append(dh.load_sim_result(sim_result_dir))
 
+	print('plotting...')
 	plotter.plot_exp4_results(sim_results)
-
-	# count = 0 
-	# for sim_result in sim_results:
-	# 	if not sim_result["param"]["sim_mode"] == "MCTS_VALUE":
-	# 		plotter.plot_tree_results(sim_result,title=sim_result["param"]["sim_mode"])
-	# 		count += 1 
-	# 	if count > 10:
-	# 		break 
 	
+	print('saving and opening figs...')
 	plotter.save_figs("plots/exp4.pdf")
 	plotter.open_figs("plots/exp4.pdf")
-
-
 
 if __name__ == '__main__':
 	main()

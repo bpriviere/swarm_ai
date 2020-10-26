@@ -169,7 +169,7 @@ class Param:
 		self.l_xi_network_architecture = [
 			["Linear", 2*h + 3, h], 
 			["Linear", h, h],
-			["Linear", h, 1] 
+			["Linear", h, 2] 
 		]		
 
 		self.l_policy_network_architecture = [

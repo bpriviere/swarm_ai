@@ -90,16 +90,17 @@ if __name__ == '__main__':
 
 	# params 
 	df_param = Param()
-	df_param.max_policy = 2
+	df_param.max_policy = 5
 	df_param.tree_sizes = [100,500,1000,10000,50000] # ,1000,10000,50000] #1000] #,5000,10000]
 	df_param.num_trials = 100
-	name = "models_s13"
+	name = "models"
 
 	# attackers 
 	df_param.attackerBaselineDict = {
 		'sim_mode' : 				"MCTS",
 		'path_glas_model_a' : 		None,
 		'path_glas_model_b' : 		None, 
+		'path_value_fnc' : 			None, 
 		'mcts_tree_size' : 			df_param.l_num_expert_nodes,
 		'mcts_rollout_horizon' : 	df_param.rollout_horizon,
 		'mcts_c_param' : 			df_param.l_mcts_c_param,
@@ -120,6 +121,7 @@ if __name__ == '__main__':
 					'sim_mode' : 				"MCTS",
 					'path_glas_model_a' : 		'../current/{}/a{}.pt'.format(name,policy_i) if policy_i > 0  else None,
 					'path_glas_model_b' : 		'../current/{}/b{}.pt'.format(name,policy_i) if policy_i > 0  else None, 
+					'path_value_fnc' : 			'../current/{}/v{}.pt'.format(name,policy_i) if policy_i > 0  else None, 
 					'mcts_tree_size' : 			tree_size,
 					'mcts_rollout_horizon' : 	df_param.rollout_horizon,
 					'mcts_c_param' : 			df_param.l_mcts_c_param,

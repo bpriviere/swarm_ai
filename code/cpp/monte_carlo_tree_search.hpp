@@ -292,9 +292,9 @@ class MonteCarloTreeSearch {
 
       // Use progressive widening, see https://hal.archives-ouvertes.fr/hal-00542673v1/document
       size_t maxChildren = ceil(m_pw_C * powf(nodePtr->number_of_visits, m_pw_alpha));
-      if (nodePtr->parent == nullptr) {
-        maxChildren = std::max<size_t>(maxChildren, 25);
-      }
+      // if (nodePtr->parent == nullptr) {
+      //   maxChildren = std::max<size_t>(maxChildren, 25);
+      // }
 
       if (nodePtr->children.size() < maxChildren) {
         Node* child = expand(nodePtr, policyAttacker, policyDefender, valuePredictor);
@@ -315,8 +315,13 @@ class MonteCarloTreeSearch {
   {
     // for the first expansion use the deterministic mode; afterwards stochastic mode
     // this should help for narrow trees
-    bool deterministic = nodePtr->children.size() == 0;
-    const auto action = m_env.sampleAction(nodePtr->state, policyAttacker, policyDefender, deterministic);
+    bool deterministic = false;
+    float beta2 = -1;
+    if (nodePtr->children.size() == 0) {
+      deterministic = true;
+      beta2 = 1.0;
+    }
+    const auto action = m_env.sampleAction(nodePtr->state, policyAttacker, policyDefender, deterministic, beta2);
 #if CHECK_ACTION_DUPLICATES
     // std::cout << "a " << action[0] << " " << action[1] << std::endl;
     for (const auto c : nodePtr->children) {
@@ -345,7 +350,7 @@ class MonteCarloTreeSearch {
       newNode.parent = nodePtr;
       newNode.action_to_node = action;
       if (m_beta1 > 0) {
-        newNode.estimated_value = m_env.estimateValue(newNode.state, valuePredictor);
+        newNode.estimated_value = m_env.estimateValue(newNode.state, valuePredictor, false);
         // TODO: would need to switch based on which turn it is!
         assert(false);
       }
