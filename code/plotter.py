@@ -1574,12 +1574,15 @@ def plot_exp3_results(all_sim_results):
 
 		fig,ax = plt.subplots()
 		# im = ax.imshow(mean_result,origin='lower',vmin=0,vmax=1,cmap=cm.seaborn)
-		ax = sns.heatmap(mean_result.T,vmin=0,vmax=1,annot=True)
+		if mean_result.shape[0] > 8:
+			ax = sns.heatmap(mean_result.T,vmin=0,vmax=1,annot=True,annot_kws={"size":4})
+		else:
+			ax = sns.heatmap(mean_result.T,vmin=0,vmax=1,annot=True)
 		# fig.colorbar(im)
 		# ax.set_xticks(range(len(attackerPolicies)))
 		# ax.set_yticks(range(len(defenderPolicies)))
-		ax.set_xticklabels(xticklabels,rotation=45)
-		ax.set_yticklabels(yticklabels,rotation=45)
+		ax.set_xticklabels(xticklabels,rotation=45, ha='right')
+		ax.set_yticklabels(yticklabels,rotation=45, ha='right')
 		ax.tick_params(axis='both',labelsize=5)
 		ax.set_xlabel('attackers')
 		ax.set_ylabel('defenders')
