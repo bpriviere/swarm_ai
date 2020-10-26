@@ -1578,7 +1578,7 @@ def plot_exp3_results(all_sim_results):
 		# fig.colorbar(im)
 		# ax.set_xticks(range(len(attackerPolicies)))
 		# ax.set_yticks(range(len(defenderPolicies)))
-		ax.set_xticklabels(xticklabels,rotation=45)
+		ax.set_xticklabels(xticklabels,rotation=45,ha='right')
 		ax.set_yticklabels(yticklabels,rotation=45)
 		ax.tick_params(axis='both',labelsize=5)
 		ax.set_xlabel('attackers')
