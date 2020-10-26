@@ -141,30 +141,68 @@ def plot_panagou(R,R_nom,I,states,param,plot_isochrones=True,plot_nominal=True,p
 
 		if plot_isochrones:
 			for i_time in range(num_times):
-				ax.plot(R[i_robot,i_time,:,0],R[i_robot,i_time,:,1],color=colors[i_robot],marker='o',alpha=df_alpha)
+				ax.plot(R[i_robot,i_time,:,0],R[i_robot,i_time,:,1],color=colors[i_robot],marker='o',alpha=df_alpha,markersize=1)
 				ax.plot([R[i_robot,i_time,-1,0],R[i_robot,i_time,0,0]],
-					[R[i_robot,i_time,-1,1],R[i_robot,i_time,0,1]],color=colors[i_robot],marker='o',alpha=df_alpha)
+					[R[i_robot,i_time,-1,1],R[i_robot,i_time,0,1]],color=colors[i_robot],marker='o',alpha=df_alpha,markersize=1)
 		
 		if plot_nominal:
 			ax.plot(R_nom[i_robot,:,0],R_nom[i_robot,:,1],color=nominal_color,marker='o',alpha=df_alpha)
 
 		if plot_intersections:
 			for (ii_robot,jj_robot), intersections in I.items():
-				if i_robot == ii_robot or i_robot == jj_robot: 
+				if i_robot == ii_robot or i_robot == jj_robot:
+					# Calculate the intersection line 
+					intersection_line = np.empty((0,2))
+					intersection_line1 = np.empty((0,2))
+					intersection_line2 = np.empty((0,2))
+
+					# Loop through each point to create the line
 					for (ii_theta,jj_theta,ii_time) in intersections:
-						ax.plot(R[ii_robot,ii_time,ii_theta,0],R[ii_robot,ii_time,ii_theta,1],\
-							color=intersection_color,marker='s',alpha=df_alpha)
-						ax.plot(R[jj_robot,ii_time,jj_theta,0],R[jj_robot,ii_time,jj_theta,1],\
-							color=intersection_color,marker='s',alpha=df_alpha)
+						# Get intersection points
+						X1 = R[ii_robot,ii_time,ii_theta,0]
+						Y1 = R[ii_robot,ii_time,ii_theta,1]
+						X2 = R[jj_robot,ii_time,jj_theta,0]
+						Y2 = R[jj_robot,ii_time,jj_theta,1]
+
+						# Average out
+						X = (X1 + X2)/2
+						Y = (Y1 + Y2)/2
+
+						# Plot line as per attacker
+						#X = X1
+						#Y = Y1
+						# Plot line as per defender
+						#X = X2
+						#Y = Y2
+
+						# Store in a plotting vector
+						intersection_line  = np.append(intersection_line, np.array([[X,Y]]), axis=0)
+						intersection_line1 = np.append(intersection_line1, np.array([[X1,Y1]]), axis=0)
+						intersection_line2 = np.append(intersection_line2, np.array([[X2,Y2]]), axis=0)
+
+					# Intersection line found, sort and plot (sorting also might be breaking it)
+					#intersection_line = intersection_line[intersection_line[:,0].argsort()]   # sort the line
+					ax.plot(intersection_line[:,0],intersection_line[:,1],color=intersection_color,linewidth=1,marker='*',alpha=0.5)#alpha=df_alpha
+					ax.plot(intersection_line1[:,0],intersection_line1[:,1],color=colors[0],linewidth=1,marker='*',alpha=0.5)#alpha=df_alpha
+					ax.plot(intersection_line2[:,0],intersection_line2[:,1],color=colors[1],linewidth=1,marker='*',alpha=0.5)#alpha=df_alpha
 
 		if plot_states: 
 			for i_robot in range(num_robots):
-				ax.plot(states[:,i_robot,0],states[:,i_robot,1],color=colors[i_robot])
+				ax.plot(states[: ,i_robot,0],states[: ,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=1)
+				ax.plot(states[-1,i_robot,0],states[-1,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=3)
 
 	ax.plot(param.goal[0],param.goal[1],color=goal_color,marker='*')
+
+	# Set plot range
 	ax.set_xlim([param.env_xlim[0],param.env_xlim[1]])
 	ax.set_ylim([param.env_ylim[0],param.env_ylim[1]])
 	ax.grid(True)
+	ax.axis('equal')
+
+	# Add textbox to identify attacker and defender
+	textstr = '\n'.join((r'blue: attacker',r'orange: defender'))
+	props = dict(boxstyle='round', facecolor='wheat', alpha=1.0)
+	ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=6, verticalalignment='top', bbox=props)
 
 
 def plot_sa_pairs(sampled_sa_pairs,sim_result,team):
@@ -398,13 +436,20 @@ def plot_tree_results(sim_result,title=None):
 	ax.set_title('State Space')
 	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
 	for i in range(num_nodes):
-		for t in range(states.shape[0]):
-			if np.isfinite(states[t,i]).all():
-				ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
-					color=colors[i],alpha=0.2,fill=False))
-				ax.arrow(states[t,i,0],states[t,i,1],states[t,i,2],states[t,i,3],color=colors[i])
-		ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
-		ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i],alpha=0.75)
+
+		# for t in range(states.shape[0]):
+		# 	if np.isfinite(states[t,i]).all():
+		# 		ax.add_patch(mpatches.Circle(states[t,i,0:2], sim_result["param"]["robots"][i]["tag_radius"], \
+		# 			color=colors[i],alpha=0.2,fill=False))
+		# 		ax.arrow(states[t,i,0],states[t,i,1],states[t,i,2],states[t,i,3],color=colors[i])
+		# ax.plot(states[:,i,0],states[:,i,1],linewidth=3,color=colors[i])
+		# ax.scatter(states[:,i,0],states[:,i,1],marker='o',color=colors[i],alpha=0.75)
+
+		# Robot position (each time step)
+		ax.plot(states[:,i,0],states[:,i,1],linewidth=1,color=colors[i],marker="o",markersize=0.75)
+		# Tag radius (last time step)
+		ax.add_patch(mpatches.Circle(states[-1,i,0:2], sim_result["param"]["robots"][i]["tag_radius"],color=colors[i],alpha=0.2,fill=False))
+
 	ax.set_xlim([env_xlim[0],env_xlim[1]])
 	ax.set_ylim([env_ylim[0],env_ylim[1]])
 

@@ -194,6 +194,17 @@ def self_play(param):
 def play_game(param,policy_dict_a,policy_dict_b): 
 
 	if policy_dict_a["sim_mode"] == "PANAGOU" or policy_dict_b["sim_mode"] == "PANAGOU":
+
+		# set panagou robots to zero physical radius to prevent self collisions 
+		robot_idxs = []
+		if policy_dict_a["sim_mode"] == "PANAGOU": 
+			robot_idxs.extend(param.team_1_idxs)
+		elif policy_dict_b["sim_mode"] == "PANAGOU": 
+			robot_idxs.extend(param.team_2_idxs)
+
+		for robot_idx in robot_idxs: 
+			param.robots[robot_idx]["radius"] = 0.0 
+
 		pp = PanagouPolicy(param)
 		pp.init_sim(param.state)
 
