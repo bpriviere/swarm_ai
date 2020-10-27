@@ -62,9 +62,12 @@ def my_loss(target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on):
 	return loss
 
 
-def my_loss_value(target_value, mu, logvar):
+def my_loss_value(target_value, mu, logvar, l_gaussian_value_on):
 	criterion = nn.MSELoss(reduction='none')
-	loss = torch.sum(criterion(mu, target_value) / (2 * torch.exp(logvar)) + 1/2 * logvar)
+	if l_gaussian_value_on:
+		loss = torch.sum(criterion(mu, target_value) / (2 * torch.exp(logvar)) + 1/2 * logvar)
+	else: 
+		loss = torch.sum(criterion(mu, target_value))
 	loss = loss / mu.shape[0]
 	return loss 
 
@@ -97,11 +100,11 @@ def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch
 
 	return epoch_loss
 
-def train_value(model,optimizer,loader,scheduler=None):
+def train_value(model,optimizer,loader,l_gaussian_value_on,scheduler=None):
 	epoch_loss = 0
 	for step, (v_a,v_b,n_a,n_b,n_rg,target_value) in enumerate(loader):
 		_,mu,logvar = model(v_a,v_b,n_a,n_b,n_rg,training=True)
-		loss = my_loss_value(target_value,mu,logvar)
+		loss = my_loss_value(target_value,mu,logvar,l_gaussian_value_on)
 		optimizer.zero_grad()
 		loss.backward()
 		optimizer.step()
@@ -110,12 +113,12 @@ def train_value(model,optimizer,loader,scheduler=None):
 		epoch_loss += float(loss)
 	return epoch_loss	
 
-def test_value(model,loader):
+def test_value(model,loader,l_gaussian_value_on):
 	epoch_loss = 0
 	with torch.no_grad():
 		for v_a,v_b,n_a,n_b,n_rg,target_value in loader:
 			_,mu,logvar = model(v_a,v_b,n_a,n_b,n_rg,training=True)
-			epoch_loss += float(my_loss_value(target_value,mu,logvar))
+			epoch_loss += float(my_loss_value(target_value,mu,logvar,l_gaussian_value_on))
 
 	return epoch_loss
 
@@ -693,10 +696,10 @@ def train_model_value(df_param,batched_files,model_fn):
 			random.shuffle(train_loader)
 			random.shuffle(test_loader)
 
-			train_epoch_loss = train_value(model,optimizer,train_loader)
+			train_epoch_loss = train_value(model,optimizer,train_loader,df_param.l_gaussian_value_on)
 			train_epoch_loss /= num_train_batches
 
-			test_epoch_loss = test_value(model,test_loader)
+			test_epoch_loss = test_value(model,test_loader,df_param.l_gaussian_value_on)
 			test_epoch_loss /= num_test_batches
 
 			# scheduler.step(test_epoch_loss)

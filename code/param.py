@@ -177,6 +177,7 @@ class Param:
 		]
 
 		self.l_gaussian_on = True
+		self.l_gaussian_value_on = False
 
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
