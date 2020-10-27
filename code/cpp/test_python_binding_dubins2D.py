@@ -62,6 +62,7 @@ if __name__ == '__main__':
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	policyA = mctscpp.Policy('a')
 	policyB = mctscpp.Policy('b')
+	valuePredictor = mctscpp.ValuePredictor('ab')
 	if "RANDOM" in mode:
 		policyA.beta2 = 0.0
 		policyB.beta2 = 0.0
@@ -95,7 +96,7 @@ if __name__ == '__main__':
 
 
 
-			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, mctssettings)
+			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, valuePredictor, mctssettings)
 			if mctssettings.export_dot:
 				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
 				exit()

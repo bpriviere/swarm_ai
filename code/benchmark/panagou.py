@@ -309,7 +309,8 @@ def calculate_defender_matching(param,policies,times,terminal_times):
 
 				if (t_capture < t_goal+1.0) : # Chase the attacker if there's a chance we might catch him
 				# Check to see if the time until intercept is less than the time for the attacker to reach the goal,
-				# if so, this would be a capture and we should add it to the matching list
+				# if so, this would be a capture and we should add it to the matching list.
+				# We add a 1 s grace time in here for numerical stability
 					matching[ii_robot] = jj_robot
 					done.append(jj_robot)
 					max_dist = dist_to_goal
@@ -587,7 +588,7 @@ def find_nominal_soln(param,robot,state):
 		U = theta_to_u(robot,th)
 		states = integrate(robot,np.array(robot["x0"]),U, times,param.sim_dt)
 
-		if np.linalg.norm(states[-1,0:2] - param.goal[0:2]) > 1.1*robot["radius"]:
+		if np.linalg.norm(states[-1,0:2] - param.goal[0:2]) > 1.1*robot["tag_radius"]:
 			# exit('bad nominal solution')
 			print('\tbad nominal solution')
 			# Wait here so we can debug what happened

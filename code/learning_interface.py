@@ -5,7 +5,7 @@ import torch
 
 def global_to_local(states,param,idx):
 
-	assert(not np.isnan(states[idx,:]).any())
+	assert(np.isfinite(states[idx,:]).all())
 
 	n_robots, n_state_dim = states.shape
 
@@ -21,7 +21,7 @@ def global_to_local(states,param,idx):
 
 	for idx_j in range(n_robots):
 		if idx_j != idx \
-		and not np.isnan(states[idx_j,:]).any() \
+		and np.isfinite(states[idx_j,:]).all() \
 		and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]:
 			if idx_j in param.team_1_idxs:  
 				o_a.append(states[idx_j,:] - states[idx,:])
@@ -30,6 +30,27 @@ def global_to_local(states,param,idx):
 
 	return np.array(o_a),np.array(o_b),np.array(relative_goal)
 
+def global_to_value(param,state): 
+
+	# v_a = {s^j - g}
+	# v_b = {s^j - g}
+	# num-attackers, num-reached-goal, num-defenders
+
+	n_robots, n_state_dim = state.shape
+
+	goal = np.array([param.goal[0],param.goal[1],0,0])
+
+	v_a = []
+	v_b = [] 
+
+	for idx_j in range(n_robots):
+		if np.isfinite(state[idx_j,:]).all(): 
+			if idx_j in param.team_1_idxs:  
+				v_a.append(state[idx_j,:] - goal)
+			elif idx_j in param.team_2_idxs:
+				v_b.append(state[idx_j,:] - goal)
+
+	return np.array(v_a),np.array(v_b)
 
 def local_to_global(param,o_a,o_b,relative_goal,team):
 
@@ -106,3 +127,27 @@ def format_data(o_a,o_b,goal):
 	goal = torch.from_numpy(goal).float()
 
 	return o_a,o_b,goal
+
+def format_data_value(v_a,v_b,n_a,n_b,n_rg):
+	# input: [num_a/b, dim_state_a/b] np array 
+	# output: 1 x something torch float tensor
+
+	v_a = np.array(v_a,ndmin=2)
+	v_b = np.array(v_b,ndmin=2)
+	n_a = np.array(n_a,ndmin=2)
+	n_b = np.array(n_b,ndmin=2)
+	n_rg = np.array(n_rg,ndmin=2)
+
+	# reshape if more than one element in set
+	if v_a.shape[0] > 1: 
+		v_a = np.reshape(v_a,(1,np.size(v_a)))
+	if v_b.shape[0] > 1: 
+		v_b = np.reshape(v_b,(1,np.size(v_b)))
+
+	v_a = torch.from_numpy(v_a).float() 
+	v_b = torch.from_numpy(v_b).float()
+	n_a = torch.from_numpy(n_a).float()
+	n_b = torch.from_numpy(n_b).float()
+	n_rg = torch.from_numpy(n_rg).float()
+
+	return v_a,v_b,n_a,n_b,n_rg

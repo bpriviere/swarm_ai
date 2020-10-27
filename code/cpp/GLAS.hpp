@@ -151,7 +151,7 @@ public:
   {
   }
 
-  std::tuple<float, Eigen::VectorXf> eval(
+  Eigen::VectorXf eval(
     const std::vector<StateVector>& input_a,
     const std::vector<StateVector>& input_b,
     const StateVector& goal,
@@ -159,18 +159,15 @@ public:
     bool deterministic) const
   {
     // evaluate deep sets
-    Eigen::VectorXf psi_input(m_psi.sizeIn());
-    psi_input.segment(0, m_ds_a.sizeOut()) = m_ds_a.eval(input_a);
-    psi_input.segment(m_ds_a.sizeOut(), m_ds_b.sizeOut()) = m_ds_b.eval(input_b);
-    psi_input.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), 4) = goal;
+    Eigen::VectorXf policy_input(m_policy.sizeIn());
+    policy_input.segment(0, m_ds_a.sizeOut()) = m_ds_a.eval(input_a);
+    policy_input.segment(m_ds_a.sizeOut(), m_ds_b.sizeOut()) = m_ds_b.eval(input_b);
+    policy_input.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), 4) = goal;
 
     Eigen::VectorXf action(2);
 
-    // evaluate psi to compute condition y
-    auto y = m_psi.eval(psi_input);
-
-    if (isGaussian()) {
-      auto policy = m_policy.eval(y);
+    // if (isGaussian()) {
+      auto policy = m_policy.eval(policy_input);
       auto mu = policy.segment<2>(0);
       if (deterministic) {
         action = mu;
@@ -182,22 +179,25 @@ public:
           action(i) = dist(m_gen);
         }
       }
-    } else {
-      // evaluate decoder to compute distribution
-      Eigen::VectorXf dec_input(m_decoder.sizeIn());
-      int z_dim = m_decoder.sizeIn() - m_psi.sizeOut();
-      auto z = dec_input.segment(0, z_dim);
-      if (deterministic) {
-        z.setZero();
-      } else {
-        std::normal_distribution<float> dist(0.0,1.0);
-        for (int i = 0; i < z_dim; ++i) {
-          z(i) = dist(m_gen);
-        }
-      }
-      dec_input.segment(z_dim, y.size()) = y;
-      action = m_decoder.eval(dec_input);
-    }
+    // } else {
+    //   // evaluate psi to compute condition y
+    //   auto y = m_psi.eval(psi_input);
+
+    //   // evaluate decoder to compute distribution
+    //   Eigen::VectorXf dec_input(m_decoder.sizeIn());
+    //   int z_dim = m_decoder.sizeIn() - m_psi.sizeOut();
+    //   auto z = dec_input.segment(0, z_dim);
+    //   if (deterministic) {
+    //     z.setZero();
+    //   } else {
+    //     std::normal_distribution<float> dist(0.0,1.0);
+    //     for (int i = 0; i < z_dim; ++i) {
+    //       z(i) = dist(m_gen);
+    //     }
+    //   }
+    //   dec_input.segment(z_dim, y.size()) = y;
+    //   action = m_decoder.eval(dec_input);
+    // }
 
     // scale action
     float action_norm = action.norm();
@@ -205,14 +205,14 @@ public:
       action = action / action_norm * action_limit;
     }
 
-    // evaluate value
-    auto val = m_value.eval(y);
-    float value = (tanh(val(0))+1)/2;
+    // // evaluate value
+    // auto val = m_value.eval(y);
+    // float value = (tanh(val(0))+1)/2;
 
-    return std::make_tuple(value, action);
+    return action;
   }
 
-  std::tuple<float, Eigen::VectorXf> eval(
+  Eigen::VectorXf eval(
     const GameState<Robot>& state,
     const StateVector& goal,
     const typename Robot::Type& robotType,
@@ -272,25 +272,25 @@ public:
     return m_ds_b;
   }
 
-  auto& psi()
-  {
-    return m_psi;
-  }
+  // auto& psi()
+  // {
+  //   return m_psi;
+  // }
 
-  auto& encoder()
-  {
-    return m_encoder;
-  }
+  // auto& encoder()
+  // {
+  //   return m_encoder;
+  // }
 
-  auto& decoder()
-  {
-    return m_decoder;
-  }
+  // auto& decoder()
+  // {
+  //   return m_decoder;
+  // }
 
-  auto& value()
-  {
-    return m_value;
-  }
+  // auto& value()
+  // {
+  //   return m_value;
+  // }
 
   auto& policy()
   {
@@ -299,24 +299,24 @@ public:
 
   bool valid() const
   {
-    return m_psi.valid();
+    return m_policy.valid();
   }
 
-private:
-  bool isGaussian() const
-  {
-    return !m_decoder.valid();
-  }
+// private:
+//   bool isGaussian() const
+//   {
+//     return !m_decoder.valid();
+//   }
 
 private:
   std::default_random_engine& m_gen;
 
   DeepSetNN<Robot::StateDim> m_ds_a;
   DeepSetNN<Robot::StateDim> m_ds_b;
-  FeedForwardNN m_psi;
-  FeedForwardNN m_encoder;
-  FeedForwardNN m_decoder;
-  FeedForwardNN m_value;
+  // FeedForwardNN m_psi;
+  // FeedForwardNN m_encoder;
+  // FeedForwardNN m_decoder;
+  // FeedForwardNN m_value;
   FeedForwardNN m_policy;
 
 };

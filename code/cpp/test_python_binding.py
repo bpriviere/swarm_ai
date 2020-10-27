@@ -26,10 +26,10 @@ def loadGLAS(glas, file):
 	loadFeedForwardNNWeights(glas.deepSetA.rho, state_dict, "model_team_a.rho")
 	loadFeedForwardNNWeights(glas.deepSetB.phi, state_dict, "model_team_b.phi")
 	loadFeedForwardNNWeights(glas.deepSetB.rho, state_dict, "model_team_b.rho")
-	loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
-	loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
-	loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
-	loadFeedForwardNNWeights(glas.value, state_dict, "value")
+	# loadFeedForwardNNWeights(glas.psi, state_dict, "psi")
+	# loadFeedForwardNNWeights(glas.encoder, state_dict, "encoder")
+	# loadFeedForwardNNWeights(glas.decoder, state_dict, "decoder")
+	# loadFeedForwardNNWeights(glas.value, state_dict, "value")
 	loadFeedForwardNNWeights(glas.policy, state_dict, "policy")
 
 	return glas
@@ -76,6 +76,7 @@ if __name__ == '__main__':
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, max_depth)
 	policyA = mctscpp.Policy('a')
 	policyB = mctscpp.Policy('b')
+	valuePredictor = mctscpp.ValuePredictor('ab')
 	if "GLAS" in mode:
 		loadGLAS(policyA.glas, "../../current/models/a1.pt")
 		loadGLAS(policyB.glas, "../../current/models/b1.pt")
@@ -114,7 +115,7 @@ if __name__ == '__main__':
 
 
 
-			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, mctssettings)
+			mctsresult = mctscpp.search(g, gs, myPolicy, opponentPolicies, valuePredictor, mctssettings)
 			if mctssettings.export_dot:
 				print("Run 'dot -Tpng mcts.dot -o mcts.png' to visualize!")
 				exit()

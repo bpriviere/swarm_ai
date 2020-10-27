@@ -7,6 +7,7 @@
 #include "GameState.hpp"
 
 #include "Policy.hpp"
+#include "ValuePredictor.hpp"
 
 #define REWARD_MODEL_BASIC_TERMINAL         1
 #define REWARD_MODEL_TIME_EXPANDED_TERMINAL 2
@@ -20,7 +21,7 @@
 #define ROLLOUT_MODE_VALUE_POLICY    4
 
 // #define ROLLOUT_MODE ROLLOUT_MODE_VALUE_POLICY
-#define ROLLOUT_MODE ROLLOUT_MODE_RANDOM
+#define ROLLOUT_MODE ROLLOUT_MODE_VALUE_RANDOM
 
 typedef std::pair<float, float> Reward;
 
@@ -48,6 +49,7 @@ class Game {
   typedef GameState<Robot> GameStateT;
   typedef std::vector<RobotActionT> GameActionT;
   typedef Policy<Robot> PolicyT;
+  typedef ValuePredictor<Robot> ValuePredictorT;
 
   Game(
     const std::vector<RobotTypeT>& attackerTypes,
@@ -125,8 +127,8 @@ class Game {
         if (distToGoalSquared <= m_attackerTypes[i].tag_radiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
           nextState.attackers[i].status = RobotStateT::Status::ReachedGoal;
-          // mark the robot as not active anymore
-          nextState.attackers[i].state.fill(nanf(""));
+          // mark the robot as not active anymore (use infinity for the Python side to know the state)
+          nextState.attackers[i].state.fill(std::numeric_limits<float>::infinity());
         }
 
         for (size_t j = 0; j < NumDefenders; ++j) {
@@ -134,8 +136,8 @@ class Game {
             float distToDefenderSquared = (nextState.attackers[i].position() - nextState.defenders[j].position()).squaredNorm();
             if (distToDefenderSquared <= m_defenderTypes[j].tag_radiusSquared) {
               nextState.attackers[i].status = RobotStateT::Status::Captured;
-              // mark the robot as not active anymore
-              nextState.attackers[i].state.fill(nanf(""));
+              // mark the robot as not active anymore (use infinity for the Python side to know the state)
+              nextState.attackers[i].state.fill(-std::numeric_limits<float>::infinity());
             }
           }
         }
@@ -313,6 +315,7 @@ class Game {
     const GameStateT& state,
     const PolicyT& policyAttacker,
     const PolicyT& policyDefender,
+    const ValuePredictorT& valuePredictor,
     bool deterministic,
     float beta3)
   {
@@ -321,7 +324,7 @@ class Game {
     std::uniform_real_distribution<float> dist(0.0,1.0);
     if (!terminal
         && dist(m_generator) < beta3) {
-      float reward =  estimateValue2(state, policyAttacker, policyDefender);
+      float reward =  estimateValue(state, valuePredictor, false);
       if (!isnan(reward)) {
         return Reward(reward, 1 - reward);
       }
@@ -422,7 +425,12 @@ class Game {
       r2 = (1.0f - numDefendersActive / (float)state.defenders.size());
     }
 
-    return ( r1 + r2 + reachedGoal ) / 3.0f;    
+    float w1 = 0.1; 
+    float w2 = 0.1; 
+    float w3 = 0.8; 
+
+    return ( w1*r1 + w2*r2 + w3*reachedGoal ) / (w1+w2+w3);    
+    // return ( r1 + r2 + reachedGoal ) / 3.0f;    
 
     // return (   numAttackerActive / (float)state.attackers.size()
     //          + (1.0f - numDefendersActive / (float)state.defenders.size())
@@ -461,66 +469,45 @@ class Game {
   }
 
 
-  float estimateValue2(
-    const GameStateT& state,
-    const PolicyT& policyAttacker,
-    const PolicyT& policyDefender)
-  {
-    float value_sum = 0;
-    int num_robots = 0;
-    if (policyAttacker.glasConst().valid()) {
-      for (size_t j = 0; j < state.attackers.size(); ++j) {
-        auto result_a = policyAttacker.glasConst().eval(state, m_goal, m_attackerTypes[j], true, j, true);
-        float value = std::get<0>(result_a);
-        value_sum += value;
-        ++num_robots;
-      }
-    }
-    if (policyDefender.glasConst().valid()) {
-      for (size_t j = 0; j < state.defenders.size(); ++j) {
-        auto result_b = policyDefender.glasConst().eval(state, m_goal, m_defenderTypes[j], false, j, true);
-        float value = std::get<0>(result_b);
-        value_sum += value;
-        ++num_robots;
-      }
-    }
+  // float estimateValue2(
+  //   const GameStateT& state,
+  //   const PolicyT& policyAttacker,
+  //   const PolicyT& policyDefender)
+  // {
+  //   float value_sum = 0;
+  //   int num_robots = 0;
+  //   if (policyAttacker.glasConst().valid()) {
+  //     for (size_t j = 0; j < state.attackers.size(); ++j) {
+  //       auto result_a = policyAttacker.glasConst().eval(state, m_goal, m_attackerTypes[j], true, j, true);
+  //       float value = std::get<0>(result_a);
+  //       value_sum += value;
+  //       ++num_robots;
+  //     }
+  //   }
+  //   if (policyDefender.glasConst().valid()) {
+  //     for (size_t j = 0; j < state.defenders.size(); ++j) {
+  //       auto result_b = policyDefender.glasConst().eval(state, m_goal, m_defenderTypes[j], false, j, true);
+  //       float value = std::get<0>(result_b);
+  //       value_sum += value;
+  //       ++num_robots;
+  //     }
+  //   }
 
-    if (num_robots > 0) {
-      return value_sum / num_robots;
-    } else {
-      return std::nanf("");
-    }
-  }
+  //   if (num_robots > 0) {
+  //     return value_sum / num_robots;
+  //   } else {
+  //     return std::nanf("");
+  //   }
+  // }
 
 
   float estimateValue(
     const GameStateT& state,
-    const PolicyT& policyAttacker,
-    const PolicyT& policyDefender)
+    const ValuePredictorT& value,
+    bool deterministic)
   {
-    if (state.turn == GameStateT::Turn::Defenders)
-    {
-      if (policyAttacker.glasConst().valid()) {
-        // we check the turn on the child node, so in this case compute the reward
-        // from the perspective of attackers
-        float value_sum = 0;
-        for (size_t j = 0; j < state.attackers.size(); ++j) {
-          auto result_a = policyAttacker.glasConst().eval(state, m_goal, m_attackerTypes[j], true, j, true);
-          float value = std::get<0>(result_a);
-          value_sum += value;
-        }
-        return value_sum / state.attackers.size();
-      }
-    } else {
-      if (policyDefender.glasConst().valid()) {
-        float value_sum = 0;
-        for (size_t j = 0; j < state.defenders.size(); ++j) {
-          auto result_b = policyDefender.glasConst().eval(state, m_goal, m_defenderTypes[j], false, j, true);
-          float value = std::get<0>(result_b);
-          value_sum += value;
-        }
-        return 1.0 - value_sum / state.defenders.size();
-      }
+    if (value.valid()) {
+      return value.estimate(state, m_goal, deterministic);
     }
     return std::nanf("");
   }

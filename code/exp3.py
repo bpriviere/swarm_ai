@@ -114,7 +114,8 @@ if __name__ == '__main__':
 	df_param.attackerPolicyDicts.extend([{
 			'sim_mode' : 				"MCTS",
 			'path_glas_model_a' : 		None,
-			'path_glas_model_b' : 		None, 
+			'path_glas_model_b' : 		None,
+			'path_value_fnc' : 			None,
 			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
 			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
 			'mcts_c_param' : 			df_param.l_mcts_c_param,
@@ -153,7 +154,8 @@ if __name__ == '__main__':
 	df_param.defenderPolicyDicts.extend([{
 			'sim_mode' : 				"MCTS",
 			'path_glas_model_a' : 		None,
-			'path_glas_model_b' : 		None, 
+			'path_glas_model_b' : 		None,
+			'path_value_fnc' : 			None,
 			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
 			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
 			'mcts_c_param' : 			df_param.l_mcts_c_param,
@@ -239,15 +241,16 @@ if __name__ == '__main__':
 	# Plot results of each run
 	count = 0 
 	for sim_result in sim_results:
-		filename = os.path.split(files[count])[1]
+		_, filename = os.path.split(files[count])
 
 		# Plot results of each run
-		plotter.plot_tree_results(sim_result,title='Game: {} - File: {} - Time: {:5.2f} s\nA (Blue):{}\n B (Orange):{}'.format(\
-			sim_result["param"]["trial"],
-			filename,
-			max(sim_result["times"]),
-			policy_to_label(sim_result["param"]["policy_dict_a"]),\
-			policy_to_label(sim_result["param"]["policy_dict_b"])))
+		plotter.plot_tree_results(sim_result,\
+			title='Game: {} - File: {} - Time: {:5.2f} s\nA (Blue):{}\n B (Orange):{}'.format(\
+				sim_result["param"]["trial"],
+				filename,
+				max(sim_result["times"]),
+				policy_to_label(sim_result["param"]["policy_dict_a"]),\
+				policy_to_label(sim_result["param"]["policy_dict_b"])))
 		count += 1 
 		# Limit the maximum number of results files to plot
 		if count >= 50: 

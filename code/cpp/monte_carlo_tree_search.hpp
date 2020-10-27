@@ -65,6 +65,7 @@ template <
   typename Reward,
   typename Environment,
   typename Policy,
+  typename ValuePredictor,
   typename URNG = std::default_random_engine>
 class MonteCarloTreeSearch {
  public:
@@ -91,6 +92,7 @@ class MonteCarloTreeSearch {
     const State& startState,
     const Policy& myPolicy,
     const std::vector<Policy>& opponentPolicies,
+    const ValuePredictor& valuePredictor,
     Action& result) {
     // we pre-allocate all memory to ensure that pointers stay valid
     m_nodes.clear();
@@ -116,12 +118,12 @@ class MonteCarloTreeSearch {
       const auto& policyDefender = startState.turn == State::Turn::Attackers ? opponentPolicy : myPolicy;
 
       // selection + expansion
-      Node* node = treePolicy(root, policyAttacker, policyDefender);
+      Node* node = treePolicy(root, policyAttacker, policyDefender, valuePredictor);
       assert(node != nullptr);
 //      if (node == nullptr) {
 //        return false;
 //      }
-      Reward reward = m_env.rollout(node->state, policyAttacker, policyDefender, false, m_beta3);
+      Reward reward = m_env.rollout(node->state, policyAttacker, policyDefender, valuePredictor, false, m_beta3);
       backpropagation(node, reward);
     }
     // std::cout << "R " << root.reward.first << " " << root.reward.second << std::endl;
@@ -283,19 +285,19 @@ class MonteCarloTreeSearch {
 
   };
 
-  Node* treePolicy(Node& node, const Policy& policyAttacker, const Policy& policyDefender)
+  Node* treePolicy(Node& node, const Policy& policyAttacker, const Policy& policyDefender, const ValuePredictor& valuePredictor)
   {
     Node* nodePtr = &node;
     while (nodePtr && !m_env.isTerminal(nodePtr->state)) {
 
       // Use progressive widening, see https://hal.archives-ouvertes.fr/hal-00542673v1/document
       size_t maxChildren = ceil(m_pw_C * powf(nodePtr->number_of_visits, m_pw_alpha));
-      if (nodePtr->parent == nullptr) {
-        maxChildren = std::max<size_t>(maxChildren, 25);
-      }
+      // if (nodePtr->parent == nullptr) {
+      //   maxChildren = std::max<size_t>(maxChildren, 25);
+      // }
 
       if (nodePtr->children.size() < maxChildren) {
-        Node* child = expand(nodePtr, policyAttacker, policyDefender);
+        Node* child = expand(nodePtr, policyAttacker, policyDefender, valuePredictor);
         if (child != nullptr) {
           return child;
         }
@@ -309,9 +311,17 @@ class MonteCarloTreeSearch {
     return nodePtr;
   }
 
-  Node* expand(Node* nodePtr, const Policy& policyAttacker, const Policy& policyDefender)
+  Node* expand(Node* nodePtr, const Policy& policyAttacker, const Policy& policyDefender, const ValuePredictor& valuePredictor)
   {
-    const auto action = m_env.sampleAction(nodePtr->state, policyAttacker, policyDefender, false);
+    // for the first expansion use the deterministic mode; afterwards stochastic mode
+    // this should help for narrow trees
+    bool deterministic = false;
+    float beta2 = -1;
+    if (nodePtr->children.size() == 0) {
+      deterministic = true;
+      beta2 = 1.0;
+    }
+    const auto action = m_env.sampleAction(nodePtr->state, policyAttacker, policyDefender, deterministic, beta2);
 #if CHECK_ACTION_DUPLICATES
     // std::cout << "a " << action[0] << " " << action[1] << std::endl;
     for (const auto c : nodePtr->children) {
@@ -340,7 +350,9 @@ class MonteCarloTreeSearch {
       newNode.parent = nodePtr;
       newNode.action_to_node = action;
       if (m_beta1 > 0) {
-        newNode.estimated_value = m_env.estimateValue(newNode.state, policyAttacker, policyDefender);
+        newNode.estimated_value = m_env.estimateValue(newNode.state, valuePredictor, false);
+        // TODO: would need to switch based on which turn it is!
+        assert(false);
       }
       nodePtr->children.push_back(&newNode);
       return &newNode;

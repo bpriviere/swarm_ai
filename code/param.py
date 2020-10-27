@@ -19,8 +19,9 @@ class Param:
 		# these parameters are also used for learning 
 		self.policy_dict = {
 			'sim_mode' : 				"MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
-			'path_glas_model_a' : 		None, 	#'../current/models/a0.pt', 
-			'path_glas_model_b' : 		None, 	#'../current/models/b0.pt', 
+			'path_glas_model_a' : 		None, 	#'../current/models/a1.pt', 
+			'path_glas_model_b' : 		None, 	#'../current/models/b1.pt', 
+			'path_value_fnc' : 			None, 	#'../current/models/v1.pt', 
 			'mcts_tree_size' : 			10000,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				1.0,
@@ -30,8 +31,6 @@ class Param:
 			'mcts_beta3' : 				0.5,
 		}
 
-		# max timesteps until the game terminates
-		self.rollout_horizon = 100
 
 		# robot types 
 		self.robot_types = {
@@ -40,7 +39,7 @@ class Param:
 				'acceleration_limit':0.125,
 				'tag_radius': 0.025,
 				'dynamics':'double_integrator',
-				'r_sense': 5.0,
+				'r_sense': 1.0,
 				'radius': 0.025,
 			},
 			'evasive_robot' : {
@@ -69,18 +68,17 @@ class Param:
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 1
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
-		self.l_num_points_per_file = 5000
+		self.l_num_points_per_file = 10000
 		self.l_mcts_c_param = 1.4
-		self.l_mcts_pw_C = 1.0
+		self.l_mcts_pw_C = 2.0
 		self.l_mcts_pw_alpha = 0.25
 		self.l_mcts_beta1 = 0.0
 		self.l_mcts_beta2 = 0.5
-		self.l_mcts_beta3 = 0.0
+		self.l_mcts_beta3 = 0.5
 		self.l_num_learner_nodes = 500
 		self.l_num_expert_nodes = 10000
-		self.l_env_l0 = 1.0
 		self.l_env_dl = 1.0
-		self.l_warmstart = True # warmstart policies between iterations
+		self.l_warmstart = False # warmstart policies between iterations
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -100,6 +98,21 @@ class Param:
 			# 'b': {'standard_robot':2,'evasive_robot':0}
 			# },			
 		]
+
+		self.l_desired_game = {
+			'Skill_A' : 10, #'a1.pt',
+			'Skill_B' : 10, #'b1.pt',
+			'EnvironmentLength' : 3.0,
+			'NumA' : 3,
+			'NumB' : 3,
+		}
+		self.l_initial_curiculum = {
+			'Skill_A' : [None],
+			'Skill_B' : [None],
+			'EnvironmentLength' : [1.0,2.0,3.0],
+			'NumA' : [1,2,3],
+			'NumB' : [1,2,3],
+		}
 
 		self.l_subsample_on = False
 		self.l_num_subsamples = 5
@@ -151,8 +164,14 @@ class Param:
 			["Linear", h, 1] 
 		]
 
+		self.l_xi_network_architecture = [
+			["Linear", 2*h + 3, h], 
+			["Linear", h, h],
+			["Linear", h, 2] 
+		]		
+
 		self.l_policy_network_architecture = [
-			["Linear", h, h], 
+			["Linear", 2*h+n, h], 
 			["Linear", h, h],
 			["Linear", h, 2*m] 		
 		]
@@ -169,8 +188,11 @@ class Param:
 		self.l_wd = 0 
 		self.l_log_interval = 1
 		self.l_raw_fn = '{DATADIR}raw_team{TEAM}_i{LEARNING_ITER}_numfn{NUM_FILE}'
+		self.l_raw_value_fn = '{DATADIR}raw_value_i{LEARNING_ITER}_numfn{NUM_FILE}'
 		self.l_labelled_fn = '{DATADIR}labelled_team{TEAM}_i{LEARNING_ITER}_numa{NUM_A}_numb{NUM_B}_numfn{NUM_FILE}.npy'
+		self.l_labelled_value_fn = '{DATADIR}labelled_value_i{LEARNING_ITER}_numa{NUM_A}_numb{NUM_B}_numfn{NUM_FILE}.npy'
 		self.l_model_fn = '{DATADIR}{TEAM}{ITER}.pt'
+		self.l_value_model_fn = '{DATADIR}v{ITER}.pt'
 
 		# path stuff
 		self.path_current_results = '../current/results/'
@@ -330,6 +352,9 @@ class Param:
 
 		# actions 
 		self.actions = np.asarray(list(itertools.product(*[[-1,0,1],[-1,0,1]])))
+
+		# max timesteps until the game terminates
+		self.rollout_horizon = int(100 * self.env_l)
 
 
 	def get_random_position_inside(self,xlim,ylim):

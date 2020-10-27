@@ -45,11 +45,10 @@ public:
 
     std::uniform_real_distribution<float> dist(0.0,1.0);
 
-    if (beta2 >= 1 || (beta2 > 0 && dist(m_generator) < beta2)) {
+    if (m_glas.valid() && (beta2 >= 1 || (beta2 > 0 && dist(m_generator) < beta2))) {
       // Use NN if beta2 is > 0 probabilistically
-      assert(m_glas.valid());
       auto result = m_glas.eval(gameState, goal, robotType, teamAttacker, idx, deterministic);
-      return std::get<1>(result);
+      return result;
     } else {
       // use uniform random sample (no deterministic option)
       std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
