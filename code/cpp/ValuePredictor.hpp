@@ -2,6 +2,7 @@
 
 #include <random>
 #include <algorithm>
+#include <math.h>  
 
 #include "GLAS.hpp"
 
@@ -70,16 +71,20 @@ public:
 
     auto mu = val.segment<1>(0);
     float value;
-    if (deterministic) {
-      value = mu(0);
-    } else {
-      auto logvar = val.segment<1>(1);
-      auto sd = logvar.array().exp().sqrt();
-      std::normal_distribution<float> dist(mu(0),sd(0));
-      value = dist(m_generator);
-    }
+    
+    // if (deterministic) {
+    //   value = mu(0);
+    // } else {
+    //   auto logvar = val.segment<1>(1);
+    //   auto sd = logvar.array().exp().sqrt();
+    //   std::normal_distribution<float> dist(mu(0),sd(0));
+    //   value = dist(m_generator);
+    // }
     // value = std::clamp(value, 0, 1);
-    value = std::min(std::max(value, 0.0f), 1.0f);
+    // value = std::min(std::max(value, 0.0f), 1.0f);
+
+    value = mu(0);
+    value = (tanh(value)+1.0f) / 2.0f;
     return value;
   }
 
