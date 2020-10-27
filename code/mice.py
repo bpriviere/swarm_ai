@@ -682,32 +682,37 @@ def train_model_value(df_param,batched_files,model_fn):
 	# train 
 	losses = []
 	lrs = [] 
-	with open(model_fn + ".csv", 'w') as log_file:
-		log_file.write("time,epoch,train_loss,test_loss\n")
-		start_time = time.time()
-		best_test_loss = np.Inf
-		# scheduler = ReduceLROnPlateau(optimizer, 'min')
-		pbar = tqdm(range(1,df_param.l_n_epoch+1))
-		for epoch in pbar:
+	start_time = time.time()
+	best_test_loss = np.Inf
 
-			random.shuffle(train_loader)
-			random.shuffle(test_loader)
+	if df_param.l_lr_scheduler == 'ReduceLROnPlateau':
+		scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=50, min_lr=1e-5, verbose=True)
 
-			train_epoch_loss = train_value(model,optimizer,train_loader)
-			train_epoch_loss /= num_train_batches
+	pbar = tqdm(range(1,df_param.l_n_epoch+1))
+	for epoch in pbar:
 
-			test_epoch_loss = test_value(model,test_loader)
-			test_epoch_loss /= num_test_batches
+		random.shuffle(train_loader)
+		random.shuffle(test_loader)
 
-			# scheduler.step(test_epoch_loss)
-			losses.append((train_epoch_loss,test_epoch_loss))
-			if epoch%df_param.l_log_interval==0:
-				if test_epoch_loss < best_test_loss:
-					best_test_loss = test_epoch_loss
-					pbar.set_description("Best Test Loss: {:.5f}".format(best_test_loss))
-					torch.save(model.to('cpu').state_dict(), model_fn)
-					model.to(df_param.device)
-			log_file.write("{},{},{},{}\n".format(time.time() - start_time, epoch, train_epoch_loss, test_epoch_loss))
+		train_epoch_loss = train_value(model,optimizer,train_loader)
+		train_epoch_loss /= num_train_batches
+
+		test_epoch_loss = test_value(model,test_loader)
+		test_epoch_loss /= num_test_batches
+
+		if df_param.l_lr_scheduler == 'ReduceLROnPlateau':
+			scheduler.step(test_epoch_loss)
+
+		losses.append((train_epoch_loss,test_epoch_loss))
+		if df_param.l_lr_scheduler == 'ReduceLROnPlateau':
+			lrs.append(scheduler._last_lr)
+
+		if epoch%df_param.l_log_interval==0:
+			if test_epoch_loss < best_test_loss:
+				best_test_loss = test_epoch_loss
+				pbar.set_description("Best Test Loss: {:.5f}".format(best_test_loss))
+				torch.save(model.to('cpu').state_dict(), model_fn)
+				model.to(df_param.device)
 
 	print("time for training: ", time.time() - start_time)
 	plotter.plot_loss(losses,lrs,"Value")
