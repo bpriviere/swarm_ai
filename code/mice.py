@@ -1025,6 +1025,7 @@ if __name__ == '__main__':
 
 	i = 0 
 	k = 0 
+	width = 0
 	# curriculum loop  
 	while True: 
 
@@ -1074,7 +1075,7 @@ if __name__ == '__main__':
 				# 		NUM_FILE='**'))
 
 				batched_fns = []
-				for unused_var in range(max((0,i-1)), i+1):
+				for unused_var in range(max((0,i-width)), i+1):
 					batched_fns.extend(glob.glob(df_param.l_labelled_fn.format(\
 							DATADIR=df_param.path_current_data,\
 							TEAM=training_team,\
@@ -1128,7 +1129,7 @@ if __name__ == '__main__':
 			# 			NUM_B='**',\
 			# 			NUM_FILE='**'))
 			batched_fns = []
-			for unused_var in range(max((0,i-1)), i+1):
+			for unused_var in range(max((0,i-width)), i+1):
 				batched_fns.extend(glob.glob(df_param.l_labelled_value_fn.format(\
 					DATADIR=df_param.path_current_data,\
 					LEARNING_ITER=unused_var,\
