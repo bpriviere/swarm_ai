@@ -474,11 +474,10 @@ def clamp_action(robot, X0, U0, dt) :
 
 def robot_dead(state) :
 	# Checks if the robot is dead
-	if np.any(np.isnan(state))  or \
-		np.any(np.isinf(state)) :
-		return True
-	else :
+	if np.any(np.isfinite(state)) :
 		return False
+	else :
+		return True
 
 	# No idea how we got here, probably safest to kill the robot...
 	return True
