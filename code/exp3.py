@@ -78,6 +78,8 @@ def get_params(df_param,initial_conditions,robot_team_compositions):
 
 				param = Param() 
 				param.env_l = df_param.env_l
+				param.reset_xlim_A = df_param.reset_xlim_A
+				param.reset_xlim_B = df_param.reset_xlim_B
 				param.policy_dict_a = policy_dict_a
 				param.policy_dict_b = policy_dict_b
 				param.attackerPolicyDicts = df_param.attackerPolicyDicts
@@ -106,8 +108,10 @@ if __name__ == '__main__':
 	df_param = Param()
 
 	df_param.env_l = 1.0
+	df_param.reset_xlim_A = [0.1*df_param.env_l,0.2*df_param.env_l]
+	df_param.reset_xlim_B = [0.8*df_param.env_l,0.9*df_param.env_l]
 	df_param.num_trials = 100
-	max_policy_file = 2
+	max_policy_file = 3
 	name = "current/models"
 
 	df_param.attackerPolicyDicts = []
