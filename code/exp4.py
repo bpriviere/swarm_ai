@@ -218,7 +218,7 @@ def format_dir(df_param):
 def main():
 
 	sim_parallel_on = True
-	run_on = False
+	run_on = True
 	model_dir = '../current/models'
 
 	df_param = Param()
@@ -230,7 +230,7 @@ def main():
 	df_param.exp4_num_trials = 1
 	df_param.exp4_num_ics = 1
 	df_param.exp4_tree_sizes = [100] 
-	df_param.l_num_expert_nodes = 100
+	# df_param.l_num_expert_nodes = 100
 
 	# attackers 
 	# df_param.attackerBaselineDict = {
@@ -290,6 +290,34 @@ def main():
 					'path_value_fnc' : 			'{}/v{}.pt'.format(model_dir,policy_i),
 					'deterministic': 			True,
 				})
+	df_param.attackerPolicyDicts.append({
+		'sim_mode' : 				"MCTS",
+		'path_glas_model_a' : 		None,
+		'path_glas_model_b' : 		None, 
+		'path_value_fnc' : 			None, 
+		'mcts_tree_size' : 			df_param.l_num_expert_nodes,
+		'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+		'mcts_c_param' : 			df_param.l_mcts_c_param,
+		'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+		'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+		'mcts_beta1' : 				df_param.l_mcts_beta1,
+		'mcts_beta2' : 				df_param.l_mcts_beta2,
+		'mcts_beta3' : 				df_param.l_mcts_beta3,
+		})
+	df_param.defenderPolicyDicts.append({
+		'sim_mode' : 				"MCTS",
+		'path_glas_model_a' : 		None,
+		'path_glas_model_b' : 		None, 
+		'path_value_fnc' : 			None, 
+		'mcts_tree_size' : 			df_param.l_num_expert_nodes,
+		'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+		'mcts_c_param' : 			df_param.l_mcts_c_param,
+		'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+		'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+		'mcts_beta1' : 				df_param.l_mcts_beta1,
+		'mcts_beta2' : 				df_param.l_mcts_beta2,
+		'mcts_beta3' : 				df_param.l_mcts_beta3,
+		})
 
 	# games 
 	df_param.robot_team_compositions = [
