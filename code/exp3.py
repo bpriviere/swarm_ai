@@ -113,7 +113,6 @@ if __name__ == '__main__':
 	max_policy_file = 3 
 	glas_policy_files = range(1,max_policy_file+1)
 	mcts_policy_files = range(max_policy_file+1)
-	policies = 3
 	name = "current/models"
 
 	df_param.attackerPolicyDicts = []
