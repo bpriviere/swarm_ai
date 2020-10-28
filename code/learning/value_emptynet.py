@@ -38,8 +38,6 @@ class ValueEmptyNet(nn.Module):
 
 		self.to(self.device)
 
-		self.gaussian_on = param.l_gaussian_value_on
-
 
 	def to(self, device):
 		self.device = device
@@ -60,31 +58,18 @@ class ValueEmptyNet(nn.Module):
 		mu = torch.unsqueeze(dist[:,0],1)
 		logvar = torch.unsqueeze(dist[:,1],1)
 
-		if not self.gaussian_on: 
+		if training: 
+			return None, mu, logvar 
+		else: 
 
-			value = (torch.tanh(mu)+1)/2
+			batch_size = v_a.shape[0]
 
-			if training: 
-				batch_size = v_a.shape[0]
-				return None, value, -100*torch.ones(size=(batch_size,1),device=self.device)
-			else: 
-				return value
+			# reparameterization trick 
+			sd = torch.sqrt(torch.exp(logvar))
+			eps = torch.randn(size=(batch_size,1),device=self.device)
+			value = mu + sd * eps
 
-		else:
+			# clamp
+			value = torch.clamp(value, 0, 1)
 
-			if training: 
-				return None, mu, logvar 
-			else: 
-
-				batch_size = v_a.shape[0]
-
-				# reparameterization trick 
-				sd = torch.sqrt(torch.exp(logvar))
-				eps = torch.randn(size=(batch_size,1),device=self.device)
-				value = mu + sd * eps
-
-				# clamp
-				value = torch.clamp(value, 0, 1)
-
-				return value
-
+			return value
