@@ -62,12 +62,9 @@ def my_loss(target_policy, weight, mu, logvar, l_subsample_on, l_gaussian_on):
 	return loss
 
 
-def my_loss_value(target_value, mu, logvar, l_gaussian_value_on):
+def my_loss_value(target_value, mu, logvar):
 	criterion = nn.MSELoss(reduction='none')
-	if l_gaussian_value_on:
-		loss = torch.sum(criterion(mu, target_value) / (2 * torch.exp(logvar)) + 1/2 * logvar)
-	else: 
-		loss = torch.sum(criterion(mu, target_value))
+	loss = torch.sum(criterion(mu, target_value) / (2 * torch.exp(logvar)) + 1/2 * logvar)
 	loss = loss / mu.shape[0]
 	return loss 
 
@@ -100,11 +97,11 @@ def train(model,optimizer,loader,l_subsample_on,l_gaussian_on,l_sync_every,epoch
 
 	return epoch_loss
 
-def train_value(model,optimizer,loader,l_gaussian_value_on,scheduler=None):
+def train_value(model,optimizer,loader,scheduler=None):
 	epoch_loss = 0
 	for step, (v_a,v_b,n_a,n_b,n_rg,target_value) in enumerate(loader):
 		_,mu,logvar = model(v_a,v_b,n_a,n_b,n_rg,training=True)
-		loss = my_loss_value(target_value,mu,logvar,l_gaussian_value_on)
+		loss = my_loss_value(target_value,mu,logvar)
 		optimizer.zero_grad()
 		loss.backward()
 		optimizer.step()
@@ -113,12 +110,12 @@ def train_value(model,optimizer,loader,l_gaussian_value_on,scheduler=None):
 		epoch_loss += float(loss)
 	return epoch_loss	
 
-def test_value(model,loader,l_gaussian_value_on):
+def test_value(model,loader):
 	epoch_loss = 0
 	with torch.no_grad():
 		for v_a,v_b,n_a,n_b,n_rg,target_value in loader:
 			_,mu,logvar = model(v_a,v_b,n_a,n_b,n_rg,training=True)
-			epoch_loss += float(my_loss_value(target_value,mu,logvar,l_gaussian_value_on))
+			epoch_loss += float(my_loss_value(target_value,mu,logvar))
 
 	return epoch_loss
 
@@ -691,19 +688,11 @@ def train_model_value(df_param,batched_files,model_fn):
 	if df_param.l_lr_scheduler == 'ReduceLROnPlateau':
 		scheduler = ReduceLROnPlateau(optimizer, 'min', factor=0.5, patience=50, min_lr=1e-5, verbose=True)
 
-<<<<<<< HEAD
-			train_epoch_loss = train_value(model,optimizer,train_loader,df_param.l_gaussian_value_on)
-			train_epoch_loss /= num_train_batches
-
-			test_epoch_loss = test_value(model,test_loader,df_param.l_gaussian_value_on)
-			test_epoch_loss /= num_test_batches
-=======
 	pbar = tqdm(range(1,df_param.l_n_epoch+1))
 	for epoch in pbar:
 
 		random.shuffle(train_loader)
 		random.shuffle(test_loader)
->>>>>>> 553f30fa86289f68b130f6829236bc221eb83396
 
 		train_epoch_loss = train_value(model,optimizer,train_loader)
 		train_epoch_loss /= num_train_batches
