@@ -108,10 +108,12 @@ if __name__ == '__main__':
 	df_param = Param()
 
 	df_param.env_l = 1.0
-	df_param.reset_xlim_A = [0.1*df_param.env_l,0.2*df_param.env_l]
-	df_param.reset_xlim_B = [0.8*df_param.env_l,0.9*df_param.env_l]
+	df_param.init_on_sides = True
 	df_param.num_trials = 100
-	max_policy_file = 3
+	max_policy_file = 3 
+	glas_policy_files = range(1,max_policy_file+1)
+	mcts_policy_files = range(max_policy_file+1)
+	policies = 3
 	name = "current/models"
 
 	df_param.attackerPolicyDicts = []
@@ -143,13 +145,13 @@ if __name__ == '__main__':
 			'mcts_beta1' : 				df_param.l_mcts_beta1,
 			'mcts_beta2' : 				df_param.l_mcts_beta2,
 			'mcts_beta3' : 				df_param.l_mcts_beta3,
-		} for i in range(max_policy_file+1)])
+		} for i in mcts_policy_files])
 	df_param.attackerPolicyDicts.extend([
 		{
 			'sim_mode' : 				"GLAS",
 			'path_glas_model' : 		'../{}/a{}.pt'.format(name,i),
 			'deterministic': 			True,
-		} for i in range(1,max_policy_file+1)])
+		} for i in glas_policy_files])
 
 	df_param.defenderPolicyDicts = []
 	df_param.defenderPolicyDicts.extend([{
@@ -180,13 +182,13 @@ if __name__ == '__main__':
 			'mcts_beta1' : 				df_param.l_mcts_beta1,
 			'mcts_beta2' : 				df_param.l_mcts_beta2,
 			'mcts_beta3' : 				df_param.l_mcts_beta3,
-		} for i in range(max_policy_file+1)])
+		} for i in mcts_policy_files])
 	df_param.defenderPolicyDicts.extend([
 		{
 			'sim_mode' : 				"GLAS",
 			'path_glas_model' : 		'../{}/b{}.pt'.format(name,i),
 			'deterministic': 			True,
-		} for i in range(1,max_policy_file+1)])
+		} for i in glas_policy_files])
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-game_file", default=None, required=False)

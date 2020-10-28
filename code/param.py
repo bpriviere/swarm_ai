@@ -201,6 +201,8 @@ class Param:
 
 		self.tree_timestep = 10
 		self.plot_tree_on = False
+
+		self.init_on_sides = False
 		
 		self.update()
 
@@ -217,13 +219,13 @@ class Param:
 		self.env_xlim = [0,self.env_l]
 		self.env_ylim = [0,self.env_l]
 
-		self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
-		self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
-		# self.reset_ylim_A = [0.1*self.env_l,0.2*self.env_l]
-		# self.reset_ylim_B = [0.8*self.env_l,0.9*self.env_l]
+		if self.init_on_sides: 
+			self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
+			self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
+		else: 
+			self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
+			self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
 
-		# self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
-		# self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
 
