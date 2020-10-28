@@ -101,16 +101,14 @@ def eval_value(param):
 						_,mu,logvar = policy_model(o_a,o_b,relative_goal,training=True) # also deterministic 
 						policy = mu.detach().numpy().squeeze()
 
+					policy_ims[robot_idx,i_x,i_y,:] = policy 
+
 				if param.exp4_prediction_type == "SIM":
 
 					temp_sr = play_game(param,param.policy_dict_a,param.policy_dict_b)
 					value = temp_sr["rewards"][-1,0]
-					policy = temp_sr["actions"][0,robot_idx,:]
-
-				# print('policy',policy)
 
 				value_ims[robot_idx,i_x,i_y] = value 
-				policy_ims[robot_idx,i_x,i_y,:] = policy 
 
 	sim_result = {
 		'X' : X,
@@ -149,6 +147,7 @@ def exp4_get_params(df_param,initial_conditions,robot_team_compositions):
 							param.attackerPolicyDicts = df_param.attackerPolicyDicts
 							param.defenderPolicyDicts = df_param.defenderPolicyDicts
 							param.i_case = i_case 
+							param.n_case = df_param.exp4_num_ics
 							param.trial = trial 
 							param.count = count
 							param.team = team
@@ -174,6 +173,7 @@ def exp4_get_params(df_param,initial_conditions,robot_team_compositions):
 							param.attackerPolicyDicts = df_param.attackerPolicyDicts
 							param.defenderPolicyDicts = df_param.defenderPolicyDicts
 							param.i_case = i_case 
+							param.n_case = df_param.exp4_num_ics
 							param.trial = trial 
 							param.count = count
 							param.team = team
@@ -225,9 +225,10 @@ def main():
 	df_param.exp4_prediction_types = ["VALUE","SIM"] 
 	df_param.exp4_sim_modes = ["MCTS","GLAS"] 
 	df_param.exp4_max_policy = 1
+	df_param.exp4_policy_list = [4]
 	df_param.exp4_dx = 0.05
-	df_param.exp4_num_trials = 5
-	df_param.exp4_num_ics = 2
+	df_param.exp4_num_trials = 1
+	df_param.exp4_num_ics = 1
 	df_param.exp4_tree_sizes = [100] 
 	df_param.l_num_expert_nodes = 100
 
@@ -249,18 +250,21 @@ def main():
 	# df_param.defenderBaselineDict = df_param.attackerBaselineDict.copy()
 	df_param.attackerBaselineDict = {
 		'sim_mode' : 				"GLAS",
-		'path_glas_model' : 		'{}/a{}.pt'.format(model_dir,1),
+		# 'path_glas_model' : 		'{}/a{}.pt'.format(model_dir,1),
+		'path_glas_model' : 		'{}/a{}.pt'.format(model_dir,df_param.exp4_policy_list[0]),
 		'deterministic': 			True,
 	}
 	df_param.defenderBaselineDict = {
 		'sim_mode' : 				"GLAS",
-		'path_glas_model' : 		'{}/b{}.pt'.format(model_dir,1),
+		# 'path_glas_model' : 		'{}/b{}.pt'.format(model_dir,1),
+		'path_glas_model' : 		'{}/b{}.pt'.format(model_dir,df_param.exp4_policy_list[0]),
 		'deterministic': 			True,
 	}
 
 	df_param.attackerPolicyDicts = []
 	df_param.defenderPolicyDicts = []
-	for policy_i in range(df_param.exp4_max_policy+1):
+	for policy_i in df_param.exp4_policy_list:
+	# for policy_i in range(df_param.exp4_max_policy+1):
 		for team,policy_dicts in list(zip(["a","b"],[df_param.attackerPolicyDicts,df_param.defenderPolicyDicts])):
 			for tree_size in df_param.exp4_tree_sizes: 
 				# policy_dicts.append({
@@ -290,9 +294,13 @@ def main():
 	# games 
 	df_param.robot_team_compositions = [
 		{
-		'a': {'standard_robot':1,'evasive_robot':0},
+		'a': {'standard_robot':2,'evasive_robot':0},
 		'b': {'standard_robot':1,'evasive_robot':0}
 		},
+		{
+		'a': {'standard_robot':1,'evasive_robot':0},
+		'b': {'standard_robot':2,'evasive_robot':0}
+		},		
 		# {
 		# 'a': {'standard_robot':2,'evasive_robot':0},
 		# 'b': {'standard_robot':1,'evasive_robot':0}

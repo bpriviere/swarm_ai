@@ -1211,9 +1211,10 @@ def plot_exp1_results(all_sim_results):
 
 def plot_exp4_results(all_sim_results):
 
+
 	def policy_to_label(policy_dict):
 		label = policy_dict["sim_mode"]
-		label += policy_dict["team"]
+		# label += policy_dict["team"]
 		if "path_glas_model_a" in policy_dict.keys() and policy_dict["path_glas_model_a"] is not None: 
 			label += ' ' + os.path.basename(policy_dict["path_glas_model_a"]).split('.')[0]
 		if "path_glas_model_b" in policy_dict.keys() and policy_dict["path_glas_model_b"] is not None: 
@@ -1224,138 +1225,112 @@ def plot_exp4_results(all_sim_results):
 			label += ' |n|:{}'.format(policy_dict["mcts_tree_size"]).split('.')[0]
 		return label
 
-	nbins = 10
-
-	# key = (trial, team, prediction_type, exp4_sim_mode)
+	# key = (i_case, team, exp4_sim_mode)
 	# value = (forallrobots, image)
-	exp4_sim_modes = set()
-	value_ims = defaultdict(list)
+	sim_im = defaultdict(list)
+	predict_im = defaultdict(list)
 	policy_ims = defaultdict(list)
-	sim_results_by_key = defaultdict(list)
+	dss = dict()
+	params = dict()
+	nominal_states = dict()
+
 	for sim_result in all_sim_results: 
+		
 		i_case = sim_result["param"]["i_case"]
-		prediction_type = sim_result["param"]["exp4_prediction_type"]
-		exp4_sim_mode = policy_to_label(sim_result["param"]["policy_dict"])
 		team = sim_result["param"]["team"]
+		policy_dict = sim_result["param"]["policy_dict"]
 	
-		key = (i_case, team, prediction_type, exp4_sim_mode)
-		exp4_sim_modes.add(exp4_sim_mode)
-	
-		value_ims[key].append(sim_result["value_ims"])
-		policy_ims[key].append(sim_result["policy_ims"])
-		sim_results_by_key[key].append(sim_result)
+		key = (i_case, team, policy_to_label(policy_dict))
 
-	plotted = []
-	for (i_case, team, prediction_type, exp4_sim_mode), data_value in value_ims.items():
+		if sim_result["param"]["exp4_prediction_type"] == "VALUE": 
+			predict_im[key].append(sim_result["value_ims"])
+			policy_ims[key].append(sim_result["policy_ims"])
+		elif sim_result["param"]["exp4_prediction_type"] == "SIM": 
+			sim_im[key].append(sim_result["value_ims"])
+		else: 
+			print('prediction mode: {} not recognized'.format(sim_result["param"]["exp4_prediction_type"]))
+			exit()
 
-		key = (i_case, team, prediction_type, exp4_sim_mode)
+		if i_case not in params.keys():
+			params[i_case] = sim_result["param"]
+			dss[i_case] = (sim_result["X"],sim_result["Y"])
+			nominal_states[i_case] = sim_result["nominal_state"]
 
-		if (i_case,team) in plotted:
-			continue
-		else:
-			plotted.append((i_case,team))
+	# some global variables 
+	attackerPolicyDicts = all_sim_results[0]["param"]["attackerPolicyDicts"]
+	defenderPolicyDicts = all_sim_results[0]["param"]["defenderPolicyDicts"]
+	n_cases = all_sim_results[0]["param"]["n_case"]
 
-		sim_result = sim_results_by_key[key][0]
+	for i_case in range(n_cases): 
 
-		X = sim_result["X"]
-		Y = sim_result["Y"]
-		nominal_state = sim_result["nominal_state"]
-		num_robots = sim_result["param"]["num_nodes"]
-		goal = sim_result["param"]["goal"]
-		team = sim_result["param"]["team"]
-		env_xlim = sim_result["param"]["env_xlim"]
-		env_ylim = sim_result["param"]["env_ylim"]
-		team_1_idxs = sim_result["param"]["team_1_idxs"]
-		team_2_idxs = sim_result["param"]["team_2_idxs"]
-		team_idxs = team_1_idxs if team =="a" else team_2_idxs
-		exp4_prediction_types = sim_result["param"]["exp4_prediction_types"]
+		for team in ["a","b"]:
 
-		colors = get_colors(sim_result["param"])
+			param = params[i_case]
+			goal = param["goal"]
+			nominal_state = nominal_states[i_case]
+			X,Y = dss[i_case]
 
-		for robot_idx in range(num_robots):
+			robot_idxs = param["team_1_idxs"] if team == "a" else param["team_2_idxs"]
+			policy_dicts = attackerPolicyDicts if team == "a" else defenderPolicyDicts
 
-			if not robot_idx in team_idxs: 
-				continue
-			
-			fig,axs = plt.subplots(nrows=len(exp4_prediction_types)+1,ncols=len(exp4_sim_modes)//2,squeeze=False) 
+			colors = get_colors(param)
 
-			# fig title 
-			team = "b"
-			if robot_idx in team_1_idxs:
-				team = "a"
-			title = 'Initial Condition {}, Placing Robot From Team {}'.format(i_case,team)
-			fig.suptitle(title)	
+			for robot_idx in robot_idxs: 
 
-			curr_pt = -1
-			for prediction_type in exp4_prediction_types: 
-				curr_pt += 1
-				curr_sm = -1
-				for exp4_sim_mode in exp4_sim_modes:
+				fig,axs = plt.subplots(nrows=len(policy_dicts), ncols=3,squeeze=False)
 
-					key = (i_case, team, prediction_type, exp4_sim_mode)
+				fig.suptitle('Case: {} Value and Policy for Placing Robot: {} Team: {}'.format(i_case,robot_idx,team))
 
-					if not key in value_ims.keys() or np.isnan(np.array(value_ims[key])[:,robot_idx,:,:]).any():
-						continue
+				for i_policy_dict, policy_dict in enumerate(policy_dicts): 
 
-					curr_sm += 1
+					key = (i_case, team, policy_to_label(policy_dict))
 
-					ax = axs[curr_pt,curr_sm]
+					# plot prediction
+					ax = axs[i_policy_dict,0]
+					data = np.mean(np.array(predict_im[key]),axis=0)
+					im = ax.imshow(data[robot_idx,:,:].T,origin='lower',\
+						extent=(X[0], X[-1], Y[0], Y[-1]))
+						# extent=(X[0], X[-1], Y[0], Y[-1]),vmin=0,vmax=1)
 
-					data = np.mean(np.array(value_ims[key]),axis=0)
+					# plot simulated value
+					ax = axs[i_policy_dict,1]
+					data = np.mean(np.array(sim_im[key]),axis=0)
+					im = ax.imshow(data[robot_idx,:,:].T,origin='lower',\
+						extent=(X[0], X[-1], Y[0], Y[-1]))
+						# extent=(X[0], X[-1], Y[0], Y[-1]),vmin=0,vmax=1)
 
-					# im = ax.imshow(value_ims[key][robot_idx,:,:].T,origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]))
-					# im = ax.imshow(value_ims[key][robot_idx,:,:].T,origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]),vmin=0,vmax=1)
-					im = ax.imshow(data[robot_idx,:,:].T,origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]),vmin=0,vmax=1)
+					# plot policy 
+					ax = axs[i_policy_dict,2]
+					data = np.mean(np.array(policy_ims[key])[:,robot_idx,:,:],axis=0)
+					data = np.transpose(data,axes=(1,0,2))
+					C = np.linalg.norm(data,axis=2)
+					ax.quiver(np.array(X),np.array(Y),data[:,:,0],data[:,:,1],width=0.01)
+					ax.imshow(C,origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]))
 
-					# plot state 
-					ax.scatter(goal[0],goal[1],color='green')
-					for robot_idx_j, robot_state_j in enumerate(nominal_state):
-						if robot_idx_j == robot_idx: 
-							continue 
-						ax.scatter(robot_state_j[0],robot_state_j[1],color=colors[robot_idx_j])
+				# plot state and arrange 
+				for i_x, mode in enumerate(["Predict","Sim","Policy"]):
+					for i_y, policy_dict in enumerate(policy_dicts):
+						ax = axs[i_y,i_x]
 
-					# labels 
-					if curr_pt == 0:
-						# ax.set_xlabel(prediction_type)
-						ax.set_xlabel(exp4_sim_mode)
-						ax.xaxis.set_label_position('top')
-					if curr_sm == 0:
-						# ax.set_ylabel(exp4_sim_mode)
-						ax.set_ylabel(prediction_type)
+						# plot state on top of axis 
+						ax.scatter(goal[0],goal[1],color='green')
+						for robot_idx_j, robot_state_j in enumerate(nominal_state):
+							if robot_idx_j == robot_idx: 
+								continue 
+							ax.scatter(robot_state_j[0],robot_state_j[1],color=colors[robot_idx_j])
 
-					# arrange 
-					ax.set_xticks(X)
-					ax.set_yticks(Y)
-					ax.set_xticklabels([])
-					ax.set_yticklabels([])
-					ax.grid(True,linestyle='-',linewidth=1,alpha=0.2,color='black')
+						# arrange 
+						ax.set_xticks(X)
+						ax.set_yticks(Y)
+						ax.grid(True,linestyle='-',linewidth=1,alpha=0.2,color='black')
+						ax.set_xticklabels([])
+						ax.set_yticklabels([])
 
-
-			curr_sm = 0 
-			for exp4_sim_mode in exp4_sim_modes: 
-
-				key = (i_case, team, prediction_type, exp4_sim_mode)
-
-				# plot policy quiver for each exp4simmode 
-				# if not key in policy_ims.keys() or np.isnan(np.array(policy_ims[key])[:,robot_idx,:,:]).any():
-				if not key in policy_ims.keys(): 
-					continue
-
-				ax = axs[len(exp4_prediction_types),curr_sm]
-				data = np.mean(np.array(policy_ims[key])[:,robot_idx,:,:],axis=0)
-				C = np.linalg.norm(data,axis=2)
-				ax.quiver(np.array(X),np.array(Y),data[:,:,0],data[:,:,1],width=0.01)
-				ax.imshow(C.T,origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]))
-
-				if curr_sm == 0:
-					ax.set_ylabel("Policy")
-				curr_sm += 1
-
-				# arrange 
-				ax.set_xticks(X)
-				ax.set_yticks(Y)
-				ax.set_xticklabels([])
-				ax.set_yticklabels([])
+						if i_x == 0:
+							ax.set_ylabel(policy_to_label(policy_dict))
+						if i_y == 0: 
+							ax.set_xlabel(mode)
+							ax.xaxis.set_label_position('top')
 
 def plot_exp2_results(all_sim_results):
 
