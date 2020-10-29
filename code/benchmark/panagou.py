@@ -70,13 +70,19 @@ class PanagouPolicy:
 			# intersections
 			self.I = calculate_intersections(self.param,self.robots,self.times,self.R)
 
-			self.defender_actions = find_best_defender_action(self.param,self.robots)
-
 			# matching polciies
 			self.matching_policies = calculate_matching_policies(self.param,self.I,self.R)
 
 			# match
 			self.matching = calculate_defender_matching(self.param,self.matching_policies,self.times,self.terminal_times)
+
+			#### New matching stuff
+			# Calculate the best attacker actions to minimise the distance to goal upon capture
+			#  We also calculate the best defender action at this stage to match that attackker action 
+			self.best_actions = find_best_attacker_action(self.param,self.robots)
+
+			# Calculate who each defender should target
+			self.matching2 = calculate_matching2(self.best_actions,self.robots,self.param)
 
 		return self 
 
@@ -274,6 +280,40 @@ class PanagouPolicy:
 		states = np.array(states)
 		return states 
 
+def calculate_matching2(best_actions,robots,param) :
+	# Calculates which attacker each defender should target
+	# Do this as greedy to start with
+	matching = dict()
+	done = [] 
+
+	# Loop through each defender
+	for j_robot in param.team_2_idxs :
+		# The defenders want to maximise the distance between the goal and the attackers
+		# therefore, target whichever attacker is going to get closest
+		min_distance = 1e10
+		att_ID = None
+
+		for i_robot in param.team_1_idxs :
+			if i_robot in done :
+				# Already been tagged, try the next robot
+				pass
+			else :
+				dist2goal = best_actions[i_robot,j_robot][5]
+				if (min_distance > dist2goal) and (dist2goal < 0.0) :
+					# This is a better choice to target as a defender, store it
+					# In the case where dist2goal == 0, the attacker wins so ignore this too
+					att_ID = i_robot
+					min_distance = dist2goal
+		
+		# We've looped through each attacker for this defender, store the best 
+		# attacker to target match
+		done.append(att_ID)
+		matching[att_ID] = j_robot
+
+	# Each defender is matched
+	return matching
+
+
 def calculate_matching_policies(param,I,R):
 	# calculate attacker policies (and resulting defender policy) for each possible defender matchup
 	# Policies
@@ -349,8 +389,9 @@ def calculate_nominal_trajectories(param,robots,times,theta_noms):
 	# All done
 	return R_nom 
 
-def find_best_defender_action(param,robots) :
+def find_best_attacker_action(param,robots) :
 	# Finds the best defender action to minimise distance to the goal
+	# Calculates the best defender action based on this attacker action
 	#
 	# Outputs an array with
 	#     defender_actions[i_robot,j_robot = [att_id, def_id1, att_theta, def_theta, t_end, dist2goal ;
@@ -361,8 +402,6 @@ def find_best_defender_action(param,robots) :
 	def func_dist_to_goal(p) :
 		temp = p
 		att_theta = temp[0]
-
-		
 
 		# Calculate the defender's best theta and corresponding time to capture for the given new attacker input
 		def_theta,t_capture = find_best_intercept(att_robot,def_robot,att_theta,def_theta_nom,param.sim_dt)
@@ -382,8 +421,8 @@ def find_best_defender_action(param,robots) :
 		return eqns
 
 	# Pre-allocate matricies
-	defender_actions = dict()
-	defender_actions[0,0] = "att_robot, def_robot, att_theta, def_theta, t_end, dist2goal"
+	best_actions = dict()
+	best_actions[0,0] = "att_robot, def_robot, att_theta, def_theta, t_end, dist2goal"
 
 	# Loop through each attacker
 	for i_robot in param.team_1_idxs: 
@@ -403,7 +442,7 @@ def find_best_defender_action(param,robots) :
 			if (def_terminal_time > att_terminal_time) :
 				# Attacker will win, use the nominal attacker results
 				att_theta_best = att_theta_nom
-				def_theta_best = np.nan
+				def_theta_best = None
 				dist2goal = 0.0
 				t_end = att_terminal_time
 				# we've gotten to a attacker wins state which we haven't checked yet
@@ -430,7 +469,7 @@ def find_best_defender_action(param,robots) :
 				dist2goal = np.power(param.goal[0]-x_capture,2) + np.power(param.goal[1]-y_capture,2)
 
 			# Store the results
-			defender_actions[i_robot,j_robot] = (i_robot, j_robot, att_theta_best, def_theta_best, t_end, dist2goal)
+			best_actions[i_robot,j_robot] = (i_robot, j_robot, att_theta_best, def_theta_best, t_end, dist2goal)
 
 			# Debug printing
 			'''
@@ -439,7 +478,7 @@ def find_best_defender_action(param,robots) :
 			#exit (0)
 			'''
 
-	return defender_actions
+	return best_actions
 
 def calculate_intersections(param,robots,times,R):
 	"""
