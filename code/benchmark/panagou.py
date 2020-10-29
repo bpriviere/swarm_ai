@@ -286,33 +286,32 @@ def calculate_matching2(best_actions,robots,param) :
 	matching = dict()
 	done = [] 
 
-	# Loop through each defender
-	for j_robot in param.team_2_idxs :
+	# Loop through each attacker
+	for i_robot in param.team_1_idxs :
 		# The defenders want to maximise the distance between the goal and the attackers
 		# therefore, target whichever attacker is going to get closest
 		min_distance = 1e10
-		att_ID = None
+		def_ID = None
 
-		for i_robot in param.team_1_idxs :
-			if i_robot in done :
-				# Already been tagged, try the next robot
+		for j_robot in param.team_2_idxs :
+			if j_robot in done :
+				# Already been assigned a target, try the next robot
 				pass
 			else :
 				dist2goal = best_actions[i_robot,j_robot][5]
-				if (min_distance > dist2goal) and (dist2goal < 0.0) :
+				if (min_distance > dist2goal) and (dist2goal > 0.00001) :
 					# This is a better choice to target as a defender, store it
 					# In the case where dist2goal == 0, the attacker wins so ignore this too
-					att_ID = i_robot
+					def_ID = j_robot
 					min_distance = dist2goal
 		
-		# We've looped through each attacker for this defender, store the best 
-		# attacker to target match
-		done.append(att_ID)
-		matching[att_ID] = j_robot
+		# We've looped through each defender for this attacker,
+		# store the best defender to attacker match
+		done.append(j_robot)
+		matching[i_robot] = def_ID
 
 	# Each defender is matched
 	return matching
-
 
 def calculate_matching_policies(param,I,R):
 	# calculate attacker policies (and resulting defender policy) for each possible defender matchup
