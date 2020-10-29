@@ -76,7 +76,8 @@ class PanagouPolicy:
 			self.best_actions = find_best_actions(self.param,self.robots)
 
 			# Calculate who each defender should target
-			self.matching2 = calculate_matching2(self.best_actions,self.robots,self.param)
+			self.matching2 = calculate_matching_greedy(self.best_actions,self.robots,self.param)
+			self.matching2 = calculate_matching_optimal(self.best_actions,self.robots,self.param)
 
 		return self 
 
@@ -250,9 +251,9 @@ class PanagouPolicy:
 		states = np.array(states)
 		return states 
 
-def calculate_matching2(best_actions,robots,param) :
+def calculate_matching_greedy(best_actions,robots,param) :
 	# Calculates which attacker each defender should target
-	# Do this as greedy to start with
+	# This is a greedy match
 	matching = dict()
 	done = [] 
 
@@ -279,6 +280,61 @@ def calculate_matching2(best_actions,robots,param) :
 		# store the best defender to attacker match
 		done.append(j_robot)
 		matching[i_robot] = def_ID
+
+	# Each defender is matched
+	return matching
+
+def calculate_matching_optimal(best_actions,robots,param) :
+	# Calculates which attacker each defender should target
+	# The cost element is the distance to goal for the attacker 
+	# on capture.
+	#
+	# Only works for equal number of attackers and defenders
+
+	matching = dict()
+	done = [] 
+
+	# Pre-allocate cost matrix
+	cost_matrix = np.empty((len(param.team_1_idxs),len(param.team_2_idxs)))
+
+	# Fill cost matrix
+	for ii in range(len(param.team_1_idxs)) :
+		i_robot = param.team_1_idxs[ii]
+
+		for jj in range(len(param.team_2_idxs)) :
+			j_robot = param.team_2_idxs[jj]
+
+			cost_element = best_actions[i_robot,j_robot][5]
+
+			if cost_element < 0.00001 :
+				# We can't catch this attacker, put a high price and chasing him
+				cost_element = 1e10
+			
+			# Add element to the cost matrix - rows = attackers (jobs), columns = defenders (workers)
+			# We want to maximise the distance rather than minimise it as linear_sum_assignment does,
+			# so take the distance away from a semi-large number (100)
+			cost_matrix[ii,jj] = 100 - cost_element
+
+	# Solve the cost matrix
+	row_ind, col_ind = linear_sum_assignment(cost_matrix)
+	total_cost = cost_matrix[row_ind, col_ind].sum()
+
+	# Create the matching storage by looping through defenders
+	for ii in range(len(col_ind)) :
+		# Calculate robot numbers of the match
+		def_idx = param.team_2_idxs[ii]
+		att_idx = param.team_1_idxs[col_ind[ii]]
+
+		# Check if we should be chasing this attacker or not
+		dist = best_actions[att_idx,def_idx][5]
+
+		if (dist > 0.00001) :
+			matching[att_idx] = def_idx
+		else :
+			matching[att_idx] = None
+	
+		# Debugging
+		print("[ Def %d ] > [ Att %d ]" % (def_idx,att_idx))
 
 	# Each defender is matched
 	return matching
