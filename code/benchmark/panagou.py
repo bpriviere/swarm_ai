@@ -379,14 +379,15 @@ def find_best_attacker_action(param,robots) :
 		att_theta = temp[0]
 
 		# Calculate the defender's best theta and corresponding time to capture for the given new attacker input
-		def_theta,t_capture = find_best_intercept(att_robot,def_robot,att_theta,def_theta_nom,param.sim_dt)
+		def_theta = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+		t_capture = find_best_intercept(att_robot,def_robot,att_theta,def_theta,param.sim_dt)[1]
 
 		# Integrate the attacker's state with the new theta guess
 		U = theta_to_u(att_robot,att_theta)
 		times = np.arange(0,max(t_capture+param.sim_dt,param.sim_dt*2),param.sim_dt)
 		states = integrate(att_robot, att_robot["x0"], U, times[1:], param.sim_dt)
 
-		# Interpolate to find the exact distance to the goal
+		# Interpolate to find the exact distance to the goal at t_capture
 		x_capture = np.interp(t_capture, times, states[:,0])
 		y_capture = np.interp(t_capture, times, states[:,1])
 
@@ -426,7 +427,6 @@ def find_best_attacker_action(param,robots) :
 				# Defender should be able to intercept attacker,
 				# calculate the closest the attacker can get to the goal
 				# if the defender acts optimally to intercept us.
-				def_theta = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
 				res = minimize(func_dist_to_goal, att_theta_nom)
 				att_theta_best = res["x"][0]
 
@@ -783,13 +783,17 @@ def theta_to_u(robot,theta):
 def main():
 
 	set_ic = False
-	#set_ic = True
+	set_ic = True
 	if set_ic: 
 		print("====\nUsing Fixed Initial Conditions\n====")
 		# make sure this matches the teams match up in the param file
 		initial_condition = np.array( [ \
 			[   0.166,   0.675,   0.000,   0.000 ], \
 			[   0.862,   0.852,  -0.000,   0.000 ] ]) 
+
+		initial_condition = np.array( [ \
+			[   0.186,   0.674,   0.000,   0.000 ], \
+			[   0.807,   0.507,   0.000,   0.000 ] ]) 
 
 		df_param = Param()
 		df_param.update(initial_condition=initial_condition)
