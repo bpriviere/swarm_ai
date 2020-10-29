@@ -70,12 +70,6 @@ class PanagouPolicy:
 			# intersections
 			self.I = calculate_intersections(self.param,self.robots,self.times,self.R)
 
-			# matching polciies
-			self.matching_policies = calculate_matching_policies(self.param,self.I,self.R)
-
-			# match
-			self.matching = calculate_defender_matching(self.param,self.matching_policies,self.times,self.terminal_times)
-
 			#### New matching stuff
 			# Calculate the best attacker actions to minimise the distance to goal upon capture
 			#  We also calculate the best defender action at this stage to match that attackker action 
@@ -288,62 +282,6 @@ def calculate_matching2(best_actions,robots,param) :
 
 	# Each defender is matched
 	return matching
-
-def calculate_matching_policies(param,I,R):
-	# calculate attacker policies (and resulting defender policy) for each possible defender matchup
-	# Policies
-	# 	[ att_heading_idx, def_heading_idx, idx_time, min_distance_to_goal ]
-	policies = dict()
-	for (ii_robot, jj_robot), intersections in I.items():
-
-		ii_theta_star = 0
-		jj_theta_star = 0
-		ii_time_star = 0 
-		min_dist_to_goal = np.inf 
-
-		for (ii_theta,jj_theta,ii_time) in intersections:
-			intersection_dist_to_goal = np.linalg.norm(R[ii_robot,ii_time,ii_theta,0:2] - param.goal[0:2])
-			if min_dist_to_goal > intersection_dist_to_goal:
-				# I think this is a match
-				ii_theta_star = ii_theta
-				jj_theta_star = jj_theta
-				ii_time_star = ii_time
-				min_dist_to_goal = intersection_dist_to_goal
-
-		policies[ii_robot,jj_robot] = (ii_theta_star,jj_theta_star,ii_time_star,min_dist_to_goal)
-	return policies 
-
-def calculate_defender_matching(param,policies,times,terminal_times):
-	# greedy match defenders to attackers, who pick to maximize intersection distance to goal
-	# policies = [ att_heading_idx, def_heading_idx, idx_time, min_distance_to_goal ]
-	matching = dict()
-	done = [] 
-
-	# Loop through each attacker
-	for i_robot in param.team_1_idxs: 
-		matching[i_robot] = None
-		max_dist = 0 
-
-		# ii_robot = attacker, jj_robot = defender
-		for (ii_robot,jj_robot), (ii_theta,jj_theta,ii_time,dist_to_goal) in policies.items():
-			# Match the robots up
-			if i_robot == ii_robot and dist_to_goal > max_dist and not jj_robot in done :
-				t_goal = terminal_times[ii_robot]
-				t_capture = times[ii_time]
-
-				if (t_capture < t_goal+1.0) : # Chase the attacker if there's a chance we might catch him
-				# Check to see if the time until intercept is less than the time for the attacker to reach the goal,
-				# if so, this would be a capture and we should add it to the matching list.
-				# We add a 1 s grace time in here for numerical stability
-					matching[ii_robot] = jj_robot
-					done.append(jj_robot)
-					max_dist = dist_to_goal
-
-		#if (matching[i_robot] == None) :
-			# print("No match found!")
-			# Pause when there's no match found for debugging
-	
-	return matching 
 
 def calculate_nominal_trajectories(param,robots,times,theta_noms):
 	# calculate nominal trajectory to goal 
