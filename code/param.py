@@ -177,6 +177,7 @@ class Param:
 		]
 
 		self.l_gaussian_on = True
+		self.l_glas_rollout_on = True
 
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
@@ -202,7 +203,7 @@ class Param:
 		self.tree_timestep = 10
 		self.plot_tree_on = False
 
-		self.init_on_sides = False
+		self.init_on_sides = True
 		
 		self.update()
 

@@ -1025,7 +1025,7 @@ if __name__ == '__main__':
 
 	i = 0 
 	k = 0 
-	width = 0
+	width = 4
 	# curriculum loop  
 	while True: 
 
