@@ -73,7 +73,7 @@ class PanagouPolicy:
 			#### New matching stuff
 			# Calculate the best attacker actions to minimise the distance to goal upon capture
 			#  We also calculate the best defender action at this stage to match that attackker action 
-			self.best_actions = find_best_attacker_action(self.param,self.robots)
+			self.best_actions = find_best_actions(self.param,self.robots)
 
 			# Calculate who each defender should target
 			self.matching2 = calculate_matching2(self.best_actions,self.robots,self.param)
@@ -302,12 +302,12 @@ def calculate_nominal_trajectories(param,robots,times,theta_noms):
 	# All done
 	return R_nom 
 
-def find_best_attacker_action(param,robots) :
-	# Finds the best defender action to minimise distance to the goal
+def find_best_actions(param,robots) :
+	# Finds the best attacker action to minimise distance to the goal
 	# Calculates the best defender action based on this attacker action
 	#
 	# Outputs an array with
-	#     defender_actions[i_robot,j_robot = [att_id, def_id1, att_theta, def_theta, t_end, dist2goal ;
+	#     defender_actions[i_robot,j_robot] = [att_id, def_id1, att_theta, def_theta, t_end, dist2goal ;
 	#                                         att_id, def_id2, att_theta, def_theta, t_end, dist2goal ; 
 	#                                         ...
 	#                                         att_id, def_idN, att_theta, def_theta, t_end, dist2goal ]
