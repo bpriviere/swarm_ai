@@ -78,8 +78,6 @@ def get_params(df_param,initial_conditions,robot_team_compositions):
 
 				param = Param() 
 				param.env_l = df_param.env_l
-				param.reset_xlim_A = df_param.reset_xlim_A
-				param.reset_xlim_B = df_param.reset_xlim_B
 				param.policy_dict_a = policy_dict_a
 				param.policy_dict_b = policy_dict_b
 				param.attackerPolicyDicts = df_param.attackerPolicyDicts

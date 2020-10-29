@@ -202,7 +202,7 @@ class Param:
 		self.tree_timestep = 10
 		self.plot_tree_on = False
 
-		self.init_on_sides = False
+		self.init_on_sides = True
 		
 		self.update()
 
