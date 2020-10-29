@@ -237,6 +237,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 		'trees': [],
 		'tree_params': [],
 		'n_rgs': [],
+		'root_rewards_over_time': [],
 	}
 
 	gs = state_to_cpp_game_state(param.state,"a",param.team_1_idxs,param.team_2_idxs)
@@ -297,6 +298,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 			mctssettings.beta1 = policy_dict["mcts_beta1"]
 			mctssettings.beta3 = policy_dict["mcts_beta3"]
 			mctssettings.export_tree = (count // 2) % param.tree_timestep == 0  and param.plot_tree_on 
+			mctssettings.export_root_reward_over_time = mctssettings.export_tree
 
 		if policy_dict["sim_mode"] == "MCTS":
 			depth = gs.depth
@@ -317,6 +319,9 @@ def play_game(param,policy_dict_a,policy_dict_b):
 							'time' : param.sim_dt*len(sim_result['states']),
 							'robot_idx' : 'Centralized',
 						})
+				if mctssettings.export_root_reward_over_time:
+					sim_result['root_rewards_over_time'].append(mctsresult.rootRewardOverTime)
+
 			else:
 				success = False
 
@@ -349,6 +354,8 @@ def play_game(param,policy_dict_a,policy_dict_b):
 							'time' : param.sim_dt*len(sim_result['states']),
 							'robot_idx' : robot_idx,
 							})
+					if mctssettings.export_root_reward_over_time:
+						sim_result['root_rewards_over_time'].appent(mctsresult.rootRewardOverTime)
 				else: 
 					action[robot_idx,:] = np.zeros(2) 
 

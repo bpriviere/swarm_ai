@@ -125,6 +125,9 @@ class MonteCarloTreeSearch {
 //      }
       Reward reward = m_env.rollout(node->state, policyAttacker, policyDefender, valuePredictor, false, m_beta3);
       backpropagation(node, reward);
+
+      // collect some stats
+      m_rootRewardOverTime.push_back(m_nodes[0].reward.first / m_nodes[0].number_of_visits);
     }
     // std::cout << "R " << root.reward.first << " " << root.reward.second << std::endl;
     const Node* node = bestChild(&root, 0);
@@ -248,6 +251,11 @@ class MonteCarloTreeSearch {
     }
 
     return result;
+  }
+
+  const std::vector<float>& rootRewardOverTime() const
+  {
+    return m_rootRewardOverTime;
   }
 
  private:
@@ -436,6 +444,7 @@ class MonteCarloTreeSearch {
   Environment& m_env;
   URNG& m_generator;
   std::vector<Node> m_nodes;
+  std::vector<float> m_rootRewardOverTime;
   size_t m_num_nodes;
   float m_Cp;
   float m_pw_C;
