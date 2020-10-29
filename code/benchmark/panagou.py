@@ -702,14 +702,22 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 			)
 		return eqns
 
-	# Initial conditions for approx equations come from inputs into function
-	# tbh we probably don't need ot use this step and can just use those calcualted before
-	def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, 3))
-	if (0) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
+	# Check that we are not already within capture radius of the robot
+	dist = np.linalg.norm(att_robot["x0"][0:2] - def_robot["x0"][0:2])
+	if (dist < def_robot["tag_radius"]) :
+		# This robot is captured, don't bother doing calcs for it
+		def_theta = 0
+		Tend = 0
 
-	# Solve using the full simulator
-	def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx))
-	if (0) : print("\t       Exact intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
+	else :
+		# Initial conditions for approx equations come from inputs into function
+		# tbh we probably don't need ot use this step and can just use those calcualted before
+		def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, 3))
+		if (0) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
+
+		# Solve using the full simulator
+		def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx))
+		if (0) : print("\t       Exact intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
 
 	return def_theta,Tend
 
