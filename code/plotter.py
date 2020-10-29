@@ -1126,6 +1126,176 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 		fig.tight_layout()
 
+def plot_exp6(sim_result,dirname):
+
+	# plot tree over time and save to png files 
+	if not os.path.exists(dirname):
+		os.makedirs(dirname)
+	else: 
+		files = glob.glob('{}/*'.format(dirname))
+		for f in files:
+		    os.remove(f)
+
+	# parameters 
+	tree_timestep = sim_result["param"]["tree_timestep"] 
+	goal = sim_result["param"]["goal"]
+	robot_idxs = list(range(sim_result["param"]["num_nodes"]))
+	env_xlim = sim_result["param"]["env_xlim"]
+	env_ylim = sim_result["param"]["env_ylim"]
+	states = sim_result["states"]
+	times = sim_result["times"]
+
+	# other
+	goal_color='green'
+
+	# group by time and robot idx 
+	tree_times = set()
+	trees_by_time = dict()
+	for i_tree, tree in enumerate(sim_result["trees"]):
+		tree_time = sim_result["tree_params"][i_tree]["time"]
+		tree_robot_idx = sim_result["tree_params"][i_tree]["robot_idx"]	
+
+		tree_times.add(tree_time)
+		trees_by_time[tree_time] = tree
+
+	# get robot colors 
+	colors = get_colors(sim_result["param"])
+
+	size = plt.rcParams['lines.markersize'] ** 2
+
+	tree_times = list(tree_times)
+	tree_times = sorted(tree_times)
+
+	for i_tree_time, tree_time in enumerate(tree_times): 
+
+		print('{}/{}'.format(i_tree_time,len(tree_times)))
+
+		fig,axs = plt.subplots(ncols=len(robot_idxs)+1,nrows=1,squeeze=False)
+
+		fig.suptitle('Tree At t={}'.format(tree_time))
+		fig.tight_layout()
+
+		time_idxs = range(np.where(times >= tree_time)[0][0])
+
+		# plot state space until then 
+		ax = axs[0,0]
+		ax.grid(True)
+		ax.set_aspect('equal')
+		ax.set_title('State Space')
+		ax.add_patch(mpatches.Circle(goal, sim_result["param"]["robots"][0]["tag_radius"], color=goal_color,alpha=0.5))
+		for robot_idx in robot_idxs:
+			ax.plot(states[time_idxs,robot_idx,0],states[time_idxs,robot_idx,1],linewidth=2.5,color=colors[robot_idx],marker="o",markersize=2.5)
+			ax.add_patch(mpatches.Circle(states[time_idxs[-1],robot_idx,0:2], sim_result["param"]["robots"][robot_idx]["tag_radius"],color=colors[robot_idx],alpha=0.2,fill=False))
+
+		ax.set_xlim([env_xlim[0],env_xlim[1]])
+		ax.set_ylim([env_ylim[0],env_ylim[1]])
+
+		# plot each tree
+		for robot_idx in robot_idxs: 
+
+			tree = trees_by_time[tree_time]
+			ax = axs[0,1+robot_idx]
+			color = colors[robot_idx]
+
+			# plot state space 
+			ax.add_patch(mpatches.Circle(goal, sim_result["param"]["robots"][0]["tag_radius"], color=goal_color,alpha=0.5))
+			for robot_idx_j in robot_idxs:
+				if robot_idx_j != robot_idx:
+					ax.plot(states[time_idxs,robot_idx_j,0],states[time_idxs,robot_idx_j,1],linewidth=2.5,color=colors[robot_idx_j],marker="o",markersize=2.5)
+					ax.add_patch(mpatches.Circle(states[time_idxs[-1],robot_idx_j,0:2], sim_result["param"]["robots"][robot_idx_j]["tag_radius"],\
+						color=colors[robot_idx_j],alpha=0.2,fill=False))
+
+			rewards = tree[:,1]
+			if (max(rewards)-min(rewards)) > 0: 
+				denom = (max(rewards)-min(rewards))
+			else:
+				denom = 1.0
+			normalized_rewards = (rewards-min(rewards))/denom
+			normalized_rewards = rewards #(rewards-min(rewards))/denom
+
+			pos_x = tree[:,3+4*robot_idx]
+			pos_y = tree[:,4+4*robot_idx]
+
+			idxs = np.isfinite(np.sum(tree,axis=1))
+			xlims = [np.nanmin(pos_x[idxs]), np.nanmax(pos_x[idxs])]
+			ylims = [np.nanmin(pos_y[idxs]), np.nanmax(pos_y[idxs])]			
+			xlims[0] = xlims[0] - 0.1*(xlims[1]-xlims[0])
+			xlims[1] = xlims[1] + 0.1*(xlims[1]-xlims[0])
+			ylims[0] = ylims[0] - 0.1*(ylims[1]-ylims[0])
+			ylims[1] = ylims[1] + 0.1*(ylims[1]-ylims[0])			
+
+			segments = []
+			linewidths = [] 
+			best_segments = [] 
+			segment_colors = [] 
+			node_colors = [] 
+			poses = []
+
+			cmap = cm.viridis
+
+			# plot tree
+			for i_row,row in enumerate(tree):
+				parentIdx = int(row[0])
+
+				if np.isfinite(np.sum(row[(3+4*robot_idx):(5+4*robot_idx)])) \
+					and np.isfinite(np.sum(tree[parentIdx][(3+4*robot_idx):(5+4*robot_idx)])) \
+					and not np.isnan(np.sum(row[(3+4*robot_idx):(5+4*robot_idx)])).any() \
+					and not np.isnan(np.sum(tree[parentIdx][(3+4*robot_idx):(5+4*robot_idx)])).any() :
+
+					# node_colors.append((color[0],color[1],color[2],normalized_rewards[i_row]))
+					node_colors.append(cmap(normalized_rewards[i_row]))
+					poses.append([row[3+4*robot_idx],row[4+4*robot_idx]])
+
+					if parentIdx >= 0:
+						segments.append([row[(3+4*robot_idx):(5+4*robot_idx)], tree[parentIdx][(3+4*robot_idx):(5+4*robot_idx)]])
+						if row[2] == 1 and tree[parentIdx][2] == 1:
+							best_segments.append(segments[-1])
+
+						segment_colors.append(cmap(normalized_rewards[i_row]))
+
+			ax.grid(True)
+			# ln_coll = matplotlib.collections.LineCollection(segments, linewidth=0.2, colors=color) #, colors=cs)
+			ln_coll = matplotlib.collections.LineCollection(segments, linewidth=0.2, colors=segment_colors)
+			ax.add_collection(ln_coll)
+			ln_coll = matplotlib.collections.LineCollection(best_segments, colors='k', zorder=3, linewidth=1.0)
+			ax.add_collection(ln_coll)
+
+			# plot nodes 
+			poses = np.array(poses)
+			if poses.shape[0] > 0:
+				ax.scatter(poses[:,0],poses[:,1],c=node_colors,s=0.1*size)
+
+			# plot root node 
+			ax.scatter(pos_x[0],pos_y[0],c='k',s=size,zorder=3)
+
+			# arrange 
+			ax.set_title('Robot {}'.format(robot_idx))
+			if xlims[1] != xlims[0]:
+				ax.set_xlim(xlims)
+			if ylims[1] != ylims[0]:
+				ax.set_ylim(ylims)
+			if not np.isnan(xlims).any() and not np.isnan(ylims).any() and ylims[1] != ylims[0] and xlims[1] != xlims[0]:
+				ax.set_aspect(abs(xlims[1]-xlims[0])/abs(ylims[1]-ylims[0]))
+			else:
+				# x0,x1 = ax.get_xlim()
+				# y0,y1 = ax.get_ylim()
+				# ax.set_aspect(abs(x1-x0)/abs(y1-y0))
+				ax.set_aspect('equal')
+				ax.set_xlim([env_xlim[0],env_xlim[1]])
+				ax.set_ylim([env_ylim[0],env_ylim[1]])
+
+		# save
+		fig.savefig(os.path.join(dirname,"{:03.0f}.png".format(i_tree_time)), dpi=100)
+		plt.close()
+
+def save_video(png_directory,output_dir,output_file):
+	# Combine images to form the movie
+	print("Creating MP4...")
+	# cmd = "ffmpeg -y -r 60 -i "+png_directory+"%03d.png -c:v libx264 -vf \"fps=60,format=yuv420p\" "+output_dir+"/"+output_file+".mp4"
+	cmd = "ffmpeg -y -r 0.5 -i "+png_directory+"%03d.png "+output_dir+"/"+output_file+".mp4"
+	os.system(cmd)
+
+
 def plot_exp1_results(all_sim_results):
 
 	# group by tree size, rollout policy and case number 
