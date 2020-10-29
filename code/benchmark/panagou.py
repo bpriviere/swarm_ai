@@ -108,19 +108,29 @@ class PanagouPolicy:
 						terminal_times[0,i_robot] = self.terminal_times[i_robot]
 
 					else:
-						# Attacker will be captured, minimise distance to goal on capture
 						#print("Attacker looses")
+						# Calculate matching robot
 						j_robot = self.matching[i_robot]
-						(i_theta_star,j_theta_star,idx_t_capture,_) = self.matching_policies[i_robot,j_robot]
 
-						# Update the actions with the capture case
-						attacker_action_theta = self.thetas[i_theta_star]
-						defender_action_guess = self.thetas[j_theta_star]
+						# [ Attacker ] Determine what logic to use 
+						if (1) :
+							# Minimise the distance to the goal, but assume capture (isolines)
+							(i_theta_star,j_theta_star,idx_t_capture,_) = self.matching_policies[i_robot,j_robot]
 
-						# Just take the nominal path to the goal
-						attacker_action_theta = self.theta_noms[i_robot]
+							# Update the actions with the capture case
+							attacker_action_theta = self.thetas[i_theta_star]
+							defender_action_guess = self.thetas[j_theta_star]
 
-						# Put the action into [ accX , accY ] space
+						elif (1) :
+							# Take the nominal path to the goal and hope for the best
+							attacker_action_theta = self.theta_noms[i_robot]
+							defender_action_guess = self.theta_noms[j_robot]
+
+						else :
+							# Try the new continuous method
+							pass
+
+						# [ Attacker ] Put the action into [ accX , accY ] space
 						actions[i_robot,:] = theta_to_u(robot,attacker_action_theta)
 
 						# [ Defender ] Calculate the best accelerations to minimise the time to intercept the 
