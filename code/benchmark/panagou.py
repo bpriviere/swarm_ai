@@ -107,7 +107,7 @@ class PanagouPolicy:
 			if i_robot not in done: 
 
 				if robot["team"] == "a":     # attackers
-					if self.matching[i_robot] == None:
+					if self.matching2[i_robot] == None:
 						# Attacker will win, go straight to the goal
 						#print('Attacker wins')
 						actions[i_robot,:] = theta_to_u(robot,self.theta_noms[i_robot])
@@ -118,51 +118,27 @@ class PanagouPolicy:
 					else:
 						#print("Attacker looses")
 						# Calculate matching robot
-						j_robot = self.matching[i_robot]
+						j_robot = self.matching2[i_robot]
 
-						# [ Attacker ] Determine what logic to use 
-						if (1) :
-							# Minimise the distance to the goal, but assume capture (isolines)
-							(i_theta_star,j_theta_star,idx_t_capture,_) = self.matching_policies[i_robot,j_robot]
+						# We already know the best angles to accelerate at for 
+						# both the attacker and defender, so we can extract those
+						att_theta = self.best_actions[i_robot,j_robot][2]
+						def_theta = self.best_actions[i_robot,j_robot][3]
 
-							# Update the actions with the capture case
-							attacker_action_theta = self.thetas[i_theta_star]
-							defender_action_guess = self.thetas[j_theta_star]
-
-						elif (1) :
-							# Take the nominal path to the goal and hope for the best
-							attacker_action_theta = self.theta_noms[i_robot]
-							defender_action_guess = self.theta_noms[j_robot]
-
-						else :
-							# Try the new continuous method
-							pass
-
-						# [ Attacker ] Put the action into [ accX , accY ] space
-						actions[i_robot,:] = theta_to_u(robot,attacker_action_theta)
-
-						# [ Defender ] Calculate the best accelerations to minimise the time to intercept the 
-						# attacker based on the attacker's known acceleration direction (and hence trajectory).				
-						if (0) : print(" Isoline intercept theta %6.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, self.times[idx_t_capture]))
-						
-						# Try and reach the attacker at the predicted interception point
-						def_theta,Tend = find_best_intercept( \
-							self.robots[i_robot],self.robots[j_robot],attacker_action_theta,defender_action_guess,self.param.sim_dt)
-						
-						# Convert action into accelX and accelY
+						# Put the action into [ accX , accY ] space
+						actions[i_robot,:] = theta_to_u(self.robots[i_robot],att_theta)
 						actions[j_robot,:] = theta_to_u(self.robots[j_robot],def_theta) 
+
+						# Update the terminal time for the robots
+						terminal_times[0,i_robot] = self.best_actions[i_robot,j_robot][4]
+						terminal_times[0,j_robot] = self.best_actions[i_robot,j_robot][4]
 
 						# Mark j_robot as calculated
 						done.append(j_robot)
 
-						# Update the terminal time for the robots
-						terminal_times[0,i_robot] = Tend
-						terminal_times[0,j_robot] = Tend
-
-
 				elif robot["team"] == "b":   # defenders
 					# Match not found for attacker
-					if not i_robot in self.matching.values():
+					if not i_robot in self.matching2.values():
 						# Decelerate to zero at maximum acceleration
 						accel = -1*state[i_robot,2:] / self.param.sim_dt
 
