@@ -350,10 +350,11 @@ def find_best_actions(param,robots) :
 			# Assign defender robot
 			def_robot = robots[j_robot]
 
-			# Check time to goal for defender using nominal solution
-			def_theta_nom, def_terminal_time = find_nominal_soln(param,def_robot,np.array(def_robot["x0"]))
+			# Check the time to capture for defender if attacker is using nominal solution
+			def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+			t_capture = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)[1]
 
-			if (def_terminal_time > att_terminal_time) :
+			if (att_terminal_time < t_capture) :
 				# Attacker will win, use the nominal attacker results
 				att_theta_best = att_theta_nom
 				def_theta_best = None
@@ -369,7 +370,7 @@ def find_best_actions(param,robots) :
 				att_theta_best = res["x"][0]
 
 				# Simulate the results to get the results we need (from the defender's side)
-				def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_nom,param.sim_dt)
+				def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
 
 				# Calculate the distance to goal
 				U = theta_to_u(att_robot,att_theta_best)
@@ -707,11 +708,11 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 	# Initial conditions for approx equations come from inputs into function
 	# tbh we probably don't need ot use this step and can just use those calcualted before
 	def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, 3))
-	if (0) : print("\t      Approx intercept theta %6.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
+	if (0) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
 
 	# Solve using the full simulator
 	def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx))
-	if (0) : print("\t       Exact intercept theta %6.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
+	if (0) : print("\t       Exact intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
 
 	return def_theta,Tend
 
