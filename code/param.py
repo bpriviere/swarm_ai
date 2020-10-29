@@ -357,7 +357,10 @@ class Param:
 		self.actions = np.asarray(list(itertools.product(*[[-1,0,1],[-1,0,1]])))
 
 		# max timesteps until the game terminates
-		self.rollout_horizon = int(100 * self.env_l)
+		# self.rollout_horizon = int(100 * self.env_l)
+		num_backnforth = 5
+		self.rollout_horizon = int(num_backnforth * self.num_nodes * self.env_l \
+			/ (self.robot_types["standard_robot"]["speed_limit"] * self.sim_dt))
 
 
 	def get_random_position_inside(self,xlim,ylim):
