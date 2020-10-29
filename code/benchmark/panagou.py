@@ -369,7 +369,7 @@ def find_best_defender_action(param,robots) :
 
 		# Integrate the attacker's state with the new theta guess
 		U = theta_to_u(att_robot,att_theta)
-		times = np.arange(0,t_capture,param.sim_dt)
+		times = np.arange(0,max(t_capture+param.sim_dt,param.sim_dt*2),param.sim_dt)
 		states = integrate(att_robot, att_robot["x0"], U, times[1:], param.sim_dt)
 
 		# Interpolate to find the exact distance to the goal
@@ -702,7 +702,7 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 		def_theta, Tend = p
 
 		# This should be 10 iterations between now and capture (rather than a fixed dt time)
-		times = np.arange(0,max(Tend,sim_dt*2),sim_dt)
+		times = np.arange(0,max(Tend+sim_dt,sim_dt*2),sim_dt)
 
 		# Convert theta (th) into U = [ accX, accY ]
 		att_U = theta_to_u(att_robot,att_theta)
