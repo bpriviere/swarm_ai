@@ -432,7 +432,7 @@ def calculate_all_trajectories(param,robots,times,thetas):
 
 				if robot_dead(curr_state) : 
 					# Robot dead, ignore it
-					curr_state = np.array([np.nan, np.nan, np.nan, np.nan])
+					pass
 				else : 
 					U = theta_to_u(robot,theta)
 					curr_state = step(robot, curr_state, U, param.sim_dt)
