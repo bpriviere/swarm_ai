@@ -450,6 +450,7 @@ def find_best_attacker_action(param,robots) :
 				# Defender should be able to intercept attacker,
 				# calculate the closest the attacker can get to the goal
 				# if the defender acts optimally to intercept us.
+				def_theta = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
 				res = minimize(func_dist_to_goal, att_theta_nom)
 				att_theta_best = res["x"][0]
 
