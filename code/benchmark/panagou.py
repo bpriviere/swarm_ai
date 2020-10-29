@@ -353,10 +353,10 @@ def find_best_defender_action(param,robots) :
 	# Finds the best defender action to minimise distance to the goal
 	#
 	# Outputs an array with
-	#     defender_actions[idx_robot] = [defender_id1, theta,tend,dist2goal ;
-	#                                    defender_id2, theta,tend,dist2goal ; 
-	#                                    ...
-	#                                    defender_idN, theta,tend,dist2goal ]
+	#     defender_actions[i_robot,j_robot = [att_id, def_id1, att_theta, def_theta, t_end, dist2goal ;
+	#                                         att_id, def_id2, att_theta, def_theta, t_end, dist2goal ; 
+	#                                         ...
+	#                                         att_id, def_idN, att_theta, def_theta, t_end, dist2goal ]
 
 	def func_dist_to_goal(p) :
 		temp = p
@@ -377,11 +377,13 @@ def find_best_defender_action(param,robots) :
 		y_capture = np.interp(t_capture, times, states[:,1])
 
 		dist2goal = np.power(param.goal[0]-x_capture,2) + np.power(param.goal[1]-y_capture,2)
-		print("[Att] theta: %.4f [ deg ], [Def] theta: %.4f [ deg] , t_capture: %.4f [ s ], dist2goal: %.6f [ m ]" \
-			% (att_theta*57.7,def_theta*57.7,t_capture,dist2goal))
 
 		eqns = (dist2goal)
 		return eqns
+
+	# Pre-allocate matricies
+	defender_actions = dict()
+	defender_actions[0,0] = "att_robot, def_robot, att_theta, def_theta, t_end, dist2goal"
 
 	# Loop through each attacker
 	for i_robot in param.team_1_idxs: 
@@ -399,29 +401,43 @@ def find_best_defender_action(param,robots) :
 			def_theta_nom, def_terminal_time = find_nominal_soln(param,def_robot,np.array(def_robot["x0"]))
 
 			if (def_terminal_time > att_terminal_time) :
-				# Attacker will win
-				pass
+				# Attacker will win, use the nominal attacker results
+				att_theta_best = att_theta_nom
+				def_theta_best = np.nan
+				dist2goal = 0.0
+				t_end = att_terminal_time
+				# we've gotten to a attacker wins state which we haven't checked yet
 
 			else :
 				# Defender should be able to intercept attacker,
 				# calculate the closest the attacker can get to the goal
 				# if the defender acts optimally to intercept us.
-				res = minimize(func_dist_to_goal, att_theta_nom+2.1/57.7)
+				res = minimize(func_dist_to_goal, att_theta_nom)
 				att_theta_best = res["x"][0]
 
+				# Simulate the results to get the results we need (from the defender's side)
+				def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_nom,param.sim_dt)
 
-			# Find the best intercept for the starting nominal attacker solution
-			#def_theta_nom = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+				# Calculate the distance to goal
+				U = theta_to_u(att_robot,att_theta_best)
+				times = np.arange(0,max(t_end+param.sim_dt,param.sim_dt*2),param.sim_dt)
+				states = integrate(att_robot, att_robot["x0"], U, times[1:], param.sim_dt)
 
-			# Iterate to find the closest survival time for the defender
-			# The defender must not accelerate away from the goal (need an angle restriction in here probably)
+				# Interpolate to find the exact distance to the goal
+				x_capture = np.interp(t_end, times, states[:,0])
+				y_capture = np.interp(t_end, times, states[:,1])
 
-			# need to check tiem to goal vs time to capture
+				dist2goal = np.power(param.goal[0]-x_capture,2) + np.power(param.goal[1]-y_capture,2)
 
+			# Store the results
+			defender_actions[i_robot,j_robot] = (i_robot, j_robot, att_theta_best, def_theta_best, t_end, dist2goal)
+
+			# Debug printing
+			'''
 			print("[ Att ] nominal: %7.2f [ deg ], best: %7.2f [ deg ]" % (att_theta_nom*57.7,att_theta_best*57.7))
-			exit (0)
 			b = 2
-
+			#exit (0)
+			'''
 
 	return defender_actions
 
