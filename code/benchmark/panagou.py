@@ -357,7 +357,7 @@ def find_best_actions(param,robots) :
 			if (att_terminal_time < t_capture) :
 				# Attacker will win, use the nominal attacker results
 				att_theta_best = att_theta_nom
-				def_theta_best = None
+				def_theta_best = 0.0
 				dist2goal = 0.0
 				t_end = att_terminal_time
 				# we've gotten to a attacker wins state which we haven't checked yet
@@ -387,11 +387,8 @@ def find_best_actions(param,robots) :
 			best_actions[i_robot,j_robot] = (i_robot, j_robot, att_theta_best, def_theta_best, t_end, dist2goal)
 
 			# Debug printing
-			'''
-			print("[ Att ] nominal: %7.2f [ deg ], best: %7.2f [ deg ]" % (att_theta_nom*57.7,att_theta_best*57.7))
-			b = 2
-			#exit (0)
-			'''
+			print("[ Att %d ] theta: %7.2f [ deg ], [ Def %d ] theta: %7.2f [ deg ], t_end: %.2f [ s ], dist2goal: %.6f [ m ]" \
+				% (i_robot,att_theta_best*57.7,j_robot,def_theta_best*57.7,t_end,dist2goal))
 
 	return best_actions
 
@@ -748,7 +745,7 @@ def main():
 	print("\n\n====== Initial Conditions =====\n")
 	print("goal: ( %.3f, %.3f )\n" % (df_param.goal[0],df_param.goal[1]))
 	for ii in range(np.size(initial_condition,0)) :
-		print(" [ %7.3f, %7.3f, %7.3f, %7.3f ], \ " % \
+		print("[ %7.3f, %7.3f, %7.3f, %7.3f ], \ " % \
 			(initial_condition[ii][0],initial_condition[ii][1],initial_condition[ii][2],initial_condition[ii][3]))
 
 	print("\n\n====== Panagou Policy =====\n")
