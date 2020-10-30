@@ -126,7 +126,7 @@ def make_gif(sim_result):
 	imageio.mimsave(gif_name, images, duration = duration)
 
 def plot_panagou(states,param):
-	num_robots = np.shape(states)[1]
+	num_robots = len(param.team_1_idxs) + len(param.team_2_idxs)
 	colors = get_2_colors(num_robots,len(param.team_1_idxs))
 
 	goal_color = 'green'
@@ -147,8 +147,12 @@ def plot_panagou(states,param):
 				color=colors[i_robot],alpha=0.2,fill=False))
 
 		# Add a robot number to the starting point of each robot
-		textstr = 'test'
-		ax.text(states[0 ,i_robot,0], states[0 ,i_robot,1], textstr, fontsize=6, verticalalignment='bottom', horizontalalignment='center')
+		if i_robot in param.team_2_idxs :
+			textstr = "DEF\n%d" % i_robot
+		else :
+			textstr = "ATT\n%d" % i_robot
+
+		ax.text(states[0 ,i_robot,0], states[0 ,i_robot,1], textstr, fontsize=6, verticalalignment='center', horizontalalignment='center')
 
 	# Plot the goal
 	ax.plot(param.goal[0],param.goal[1],color=goal_color,marker='*')
@@ -158,11 +162,6 @@ def plot_panagou(states,param):
 	ax.set_ylim([param.env_ylim[0],param.env_ylim[1]])
 	ax.grid(True)
 	ax.axis('equal')
-
-	# Add textbox to identify attacker and defender
-	textstr = '\n'.join((r'blue: attacker',r'orange: defender'))
-	props = dict(boxstyle='round', facecolor='wheat', alpha=1.0)
-	ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=6, verticalalignment='top', bbox=props)
 
 
 def plot_sa_pairs(sampled_sa_pairs,sim_result,team):

@@ -24,10 +24,7 @@ Action Vector
 
 '''
 TODO List
-- Greedy matching to something intelligent
-	- https://docs.scipy.org/doc/scipy-0.18.1/reference/generated/scipy.optimize.linear_sum_assignment.html
-- Fix dumb panagou behaviour
-	- choosing to get killed...
+- Fix defenders changing their minds when they shouldn't
 '''
 
 class PanagouPolicy:
@@ -62,22 +59,19 @@ class PanagouPolicy:
 			self.times = np.arange(0,1.5*max(self.terminal_times),self.param.sim_dt)	# Extend time so that collisions can be calculated
 																						# Our survival time might be longer than it takes for
 																						# us to reach the goal if there were no attacker
-
-			# trajectories
-			#self.R_nom = calculate_nominal_trajectories(self.param,self.robots,self.times,self.theta_noms)  # Constant acceleration to goal (only needed for plots)
-			#self.R = calculate_all_trajectories(self.param,self.robots,self.times,self.thetas)              # Expanding reachable space for each robot
-
-			# intersections
-			#self.I = calculate_intersections(self.param,self.robots,self.times,self.R)
-
 			#### New matching stuff
 			# Calculate the best attacker actions to minimise the distance to goal upon capture
-			#  We also calculate the best defender action at this stage to match that attackker action 
-			self.best_actions = find_best_actions(self.param,self.robots)
+			#  We also calculate the best defender action at this stage to match that attackker action
+			if not hasattr(self, 'best_actions') :
+				self.best_actions = 0
+
+			self.best_actions = find_best_actions(self.param,self.robots,self.best_actions)
 
 			# Calculate who each defender should target
-			self.matching2 = calculate_matching_greedy(self.best_actions,self.robots,self.param)
-			self.matching2 = calculate_matching_optimal(self.best_actions,self.robots,self.param)
+			if (len(self.param.team_1_idxs) == len(self.param.team_2_idxs)) : 
+				self.matching2 = calculate_matching_optimal(self.best_actions,self.robots,self.param)
+			else :
+				self.matching2 = calculate_matching_greedy(self.best_actions,self.robots,self.param)
 
 		return self 
 
@@ -168,7 +162,8 @@ class PanagouPolicy:
 		# Simulation end
 		t_end = np.max(self.terminal_times)+self.param.sim_dt
 
-		#t_end = 5
+		#t_end = 2.5  # Sim_end
+		
 		print("t_end = %.2f" % (t_end))
 		times = np.arange(0,t_end,self.param.sim_dt)
 		game_over = np.zeros((len(self.robots),1))
@@ -191,17 +186,17 @@ class PanagouPolicy:
 
 				# Work out the robot's distances to things
 				if (robot["team"] == "a") :     # attacker
-					print("A%d > " % i_robot, end='')
+					if (0) : print("A%d > " % i_robot, end='')
 
 					# Calculate distances to goal
 					distance_to_goal    = math.sqrt((states[-1][i_robot][0]-self.param.goal[0])**2 + (states[-1][i_robot][1]-self.param.goal[1])**2)
-					print("(goal): %6.3f, " % (distance_to_goal),end='')
+					if (0) : print("(goal): %6.3f, " % (distance_to_goal),end='')
 
 					# Calculate distances to all attackers
 					for j_robot in self.param.team_2_idxs: 
 						distance_to_this_attacker = math.sqrt((states[-1][i_robot][0]-states[-1][j_robot][0])**2 + (states[-1][i_robot][1]-states[-1][j_robot][1])**2)
 						distance_to_capture  = np.append(distance_to_capture, np.array([distance_to_this_attacker]), axis=0)
-						print("(D%d): %6.3f, " % (j_robot,distance_to_this_attacker), end='')
+						if (0) : print("(D%d): %6.3f, " % (j_robot,distance_to_this_attacker), end='')
 
 				else :
 					# Robot is defender so we don't need to calculate game-state stuff
@@ -236,7 +231,7 @@ class PanagouPolicy:
 
 				else :
 					# Game is still on!
-					if (robot["team"] == "a") : print("        || ", end='')
+					if (robot["team"] == "a" and 0) : print("        || ", end='')
 					state[i_robot,:] = step(robot, states[-1][i_robot,:], actions[i_robot,:], self.param.sim_dt)
 				
 				if (game_over[i_robot]) :
@@ -247,7 +242,7 @@ class PanagouPolicy:
 
 			# Add the current state to the state matrix
 			states.append(state)
-			if (1): print("\n",end='')
+			print("\n",end='')
 		states = np.array(states)
 		return states 
 
@@ -290,6 +285,8 @@ def calculate_matching_optimal(best_actions,robots,param) :
 	# on capture.
 	#
 	# Only works for equal number of attackers and defenders
+	
+	print_debug = 0
 
 	matching = dict()
 	done = [] 
@@ -330,13 +327,16 @@ def calculate_matching_optimal(best_actions,robots,param) :
 
 		if (dist > 0.00001) :
 			matching[att_idx] = def_idx
+			if (print_debug) : print("[ Def %d ] > [ Att %d ]" % (def_idx,att_idx), end="")
+
 		else :
 			matching[att_idx] = None
+			if (print_debug) : print("[ Def %d ] > [ None  ]" % (def_idx), end="")
 	
-		# Debugging
-		print("[ Def %d ] > [ Att %d ]" % (def_idx,att_idx))
+
 
 	# Each defender is matched
+	if (print_debug) : print("")
 	return matching
 
 def calculate_nominal_trajectories(param,robots,times,theta_noms):
@@ -358,7 +358,7 @@ def calculate_nominal_trajectories(param,robots,times,theta_noms):
 	# All done
 	return R_nom 
 
-def find_best_actions(param,robots) :
+def find_best_actions(param,robots,prev_best) :
 	# Finds the best attacker action to minimise distance to the goal
 	# Calculates the best defender action based on this attacker action
 	#
@@ -368,13 +368,16 @@ def find_best_actions(param,robots) :
 	#                                         ...
 	#                                         att_id, def_idN, att_theta, def_theta, t_end, dist2goal ]
 
-	def func_dist_to_goal(p) :
+	print_debug = 0
+	def_theta_guess = 0
+
+	def func_dist_to_goal(p,def_theta_guess) :
 		temp = p
 		att_theta = temp[0]
 
 		# Calculate the defender's best theta and corresponding time to capture for the given new attacker input
-		def_theta = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
-		t_capture = find_best_intercept(att_robot,def_robot,att_theta,def_theta,param.sim_dt)[1]
+		#def_theta = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+		def_theta_guess,t_capture = find_best_intercept(att_robot,def_robot,att_theta,def_theta_guess,param.sim_dt)
 
 		# Integrate the attacker's state with the new theta guess
 		U = theta_to_u(att_robot,att_theta)
@@ -394,6 +397,8 @@ def find_best_actions(param,robots) :
 	best_actions = dict()
 	best_actions[0,0] = "att_robot, def_robot, att_theta, def_theta, t_end, dist2goal"
 
+	if (print_debug) : print("")
+
 	# Loop through each attacker
 	for i_robot in param.team_1_idxs: 
 		# Assign attacking robot
@@ -407,7 +412,12 @@ def find_best_actions(param,robots) :
 			def_robot = robots[j_robot]
 
 			# Check the time to capture for defender if attacker is using nominal solution
-			def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+			# We use the previous estimate for the best capture if available
+			if (prev_best == 0) :
+				def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+			else : 
+				def_theta_guess = prev_best[i_robot,j_robot][3]
+			
 			t_capture = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)[1]
 
 			if (att_terminal_time < t_capture) :
@@ -422,7 +432,7 @@ def find_best_actions(param,robots) :
 				# Defender should be able to intercept attacker,
 				# calculate the closest the attacker can get to the goal
 				# if the defender acts optimally to intercept us.
-				res = minimize(func_dist_to_goal, att_theta_nom)
+				res = minimize(func_dist_to_goal, att_theta_nom, args=(def_theta_guess), options={'maxiterint': 10})
 				att_theta_best = res["x"][0]
 
 				# Simulate the results to get the results we need (from the defender's side)
@@ -443,8 +453,9 @@ def find_best_actions(param,robots) :
 			best_actions[i_robot,j_robot] = (i_robot, j_robot, att_theta_best, def_theta_best, t_end, dist2goal)
 
 			# Debug printing
-			print("[ Att %d ] theta: %7.2f [ deg ], [ Def %d ] theta: %7.2f [ deg ], t_end: %.2f [ s ], dist2goal: %.6f [ m ]" \
-				% (i_robot,att_theta_best*57.7,j_robot,def_theta_best*57.7,t_end,dist2goal))
+			if (print_debug) :
+				print("\t[ Att %d ] theta: %7.2f [ deg ], [ Def %d ] theta: %7.2f [ deg ], t_end: %.2f [ s ], dist2goal: %.6f [ m ]" \
+					% (i_robot,att_theta_best*57.7,j_robot,def_theta_best*57.7,t_end,dist2goal))
 
 	return best_actions
 
@@ -768,11 +779,15 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 	else :
 		# Initial conditions for approx equations come from inputs into function
 		# tbh we probably don't need ot use this step and can just use those calcualted before
-		def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, 3))
-		if (0) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
+		def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, 3), maxfev=10)	
+
+		def_theta_approx = defender_action_guess # Override the best guess to our supplied initial guess	
 
 		# Solve using the full simulator
-		def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx))
+		def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx), maxfev=10)
+
+		if (0) : print("\t       Guess intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, 3))
+		if (0) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
 		if (0) : print("\t       Exact intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
 
 	return def_theta,Tend
