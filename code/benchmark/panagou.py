@@ -750,6 +750,8 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 	def equations(p):
 		def_theta, Tend = p
 
+		Tend = min(Tend,20) # Stop tend getting out of hand
+
 		# This should be 10 iterations between now and capture (rather than a fixed dt time)
 		times = np.arange(0,max(Tend+sim_dt,sim_dt*2),sim_dt)
 
