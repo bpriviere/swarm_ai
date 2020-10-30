@@ -343,25 +343,6 @@ def calculate_matching_optimal(best_actions,robots,param) :
 	# Each defender is matched
 	return matching
 
-def calculate_nominal_trajectories(param,robots,times,theta_noms):
-	# calculate nominal trajectory to goal 
-	R_nom = np.zeros((len(robots),len(times),4))
-	for i_robot,robot in enumerate(robots): 
-		curr_state = np.array(robot["x0"])
-
-		if robot_dead(curr_state) :
-			# Robot dead, ignore it
-			pass
-
-		else :
-			for i_time,time in enumerate(times):
-				R_nom[i_robot,i_time,:] = curr_state
-				U = theta_to_u(robot,theta_noms[i_robot])
-				curr_state = step(robot, curr_state, U, param.sim_dt)
-	
-	# All done
-	return R_nom 
-
 def find_best_actions(param,robots,prev_best) :
 	# Finds the best attacker action to minimise distance to the goal
 	# Calculates the best defender action based on this attacker action
