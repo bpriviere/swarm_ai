@@ -403,56 +403,66 @@ def find_best_actions(param,robots,prev_best) :
 	for i_robot in param.team_1_idxs: 
 		# Assign attacking robot
 		att_robot = robots[i_robot]
-		
-		# Check time to goal for attacker using nominal solution
-		att_theta_nom, att_terminal_time = find_nominal_soln(param,att_robot,np.array(att_robot["x0"]))
+
+		# If robot is alive, find the nominal solution
+		if not (robot_dead(att_robot["x0"])) :
+			# Check time to goal for attacker using nominal solution
+			att_theta_nom, att_terminal_time = find_nominal_soln(param,att_robot,np.array(att_robot["x0"]))
 
 		for j_robot in param.team_2_idxs:
 			# Assign defender robot
 			def_robot = robots[j_robot]
 
-			# Check the time to capture for defender if attacker is using nominal solution
-			# We use the previous estimate for the best capture if available
-			if (prev_best == 0) :
-				def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
-			else : 
-				def_theta_guess = prev_best[i_robot,j_robot][3]
-			
-			t_capture = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)[1]
-
-			if (att_terminal_time < t_capture) :
-				# Attacker will win, use the nominal attacker results
-				att_theta_best = att_theta_nom
+			# If robot is dead or at the goal, we don't need to do any of this
+			if robot_dead(att_robot["x0"]) :
+				att_theta_best = 0.0
 				def_theta_best = 0.0
+				t_end = 0.0
 				dist2goal = 0.0
-				t_end = att_terminal_time
-				# we've gotten to a attacker wins state which we haven't checked yet
 
 			else :
-				# Defender should be able to intercept attacker,
-				# calculate the closest the attacker can get to the goal
-				# if the defender acts optimally to intercept us.
-				res = minimize(func_dist_to_goal, att_theta_nom, args=(def_theta_guess), options={'maxiter': 11})
-				if not res.success :
-					# Iteration thing didn't work, let's just got with the nominal solution
-					# for the attacker
-					att_theta_best = att_theta_nom
+				# Check the time to capture for defender if attacker is using nominal solution
+				# We use the previous estimate for the best capture if available
+				if (prev_best == 0) :
+					def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
 				else : 
-					att_theta_best = res["x"][0]
+					def_theta_guess = prev_best[i_robot,j_robot][3]
+				
+				t_capture = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)[1]
 
-				# Simulate the results to get the results we need (from the defender's side)
-				def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
+				if (att_terminal_time < t_capture) :
+					# Attacker will win, use the nominal attacker results
+					att_theta_best = att_theta_nom
+					def_theta_best = 0.0
+					dist2goal = 0.0
+					t_end = att_terminal_time
+					# we've gotten to a attacker wins state which we haven't checked yet
 
-				# Calculate the distance to goal
-				U = theta_to_u(att_robot,att_theta_best)
-				times = np.arange(0,max(t_end+param.sim_dt,param.sim_dt*2),param.sim_dt)
-				states = integrate(att_robot, att_robot["x0"], U, times[1:], param.sim_dt)
+				else :
+					# Defender should be able to intercept attacker,
+					# calculate the closest the attacker can get to the goal
+					# if the defender acts optimally to intercept us.
+					res = minimize(func_dist_to_goal, att_theta_nom, args=(def_theta_guess), options={'maxiter': 11})
+					if not res.success :
+						# Iteration thing didn't work, let's just got with the nominal solution
+						# for the attacker
+						att_theta_best = att_theta_nom
+					else : 
+						att_theta_best = res["x"][0]
 
-				# Interpolate to find the exact distance to the goal
-				x_capture = np.interp(t_end, times, states[:,0])
-				y_capture = np.interp(t_end, times, states[:,1])
+					# Simulate the results to get the results we need (from the defender's side)
+					def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
 
-				dist2goal = np.power(param.goal[0]-x_capture,2) + np.power(param.goal[1]-y_capture,2)
+					# Calculate the distance to goal
+					U = theta_to_u(att_robot,att_theta_best)
+					times = np.arange(0,max(t_end+param.sim_dt,param.sim_dt*2),param.sim_dt)
+					states = integrate(att_robot, att_robot["x0"], U, times[1:], param.sim_dt)
+
+					# Interpolate to find the exact distance to the goal
+					x_capture = np.interp(t_end, times, states[:,0])
+					y_capture = np.interp(t_end, times, states[:,1])
+
+					dist2goal = np.power(param.goal[0]-x_capture,2) + np.power(param.goal[1]-y_capture,2)
 
 			# Store the results
 			best_actions[i_robot,j_robot] = (i_robot, j_robot, att_theta_best, def_theta_best, t_end, dist2goal)
