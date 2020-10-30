@@ -754,6 +754,21 @@ def plot_tree_results(sim_result,title=None):
 		if title is not None: 
 			fig.suptitle(title)
 
+	if len(sim_result['root_rewards_over_time']) > 0:
+
+		fig,axs = plt.subplots(nrows=len(sim_result["root_rewards_over_time"]),ncols=1,squeeze=False,constrained_layout=True)
+
+		for i_tree, data in enumerate(sim_result["root_rewards_over_time"]):
+			tree_time = sim_result["tree_params"][i_tree]["time"]
+			tree_robot_idx = sim_result["tree_params"][i_tree]["robot_idx"]
+
+			ax = axs[i_tree,0]
+			ax.plot(data)
+			ax.set_title('Reward over time at i={},t={}'.format(tree_robot_idx,tree_time))
+
+		if title is not None: 
+			fig.suptitle(title)
+
 def plot_training_value(df_param,batched_fns,path_to_model):
 	import torch 
 	# from learning.continuous_emptynet import ContinuousEmptyNet
