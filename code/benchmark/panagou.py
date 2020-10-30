@@ -309,12 +309,13 @@ def calculate_matching_optimal(best_actions,robots,param) :
 
 			if cost_element < 0.00001 :
 				# We can't catch this attacker, put a high price and chasing him
-				cost_element = 1e10
-			
-			# Add element to the cost matrix - rows = attackers (jobs), columns = defenders (workers)
-			# We want to maximise the distance rather than minimise it as linear_sum_assignment does,
-			# so take the distance away from a semi-large number (100)
-			cost_matrix[ii,jj] = 100 - cost_element
+				cost_matrix[ii,jj] = 1e10
+
+			else : 
+				# Add element to the cost matrix - rows = attackers (jobs), columns = defenders (workers)
+				# We want to maximise the distance rather than minimise it as linear_sum_assignment does,
+				# so take the distance away from a semi-large number (100)
+				cost_matrix[ii,jj] = 100 - cost_element
 
 	# Solve the cost matrix
 	row_ind, col_ind = linear_sum_assignment(cost_matrix)
