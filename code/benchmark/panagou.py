@@ -722,32 +722,40 @@ def find_nominal_soln(param,robot,state):
 			)
 		return eqns
 
+	print_debug = 0
+	
 	# Take a better guess at the initial conditions
+	#print("Nominal Guess")
 	theta_guess = np.arctan2(param.goal[1]-state[1],param.goal[0]-state[0]) 
-	Tend_guess = 3
+	dist = np.linalg.norm(robot["x0"][0:2] - param.goal[0:2])
+	Tend_guess = dist / robot["speed_limit"]
+
+	if Tend_guess < 1.0 :
+		# We're close to the goal, everything is going to stuff up
+		# so hack in the "direct to goal, infinite turning" solution
+		return theta_guess,Tend_guess
 
 	# Solve using the approximate equations to improve the initial guess
-	th_tilde, T_tilde = fsolve(approx_equations, (theta_guess, Tend_guess))
+	#print("Nominal Approx")
+	theta_approx, Tend_approx = fsolve(approx_equations, (theta_guess, Tend_guess))
 
 	# Calculate the best solution using the full dynamics
-	th, T =  fsolve(equations, (th_tilde, T_tilde))
+	#print("Nominal Exact")
+	theta_exact, Tend_exact =  fsolve(equations, (theta_approx, Tend_approx))
+
+	# Debugging
+	if (print_debug) : 
+		print("Guess: %7.2f [ deg ], %.2f  [ s ], Approx: %7.2f [ deg ], %.2f  [ s ], Exact: %7.2f [ deg ], %.2f  [ s ]" % \
+			(theta_guess*57.7, Tend_guess, \
+			theta_approx*57.7, Tend_approx, \
+			theta_exact*57.7, Tend_exact))
 
 	# Make sure the goal was acheived 
-	if (0) :
-		times = np.arange(0,T,param.sim_dt)	
-		U = theta_to_u(robot,th)
-		states = integrate(robot,np.array(robot["x0"]),U, times,param.sim_dt)
+	if (abs(theta_approx - theta_exact) > 10/57.7) :
+		a = 1
+		b = 2
 
-		if np.linalg.norm(states[-1,0:2] - param.goal[0:2]) > 1.1*robot["tag_radius"]:
-			# exit('bad nominal solution')
-			print('\tbad nominal solution')
-			# Wait here so we can debug what happened
-			a = 1
-	
-	# Print debugging information
-	#print("[ %c ] Theta: %5.2f [ rad ] , Terminal time: %5.2f [ s ]" % (robot["team"], T_tilde, T))
-
-	return th,T
+	return theta_exact,Tend_exact
 
 def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_dt) :
 	# Calculates the trajectory to minimum-time-to-intercept for an attacker/defender 
@@ -802,18 +810,27 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 	else :
 		# Initial conditions for approx equations come from inputs into function
 		# tbh we probably don't need the use this step and can just use those calcualted before
-		dist = np.linalg.norm(att_robot["x0"][0:2] - def_robot["x0"][0:2])
-		t_end_guess = dist / (att_robot["speed_limit"] + def_robot["speed_limit"])
+		dist2att = np.linalg.norm(att_robot["x0"][0:2] - def_robot["x0"][0:2])
+		angle2att = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+		t_end_guess = dist2att / (att_robot["speed_limit"] + def_robot["speed_limit"])
 
-		def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, t_end_guess), maxfev=20)	
-		#def_theta_approx = defender_action_guess # Override the best guess to our supplied initial guess	
+		# In some cases, we are never able to catch the attacker as we've started behind them,
+		# so we need to catch this case.  This assumption will be no good for assymetric cases
+		if (abs(angle2att - att_theta) < 90/57.7) :
+			# We're behind the robot, just go for it
+			def_theta = angle2att
+			Tend = 10
 
-		# Solve using the full simulator
-		def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx), maxfev=21)
+		else : 
+			def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, t_end_guess), maxfev=20)	
+			#def_theta_approx = defender_action_guess # Override the best guess to our supplied initial guess	
 
-		if (0) : print("\t       Guess intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, 3))
-		if (0) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
-		if (0) : print("\t       Exact intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
+			# Solve using the full simulator
+			def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx), maxfev=21)
+
+		if (print_debug) : print("\t       Guess intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, 3))
+		if (print_debug) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
+		if (print_debug) : print("\t       Exact intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
 
 	return def_theta,Tend
 
