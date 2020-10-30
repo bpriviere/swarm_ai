@@ -576,6 +576,10 @@ def clamp_action(robot, X0, U0, dt) :
 	# Runs the sim and back-calculates the action applied
 	# Used to correct the accelerations 
 
+	if robot_dead(X0) :
+		# Robot dead, return action
+		return U0
+
 	# run the step function to get new state
 	X = step(robot, X0, U0, dt)
 
