@@ -748,6 +748,11 @@ def step(robot, x0, U, dt):  # Change to an X and Y acceleration
 	if not x0.size == 4: print("X0 Input Incorrect Size")
 	if not  U.size == 2: print("U  Input Incorrect Size")
 
+
+	if robot_dead(x0) :
+		# don't both with all this stuff, just give it the x0 back
+		return x0
+
 	 
 	state = np.zeros(x0.shape) # Output state vector
 
