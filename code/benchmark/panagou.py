@@ -64,11 +64,11 @@ class PanagouPolicy:
 																						# us to reach the goal if there were no attacker
 
 			# trajectories
-			self.R_nom = calculate_nominal_trajectories(self.param,self.robots,self.times,self.theta_noms)  # Constant acceleration to goal (only needed for plots)
-			self.R = calculate_all_trajectories(self.param,self.robots,self.times,self.thetas)              # Expanding reachable space for each robot
+			#self.R_nom = calculate_nominal_trajectories(self.param,self.robots,self.times,self.theta_noms)  # Constant acceleration to goal (only needed for plots)
+			#self.R = calculate_all_trajectories(self.param,self.robots,self.times,self.thetas)              # Expanding reachable space for each robot
 
 			# intersections
-			self.I = calculate_intersections(self.param,self.robots,self.times,self.R)
+			#self.I = calculate_intersections(self.param,self.robots,self.times,self.R)
 
 			#### New matching stuff
 			# Calculate the best attacker actions to minimise the distance to goal upon capture
