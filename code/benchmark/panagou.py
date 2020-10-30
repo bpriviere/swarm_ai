@@ -821,7 +821,7 @@ def main():
 	print("\n\n====== Rollout =====\n")
 	states = pp.rollout(initial_condition)
 
-	plotter.plot_panagou(pp.R,pp.R_nom,pp.I,states,pp.param)
+	plotter.plot_panagou(states,pp.param)
 	
 	# Save and open results
 	filename = os.path.join("..","plots","panagou_2017.pdf")

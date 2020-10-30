@@ -125,72 +125,32 @@ def make_gif(sim_result):
 	duration = 0.5 
 	imageio.mimsave(gif_name, images, duration = duration)
 
-def plot_panagou(R,R_nom,I,states,param,plot_isochrones=True,plot_nominal=True,plot_intersections=True,plot_states=True):
-
-	num_robots, num_times, num_thetas, state_dim = R.shape
-
+def plot_panagou(states,param):
+	num_robots = np.shape(states)[1]
 	colors = get_2_colors(num_robots,len(param.team_1_idxs))
 
-	intersection_color = 'yellow'
 	goal_color = 'green'
-	nominal_color = 'black'
 	df_alpha = 0.2
 
 	fig,ax = plt.subplots()
+
+	#robot_label_box = dict(boxstyle='round', facecolor='wheat', alpha=1.0)
+
+	# Plot the path of each robot
 	for i_robot in range(num_robots):
+		ax.plot(states[: ,i_robot,0],states[: ,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=1)
+		ax.plot(states[-1,i_robot,0],states[-1,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=3)
 
-		if plot_isochrones:
-			for i_time in range(num_times):
-				ax.plot(R[i_robot,i_time,:,0],R[i_robot,i_time,:,1],color=colors[i_robot],marker='o',alpha=df_alpha,markersize=1)
-				ax.plot([R[i_robot,i_time,-1,0],R[i_robot,i_time,0,0]],
-					[R[i_robot,i_time,-1,1],R[i_robot,i_time,0,1]],color=colors[i_robot],marker='o',alpha=df_alpha,markersize=1)
-		
-		if plot_nominal:
-			ax.plot(R_nom[i_robot,:,0],R_nom[i_robot,:,1],color=nominal_color,marker='o',alpha=df_alpha)
+		# Add the tag radius of attackers
+		if i_robot in param.team_2_idxs :
+			ax.add_patch(mpatches.Circle(states[-1,i_robot,0:2], param.robots[i_robot]["tag_radius"], \
+				color=colors[i_robot],alpha=0.2,fill=False))
 
-		if plot_intersections:
-			for (ii_robot,jj_robot), intersections in I.items():
-				if i_robot == ii_robot or i_robot == jj_robot:
-					# Calculate the intersection line 
-					intersection_line = np.empty((0,2))
-					intersection_line1 = np.empty((0,2))
-					intersection_line2 = np.empty((0,2))
+		# Add a robot number to the starting point of each robot
+		textstr = 'test'
+		ax.text(states[0 ,i_robot,0], states[0 ,i_robot,1], textstr, fontsize=6, verticalalignment='bottom', horizontalalignment='center')
 
-					# Loop through each point to create the line
-					for (ii_theta,jj_theta,ii_time) in intersections:
-						# Get intersection points
-						X1 = R[ii_robot,ii_time,ii_theta,0]
-						Y1 = R[ii_robot,ii_time,ii_theta,1]
-						X2 = R[jj_robot,ii_time,jj_theta,0]
-						Y2 = R[jj_robot,ii_time,jj_theta,1]
-
-						# Average out
-						X = (X1 + X2)/2
-						Y = (Y1 + Y2)/2
-
-						# Plot line as per attacker
-						#X = X1
-						#Y = Y1
-						# Plot line as per defender
-						#X = X2
-						#Y = Y2
-
-						# Store in a plotting vector
-						intersection_line  = np.append(intersection_line, np.array([[X,Y]]), axis=0)
-						intersection_line1 = np.append(intersection_line1, np.array([[X1,Y1]]), axis=0)
-						intersection_line2 = np.append(intersection_line2, np.array([[X2,Y2]]), axis=0)
-
-					# Intersection line found, sort and plot (sorting also might be breaking it)
-					#intersection_line = intersection_line[intersection_line[:,0].argsort()]   # sort the line
-					ax.plot(intersection_line[:,0],intersection_line[:,1],color=intersection_color,linewidth=1,marker='*',alpha=0.5)#alpha=df_alpha
-					ax.plot(intersection_line1[:,0],intersection_line1[:,1],color=colors[0],linewidth=1,marker='*',alpha=0.5)#alpha=df_alpha
-					ax.plot(intersection_line2[:,0],intersection_line2[:,1],color=colors[1],linewidth=1,marker='*',alpha=0.5)#alpha=df_alpha
-
-		if plot_states: 
-			for i_robot in range(num_robots):
-				ax.plot(states[: ,i_robot,0],states[: ,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=1)
-				ax.plot(states[-1,i_robot,0],states[-1,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=3)
-
+	# Plot the goal
 	ax.plot(param.goal[0],param.goal[1],color=goal_color,marker='*')
 
 	# Set plot range
