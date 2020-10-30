@@ -702,6 +702,9 @@ def find_nominal_soln(param,robot,state):
 
 	def equations(p):
 		th, T = p
+
+		T = min(T,20.0)
+
 		times = np.arange(0,T,param.sim_dt)
 
 		# Convert theta (th) into U = [ accX, accY ]
