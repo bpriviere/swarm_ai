@@ -13,7 +13,7 @@ class Param:
 
 		# sim param 
 		self.sim_num_trials = 10
-		self.sim_dt = 0.25
+		self.sim_dt = 0.1
 		self.sim_parallel_on = True
 
 		# these parameters are also used for learning 
@@ -27,7 +27,7 @@ class Param:
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
-			'mcts_beta2' : 				0.0,
+			'mcts_beta2' : 				0.5,
 			'mcts_beta3' : 				0.5,
 		}
 
@@ -35,17 +35,17 @@ class Param:
 		# robot types 
 		self.robot_types = {
 			'standard_robot' : {
-				'speed_limit': 0.125,
-				'acceleration_limit':0.125,
-				'tag_radius': 0.025,
+				'speed_limit': 0.5,
+				'acceleration_limit':2.0,
+				'tag_radius': 0.10,
 				'dynamics':'double_integrator',
-				'r_sense': 0.5,
-				'radius': 0.025,
+				'r_sense': 1.0,
+				'radius': 0.05,
 			},
 			'evasive_robot' : {
-				'speed_limit': 0.125,
-				'acceleration_limit':0.2,
-				'tag_radius': 0.025,
+				'speed_limit': 0.0625,
+				'acceleration_limit':0.5,
+				'tag_radius': 0.0125,
 				'dynamics':'double_integrator',
 				'r_sense': 0.5,
 				'radius': 0.025,
@@ -58,7 +58,7 @@ class Param:
 		}
 		
 		# environment
-		self.env_l = 1.0
+		self.env_l = 2.0
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
@@ -102,14 +102,14 @@ class Param:
 		self.l_desired_game = {
 			'Skill_A' : 5, #'a1.pt',
 			'Skill_B' : 5, #'b1.pt',
-			'EnvironmentLength' : 1.0,
+			'EnvironmentLength' : 2.0,
 			'NumA' : 2,
 			'NumB' : 2,
 		}
 		self.l_initial_curiculum = {
 			'Skill_A' : [None],
 			'Skill_B' : [None],
-			'EnvironmentLength' : [1.0],
+			'EnvironmentLength' : [2.0],
 			'NumA' : [1,2],
 			'NumB' : [1,2],
 		}
