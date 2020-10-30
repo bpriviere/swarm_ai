@@ -145,7 +145,7 @@ class PanagouPolicy:
 
 					else : 
 						# do nothing, the action is calculated in the attacker's step
-						pass						
+						pass
 
 			done.append(i_robot)
 
@@ -332,7 +332,6 @@ def calculate_matching_optimal(best_actions,robots,param) :
 
 		if (dist > 0.00001) :
 			matching[att_idx] = def_idx
-			optimised_distance = optimised_distance + best_actions[att_idx,def_idx][5]
 			if (print_debug) : print("[ Def %d ] > [ Att %d ] ( %7.4f), " % (def_idx,att_idx,dist), end="")
 
 		else :
