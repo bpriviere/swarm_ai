@@ -487,8 +487,30 @@ def plot_tree_results(sim_result,title=None):
 	ax.grid(True)
 	ax.set_title('Speed Profile')
 	for i in range(num_nodes):
-		ax.axhline(sim_result["param"]["robots"][i]["speed_limit"],color=colors[i],linestyle='--')
-		ax.plot(times,np.linalg.norm(states[:,i,2:],axis=1),color=colors[i])
+		ax.axhline(sim_result["param"]["robots"][i]["speed_limit"],color=colors[i],linestyle='--',linewidth=1.5)
+		ax.plot(times,np.linalg.norm(states[:,i,2:],axis=1),color=colors[i],linewidth=1.5)
+
+		# Put special markers on attacker robot events
+		if (sim_result["param"]["robots"][i]["team"] == 'a') :
+			# Find the last valid states
+			idx_unkn = np.where(np.isnan(states[:,i,0]) == True)
+			idx_dead = np.where(np.isneginf(states[:,i,0]) == True)
+			idx_goal = np.where(np.isposinf(states[:,i,0]) == True)
+
+			# Plot events
+			if (len(idx_unkn[0])) :
+				# Robot is unknown
+				idx = max(0,min(idx_unkn[0])-1)
+				ax.plot(times[idx],np.linalg.norm(states[idx,i,2:]),linewidth=1,color=colors[i],marker="|",markersize=5)
+			if (len(idx_dead[0])) :
+				# Robot is dead
+				idx = max(0,min(idx_dead[0])-1)
+				ax.plot(times[idx],np.linalg.norm(states[idx,i,2:]),linewidth=1,color=colors[i],marker="x",markersize=5)
+			if (len(idx_goal[0])) :
+				# Robot is at the goal
+				idx = max(0,min(idx_goal[0])-1)
+				ax.plot(times[idx],np.linalg.norm(states[idx,i,2:]),linewidth=1,color=colors[i],marker="o",markersize=5)
+
 	ax.set_ylim(bottom=0)
 
 	# time varying acc
