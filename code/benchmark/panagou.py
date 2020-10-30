@@ -414,7 +414,7 @@ def find_best_actions(param,robots,prev_best) :
 			def_robot = robots[j_robot]
 
 			# If robot is dead / at the goal, we don't need to do any of this
-			if robot_dead(att_robot["x0"]) or robot_dead(att_robot["x0"]) :
+			if robot_dead(att_robot["x0"]) or robot_dead(def_robot["x0"]) :
 				att_theta_best = 0.0
 				def_theta_best = 0.0
 				t_end = 0.0
