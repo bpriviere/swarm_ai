@@ -447,16 +447,20 @@ def find_best_actions(param,robots,prev_best) :
 					# Defender should be able to intercept attacker,
 					# calculate the closest the attacker can get to the goal
 					# if the defender acts optimally to intercept us.
-					res = minimize(func_dist_to_goal, att_theta_nom, args=(def_theta_guess), options={'maxiter': 11})
+					res = minimize(func_dist_to_goal, att_theta_prev, args=(def_theta_prev), options={'maxiter': 11})
 					if not res.success :
 						# Iteration thing didn't work, let's just got with the nominal solution
-						# for the attacker
-						att_theta_best = att_theta_nom
+						# for the attacker and the previous value for the defender
+						att_theta_best = att_theta_prev
+						def_theta_best = def_theta_prev
+						t_end = t_end_prev
+
 					else : 
+						# We have a solution, roll with it
 						att_theta_best = res["x"][0]
 
-					# Simulate the results to get the results we need (from the defender's side)
-					def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
+						# Simulate the results to get the results we need (from the defender's side)
+						def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
 
 					# Calculate the distance to goal
 					U = theta_to_u(att_robot,att_theta_best)
