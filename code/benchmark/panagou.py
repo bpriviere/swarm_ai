@@ -816,11 +816,10 @@ def integrate(robot, state, U, times, dt):
 def find_nominal_soln(param,robot,state):
 
 	def equations(p):
-		th, T = p
+		th, Tend = p
 
-		T = min(T,20.0)
-
-		times = np.arange(0,T,param.sim_dt)
+		Tend = min(Tend,20.0)
+		times = np.arange(0,max(Tend+param.sim_dt,param.sim_dt*2),param.sim_dt)
 
 		# Convert theta (th) into U = [ accX, accY ]
 		U = theta_to_u(robot,th)
@@ -828,10 +827,16 @@ def find_nominal_soln(param,robot,state):
 		# Simulate system
 		states = integrate(robot,state,U,times,param.sim_dt)
 
+		# Interpolate to find the exact value
+		Tsample = max(Tend,0.0) 
+
+		Xsample = np.interp(Tsample, times, states[1:,0])
+		Ysample = np.interp(Tsample, times, states[1:,1])
+
 		# Extract useful information
 		eqns = (
-			states[-1,0] - param.goal[0], 
-			states[-1,1] - param.goal[1], 
+			Xsample - param.goal[0], 
+			Ysample - param.goal[1], 
 			)
 		return eqns
 
