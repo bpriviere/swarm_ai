@@ -916,10 +916,12 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 
 	else :
 		# Initial conditions for approx equations come from inputs into function
-		# tbh we probably don't need ot use this step and can just use those calcualted before
-		def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, 3), maxfev=20)	
+		# tbh we probably don't need the use this step and can just use those calcualted before
+		dist = np.linalg.norm(att_robot["x0"][0:2] - def_robot["x0"][0:2])
+		t_end_guess = dist / (att_robot["speed_limit"] + def_robot["speed_limit"])
 
-		def_theta_approx = defender_action_guess # Override the best guess to our supplied initial guess	
+		def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, t_end_guess), maxfev=20)	
+		#def_theta_approx = defender_action_guess # Override the best guess to our supplied initial guess	
 
 		# Solve using the full simulator
 		def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx), maxfev=21)
