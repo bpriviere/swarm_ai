@@ -291,10 +291,10 @@ def calculate_matching_optimal(best_actions,robots,param) :
 	print_debug = 0
 
 	matching = dict()
-	done = [] 
 
 	# Pre-allocate cost matrix
 	cost_matrix = np.empty((len(param.team_1_idxs),len(param.team_2_idxs)))
+	raw_cost = np.empty((len(param.team_1_idxs),len(param.team_2_idxs)))
 
 	# Fill cost matrix
 	for ii in range(len(param.team_1_idxs)) :
@@ -308,12 +308,14 @@ def calculate_matching_optimal(best_actions,robots,param) :
 			if cost_element < 0.00001 :
 				# We can't catch this attacker, put a high price and chasing him
 				cost_matrix[ii,jj] = 1e10
+				raw_cost[ii,jj] = 0.0
 
 			else : 
 				# Add element to the cost matrix - rows = attackers (jobs), columns = defenders (workers)
 				# We want to maximise the distance rather than minimise it as linear_sum_assignment does,
 				# so take the distance away from a semi-large number (100)
 				cost_matrix[ii,jj] = 100 - cost_element
+				raw_cost[ii,jj] = cost_element
 
 	# Solve the cost matrix
 	row_ind, col_ind = linear_sum_assignment(cost_matrix)
@@ -322,24 +324,24 @@ def calculate_matching_optimal(best_actions,robots,param) :
 	# Create the matching storage by looping through defenders
 	for ii in range(len(col_ind)) :
 		# Calculate robot numbers of the match
-		def_idx = param.team_2_idxs[ii]
-		att_idx = param.team_1_idxs[col_ind[ii]]
+		def_idx = param.team_2_idxs[col_ind[ii]]
+		att_idx = param.team_1_idxs[ii]
 
 		# Check if we should be chasing this attacker or not
 		dist = best_actions[att_idx,def_idx][5]
 
 		if (dist > 0.00001) :
 			matching[att_idx] = def_idx
-			if (print_debug) : print("[ Def %d ] > [ Att %d ]" % (def_idx,att_idx), end="")
+			optimised_distance = optimised_distance + best_actions[att_idx,def_idx][5]
+			if (print_debug) : print("[ Def %d ] > [ Att %d ] ( %7.4f), " % (def_idx,att_idx,dist), end="")
 
 		else :
 			matching[att_idx] = None
-			if (print_debug) : print("[ Def %d ] > [ None  ]" % (def_idx), end="")
-	
+			if (print_debug) : print("[ Def %d ] > [ None  ], " % (def_idx), end="")
 
+	if (print_debug) : print(" Total: %.4f" % total_cost)
 
 	# Each defender is matched
-	if (print_debug) : print("")
 	return matching
 
 def calculate_nominal_trajectories(param,robots,times,theta_noms):
