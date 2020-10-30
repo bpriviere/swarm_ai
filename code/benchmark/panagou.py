@@ -319,7 +319,7 @@ def calculate_matching_optimal(best_actions,robots,param) :
 
 	# Solve the cost matrix
 	row_ind, col_ind = linear_sum_assignment(cost_matrix)
-	total_cost = cost_matrix[row_ind, col_ind].sum()
+	total_cost = raw_cost[row_ind, col_ind].sum() 
 
 	# Create the matching storage by looping through defenders
 	for ii in range(len(col_ind)) :
@@ -374,6 +374,8 @@ def find_best_actions(param,robots,prev_best) :
 	#                                         att_id, def_idN, att_theta, def_theta, t_end, dist2goal ]
 
 	print_debug = 0
+	if (print_debug) : print("find_best_actions()")
+
 	def_theta_guess = 0
 
 	def func_dist_to_goal(p,def_theta_guess) :
@@ -488,7 +490,7 @@ def find_best_actions(param,robots,prev_best) :
 	return best_actions
 
 def direct_to_goal(param,robots) :
-	# Finds the best attacker action to go directly to the 
+	# Finds the best attacker action to go directly to the goal
 	# Calculates the best defender action based on this attacker action
 	#
 	# Outputs an array with
@@ -498,6 +500,7 @@ def direct_to_goal(param,robots) :
 	#                                         att_id, def_idN, att_theta, def_theta, t_end, dist2goal ]
 
 	print_debug = 0
+	if (print_debug) : print("\ndirect_to_goal()")
 	def_theta_guess = 0
 
 	# Pre-allocate matricies
@@ -531,9 +534,9 @@ def direct_to_goal(param,robots) :
 				# Check the time to capture for defender if attacker is using nominal solution
 				# We use the previous estimate for the best capture if available	
 				def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])	
-				t_capture = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)[1]
+				def_theta_best, t_end = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)
 
-				if (att_terminal_time < t_capture) :
+				if (att_terminal_time < t_end) :
 					# Attacker will win, use the nominal attacker results
 					att_theta_best = att_theta_nom
 					def_theta_best = 0.0
@@ -543,12 +546,10 @@ def direct_to_goal(param,robots) :
 
 				else :
 					# Defender should be able to intercept attacker,
-					# calculate the closest the attacker can get to the goal
-					# if the defender acts optimally to intercept us.
+					# We have all the results we need from before
+					# so now we just need to calculate the distance 
+					# from the goal
 					att_theta_best = att_theta_nom
-
-					# Simulate the results to get the results we need (from the defender's side)
-					def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
 
 					# Calculate the distance to goal
 					U = theta_to_u(att_robot,att_theta_best)
@@ -753,7 +754,7 @@ def find_nominal_soln(param,robot,state):
 			theta_exact*57.7, Tend_exact))
 
 	# Make sure the goal was acheived 
-	if (abs(theta_approx - theta_exact) > 10/57.7) :
+	if (abs(theta_approx - theta_exact) > 45/57.7) :
 		a = 1
 		b = 2
 
@@ -802,6 +803,10 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 			)
 		return eqns
 
+	print_debug = 0
+
+	if (print_debug) : print("find_best_intercept()")
+
 	# Check that we are not already within capture radius of the robot
 	dist = np.linalg.norm(att_robot["x0"][0:2] - def_robot["x0"][0:2])
 	if (dist < def_robot["tag_radius"]) :
@@ -820,7 +825,9 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 		# so we need to catch this case.  This assumption will be no good for assymetric cases
 		if (abs(angle2att - att_theta) < 90/57.7) :
 			# We're behind the robot, just go for it
+			def_theta_approx = angle2att
 			def_theta = angle2att
+
 			Tend = 10
 
 		else : 
@@ -830,7 +837,7 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 			# Solve using the full simulator
 			def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx), maxfev=21)
 
-		if (print_debug) : print("\t       Guess intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, 3))
+		if (print_debug) : print("\t       Guess intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, t_end_guess))
 		if (print_debug) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
 		if (print_debug) : print("\t       Exact intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
 
