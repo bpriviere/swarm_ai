@@ -413,22 +413,27 @@ def find_best_actions(param,robots,prev_best) :
 			# Assign defender robot
 			def_robot = robots[j_robot]
 
-			# If robot is dead or at the goal, we don't need to do any of this
-			if robot_dead(att_robot["x0"]) :
+			# If robot is dead / at the goal, we don't need to do any of this
+			if robot_dead(att_robot["x0"]) or robot_dead(att_robot["x0"]) :
 				att_theta_best = 0.0
 				def_theta_best = 0.0
 				t_end = 0.0
-				dist2goal = 0.0
+				dist2goal = 0.0  # even if dead, pretend robot is at the goal to take it out of the matching equation
 
 			else :
 				# Check the time to capture for defender if attacker is using nominal solution
 				# We use the previous estimate for the best capture if available
 				if (prev_best == 0) :
-					def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+					# Create some initial starting points as guesses for our iterations
+					att_theta_prev = att_theta_nom
+					def_theta_prev = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+					t_end_prev     = att_terminal_time
 				else : 
-					def_theta_guess = prev_best[i_robot,j_robot][3]
+					att_theta_prev = prev_best[i_robot,j_robot][2]
+					def_theta_prev = prev_best[i_robot,j_robot][3]
+					t_end_prev     = prev_best[i_robot,j_robot][4]
 				
-				t_capture = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)[1]
+				t_capture = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_prev,param.sim_dt)[1]
 
 				if (att_terminal_time < t_capture) :
 					# Attacker will win, use the nominal attacker results
@@ -796,12 +801,12 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 	else :
 		# Initial conditions for approx equations come from inputs into function
 		# tbh we probably don't need ot use this step and can just use those calcualted before
-		def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, 3), maxfev=10)	
+		def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, 3), maxfev=20)	
 
 		def_theta_approx = defender_action_guess # Override the best guess to our supplied initial guess	
 
 		# Solve using the full simulator
-		def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx), maxfev=10)
+		def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx), maxfev=21)
 
 		if (0) : print("\t       Guess intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, 3))
 		if (0) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
