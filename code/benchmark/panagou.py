@@ -710,17 +710,17 @@ def find_nominal_soln(param,robot,state):
 		return eqns
 
 	print_debug = 0
-	
+
 	# Take a better guess at the initial conditions
 	#print("Nominal Guess")
 	theta_guess = np.arctan2(param.goal[1]-state[1],param.goal[0]-state[0]) 
 	dist = np.linalg.norm(robot["x0"][0:2] - param.goal[0:2])
 	Tend_guess = dist / robot["speed_limit"]
 
-	if Tend_guess < 1.0 :
-		# We're close to the goal, everything is going to stuff up
-		# so hack in the "direct to goal, infinite turning" solution
-		return theta_guess,Tend_guess
+	#if Tend_guess < 1.0 :
+	#	# We're close to the goal, everything is going to stuff up
+	#	# so hack in the "direct to goal, infinite turning" solution
+	#	return theta_guess,Tend_guess
 
 	# Solve using the approximate equations to improve the initial guess
 	#print("Nominal Approx")
@@ -842,8 +842,17 @@ def main():
 			[   0.862,   0.852,  -0.000,   0.000 ] ]) 
 
 		initial_condition = np.array( [ \
-			[   0.186,   0.674,   0.000,   0.000 ], \
-			[   0.807,   0.507,   0.000,   0.000 ] ]) 
+			[   0.10,   0.90,   0.000,   0.000 ], \
+			[   0.20,   0.35,   0.000,   0.000 ], \
+			[   0.80,   0.75,   0.000,   0.000 ], \
+			[   0.85,   0.10,   0.000,   0.000 ] ]) 
+
+		initial_condition = np.array( [ \
+			[   0.17646,   0.10618,   0.000,   0.000 ], \
+			[   0.18721,   0.8071,   0.000,   0.000 ], \
+			[   0.77,   0.59908,   0.000,   0.000 ], \
+			[   0.89076,   0.87235,   0.000,   0.000 ] ]) 
+
 
 		df_param = Param()
 		df_param.update(initial_condition=initial_condition)
