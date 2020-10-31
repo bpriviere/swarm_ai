@@ -134,8 +134,6 @@ def plot_panagou(states,param):
 
 	fig,ax = plt.subplots()
 
-	#robot_label_box = dict(boxstyle='round', facecolor='wheat', alpha=1.0)
-
 	# Plot the path of each robot
 	for i_robot in range(num_robots):
 		ax.plot(states[: ,i_robot,0],states[: ,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=1)
