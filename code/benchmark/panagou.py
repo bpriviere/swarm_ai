@@ -368,6 +368,8 @@ def find_best_actions(param,robots,prev_best) :
 		return eqns
 
 	print_debug = 0
+	attacker_direct_to_goal = 1
+
 	if (print_debug) : print("\ndirect_to_goal()")
 	def_theta_guess = 0
 
@@ -424,7 +426,7 @@ def find_best_actions(param,robots,prev_best) :
 					# We have all the results we need from before
 					# so now we just need to calculate the distance 
 					# from the goal
-					if (0) :
+					if (attacker_direct_to_goal) :
 						# Go straight to the goal
 						att_theta_best = att_theta_nom
 
