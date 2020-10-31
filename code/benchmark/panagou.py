@@ -58,17 +58,14 @@ class PanagouPolicy:
 			self.times = np.arange(0,1.5*max(self.terminal_times),self.param.sim_dt)	# Extend time so that collisions can be calculated
 																						# Our survival time might be longer than it takes for
 																						# us to reach the goal if there were no attacker
-			#### New matching stuff
-			# Calculate the best attacker actions to minimise the distance to goal upon capture
-			#  We also calculate the best defender action at this stage to match that attackker action
-			if (0) :
-				if not hasattr(self, 'best_actions') :
-					self.best_actions = 0
 
-				self.best_actions = find_best_actions(self.param,self.robots,self.best_actions)
-			else :
-				self.best_actions = direct_to_goal(self.param,self.robots)
-
+			# We base our next iteration initial guess from our previous guess
+			# For the first iteration, this won't exist so we need to make it
+			if not hasattr(self, 'best_actions') :
+				self.best_actions = estimate_actions(self.param,self.robots)
+					
+			# Calculate the best actions
+			self.best_actions = find_best_actions(self.param,self.robots,self.best_actions)
 
 			# Calculate who each defender should target
 			self.matching2 = calculate_matching_optimal(self.best_actions,self.robots,self.param)
@@ -313,6 +310,32 @@ def calculate_matching_optimal(best_actions,robots,param) :
 	# Each defender is matched
 	return matching
 
+def estimate_actions(param,robots) :
+	# Provides a quick estimate of what actions a robot should take
+	# This is far from optimal and is used as an initial condition for later
+
+	# Pre-allocate matricies
+	best_actions = dict()
+	best_actions[0,0] = "att_robot, def_robot, att_theta, def_theta, t_end, dist2goal"
+
+	for i_robot in param.team_1_idxs : 
+		# Assign attacking robot
+		att_robot = robots[i_robot]
+
+		for j_robot in param.team_2_idxs :
+			# Assign defending robot
+			def_robot = robots[j_robot]
+
+			# Calculate stuff
+			att_theta_init = np.arctan2(param.goal[1]-att_robot["x0"][1],param.goal[0]-att_robot["x0"][0]) 
+			def_theta_init = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+			t_init = np.linalg.norm(att_robot["x0"][0:2] - param.goal[0:2]) / att_robot["speed_limit"]
+
+			# Add to the dict
+			best_actions[i_robot,j_robot] = (i_robot, j_robot, att_theta_init, def_theta_init, t_init, 0.0)
+
+	return best_actions
+
 def find_best_actions(param,robots,prev_best) :
 	# Finds the best attacker action to minimise distance to the goal
 	# Calculates the best defender action based on this attacker action
@@ -322,11 +345,6 @@ def find_best_actions(param,robots,prev_best) :
 	#                                         att_id, def_id2, att_theta, def_theta, t_end, dist2goal ; 
 	#                                         ...
 	#                                         att_id, def_idN, att_theta, def_theta, t_end, dist2goal ]
-
-	print_debug = 0
-	if (print_debug) : print("find_best_actions()")
-
-	def_theta_guess = 0
 
 	def func_dist_to_goal(p,def_theta_guess) :
 		temp = p
@@ -348,106 +366,6 @@ def find_best_actions(param,robots,prev_best) :
 
 		eqns = (dist2goal)
 		return eqns
-
-	# Pre-allocate matricies
-	best_actions = dict()
-	best_actions[0,0] = "att_robot, def_robot, att_theta, def_theta, t_end, dist2goal"
-
-	if (print_debug) : print("")
-
-	# Loop through each attacker
-	for i_robot in param.team_1_idxs: 
-		# Assign attacking robot
-		att_robot = robots[i_robot]
-
-		# If robot is alive, find the nominal solution
-		if not (robot_dead(att_robot["x0"])) :
-			# Check time to goal for attacker using nominal solution
-			att_theta_nom, att_terminal_time = find_nominal_soln(param,att_robot,np.array(att_robot["x0"]))
-
-		for j_robot in param.team_2_idxs:
-			# Assign defender robot
-			def_robot = robots[j_robot]
-
-			# If robot is dead / at the goal, we don't need to do any of this
-			if robot_dead(att_robot["x0"]) or robot_dead(def_robot["x0"]) :
-				att_theta_best = 0.0
-				def_theta_best = 0.0
-				t_end = 0.0
-				dist2goal = 0.0  # even if dead, pretend robot is at the goal to take it out of the matching equation
-
-			else :
-				# Check the time to capture for defender if attacker is using nominal solution
-				# We use the previous estimate for the best capture if available
-				if (prev_best == 0) :
-					# Create some initial starting points as guesses for our iterations
-					att_theta_prev = att_theta_nom
-					def_theta_prev = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
-					t_end_prev     = att_terminal_time
-				else : 
-					att_theta_prev = prev_best[i_robot,j_robot][2]
-					def_theta_prev = prev_best[i_robot,j_robot][3]
-					t_end_prev     = prev_best[i_robot,j_robot][4]
-				
-				t_capture = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_prev,param.sim_dt)[1]
-
-				if (att_terminal_time < t_capture) :
-					# Attacker will win, use the nominal attacker results
-					att_theta_best = att_theta_nom
-					def_theta_best = 0.0
-					dist2goal = 0.0
-					t_end = att_terminal_time
-					# we've gotten to a attacker wins state which we haven't checked yet
-
-				else :
-					# Defender should be able to intercept attacker,
-					# calculate the closest the attacker can get to the goal
-					# if the defender acts optimally to intercept us.
-					res = minimize(func_dist_to_goal, att_theta_prev, args=(def_theta_prev), options={'maxiter': 11})
-					if not res.success :
-						# Iteration thing didn't work, let's just got with the nominal solution
-						# for the attacker and the previous value for the defender
-						att_theta_best = att_theta_prev
-						def_theta_best = def_theta_prev
-						t_end = t_end_prev
-
-					else : 
-						# We have a solution, roll with it
-						att_theta_best = res["x"][0]
-
-						# Simulate the results to get the results we need (from the defender's side)
-						def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
-
-					# Calculate the distance to goal
-					U = theta_to_u(att_robot,att_theta_best)
-					times = np.arange(0,max(t_end+param.sim_dt,param.sim_dt*2),param.sim_dt)
-					states = integrate(att_robot, att_robot["x0"], U, times[1:], param.sim_dt)
-
-					# Interpolate to find the exact distance to the goal
-					x_capture = np.interp(t_end, times, states[:,0])
-					y_capture = np.interp(t_end, times, states[:,1])
-
-					dist2goal = np.power(param.goal[0]-x_capture,2) + np.power(param.goal[1]-y_capture,2)
-
-			# Store the results
-			best_actions[i_robot,j_robot] = (i_robot, j_robot, att_theta_best, def_theta_best, t_end, dist2goal)
-
-			# Debug printing
-			if (print_debug) :
-				print("\t[ Att %d ] theta: %7.2f [ deg ], [ Def %d ] theta: %7.2f [ deg ], t_end: %.2f [ s ], dist2goal: %.6f [ m ]" \
-					% (i_robot,att_theta_best*57.7,j_robot,def_theta_best*57.7,t_end,dist2goal))
-
-	return best_actions
-
-def direct_to_goal(param,robots) :
-	# Finds the best attacker action to go directly to the goal
-	# Calculates the best defender action based on this attacker action
-	#
-	# Outputs an array with
-	#     defender_actions[i_robot,j_robot] = [att_id, def_id1, att_theta, def_theta, t_end, dist2goal ;
-	#                                         att_id, def_id2, att_theta, def_theta, t_end, dist2goal ; 
-	#                                         ...
-	#                                         att_id, def_idN, att_theta, def_theta, t_end, dist2goal ]
 
 	print_debug = 0
 	if (print_debug) : print("\ndirect_to_goal()")
@@ -482,8 +400,16 @@ def direct_to_goal(param,robots) :
 
 			else :
 				# Check the time to capture for defender if attacker is using nominal solution
-				# We use the previous estimate for the best capture if available	
-				def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])	
+				# We use the previous estimate for the best capture if available
+
+				# Extract the previous best data
+				att_theta_prev = prev_best[i_robot,j_robot][2]
+				def_theta_prev = prev_best[i_robot,j_robot][3]
+				t_end_prev     = prev_best[i_robot,j_robot][4]
+
+				# Calculate how long it will take for this defender to capture the attacker
+				def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
+				#def_theta_guess = def_theta_prev	
 				def_theta_best, t_end = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)
 
 				if (att_terminal_time < t_end) :
@@ -492,14 +418,34 @@ def direct_to_goal(param,robots) :
 					def_theta_best = 0.0
 					dist2goal = 0.0
 					t_end = att_terminal_time
-					# we've gotten to a attacker wins state which we haven't checked yet
 
 				else :
 					# Defender should be able to intercept attacker,
 					# We have all the results we need from before
 					# so now we just need to calculate the distance 
 					# from the goal
-					att_theta_best = att_theta_nom
+					if (0) :
+						# Go straight to the goal
+						att_theta_best = att_theta_nom
+
+					else : 
+						# Try to minimise the distance to the goal upon capture
+						# This is temporamental to say the least...
+						res = minimize(func_dist_to_goal, att_theta_prev, args=(def_theta_prev), options={'maxiter': 11})
+						if not res.success :
+							# Iteration thing didn't work, let's just got with the nominal solution
+							# for the attacker and the previous value for the defender
+							att_theta_best = att_theta_prev
+							def_theta_best = def_theta_prev
+							t_end = t_end_prev
+
+						else : 
+							# We have a solution, roll with it
+							att_theta_best = res["x"][0]
+
+							# Simulate the results to get the results we need (from the defender's side)
+							def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
+
 
 					# Calculate the distance to goal
 					U = theta_to_u(att_robot,att_theta_best)
@@ -805,7 +751,7 @@ def theta_to_u(robot,theta):
 def main():
 
 	set_ic = False
-	set_ic = True
+	#set_ic = True
 	if set_ic: 
 		print("====\nUsing Fixed Initial Conditions\n====")
 		# make sure this matches the teams match up in the param file
