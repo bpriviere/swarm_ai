@@ -423,12 +423,13 @@ def find_best_actions(param,robots,prev_best) :
 
 				else :
 					# Defender should be able to intercept attacker,
-					# We have all the results we need from before
-					# so now we just need to calculate the distance 
-					# from the goal
+					# work out what the attacker will do
 					if (attacker_direct_to_goal) :
 						# Go straight to the goal
 						att_theta_best = att_theta_nom
+
+						# We know what the attacker will do from before,
+						# so we don't need to calculate that (and t_end) again
 
 					else : 
 						# Try to minimise the distance to the goal upon capture
@@ -447,7 +448,6 @@ def find_best_actions(param,robots,prev_best) :
 
 							# Simulate the results to get the results we need (from the defender's side)
 							def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
-
 
 					# Calculate the distance to goal
 					U = theta_to_u(att_robot,att_theta_best)
