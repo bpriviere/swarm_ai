@@ -24,7 +24,8 @@ Action Vector
 
 '''
 TODO List
-- Fix defenders changing their minds when they shouldn't
+- Optimal matching when n_defs != n_att
+- Proper panagou attacker (minimise terminal distance rather than straihgt for the goal)
 '''
 
 class PanagouPolicy:
