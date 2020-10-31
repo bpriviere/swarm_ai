@@ -536,13 +536,15 @@ def direct_to_goal(param,robots) :
 					# Calculate the distance to goal
 					U = theta_to_u(att_robot,att_theta_best)
 					times = np.arange(0,max(t_end+param.sim_dt,param.sim_dt*2),param.sim_dt)
-					states = integrate(att_robot, att_robot["x0"], U, times[1:], param.sim_dt)
+					att_states = integrate(att_robot, att_robot["x0"], U, times[1:], param.sim_dt)
 
 					# Interpolate to find the exact distance to the goal
-					x_capture = np.interp(t_end, times, states[:,0])
-					y_capture = np.interp(t_end, times, states[:,1])
+					x_capture = np.interp(t_end, times, att_states[:,0])
+					y_capture = np.interp(t_end, times, att_states[:,1])
+					pos = np.array([x_capture,y_capture])
 
-					dist2goal = np.power(param.goal[0]-x_capture,2) + np.power(param.goal[1]-y_capture,2)
+					# Calculate distance to goal
+					dist2goal = np.linalg.norm(pos - param.goal[0:2])
 
 			# Store the results
 			best_actions[i_robot,j_robot] = (i_robot, j_robot, att_theta_best, def_theta_best, t_end, dist2goal)
