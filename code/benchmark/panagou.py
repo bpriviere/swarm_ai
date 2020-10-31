@@ -258,17 +258,19 @@ def calculate_matching_optimal(best_actions,robots,param) :
 	matching = dict()
 
 	# Pre-allocate cost matrix
-	cost_matrix = np.empty((len(param.team_1_idxs),len(param.team_2_idxs)))
-	raw_cost = np.empty((len(param.team_1_idxs),len(param.team_2_idxs)))
+	n_att = len(param.team_1_idxs)
+	n_def = len(param.team_2_idxs)
+	cost_matrix = np.empty((n_att,n_def))
+	raw_cost    = np.empty((n_att,n_def))
 
 	# Fill cost matrix
-	for ii in range(len(param.team_1_idxs)) :
+	for ii in range(n_att) :
 		i_robot = param.team_1_idxs[ii]
 
 		# Pre-allocate 'None' the matching dict() in case no defender is assigned
 		matching[ii] = None
 
-		for jj in range(len(param.team_2_idxs)) :
+		for jj in range(n_def) :
 			j_robot = param.team_2_idxs[jj]
 
 			cost_element = best_actions[i_robot,j_robot][5]
