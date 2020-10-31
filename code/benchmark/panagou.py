@@ -250,15 +250,16 @@ class PanagouPolicy:
 
 def calculate_matching_greedy(best_actions,robots,param) :
 	# Calculates which attacker each defender should target
-	# This is a greedy match
+	# This is a greedy match where each defender in turns gets
+	# to choose who to tag based on 
 	matching = dict()
 	done = [] 
 
 	# Loop through each attacker
 	for i_robot in param.team_1_idxs :
 		# The defenders want to maximise the distance between the goal and the attackers
-		# therefore, target whichever attacker is going to get closest
-		min_distance = 1e10
+		# therefore, target whichever attacker we can keep furthest form the goal
+		max_distance = 0.0
 		def_ID = None
 
 		for j_robot in param.team_2_idxs :
@@ -267,11 +268,11 @@ def calculate_matching_greedy(best_actions,robots,param) :
 				pass
 			else :
 				dist2goal = best_actions[i_robot,j_robot][5]
-				if (min_distance > dist2goal) and (dist2goal > 0.00001) :
+				if (dist2goal > max_distance) and (dist2goal > max(robots[i_robot]['tag_radius'],0.001)) :
 					# This is a better choice to target as a defender, store it
 					# In the case where dist2goal == 0, the attacker wins so ignore this too
 					def_ID = j_robot
-					min_distance = dist2goal
+					max_distance = dist2goal
 		
 		# We've looped through each defender for this attacker,
 		# store the best defender to attacker match
