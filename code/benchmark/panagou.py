@@ -305,8 +305,8 @@ def calculate_matching_optimal(best_actions,robots,param) :
 
 			cost_element = best_actions[i_robot,j_robot][5]
 
-			if cost_element < 0.00001 :
-				# We can't catch this attacker, put a high price and chasing him
+			if cost_element < max(robots[i_robot]['tag_radius'],0.001) :
+				# We can't catch this attacker, put a high price on chasing him
 				cost_matrix[ii,jj] = 1e10
 				raw_cost[ii,jj] = 0.0
 
