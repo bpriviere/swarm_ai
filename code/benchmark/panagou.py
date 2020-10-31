@@ -302,6 +302,9 @@ def calculate_matching_optimal(best_actions,robots,param) :
 	for ii in range(len(param.team_1_idxs)) :
 		i_robot = param.team_1_idxs[ii]
 
+		# Pre-allocate 'None' the matching dict() in case no defender is assigned
+		matching[ii] = None
+
 		for jj in range(len(param.team_2_idxs)) :
 			j_robot = param.team_2_idxs[jj]
 
@@ -332,7 +335,7 @@ def calculate_matching_optimal(best_actions,robots,param) :
 		# Check if we should be chasing this attacker or not
 		dist = best_actions[att_idx,def_idx][5]
 
-		if (dist > 0.00001) :
+		if (dist > max(robots[i_robot]['tag_radius'],0.001)) :
 			matching[att_idx] = def_idx
 			if (print_debug) : print("[ Def %d ] > [ Att %d ] ( %7.4f), " % (def_idx,att_idx,dist), end="")
 
