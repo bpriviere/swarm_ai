@@ -493,7 +493,7 @@ def evaluate_expert_value(rank, queue, total, states, param, policy_fn_a, policy
 			'path_glas_model' : policy_fn_b,
 			'deterministic': False,
 		}
-		num_rollouts = 10 
+		num_rollouts = 100
 
 	else: 
 		if param.i > 0:

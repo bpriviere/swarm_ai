@@ -105,12 +105,13 @@ if __name__ == '__main__':
 
 	df_param = Param()
 
-	df_param.env_l = 1.0
+	df_param.env_l = 2.0
 	df_param.init_on_sides = True
 	df_param.num_trials = 100
-	max_policy_file = 3 
+	max_policy_file = 6
 	glas_policy_files = range(1,max_policy_file+1)
 	mcts_policy_files = range(max_policy_file+1)
+	# name = "saved/t8/models"
 	name = "current/models"
 
 	df_param.attackerPolicyDicts = []
@@ -196,8 +197,8 @@ if __name__ == '__main__':
 	else: 
 		df_param.robot_team_compositions = [
 			{
-			'a': {'standard_robot':2,'evasive_robot':0},
-			'b': {'standard_robot':1,'evasive_robot':0}
+			'a': {'standard_robot':3,'evasive_robot':0},
+			'b': {'standard_robot':3,'evasive_robot':0}
 			},
 			# {
 			# 'a': {'standard_robot':2,'evasive_robot':0},
