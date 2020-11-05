@@ -125,72 +125,34 @@ def make_gif(sim_result):
 	duration = 0.5 
 	imageio.mimsave(gif_name, images, duration = duration)
 
-def plot_panagou(R,R_nom,I,states,param,plot_isochrones=True,plot_nominal=True,plot_intersections=True,plot_states=True):
-
-	num_robots, num_times, num_thetas, state_dim = R.shape
-
+def plot_panagou(states,param):
+	num_robots = len(param.team_1_idxs) + len(param.team_2_idxs)
 	colors = get_2_colors(num_robots,len(param.team_1_idxs))
 
-	intersection_color = 'yellow'
 	goal_color = 'green'
-	nominal_color = 'black'
 	df_alpha = 0.2
 
 	fig,ax = plt.subplots()
+
+	# Plot the path of each robot
 	for i_robot in range(num_robots):
+		ax.plot(states[: ,i_robot,0],states[: ,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=1)
+		ax.plot(states[-1,i_robot,0],states[-1,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=3)
 
-		if plot_isochrones:
-			for i_time in range(num_times):
-				ax.plot(R[i_robot,i_time,:,0],R[i_robot,i_time,:,1],color=colors[i_robot],marker='o',alpha=df_alpha,markersize=1)
-				ax.plot([R[i_robot,i_time,-1,0],R[i_robot,i_time,0,0]],
-					[R[i_robot,i_time,-1,1],R[i_robot,i_time,0,1]],color=colors[i_robot],marker='o',alpha=df_alpha,markersize=1)
-		
-		if plot_nominal:
-			ax.plot(R_nom[i_robot,:,0],R_nom[i_robot,:,1],color=nominal_color,marker='o',alpha=df_alpha)
+		# Add the tag radius of attackers
+		if i_robot in param.team_2_idxs :
+			ax.add_patch(mpatches.Circle(states[-1,i_robot,0:2], param.robots[i_robot]["tag_radius"], \
+				color=colors[i_robot],alpha=0.2,fill=False))
 
-		if plot_intersections:
-			for (ii_robot,jj_robot), intersections in I.items():
-				if i_robot == ii_robot or i_robot == jj_robot:
-					# Calculate the intersection line 
-					intersection_line = np.empty((0,2))
-					intersection_line1 = np.empty((0,2))
-					intersection_line2 = np.empty((0,2))
+		# Add a robot number to the starting point of each robot
+		if i_robot in param.team_2_idxs :
+			textstr = "DEF\n%d" % i_robot
+		else :
+			textstr = "ATT\n%d" % i_robot
 
-					# Loop through each point to create the line
-					for (ii_theta,jj_theta,ii_time) in intersections:
-						# Get intersection points
-						X1 = R[ii_robot,ii_time,ii_theta,0]
-						Y1 = R[ii_robot,ii_time,ii_theta,1]
-						X2 = R[jj_robot,ii_time,jj_theta,0]
-						Y2 = R[jj_robot,ii_time,jj_theta,1]
+		ax.text(states[0 ,i_robot,0], states[0 ,i_robot,1], textstr, fontsize=6, verticalalignment='center', horizontalalignment='center')
 
-						# Average out
-						X = (X1 + X2)/2
-						Y = (Y1 + Y2)/2
-
-						# Plot line as per attacker
-						#X = X1
-						#Y = Y1
-						# Plot line as per defender
-						#X = X2
-						#Y = Y2
-
-						# Store in a plotting vector
-						intersection_line  = np.append(intersection_line, np.array([[X,Y]]), axis=0)
-						intersection_line1 = np.append(intersection_line1, np.array([[X1,Y1]]), axis=0)
-						intersection_line2 = np.append(intersection_line2, np.array([[X2,Y2]]), axis=0)
-
-					# Intersection line found, sort and plot (sorting also might be breaking it)
-					#intersection_line = intersection_line[intersection_line[:,0].argsort()]   # sort the line
-					ax.plot(intersection_line[:,0],intersection_line[:,1],color=intersection_color,linewidth=1,marker='*',alpha=0.5)#alpha=df_alpha
-					ax.plot(intersection_line1[:,0],intersection_line1[:,1],color=colors[0],linewidth=1,marker='*',alpha=0.5)#alpha=df_alpha
-					ax.plot(intersection_line2[:,0],intersection_line2[:,1],color=colors[1],linewidth=1,marker='*',alpha=0.5)#alpha=df_alpha
-
-		if plot_states: 
-			for i_robot in range(num_robots):
-				ax.plot(states[: ,i_robot,0],states[: ,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=1)
-				ax.plot(states[-1,i_robot,0],states[-1,i_robot,1],color=colors[i_robot],linewidth=1,marker='o',markersize=3)
-
+	# Plot the goal
 	ax.plot(param.goal[0],param.goal[1],color=goal_color,marker='*')
 
 	# Set plot range
@@ -198,11 +160,6 @@ def plot_panagou(R,R_nom,I,states,param,plot_isochrones=True,plot_nominal=True,p
 	ax.set_ylim([param.env_ylim[0],param.env_ylim[1]])
 	ax.grid(True)
 	ax.axis('equal')
-
-	# Add textbox to identify attacker and defender
-	textstr = '\n'.join((r'blue: attacker',r'orange: defender'))
-	props = dict(boxstyle='round', facecolor='wheat', alpha=1.0)
-	ax.text(0.05, 0.95, textstr, transform=ax.transAxes, fontsize=6, verticalalignment='top', bbox=props)
 
 
 def plot_sa_pairs(sampled_sa_pairs,sim_result,team):
@@ -449,7 +406,27 @@ def plot_tree_results(sim_result,title=None):
 		ax.plot(states[:,i,0],states[:,i,1],linewidth=1,color=colors[i],marker="o",markersize=0.75)
 		# Tag radius (last time step)
 		ax.add_patch(mpatches.Circle(states[-1,i,0:2], sim_result["param"]["robots"][i]["tag_radius"],color=colors[i],alpha=0.2,fill=False))
+		# Put special markers on attacker robot events
+		if (sim_result["param"]["robots"][i]["team"] == 'a') :
+			# Find the last valid states
+			idx_unkn = np.where(np.isnan(states[:,i,0]) == True)
+			idx_dead = np.where(np.isneginf(states[:,i,0]) == True)
+			idx_goal = np.where(np.isposinf(states[:,i,0]) == True)
 
+			# Plot events
+			if (len(idx_unkn[0])) :
+				# Robot is unknown
+				idx = max(0,min(idx_unkn[0])-1)
+				ax.plot(states[idx,i,0],states[idx,i,1],linewidth=1,color=colors[i],marker="|",markersize=3)
+			if (len(idx_dead[0])) :
+				# Robot is dead
+				idx = max(0,min(idx_dead[0])-1)
+				ax.plot(states[idx,i,0],states[idx,i,1],linewidth=1,color=colors[i],marker="x",markersize=3)
+			if (len(idx_goal[0])) :
+				# Robot is at the goal
+				idx = max(0,min(idx_goal[0])-1)
+				ax.plot(states[idx,i,0],states[idx,i,1],linewidth=1,color=colors[i],marker="o",markersize=3)
+		
 	ax.set_xlim([env_xlim[0],env_xlim[1]])
 	ax.set_ylim([env_ylim[0],env_ylim[1]])
 
@@ -771,6 +748,21 @@ def plot_tree_results(sim_result,title=None):
 			# axs[0,2].hist(num_children[num_children != 0])
 
 			# fig.tight_layout()
+
+		if title is not None: 
+			fig.suptitle(title)
+
+	if len(sim_result['root_rewards_over_time']) > 0:
+
+		fig,axs = plt.subplots(nrows=len(sim_result["root_rewards_over_time"]),ncols=1,squeeze=False,constrained_layout=True)
+
+		for i_tree, data in enumerate(sim_result["root_rewards_over_time"]):
+			tree_time = sim_result["tree_params"][i_tree]["time"]
+			tree_robot_idx = sim_result["tree_params"][i_tree]["robot_idx"]
+
+			ax = axs[i_tree,0]
+			ax.plot(data)
+			ax.set_title('Reward over time at i={},t={}'.format(tree_robot_idx,tree_time))
 
 		if title is not None: 
 			fig.suptitle(title)
