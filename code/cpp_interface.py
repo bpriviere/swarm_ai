@@ -296,7 +296,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 			mctssettings.pw_alpha = policy_dict["mcts_pw_alpha"]
 			mctssettings.beta1 = policy_dict["mcts_beta1"]
 			mctssettings.beta3 = policy_dict["mcts_beta3"]
-			mctssettings.export_tree = (count // 2) % param.tree_timestep == 0  and param.plot_tree_on 
+			mctssettings.export_tree = (count // 2) % param.tree_timestep == 0  and param.plot_tree_on and count % 2 == 0
 
 		if policy_dict["sim_mode"] == "MCTS":
 			depth = gs.depth

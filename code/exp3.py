@@ -111,44 +111,61 @@ if __name__ == '__main__':
 	max_policy_file = 3 
 	glas_policy_files = range(1,max_policy_file+1)
 	mcts_policy_files = range(max_policy_file+1)
-	name = "current/models"
+	name = "saved/r28" # "current/models"
 
 	df_param.attackerPolicyDicts = []
-	df_param.attackerPolicyDicts.extend([{
-			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		None,
-			'path_glas_model_b' : 		None,
-			'path_value_fnc' : 			None,
-			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
-			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
-			'mcts_c_param' : 			df_param.l_mcts_c_param,
-			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
-			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
-			'mcts_beta1' : 				df_param.l_mcts_beta1,
-			'mcts_beta2' : 				df_param.l_mcts_beta2,
-			'mcts_beta3' : 				df_param.l_mcts_beta3,
-		}])
+	# df_param.attackerPolicyDicts.extend([{
+	# 		'sim_mode' : 				"MCTS",
+	# 		'path_glas_model_a' : 		None,
+	# 		'path_glas_model_b' : 		None,
+	# 		'path_value_fnc' : 			None,
+	# 		'mcts_tree_size' : 			df_param.l_num_expert_nodes,
+	# 		'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+	# 		'mcts_c_param' : 			df_param.l_mcts_c_param,
+	# 		'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+	# 		'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+	# 		'mcts_beta1' : 				df_param.l_mcts_beta1,
+	# 		'mcts_beta2' : 				df_param.l_mcts_beta2,
+	# 		'mcts_beta3' : 				df_param.l_mcts_beta3,
+	# 	}])
+	# df_param.attackerPolicyDicts.extend([
+	# 	{
+	# 		'sim_mode' : 				"D_MCTS",
+	# 		'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,i) if i > 0  else None,
+	# 		'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,i) if i > 0  else None,
+	# 		'path_value_fnc' : 			'../{}/v{}.pt'.format(name,i) if i > 0  else None,
+	# 		'mcts_tree_size' : 			df_param.l_num_learner_nodes,
+	# 		'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+	# 		'mcts_c_param' : 			df_param.l_mcts_c_param,
+	# 		'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+	# 		'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+	# 		'mcts_beta1' : 				df_param.l_mcts_beta1,
+	# 		'mcts_beta2' : 				df_param.l_mcts_beta2,
+	# 		'mcts_beta3' : 				df_param.l_mcts_beta3,
+	# 	} for i in mcts_policy_files])
 	df_param.attackerPolicyDicts.extend([
 		{
 			'sim_mode' : 				"D_MCTS",
-			'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,i) if i > 0  else None,
-			'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,i) if i > 0  else None,
-			'path_value_fnc' : 			'../{}/v{}.pt'.format(name,i) if i > 0  else None,
+			'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,3),
+			'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,3),
+			'path_value_fnc' : 			'../{}/v{}.pt'.format(name,3),
 			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
 			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
-			'mcts_c_param' : 			df_param.l_mcts_c_param,
+			'mcts_c_param' : 			c,
 			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
 			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
 			'mcts_beta1' : 				df_param.l_mcts_beta1,
 			'mcts_beta2' : 				df_param.l_mcts_beta2,
 			'mcts_beta3' : 				df_param.l_mcts_beta3,
-		} for i in mcts_policy_files])
-	df_param.attackerPolicyDicts.extend([
-		{
-			'sim_mode' : 				"GLAS",
-			'path_glas_model' : 		'../{}/a{}.pt'.format(name,i),
-			'deterministic': 			True,
-		} for i in glas_policy_files])
+		} for c in [0.1,1.4,2.0,5.0]])
+
+
+	# df_param.attackerPolicyDicts.extend([
+	# 	{
+	# 		'sim_mode' : 				"GLAS",
+	# 		'path_glas_model' : 		'../{}/a{}.pt'.format(name,i),
+	# 		'deterministic': 			True,
+	# 	} for i in glas_policy_files])
 
 	df_param.defenderPolicyDicts = []
 	df_param.defenderPolicyDicts.extend([{
@@ -165,27 +182,27 @@ if __name__ == '__main__':
 			'mcts_beta2' : 				df_param.l_mcts_beta2,
 			'mcts_beta3' : 				df_param.l_mcts_beta3,
 		}])
-	df_param.defenderPolicyDicts.extend([
-		{
-			'sim_mode' : 				"D_MCTS",
-			'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,i) if i > 0  else None,
-			'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,i) if i > 0  else None,
-			'path_value_fnc' : 			'../{}/v{}.pt'.format(name,i) if i > 0  else None,
-			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
-			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
-			'mcts_c_param' : 			df_param.l_mcts_c_param,
-			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
-			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
-			'mcts_beta1' : 				df_param.l_mcts_beta1,
-			'mcts_beta2' : 				df_param.l_mcts_beta2,
-			'mcts_beta3' : 				df_param.l_mcts_beta3,
-		} for i in mcts_policy_files])
-	df_param.defenderPolicyDicts.extend([
-		{
-			'sim_mode' : 				"GLAS",
-			'path_glas_model' : 		'../{}/b{}.pt'.format(name,i),
-			'deterministic': 			True,
-		} for i in glas_policy_files])
+	# df_param.defenderPolicyDicts.extend([
+	# 	{
+	# 		'sim_mode' : 				"D_MCTS",
+	# 		'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,i) if i > 0  else None,
+	# 		'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,i) if i > 0  else None,
+	# 		'path_value_fnc' : 			'../{}/v{}.pt'.format(name,i) if i > 0  else None,
+	# 		'mcts_tree_size' : 			df_param.l_num_learner_nodes,
+	# 		'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+	# 		'mcts_c_param' : 			df_param.l_mcts_c_param,
+	# 		'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+	# 		'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+	# 		'mcts_beta1' : 				df_param.l_mcts_beta1,
+	# 		'mcts_beta2' : 				df_param.l_mcts_beta2,
+	# 		'mcts_beta3' : 				df_param.l_mcts_beta3,
+	# 	} for i in mcts_policy_files])
+	# df_param.defenderPolicyDicts.extend([
+	# 	{
+	# 		'sim_mode' : 				"GLAS",
+	# 		'path_glas_model' : 		'../{}/b{}.pt'.format(name,i),
+	# 		'deterministic': 			True,
+	# 	} for i in glas_policy_files])
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-game_file", default=None, required=False)

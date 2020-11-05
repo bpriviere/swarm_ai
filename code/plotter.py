@@ -1271,10 +1271,10 @@ def plot_exp6(sim_result,dirname):
 				# plot root node 
 				ax.scatter(pos_x[0],pos_y[0],c='k',s=size,zorder=3)
 
-			else: 
-				ax.set_aspect('equal')
-				ax.set_xlim([env_xlim[0],env_xlim[1]])
-				ax.set_ylim([env_ylim[0],env_ylim[1]])
+			# else: 
+			ax.set_aspect('equal')
+			ax.set_xlim([env_xlim[0],env_xlim[1]])
+			ax.set_ylim([env_ylim[0],env_ylim[1]])
 
 			# arrange 
 			ax.grid(True)
@@ -1393,9 +1393,13 @@ def plot_exp4_results(all_sim_results):
 
 	# key = (i_case, team, exp4_sim_mode)
 	# value = (forallrobots, image)
-	sim_im = defaultdict(list)
-	predict_im = defaultdict(list)
-	policy_ims = defaultdict(list)
+	# sim_im = defaultdict(list)
+	# predict_im = defaultdict(list)
+	# policy_ims = defaultdict(list)
+	
+	sim_im = dict()
+	predict_im = dict()
+	policy_ims = dict()	
 	dss = dict()
 	params = dict()
 	nominal_states = dict()
@@ -1409,10 +1413,21 @@ def plot_exp4_results(all_sim_results):
 		key = (i_case, team, policy_to_label(policy_dict))
 
 		if sim_result["param"]["exp4_prediction_type"] == "VALUE": 
-			predict_im[key].append(sim_result["value_ims"])
-			policy_ims[key].append(sim_result["policy_ims"])
+
+			if key not in predict_im.keys():
+				predict_im[key] = sim_result["value_ims"]
+				policy_ims[key] = sim_result["policy_ims"]
+			else:
+				predict_im[key] += sim_result["value_ims"]
+				policy_ims[key] += sim_result["policy_ims"]
+			
 		elif sim_result["param"]["exp4_prediction_type"] == "SIM": 
-			sim_im[key].append(sim_result["value_ims"])
+
+			if key not in sim_im.keys():
+				sim_im[key] = sim_result["value_ims"]
+			else:
+				sim_im[key] += sim_result["value_ims"]
+
 		else: 
 			print('prediction mode: {} not recognized'.format(sim_result["param"]["exp4_prediction_type"]))
 			exit()
@@ -1426,6 +1441,7 @@ def plot_exp4_results(all_sim_results):
 	attackerPolicyDicts = all_sim_results[0]["param"]["attackerPolicyDicts"]
 	defenderPolicyDicts = all_sim_results[0]["param"]["defenderPolicyDicts"]
 	n_cases = all_sim_results[0]["param"]["n_case"]
+	n_trials = all_sim_results[0]["param"]["exp4_num_trials"]
 
 	for i_case in range(n_cases): 
 
@@ -1453,21 +1469,24 @@ def plot_exp4_results(all_sim_results):
 
 					# plot prediction
 					ax = axs[i_policy_dict,0]
-					data = np.mean(np.array(predict_im[key]),axis=0)
+					# data = np.mean(np.array(predict_im[key]),axis=0)
+					data = np.array(predict_im[key]) / n_trials
 					im = ax.imshow(data[robot_idx,:,:].T,origin='lower',\
 						extent=(X[0], X[-1], Y[0], Y[-1]))
 						# extent=(X[0], X[-1], Y[0], Y[-1]),vmin=0,vmax=1)
 
 					# plot simulated value
 					ax = axs[i_policy_dict,1]
-					data = np.mean(np.array(sim_im[key]),axis=0)
+					# data = np.mean(np.array(sim_im[key]),axis=0)
+					data = np.array(sim_im[key]) / n_trials
 					im = ax.imshow(data[robot_idx,:,:].T,origin='lower',\
 						extent=(X[0], X[-1], Y[0], Y[-1]))
 						# extent=(X[0], X[-1], Y[0], Y[-1]),vmin=0,vmax=1)
 
 					# plot policy 
 					ax = axs[i_policy_dict,2]
-					data = np.mean(np.array(policy_ims[key])[:,robot_idx,:,:],axis=0)
+					# data = np.mean(np.array(policy_ims[key])[:,robot_idx,:,:],axis=0)
+					data = np.array(policy_ims[key])[robot_idx,:,:] / n_trials
 					data = np.transpose(data,axes=(1,0,2))
 					C = np.linalg.norm(data,axis=2)
 					ax.quiver(np.array(X),np.array(Y),data[:,:,0],data[:,:,1],width=0.01)

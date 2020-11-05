@@ -5,6 +5,7 @@ import os, sys
 import glob
 import multiprocessing as mp 
 import argparse 
+import numpy as np 
 
 # my packages 
 from param import Param
@@ -28,6 +29,16 @@ def get_params(df_param):
 		param.policy_dict["path_glas_model_b"] = df_param.policy_dict["path_glas_model_b"]
 		param.trial = trial
 		param.update()
+
+		# fix some initial condition 
+		# param.state = [
+		# 	[0.1*param.env_l,0.52*param.env_l,0,0],
+		# 	[0.1*param.env_l,0.51*param.env_l,0,0],
+		# 	[0.1*param.env_l,0.5*param.env_l,0,0],
+		# 	[0.9*param.env_l,0.5*param.env_l,0,0],
+		# 	]
+		# param.goal = np.array([0.8*param.env_l,0.5*param.env_l,0,0])
+
 		params.append(param)
 	return params 
 
