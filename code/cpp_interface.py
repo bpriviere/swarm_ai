@@ -205,6 +205,9 @@ def play_game(param,policy_dict_a,policy_dict_b):
 		for robot_idx in robot_idxs: 
 			param.robots[robot_idx]["radius"] = 0.0 
 
+		param.robot_types["standard_robot"]["radius"] = 0.0 
+		param.robot_types["evasive_robot"]["radius"] = 0.0 
+
 		pp = PanagouPolicy(param)
 		pp.init_sim(param.state)
 
