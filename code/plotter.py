@@ -406,7 +406,27 @@ def plot_tree_results(sim_result,title=None):
 		ax.plot(states[:,i,0],states[:,i,1],linewidth=1,color=colors[i],marker="o",markersize=0.75)
 		# Tag radius (last time step)
 		ax.add_patch(mpatches.Circle(states[-1,i,0:2], sim_result["param"]["robots"][i]["tag_radius"],color=colors[i],alpha=0.2,fill=False))
+		# Put special markers on attacker robot events
+		if (sim_result["param"]["robots"][i]["team"] == 'a') :
+			# Find the last valid states
+			idx_unkn = np.where(np.isnan(states[:,i,0]) == True)
+			idx_dead = np.where(np.isneginf(states[:,i,0]) == True)
+			idx_goal = np.where(np.isposinf(states[:,i,0]) == True)
 
+			# Plot events
+			if (len(idx_unkn[0])) :
+				# Robot is unknown
+				idx = max(0,min(idx_unkn[0])-1)
+				ax.plot(states[idx,i,0],states[idx,i,1],linewidth=1,color=colors[i],marker="|",markersize=3)
+			if (len(idx_dead[0])) :
+				# Robot is dead
+				idx = max(0,min(idx_dead[0])-1)
+				ax.plot(states[idx,i,0],states[idx,i,1],linewidth=1,color=colors[i],marker="x",markersize=3)
+			if (len(idx_goal[0])) :
+				# Robot is at the goal
+				idx = max(0,min(idx_goal[0])-1)
+				ax.plot(states[idx,i,0],states[idx,i,1],linewidth=1,color=colors[i],marker="o",markersize=3)
+		
 	ax.set_xlim([env_xlim[0],env_xlim[1]])
 	ax.set_ylim([env_ylim[0],env_ylim[1]])
 
