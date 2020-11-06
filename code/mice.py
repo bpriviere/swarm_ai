@@ -925,7 +925,7 @@ def format_dir(df_param):
 
 def sample_curriculum(curriculum):
 
-	mode = "special"
+	mode = "uniform"
 
 	if mode == "naive": 
 		# 'naive' curriculum learning 

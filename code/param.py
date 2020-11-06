@@ -39,7 +39,7 @@ class Param:
 				'acceleration_limit':2.0,
 				'tag_radius': 0.10,
 				'dynamics':'double_integrator',
-				'r_sense': 1.0,
+				'r_sense': 3.0,
 				'radius': 0.05,
 			},
 			'evasive_robot' : {
@@ -69,8 +69,8 @@ class Param:
 		self.l_num_iterations = 1
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
 		self.l_num_points_per_file = 5000
-		self.l_mcts_c_param = 1.4
-		self.l_mcts_pw_C = 2.0
+		self.l_mcts_c_param = 2.0
+		self.l_mcts_pw_C = 1.0
 		self.l_mcts_pw_alpha = 0.25
 		self.l_mcts_beta1 = 0.0
 		self.l_mcts_beta2 = 0.5
@@ -102,9 +102,9 @@ class Param:
 		self.l_desired_game = {
 			'Skill_A' : 5, #'a1.pt',
 			'Skill_B' : 5, #'b1.pt',
-			'EnvironmentLength' : 2.0,
-			'NumA' : 2,
-			'NumB' : 2,
+			'EnvironmentLength' : 5.0,
+			'NumA' : 5,
+			'NumB' : 5,
 		}
 		self.l_initial_curiculum = {
 			'Skill_A' : [None],
