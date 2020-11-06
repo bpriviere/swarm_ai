@@ -205,6 +205,9 @@ def play_game(param,policy_dict_a,policy_dict_b):
 		for robot_idx in robot_idxs: 
 			param.robots[robot_idx]["radius"] = 0.0 
 
+		param.robot_types["standard_robot"]["radius"] = 0.0 
+		param.robot_types["evasive_robot"]["radius"] = 0.0 
+
 		pp = PanagouPolicy(param)
 		pp.init_sim(param.state)
 
@@ -316,8 +319,9 @@ def play_game(param,policy_dict_a,policy_dict_b):
 					sim_result['trees'].append(mctsresult.tree)
 					sim_result['tree_params'].append({
 							'tree_team_1_idxs' : param.team_1_idxs,
+							'tree_team_2_idxs' : param.team_2_idxs,
 							'time' : param.sim_dt*len(sim_result['states']),
-							'robot_idx' : 'Centralized',
+							'robot_idx' : 0,
 						})
 				if mctssettings.export_root_reward_over_time:
 					sim_result['root_rewards_over_time'].append(mctsresult.rootRewardOverTime)
@@ -351,6 +355,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 						sim_result['trees'].append(mctsresult.tree)
 						sim_result['tree_params'].append({
 							'tree_team_1_idxs' : team_1_idxs_i,
+							'tree_team_2_idxs' : team_2_idxs_i,
 							'time' : param.sim_dt*len(sim_result['states']),
 							'robot_idx' : robot_idx,
 							})
@@ -488,34 +493,65 @@ def evaluate_expert_value(rank, queue, total, states, param, policy_fn_a, policy
 		'param' : param.to_dict()
 		}
 
+	if param.l_glas_rollout_on:
+		policy_dict_a = {
+			'sim_mode': 'GLAS',
+			'path_glas_model' : policy_fn_a,
+			'deterministic': False,
+		}
 
-	policy_dict_a = {
-		'sim_mode': 'GLAS',
-		'path_glas_model' : policy_fn_a,
-		'deterministic': True,
-	}
+		policy_dict_b = {
+			'sim_mode': 'GLAS',
+			'path_glas_model' : policy_fn_b,
+			'deterministic': False,
+		}
+		num_rollouts = 100
 
-	policy_dict_b = {
-		'sim_mode': 'GLAS',
-		'path_glas_model' : policy_fn_b,
-		'deterministic': True,
-	}
+	else: 
+		if param.i > 0:
+			path_value_fnc = param.l_value_model_fn.format(\
+								DATADIR=param.path_current_models,\
+								ITER=param.i)
+		else: 
+			path_value_fnc = None
+
+		policy_dict_a = {
+			'sim_mode' : 				"D_MCTS", 
+			'path_glas_model_a' : 		policy_fn_a, 	
+			'path_glas_model_b' : 		policy_fn_b, 	
+			'path_value_fnc' : 			path_value_fnc, 	
+			'mcts_tree_size' : 			param.l_num_learner_nodes,
+			'mcts_c_param' : 			param.l_mcts_c_param,
+			'mcts_pw_C' : 				param.l_mcts_pw_C,
+			'mcts_pw_alpha' : 			param.l_mcts_pw_alpha,
+			'mcts_beta1' : 				param.l_mcts_beta1,
+			'mcts_beta2' : 				param.l_mcts_beta2,
+			'mcts_beta3' : 				param.l_mcts_beta3,
+		}
+		policy_dict_b = policy_dict_a.copy() 
+		num_rollouts = 1 
+
 
 	for state in states:
 		param.state = state
 
 		values = [] 
-		for _ in range(1):
+		for _ in range(num_rollouts):
 			glas_rollout_sim_result = play_game(param,policy_dict_a,policy_dict_b)
-			values = glas_rollout_sim_result["rewards"][-1,0] * np.ones((glas_rollout_sim_result["states"].shape[0],1)) 
+			values.append(glas_rollout_sim_result["rewards"][-1,0])
+			# values = glas_rollout_sim_result["rewards"][-1,0] * np.ones((glas_rollout_sim_result["states"].shape[0],1)) 
 
 			# sim_result["states"].extend(glas_rollout_sim_result["states"])
 			# sim_result["n_rgs"].extend(glas_rollout_sim_result["n_rgs"])
 			# sim_result["values"].extend(values)
 
-			sim_result["states"].append(glas_rollout_sim_result["states"][0]) 
-			sim_result["n_rgs"].append(glas_rollout_sim_result["n_rgs"][0])
-			sim_result["values"].append(values[[0]])			
+			# sim_result["states"].append(glas_rollout_sim_result["states"][0]) 
+			# sim_result["n_rgs"].append(glas_rollout_sim_result["n_rgs"][0])
+			# sim_result["values"].append(values[[0]])			
+
+		sim_result["states"].append(glas_rollout_sim_result["states"][0]) 
+		sim_result["n_rgs"].append(glas_rollout_sim_result["n_rgs"][0])
+		sim_result["values"].append(sum(values)/len(values))			
 
 		# update status
 		if rank == 0:

@@ -13,21 +13,27 @@ class Param:
 
 		# sim param 
 		self.sim_num_trials = 10
-		self.sim_dt = 0.25
+		self.sim_dt = 0.1
 		self.sim_parallel_on = True
 
 		# these parameters are also used for learning 
 		self.policy_dict = {
 			'sim_mode' : 				"MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
-			'path_glas_model_a' : 		None, 	#'../current/models/a1.pt', 
-			'path_glas_model_b' : 		None, 	#'../current/models/b1.pt', 
-			'path_value_fnc' : 			None, 	#'../current/models/v1.pt', 
-			'mcts_tree_size' : 			10000,
+			'path_glas_model_a' : 		None, 	# '../current/models/a1.pt', None
+			'path_glas_model_b' : 		None, 	# '../current/models/b1.pt', None
+			'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None
+			# 'path_glas_model_a' : 		'../current/models/a4.pt', 	# '../current/models/a1.pt', None
+			# 'path_glas_model_b' : 		'../current/models/b4.pt', 	# '../current/models/b1.pt', None
+			# 'path_value_fnc' : 			'../current/models/v4.pt', 	# '../current/models/v1.pt', None
+			# 'path_glas_model_a' : 		'../saved/r28/a3.pt', # None
+			# 'path_glas_model_b' : 		'../saved/r28/b3.pt', # None
+			# 'path_value_fnc' : 			'../saved/r28/v3.pt', # None			
+			'mcts_tree_size' : 			1000,
 			'mcts_c_param' : 			1.4,
-			'mcts_pw_C' : 				1.0,
+			'mcts_pw_C' : 				0.5,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
-			'mcts_beta2' : 				0.0,
+			'mcts_beta2' : 				0.5,
 			'mcts_beta3' : 				0.5,
 		}
 
@@ -35,17 +41,17 @@ class Param:
 		# robot types 
 		self.robot_types = {
 			'standard_robot' : {
-				'speed_limit': 0.125,
-				'acceleration_limit':0.125,
-				'tag_radius': 0.025,
+				'speed_limit': 0.5,
+				'acceleration_limit':2.0,
+				'tag_radius': 0.10,
 				'dynamics':'double_integrator',
-				'r_sense': 0.5,
-				'radius': 0.025,
+				'r_sense': 3.0,
+				'radius': 0.05,
 			},
 			'evasive_robot' : {
-				'speed_limit': 0.125,
-				'acceleration_limit':0.2,
-				'tag_radius': 0.025,
+				'speed_limit': 0.0625,
+				'acceleration_limit':0.5,
+				'tag_radius': 0.0125,
 				'dynamics':'double_integrator',
 				'r_sense': 0.5,
 				'radius': 0.025,
@@ -53,12 +59,13 @@ class Param:
 		}
 
 		self.robot_team_composition = {
-			'a': {'standard_robot':1,'evasive_robot':0},
+			'a': {'standard_robot':2,'evasive_robot':0},
+			# 'a': {'standard_robot':2,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 		}
 		
 		# environment
-		self.env_l = 1.0
+		self.env_l = 2.0
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
@@ -69,8 +76,8 @@ class Param:
 		self.l_num_iterations = 1
 		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
 		self.l_num_points_per_file = 5000
-		self.l_mcts_c_param = 1.4
-		self.l_mcts_pw_C = 2.0
+		self.l_mcts_c_param = 2.0
+		self.l_mcts_pw_C = 1.0
 		self.l_mcts_pw_alpha = 0.25
 		self.l_mcts_beta1 = 0.0
 		self.l_mcts_beta2 = 0.5
@@ -102,14 +109,14 @@ class Param:
 		self.l_desired_game = {
 			'Skill_A' : 5, #'a1.pt',
 			'Skill_B' : 5, #'b1.pt',
-			'EnvironmentLength' : 1.0,
-			'NumA' : 2,
-			'NumB' : 2,
+			'EnvironmentLength' : 5.0,
+			'NumA' : 5,
+			'NumB' : 5,
 		}
 		self.l_initial_curiculum = {
 			'Skill_A' : [None],
 			'Skill_B' : [None],
-			'EnvironmentLength' : [1.0],
+			'EnvironmentLength' : [2.0],
 			'NumA' : [1,2],
 			'NumB' : [1,2],
 		}
@@ -201,6 +208,8 @@ class Param:
 
 		self.tree_timestep = 10
 		self.plot_tree_on = False
+
+		self.init_on_sides = True
 		
 		self.update()
 
@@ -217,13 +226,13 @@ class Param:
 		self.env_xlim = [0,self.env_l]
 		self.env_ylim = [0,self.env_l]
 
-		self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
-		self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
-		# self.reset_ylim_A = [0.1*self.env_l,0.2*self.env_l]
-		# self.reset_ylim_B = [0.8*self.env_l,0.9*self.env_l]
+		if self.init_on_sides: 
+			self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
+			self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
+		else: 
+			self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
+			self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
 
-		# self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
-		# self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
 
@@ -354,7 +363,10 @@ class Param:
 		self.actions = np.asarray(list(itertools.product(*[[-1,0,1],[-1,0,1]])))
 
 		# max timesteps until the game terminates
-		self.rollout_horizon = int(100 * self.env_l)
+		# self.rollout_horizon = int(100 * self.env_l)
+		num_backnforth = 5
+		self.rollout_horizon = int(num_backnforth * self.num_nodes * self.env_l \
+			/ (self.robot_types["standard_robot"]["speed_limit"] * self.sim_dt))
 
 
 	def get_random_position_inside(self,xlim,ylim):

@@ -24,8 +24,6 @@ Action Vector
 
 '''
 TODO List
-- Optimal matching when n_defs != n_att
-- Proper panagou attacker (minimise terminal distance rather than straihgt for the goal)
 '''
 
 class PanagouPolicy:
