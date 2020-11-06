@@ -470,7 +470,7 @@ def plot_tree_results(sim_result,title=None):
 			sigmas = np.array(sigmas)
 
 			ax.plot(times,mus,color=colors[i],alpha=0.5) 
-			ax.fill_between(times,mus-sigmas,mus+sigmas,color='green',alpha=0.25) 
+			ax.fill_between(times,mus-sigmas,mus+sigmas,color=colors[i],alpha=0.25) 
 
 	# time varying velocity
 	ax = axs[1,0]
