@@ -28,17 +28,24 @@ def do_work(param):
 
 def get_params(df_param):
 	params = [] 
+	count = 0 
 	for i_trial in range(df_param.n_trials):
-		param = Param() 
-		param.plot_tree_on = True 
-		param.tree_timestep = 1 
-		param.i_trial = i_trial 
-		param.dataset_fn = '{}sim_result_{:03d}'.format(\
-					df_param.path_current_results,i_trial)
-		param.save_dir = df_param.save_dir
-		param.snapshot_dir = os.path.join(df_param.save_dir,"{}".format(param.i_trial))
-		param.update(initial_condition=df_param.state)
-		params.append(param)
+		for policy_i in df_param.policies: 
+			param = Param() 
+			param.policy_dict['path_glas_model_a'] = "{}/a{}.pt".format(df_param.exp_6_model_dir,policy_i) if policy_i > 0 else None
+			param.policy_dict['path_glas_model_b'] = "{}/b{}.pt".format(df_param.exp_6_model_dir,policy_i) if policy_i > 0 else None
+			param.policy_dict['path_value_fnc'] = "{}/v{}.pt".format(df_param.exp_6_model_dir,policy_i) if policy_i > 0 else None
+			param.plot_tree_on = True 
+			param.tree_timestep = 1 
+			param.i_trial = count
+			param.n = i_trial
+			param.dataset_fn = '{}sim_result_{:03d}'.format(\
+						df_param.path_current_results,param.i_trial)
+			param.save_dir = df_param.save_dir
+			param.snapshot_dir = os.path.join(df_param.save_dir,"{}".format(param.i_trial))
+			param.update(initial_condition=df_param.state)
+			params.append(param)
+			count += 1 
 
 	for param in params:
 		param.total = len(params)
@@ -52,7 +59,7 @@ def format_dir(df_param):
 	os.makedirs(df_param.save_dir)
 
 	# create subdirs to save 
-	for i_trial in range(df_param.n_trials):
+	for i_trial in range(df_param.n_trials * len(df_param.policies)):
 		subdir = os.path.join(df_param.save_dir,"{}".format(i_trial))
 		os.makedirs(subdir)
 
@@ -67,8 +74,11 @@ def main():
 	df_param = Param() 
 	df_param.n_trials = 5
 	df_param.save_dir = "plots/exp6"
+	df_param.exp_6_model_dir = "../saved/r28"
+	df_param.policies = [3]
 	df_param.state = [
-		[0.1*df_param.env_l,0.5*df_param.env_l,0,0],
+		[0.1*df_param.env_l,0.4*df_param.env_l,0,0],
+		[0.1*df_param.env_l,0.6*df_param.env_l,0,0],
 		[0.9*df_param.env_l,0.5*df_param.env_l,0,0],
 		]
 
@@ -91,9 +101,13 @@ def main():
 	for sim_result in sim_results:
 		_, filename = os.path.split(files[count])
 
+		model_name = os.path.basename(sim_result["param"]["policy_dict"]["path_glas_model_a"])[1] if \
+			sim_result["param"]["policy_dict"]["path_glas_model_a"] is not None else "None"
+
 		# Plot results of each run
 		sim_result["trees"] = []
-		plotter.plot_tree_results(sim_result,title=sim_result["param"]["i_trial"])
+		plotter.plot_tree_results(sim_result,title=
+			"i={},model={}',trial={}".format(sim_result["param"]["i_trial"],model_name,sim_result["param"]["n"]))
 		count += 1 
 		# Limit the maximum number of results files to plot
 		if count >= 50: 

@@ -319,8 +319,9 @@ def play_game(param,policy_dict_a,policy_dict_b):
 					sim_result['trees'].append(mctsresult.tree)
 					sim_result['tree_params'].append({
 							'tree_team_1_idxs' : param.team_1_idxs,
+							'tree_team_2_idxs' : param.team_2_idxs,
 							'time' : param.sim_dt*len(sim_result['states']),
-							'robot_idx' : 'Centralized',
+							'robot_idx' : 0,
 						})
 				if mctssettings.export_root_reward_over_time:
 					sim_result['root_rewards_over_time'].append(mctsresult.rootRewardOverTime)
@@ -354,6 +355,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 						sim_result['trees'].append(mctsresult.tree)
 						sim_result['tree_params'].append({
 							'tree_team_1_idxs' : team_1_idxs_i,
+							'tree_team_2_idxs' : team_2_idxs_i,
 							'time' : param.sim_dt*len(sim_result['states']),
 							'robot_idx' : robot_idx,
 							})
