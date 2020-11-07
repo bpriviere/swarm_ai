@@ -355,14 +355,10 @@ def find_best_actions(param,robots,prev_best) :
 		U = theta_to_u(att_robot,att_theta)
 		states = integrate(att_robot, att_robot["x0"], U, t_capture)
 
-		# Interpolate to find the exact distance to the goal at t_capture
-		x_capture = states[0]
-		y_capture = states[1]
+		# Calculate the distance to the goal
+		dist2goal = np.linalg.norm(states[0:2] - param.goal[0:2])
 
-		dist2goal = np.power(param.goal[0]-x_capture,2) + np.power(param.goal[1]-y_capture,2)
-
-		eqns = (dist2goal)
-		return eqns
+		return dist2goal
 
 	print_debug = 0
 	attacker_direct_to_goal = 1
@@ -584,13 +580,11 @@ def find_nominal_soln(param,robot,state):
 
 		# Simulate system
 		states = integrate(robot,state,U,Tend)
-		Xsample = states[0]
-		Ysample = states[1]
 
 		# Extract useful information
 		eqns = (
-			Xsample - param.goal[0], 
-			Ysample - param.goal[1], 
+			np.linalg.norm(states[0] - param.goal[0]), 
+			np.linalg.norm(states[1] - param.goal[1]), 
 			)
 		return eqns
 
@@ -652,17 +646,10 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 		att_state = integrate(att_robot,att_robot["x0"],att_U,Tend) 
 		def_state = integrate(def_robot,def_robot["x0"],def_U,Tend) 
 
-		
-		att_X = att_state[0]
-		att_Y = att_state[1]
-
-		def_X = def_state[0]
-		def_Y = def_state[1]
-
 		# Calculate the distance between the attacker and defender in the x- and y-axes
 		eqns = (
-			att_X - def_X, 
-			att_Y - def_Y, 
+			np.linalg.norm(att_state[0] - def_state[0]),
+			np.linalg.norm(att_state[1] - def_state[1]),
 			)
 		return eqns
 
