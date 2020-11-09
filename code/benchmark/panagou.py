@@ -405,7 +405,7 @@ def find_best_actions(param,robots,prev_best) :
 				# Calculate how long it will take for this defender to capture the attacker
 				def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
 				#def_theta_guess = def_theta_prev	
-				def_theta_best, t_end = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)
+				def_theta_nom, t_end = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)
 
 				if (att_terminal_time < t_end) :
 					# Attacker will win, use the nominal attacker results
@@ -420,6 +420,7 @@ def find_best_actions(param,robots,prev_best) :
 					if (attacker_direct_to_goal) :
 						# Go straight to the goal
 						att_theta_best = att_theta_nom
+						def_theta_best = def_theta_nom
 
 						# We know what the attacker will do from before,
 						# so we don't need to calculate that (and t_end) again
@@ -431,9 +432,8 @@ def find_best_actions(param,robots,prev_best) :
 						if not res.success :
 							# Iteration thing didn't work, let's just got with the nominal solution
 							# for the attacker and the previous value for the defender
-							att_theta_best = att_theta_prev
-							def_theta_best = def_theta_prev
-							t_end = t_end_prev
+							att_theta_best = att_theta_nom
+							def_theta_best = def_theta_nom
 
 						else : 
 							# We have a solution, roll with it
@@ -679,42 +679,43 @@ def integrate(robot,x0,U,t_end) :
 	# U = [ aX aY ]
 
 	# Magnitude of acceleration
-	a = math.sqrt(U[0] **2 + U[1]**2)
+	a = np.linalg.norm(U)
+
 	# Magnitude of starting velocity
-	v0 = math.sqrt(x0[2]**2 + x0[3]**2)
+	v0 = np.linalg.norm(x0[2:])
+
 	# time at which max velocity is reached
 	if a > 0.0 :
-		tchange = (robot["speed_limit"] - v0) / a
+		t_maxV = (robot["speed_limit"]-v0) / a
 	else :
-		tchange = np.inf
+		t_maxV = np.inf
 
-	if t_end <= tchange :
+	if t_end <= t_maxV :
 		# Final positions (constant acceleration)
-		xfinal = x0[0] + x0[2] * t_end + 0.5 * U[0] * t_end**2
-		yfinal = x0[1] + x0[3] * t_end + 0.5 * U[1] * t_end**2
+		posX_final = x0[0] + x0[2]*t_end + 0.5*U[0]*t_end**2
+		posY_final = x0[1] + x0[3]*t_end + 0.5*U[1]*t_end**2
 
 		# Final velocities 
-		vxfinal = x0[2] + U[0] * t_end
-		vyfinal = x0[3] + U[1] * t_end
+		Vx_final = x0[2] + U[0]*t_end
+		Vy_final = x0[3] + U[1]*t_end
 
 	else :
 		# Calculate the final velocities
-		vxfinal = robot["speed_limit"] * U[0] / a
-		vyfinal = robot["speed_limit"] * U[1] / a
+		Vx_final = robot["speed_limit"] * U[0] / a
+		Vy_final = robot["speed_limit"] * U[1] / a
 
 		# Constant acceleration phase
-		xfinal = x0[0] + x0[2] * tchange + 0.5 * U[0] * tchange**2
-		yfinal = x0[1] + x0[3] * tchange + 0.5 * U[1] * tchange**2
+		posX_final = x0[0] + x0[2]*t_maxV + 0.5 *U[0]*t_maxV**2
+		posY_final = x0[1] + x0[3]*t_maxV + 0.5 *U[1]*t_maxV**2
 
 		# Constant velocity phase
-		xfinal += vxfinal * (t_end - tchange)
-		yfinal += vyfinal * (t_end - tchange)
+		posX_final += Vx_final * (t_end - t_maxV)
+		posY_final += Vy_final * (t_end - t_maxV)
 
-	state = [xfinal, yfinal, vxfinal, vyfinal]
+	state = [posX_final, posY_final, Vx_final, Vy_final]
 
 
 	return state
-
 
 def theta_to_u(robot,theta):
 	return robot["acceleration_limit"]*np.array((np.cos(theta),np.sin(theta)))
