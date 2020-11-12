@@ -176,62 +176,57 @@ class PanagouPolicy:
 			# Step a time step for each robot
 			for i_robot,robot in enumerate(self.robots):
 				if (0): print("(%d) " % i_robot,end='')
-				distance_to_goal = 1e6
-				distance_to_capture = np.empty((0))
 
-				# Work out the robot's distances to things
-				if (robot["team"] == "a") :     # attacker
-					if (0) : print("A%d > " % i_robot, end='')
-
-					# Calculate distances to goal
-					distance_to_goal    = math.sqrt((states[-1][i_robot][0]-self.param.goal[0])**2 + (states[-1][i_robot][1]-self.param.goal[1])**2)
-					if (0) : print("(goal): %6.3f, " % (distance_to_goal),end='')
-
-					# Calculate distances to all attackers
-					for j_robot in self.param.team_2_idxs: 
-						distance_to_this_attacker = math.sqrt((states[-1][i_robot][0]-states[-1][j_robot][0])**2 + (states[-1][i_robot][1]-states[-1][j_robot][1])**2)
-						distance_to_capture  = np.append(distance_to_capture, np.array([distance_to_this_attacker]), axis=0)
-						if (0) : print("(D%d): %6.3f, " % (j_robot,distance_to_this_attacker), end='')
-
-				else :
-					# Robot is defender so we don't need to calculate game-state stuff
-					distance_to_capture = 1e6
-					pass
-
-				# Step the state
-				if (distance_to_goal < robot["tag_radius"]) : 
-					# Attacker has won, propogate out the last state for all robots
-					print("A%d WINS || " % (i_robot) ,end='')
-					state[:,:] = states[-1][:,:]
-
-					# End the game for everyone
-					game_over.fill(1)
-
-				elif (np.any(distance_to_capture < robot["tag_radius"])) : 
-					# Defender has won, propogate out the last state to only the captured robot
-					j_robot = self.param.team_2_idxs[np.argmin(distance_to_capture)]
-
-					print("A%d DEF  || " % (i_robot), end='')
-					state[i_robot,:] = states[-1][i_robot,:]
-					state[j_robot,:] = states[-1][j_robot,:]
-
-					# End the game for the defender and attacker
-					game_over[i_robot] = 1
-					game_over[j_robot] = 1
-
-				elif (np.all(game_over == 1)) :
-					# Game has ended (probably from a capture)
-					if (robot["team"] == "a") : print("        || ", end='')
-					state[i_robot,:] = states[-1][i_robot,:]
-
-				else :
-					# Game is still on!
-					if (robot["team"] == "a" and 0) : print("        || ", end='')
-					state[i_robot,:] = step(robot, states[-1][i_robot,:], actions[i_robot,:], self.param.sim_dt)
-				
 				if (game_over[i_robot]) :
 					# Game over for this robot, put it back to the previous state
 					state[i_robot,:] = states[-1][i_robot,:]
+
+				else :
+					distance_to_goal = 1e6
+					distance_to_capture = np.empty((0))
+
+					# Work out the robot's distances to things
+					if (robot["team"] == "a") :     # attacker
+						if (0) : print("A%d > " % i_robot, end='')
+
+						# Calculate distances to goal
+						distance_to_goal    = math.sqrt((states[-1][i_robot][0]-self.param.goal[0])**2 + (states[-1][i_robot][1]-self.param.goal[1])**2)
+						if (0) : print("(goal): %6.3f, " % (distance_to_goal),end='')
+
+						# Calculate distances to all attackers
+						for j_robot in self.param.team_2_idxs: 
+							distance_to_this_attacker = math.sqrt((states[-1][i_robot][0]-states[-1][j_robot][0])**2 + (states[-1][i_robot][1]-states[-1][j_robot][1])**2)
+							distance_to_capture  = np.append(distance_to_capture, np.array([distance_to_this_attacker]), axis=0)
+							if (0) : print("(D%d): %6.3f, " % (j_robot,distance_to_this_attacker), end='')
+
+					else :
+						# Robot is defender so we don't need to calculate game-state stuff
+						distance_to_capture = 1e6
+						pass
+
+					# Step the state
+					if (distance_to_goal < robot["tag_radius"]) : 
+						# Attacker has won, mark it
+						print("A%d WINS || " % (i_robot) ,end='')
+						state[i_robot,:] = state[i_robot,:]+np.inf
+
+						# End the game for the attacker
+						game_over[i_robot] = 1
+
+					elif (np.any(distance_to_capture < robot["tag_radius"])) :
+						# Defender has captured attacker, propogate out the last state to only the captured robot
+						j_robot = self.param.team_2_idxs[np.argmin(distance_to_capture)]
+
+						print("A%d DEF  || " % (i_robot), end='')
+						state[i_robot,:] = state[i_robot,:]+np.NINF
+
+						# End the game for the attacker
+						game_over[i_robot] = 1
+
+					else :
+						# Game is still on!
+						if (robot["team"] == "a" and 0) : print("        || ", end='')
+						state[i_robot,:] = step(robot, states[-1][i_robot,:], actions[i_robot,:], self.param.sim_dt)
 
 				if (0): print(" <> ",end='')
 
