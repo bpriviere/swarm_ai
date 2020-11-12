@@ -624,10 +624,19 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess) :
 		att_state = integrate(att_robot,att_robot["x0"],att_U,Tend) 
 		def_state = integrate(def_robot,def_robot["x0"],def_U,Tend) 
 
+		# If the time to capture gets to large, artificailly make it smaller
+		# so that the system has a chance to converge
+		X_error = np.linalg.norm(att_state[0] - def_state[0])
+		Y_error = np.linalg.norm(att_state[1] - def_state[1])
+
+		if Tend > 50 :
+			X_error = X_error / (Tend - 50)
+			Y_error = Y_error / (Tend - 50)
+
 		# Calculate the distance between the attacker and defender in the x- and y-axes
 		eqns = (
-			np.linalg.norm(att_state[0] - def_state[0]),
-			np.linalg.norm(att_state[1] - def_state[1]),
+			X_error,
+			Y_error,
 			)
 		return eqns
 
