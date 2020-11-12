@@ -344,7 +344,7 @@ def find_best_actions(param,robots,prev_best) :
 		att_theta = temp[0]
 
 		# Calculate the defender's best theta and corresponding time to capture for the given new attacker input
-		def_theta_guess,t_capture = find_best_intercept(att_robot,def_robot,att_theta,def_theta_guess,param.sim_dt)
+		def_theta_guess,t_capture = find_best_intercept(att_robot,def_robot,att_theta,def_theta_guess)
 
 		# Integrate the attacker's state with the new theta guess
 		U = theta_to_u(att_robot,att_theta)
@@ -422,10 +422,10 @@ def find_best_actions(param,robots,prev_best) :
 					else : 
 						# Try to minimise the distance to the goal upon capture
 						# This is temporamental to say the least...
-						res = minimize(func_dist_to_goal, att_theta_prev, args=(def_theta_prev), options={'maxiter': 11})
+						res = minimize(func_dist_to_goal, att_theta_prev, args=(def_theta_nom), options={'maxiter': 11})
 						if not res.success :
 							# Iteration thing didn't work, let's just got with the nominal solution
-							# for the attacker and the previous value for the defender
+							# for the attacker and the direct-to-attacker value for the defender
 							att_theta_best = att_theta_nom
 							def_theta_best = def_theta_nom
 
@@ -434,7 +434,7 @@ def find_best_actions(param,robots,prev_best) :
 							att_theta_best = res["x"][0]
 
 							# Simulate the results to get the results we need (from the defender's side)
-							def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
+							def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess)
 
 					# Calculate the attacker poition at t_end
 					U = theta_to_u(att_robot,att_theta_best)
@@ -603,18 +603,18 @@ def find_nominal_soln(param,robot,state):
 	if (print_debug) : 
 		print("Guess: %7.2f [ deg ], %.2f  [ s ], Approx: %7.2f [ deg ], %.2f  [ s ], Exact: %7.2f [ deg ], %.2f  [ s ]" % \
 			(theta_guess*57.7, Tend_guess, \
-			theta_approx*57.7, Tend_approx, \
 			theta_exact*57.7, Tend_exact))
 
 
 	return theta_exact,Tend_exact
 
-def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_dt) :
+def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess) :
 	# Calculates the trajectory to minimum-time-to-intercept for an attacker/defender 
 	# pair when the attacker's trajectory is known.
 
 	def equations(p):
 		def_theta, Tend = p
+		#print("%.2f, " % Tend, end='')
 	
 		# Convert theta (th) into U = [ accX, accY ]
 		att_U = theta_to_u(att_robot,att_theta)
@@ -644,26 +644,26 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 
 	else :
 		# Initial conditions for approx equations come from inputs into function
-		# tbh we probably don't need the use this step and can just use those calcualted before
+		# tbh we probably don't need the use this step and can just use those calcualted before.
+		# we just need ot guess what the end time will be
 		dist2att = np.linalg.norm(att_robot["x0"][0:2] - def_robot["x0"][0:2])
-		angle2att = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
 		t_end_guess = dist2att / (att_robot["speed_limit"] + def_robot["speed_limit"])
 
 		# In some cases, we are never able to catch the attacker as we've started behind them,
-		# so we need to catch this case.  This assumption will be no good for assymetric cases
-		if (abs(angle2att - att_theta) < 90/57.7) :
-			# We're behind the robot, just go for it
-			def_theta_approx = angle2att
-			def_theta = angle2att
-
-			Tend = 10
-
-		else : 
-			# Solve using the full simulator
-			def_theta, Tend =  fsolve(equations, (defender_action_guess, t_end_guess), maxfev=21)
-
+		# so we need to catch this case.  Let's get fancy and allow negative times...
+		#print("\n===")
+		res =  fsolve(equations, (defender_action_guess, t_end_guess), maxfev=21, full_output=1)
+		def_theta = res[0][0]
+		Tend = res[0][1]
+		'''
+		if (res[2] != 1) :
+			# Didn't converge well, have to work out why
+			print("\nAtt: (%.2f,%.2f), Def: (%.2f,%.2f)" % (att_robot["x0"][0],att_robot["x0"][1],def_robot["x0"][0],def_robot["x0"][1]))
+			print("Att_theta: %.2f, Def_theta: %.2f" % (att_theta*57.7,defender_action_guess*57.7))
+			a = 1
+			b = 2
+		'''
 		if (print_debug) : print("\t       Guess intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, t_end_guess))
-		if (print_debug) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
 		if (print_debug) : print("\t       Exact intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
 
 	return def_theta,Tend
@@ -726,21 +726,16 @@ def main():
 			[   0.862,   0.852,  -0.000,   0.000 ] ]) 
 
 		initial_condition = np.array( [ \
-			[   0.10,   0.90,   0.000,   0.000 ], \
-			[   0.20,   0.35,   0.000,   0.000 ], \
-			[   0.80,   0.75,   0.000,   0.000 ], \
-			[   0.85,   0.10,   0.000,   0.000 ] ]) 
-
-		initial_condition = np.array( [ \
-			[   0.394,   1.113,  -0.000,   0.000 ], \
-			[   1.731,   1.080,   0.000,  -0.000 ] ]) 
-
+			[   0.370,   0.380,   0.000,   0.000 ], \
+			[   0.217,   0.877,  -0.000,   0.000 ], \
+			[   1.763,   0.339,  -0.000,  -0.000 ], \
+			[   1.609,   1.573,  -0.000,  -0.000 ] ]) 
 
 		df_param = Param()
 		df_param.update(initial_condition=initial_condition)
 
 		# Set the goal
-		df_param.goal = [1.2, 0.7, 0.   , 0.   ]
+		df_param.goal = np.array([1.2, 1.0, 0.   , 0.   ])
 
 	else: 
 		print("====\nUsing Random Initial Conditions\n====")
