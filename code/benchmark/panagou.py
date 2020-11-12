@@ -399,10 +399,9 @@ def find_best_actions(param,robots,prev_best) :
 
 				# Calculate how long it will take for this defender to capture the attacker
 				def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
-				#def_theta_guess = def_theta_prev	
-				def_theta_nom, t_end = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)
+				def_theta_nom, t_end = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess)
 
-				if (att_terminal_time < t_end) :
+				if (att_terminal_time < t_end) or (t_end < 0):
 					# Attacker will win, use the nominal attacker results
 					att_theta_best = att_theta_nom
 					def_theta_best = 0.0
@@ -679,16 +678,16 @@ def integrate(robot,x0,U,t_end) :
 	# Magnitude of starting velocity
 	v0 = np.linalg.norm(x0[2:])
 
-	# time at which max velocity is reached
+	# Time at which max velocity is reached
 	if a > 0.0 :
-		t_maxV = (robot["speed_limit"]-v0) / a
+		t_maxV = (robot["speed_limit"]-v0)/a*np.sign(t_end)
 	else :
-		t_maxV = np.inf
+		t_maxV = np.inf*np.sign(t_end)
 
 	if t_end <= t_maxV :
 		# Final positions (constant acceleration)
-		posX_final = x0[0] + x0[2]*t_end + 0.5*U[0]*t_end**2
-		posY_final = x0[1] + x0[3]*t_end + 0.5*U[1]*t_end**2
+		posX_final = x0[0] + x0[2]*t_end + 0.5*U[0]*t_end**2*np.sign(t_end)
+		posY_final = x0[1] + x0[3]*t_end + 0.5*U[1]*t_end**2*np.sign(t_end)
 
 		# Final velocities 
 		Vx_final = x0[2] + U[0]*t_end
@@ -700,8 +699,8 @@ def integrate(robot,x0,U,t_end) :
 		Vy_final = robot["speed_limit"] * U[1] / a
 
 		# Constant acceleration phase
-		posX_final = x0[0] + x0[2]*t_maxV + 0.5 *U[0]*t_maxV**2
-		posY_final = x0[1] + x0[3]*t_maxV + 0.5 *U[1]*t_maxV**2
+		posX_final = x0[0] + x0[2]*t_maxV + 0.5*U[0]*t_maxV**2*np.sign(t_end)
+		posY_final = x0[1] + x0[3]*t_maxV + 0.5*U[1]*t_maxV**2*np.sign(t_end)
 
 		# Constant velocity phase
 		posX_final += Vx_final * (t_end - t_maxV)
