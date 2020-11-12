@@ -49,12 +49,20 @@ class Param:
 				'radius': 0.05,
 			},
 			'evasive_robot' : {
-				'speed_limit': 0.0625,
-				'acceleration_limit':0.5,
-				'tag_radius': 0.0125,
+				'speed_limit': 0.4,
+				'acceleration_limit':4.0,
+				'tag_radius': 0.10,
 				'dynamics':'double_integrator',
-				'r_sense': 0.5,
-				'radius': 0.025,
+				'r_sense': 3.0,
+				'radius': 0.05,
+			},
+			'slow_robot' : {
+				'speed_limit': 0.25,
+				'acceleration_limit':2.0,
+				'tag_radius': 0.10,
+				'dynamics':'double_integrator',
+				'r_sense': 3.0,
+				'radius': 0.05,
 			}
 		}
 
