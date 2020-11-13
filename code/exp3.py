@@ -111,7 +111,8 @@ if __name__ == '__main__':
 	max_policy_file = 6
 	glas_policy_files = range(1,max_policy_file+1)
 	mcts_policy_files = range(max_policy_file+1)
-	name = "saved/t11/models" # "current/models"
+	name = "current/models" # "saved/t11/models" 
+	# name = "saved/t13/models" 
 
 	df_param.attackerPolicyDicts = []
 	df_param.attackerPolicyDicts.extend([{
@@ -131,6 +132,20 @@ if __name__ == '__main__':
 		'mcts_beta2' : 				df_param.l_mcts_beta2,
 		'mcts_beta3' : 				df_param.l_mcts_beta3,
 		}])
+	df_param.attackerPolicyDicts.extend([{
+		'sim_mode' : 				"MCTS",
+		'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,mcts_policy_files[-1]),
+		'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,mcts_policy_files[-1]),
+		'path_value_fnc' : 			'../{}/v{}.pt'.format(name,mcts_policy_files[-1]),
+		'mcts_tree_size' : 			df_param.l_num_expert_nodes,
+		'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+		'mcts_c_param' : 			df_param.l_mcts_c_param,
+		'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+		'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+		'mcts_beta1' : 				df_param.l_mcts_beta1,
+		'mcts_beta2' : 				df_param.l_mcts_beta2,
+		'mcts_beta3' : 				df_param.l_mcts_beta3,
+		}])	
 	df_param.attackerPolicyDicts.extend([{
 		'sim_mode' : 				"D_MCTS",
 		'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,i) if i > 0  else None,
@@ -169,6 +184,20 @@ if __name__ == '__main__':
 		'mcts_beta2' : 				df_param.l_mcts_beta2,
 		'mcts_beta3' : 				df_param.l_mcts_beta3,
 		}])
+	df_param.defenderPolicyDicts.extend([{
+		'sim_mode' : 				"MCTS",
+		'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,mcts_policy_files[-1]),
+		'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,mcts_policy_files[-1]),
+		'path_value_fnc' : 			'../{}/v{}.pt'.format(name,mcts_policy_files[-1]),
+		'mcts_tree_size' : 			df_param.l_num_expert_nodes,
+		'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+		'mcts_c_param' : 			df_param.l_mcts_c_param,
+		'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+		'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+		'mcts_beta1' : 				df_param.l_mcts_beta1,
+		'mcts_beta2' : 				df_param.l_mcts_beta2,
+		'mcts_beta3' : 				df_param.l_mcts_beta3,
+		}])		
 	df_param.defenderPolicyDicts.extend([{
 		'sim_mode' : 				"D_MCTS",
 		'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,i) if i > 0  else None,
