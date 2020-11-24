@@ -9,6 +9,17 @@ import pandas as pd
 import pickle
 from datetime import datetime,timedelta
 
+from param import Param 
+
+temp_param = Param()
+if temp_param.dynamics["name"] == "single_integrator":
+	state_dim_per_agent = 2
+	action_dim_per_agent = 2 
+elif temp_param.dynamics["name"] == "double_integrator":
+	state_dim_per_agent = 4
+	action_dim_per_agent = 2
+del(temp_param) 
+
 def write_sim_result(sim_result_dict,fn):
 	with open(fn+'.pickle', 'xb') as h:
 		pickle.dump(sim_result_dict, h)
@@ -31,8 +42,8 @@ def read_oa_batch(fn,l_gaussian_on):
 	key = key.split('_')
 	num_a = int(key[3].split('a')[-1])
 	num_b = int(key[4].split('b')[-1])
-	action_dim_per_agent = 2
-	state_dim_per_agent = 4
+	# action_dim_per_agent = 2
+	# state_dim_per_agent = 4
 
 	o_a = data[:,0:num_a*state_dim_per_agent]
 	o_b = data[:,num_a*state_dim_per_agent:(num_a+num_b)*state_dim_per_agent]
@@ -54,8 +65,8 @@ def read_sv_batch(fn):
 	key = key.split('_')
 	num_a = int(key[3].split('a')[-1])
 	num_b = int(key[4].split('b')[-1])
-	action_dim_per_agent = 2
-	state_dim_per_agent = 4
+	# action_dim_per_agent = 2
+	# state_dim_per_agent = 4
 
 	v_a = data[:,0:num_a*state_dim_per_agent]
 	v_b = data[:,num_a*state_dim_per_agent:(num_a+num_b)*state_dim_per_agent]

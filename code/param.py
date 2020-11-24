@@ -7,6 +7,24 @@ from math import cos, sin, sqrt
 
 # todo: make rel-path to abs-path func 
 
+
+# for dynamics: 
+double_integrator = {
+	"name" : "double_integrator",
+	"state_dim" : 4, # per robot 
+	"control_dim" : 2, 
+	"state_labels" : ["x","y","vx","vy"],
+	"control_labels" : ["ax","ay"]
+}
+single_integrator = {
+	"name" : "single_integrator",
+	"state_dim" : 2, # per robot 
+	"control_dim" : 2, 
+	"state_labels" : ["x","y"],
+	"control_labels" : ["vx","vy"]
+}
+
+
 class Param:
 
 	def __init__(self):
@@ -14,37 +32,32 @@ class Param:
 		# sim param 
 		self.sim_num_trials = 10
 		self.sim_dt = 0.1
-		self.sim_parallel_on = True
+		self.sim_parallel_on = False
 
 		# these parameters are also used for learning 
 		self.policy_dict = {
 			'sim_mode' : 				"MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
 			'path_glas_model_a' : 		None, 	# '../current/models/a1.pt', None
 			'path_glas_model_b' : 		None, 	# '../current/models/b1.pt', None
-			'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None
-			# 'path_glas_model_a' : 		'../current/models/a4.pt', 	# '../current/models/a1.pt', None
-			# 'path_glas_model_b' : 		'../current/models/b4.pt', 	# '../current/models/b1.pt', None
-			# 'path_value_fnc' : 			'../current/models/v4.pt', 	# '../current/models/v1.pt', None
-			# 'path_glas_model_a' : 		'../saved/r28/a3.pt', # None
-			# 'path_glas_model_b' : 		'../saved/r28/b3.pt', # None
-			# 'path_value_fnc' : 			'../saved/r28/v3.pt', # None			
-			'mcts_tree_size' : 			1000,
+			'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None		
+			'mcts_tree_size' : 			100,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				0.5,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
 			'mcts_beta2' : 				0.5,
-			'mcts_beta3' : 				0.5,
+			'mcts_beta3' : 				0.0,
 		}
 
+		self.dynamics = single_integrator # "single_integrator", "double_integrator",
 
 		# robot types 
 		self.robot_types = {
 			'standard_robot' : {
-				'speed_limit': 0.5,
+				'speed_limit': 1.0,
 				'acceleration_limit':2.0,
 				'tag_radius': 0.10,
-				'dynamics':'double_integrator',
+				'dynamics':'{}'.format(self.dynamics["name"]),
 				'r_sense': 3.0,
 				'radius': 0.05,
 			},
@@ -52,7 +65,7 @@ class Param:
 				'speed_limit': 0.0625,
 				'acceleration_limit':0.5,
 				'tag_radius': 0.0125,
-				'dynamics':'double_integrator',
+				'dynamics':'{}'.format(self.dynamics["name"]),
 				'r_sense': 0.5,
 				'radius': 0.025,
 			}
@@ -74,7 +87,7 @@ class Param:
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 1
-		self.l_num_file_per_iteration = 20 # optimized for num cpu on ben's laptop 
+		self.l_num_file_per_iteration = 20 
 		self.l_num_points_per_file = 5000
 		self.l_mcts_c_param = 2.0
 		self.l_mcts_pw_C = 1.0
@@ -126,8 +139,8 @@ class Param:
 
 		self.l_num_samples = 5 # take l_num_samples-best samples from mctsresult (still weighted)
 
-		self.l_state_dim = 4 
-		self.l_action_dim = 2 
+		self.l_state_dim = self.dynamics["state_dim"]
+		self.l_action_dim = self.dynamics["control_dim"] 
 		self.l_z_dim = 4
 		self.l_hidden_dim = 16
 
@@ -241,38 +254,10 @@ class Param:
 
 	def make_initial_condition(self):
 
-		# randomly change enviornment
-		# alpha = np.random.randint(4)
-		# if alpha == 0:
-		# 	# do nothing 
-		# 	reset_xlim_A = self.reset_xlim_A
-		# 	reset_xlim_B = self.reset_xlim_B
-		# 	reset_ylim_A = self.reset_ylim_A
-		# 	reset_ylim_B = self.reset_ylim_B
-		# 	goal = self.goal
+		state_dim = self.dynamics["state_dim"]
+		name = self.dynamics["name"]
+		state = np.zeros((len(self.robots),state_dim))
 
-		# if alpha == 1 or alpha == 3: 
-		# 	# flip on x = 0.5 l 
-		# 	reset_xlim_A = self.reset_xlim_B
-		# 	reset_xlim_B = self.reset_xlim_A 
-		# 	reset_ylim_A = self.reset_ylim_B
-		# 	reset_ylim_B = self.reset_ylim_A 
-		# 	goal = self.goal
-		# 	goal[0] = self.env_xlim[1] - self.goal[0]
-		# if alpha == 2 or alpha == 3:
-		# 	# flip on y = x 
-		# 	reset_xlim_A = self.reset_ylim_A
-		# 	reset_ylim_A = self.reset_xlim_A
-		# 	reset_xlim_B = self.reset_ylim_B 
-		# 	reset_ylim_B = self.reset_xlim_B 
-		# 	goal = self.goal
-		# 	goal[1] = self.goal[0]
-		# 	goal[0] = self.goal[1]
-
-		state = [] 
-		positions = [] 
-		velocities = [] 
-		radii = [] 
 		for robot in self.robots: 
 
 			if robot["team"] == "a":
@@ -282,34 +267,19 @@ class Param:
 				xlim = self.reset_xlim_B
 				ylim = self.reset_ylim_B
 
-			count = 0 
-			position = self.get_random_position_inside(xlim,ylim)
-			velocity = self.get_random_velocity_inside(robot["speed_limit"])
-			while self.collision(position,velocity,robot["radius"],positions,velocities,radii):
+			if name in ["single_integrator","double_integrator","2D_dubins"]:
 				position = self.get_random_position_inside(xlim,ylim)
-				count += 1 
-				if count > 10000:
-					exit('infeasible initial condition')
+			if name in ["single_integrator","double_integrator","2D_dubins"]:
+				velocity = self.get_random_velocity_inside(robot["speed_limit"])
 
-			radii.append(robot["radius"])
-			positions.append(np.array((position[0],position[1])))
-			velocities.append(np.array((velocity[0],velocity[1])))
-			state.append([position[0],position[1],velocity[0],velocity[1]])
+			if name == "double_integrator":
+				state[robot["idx"],0:2] = position
+				state[robot["idx"],2:4] = velocity
 
-		return state
+			if name == "single_integrator":
+				state[robot["idx"],0:2] = position
 
-	def collision(self,p1,v1,r1,p2s,v2s,r2s):
-		p1_tp1 = np.array(p1) + self.sim_dt * np.array(v1)
-		for p2, v2, r2 in zip(p2s,v2s,r2s):
-			# check initial condition 
-			if np.linalg.norm(np.array(p1)-p2) < (r1 + r2): 
-				return True 
-			# check next state 
-			p2_tp1 = p2 + self.sim_dt * v2
-			if np.linalg.norm(p1_tp1-p2_tp1) < (r1 + r2): 
-				return True 
-		return False 
-
+		return state.tolist() 
 
 	def assign_initial_condition(self):
 
@@ -326,6 +296,7 @@ class Param:
 				for _ in range(robot_number):
 					robot = copy.copy(self.robot_types[robot_type_name])
 					robot["team"] = team 
+					robot["idx"] = len(self.robots)
 					self.robots.append(robot)		
 
 

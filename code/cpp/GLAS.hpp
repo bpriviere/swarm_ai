@@ -67,6 +67,11 @@ public:
     return m_rho.eval(X);
   }
 
+  size_t sizeIn() const
+  {
+    return m_phi.sizeIn();
+  }
+
   size_t sizeOut() const
   {
     return m_rho.sizeOut();
@@ -162,7 +167,7 @@ public:
     Eigen::VectorXf policy_input(m_policy.sizeIn());
     policy_input.segment(0, m_ds_a.sizeOut()) = m_ds_a.eval(input_a);
     policy_input.segment(m_ds_a.sizeOut(), m_ds_b.sizeOut()) = m_ds_b.eval(input_b);
-    policy_input.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), 4) = goal;
+    policy_input.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), m_ds_b.sizeIn()) = goal;
 
     Eigen::VectorXf action(2);
 

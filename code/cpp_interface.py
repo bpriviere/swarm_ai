@@ -9,12 +9,22 @@ from collections import defaultdict
 from multiprocessing import current_process
 
 # ours
-from cpp.buildRelease import mctscpp
 from benchmark.panagou import PanagouPolicy
 import datahandler as dh
-
 from learning.continuous_emptynet import ContinuousEmptyNet
 from learning_interface import local_to_global, global_to_local
+
+from param import Param 
+
+temp_param = Param()
+if temp_param.dynamics["name"] == "double_integrator":
+	from cpp.buildRelease import mctscpp as mctscpp
+elif temp_param.dynamics["name"] == "single_integrator":
+	from cpp.buildRelease import mctscppsi as mctscpp
+elif temp_param.dynamics["name"] == "2d_dubins":
+	from cpp.buildRelease import mctscppdubins2D as mctscpp
+del(temp_param)
+
 
 def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
 	p_min = [env_xlim[0], env_ylim[0]]
@@ -24,7 +34,10 @@ def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
 	tag_radius = robot_type["tag_radius"]
 	r_sense = robot_type["r_sense"]
 	radius = robot_type["radius"]
-	rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)
+	if robot_type["dynamics"] == "double_integrator":
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)
+	elif robot_type["dynamics"] == "single_integrator":
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,tag_radius,r_sense,radius)
 	return rt	
 
 
@@ -40,6 +53,14 @@ def robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,team
 def param_to_cpp_game(robot_team_composition,robot_types,env_xlim,env_ylim,dt,goal,rollout_horizon):
 	attackerTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"a",env_xlim,env_ylim)
 	defenderTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"b",env_xlim,env_ylim)
+	# adjust goal 
+	for key,value in robot_team_composition["a"].items():
+		dynamics_name = robot_types[key]["dynamics"]
+		break 
+	if dynamics_name == "double_integrator":
+		pass 
+	elif dynamics_name == "single_integrator":
+		goal = goal[0:2]
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, rollout_horizon)
 	return g
 
@@ -312,6 +333,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 				valuePredictor,
 				mctssettings)
 			gs.depth = depth
+
 			if mctsresult.success: 
 				action = mctsresult.bestAction
 				success = g.step(gs, action, gs)
