@@ -23,6 +23,13 @@ single_integrator = {
 	"state_labels" : ["x","y"],
 	"control_labels" : ["vx","vy"]
 }
+dubins_2d = {
+	"name" : "dubins_2d",
+	"state_dim" : 4, # per robot 
+	"control_dim" : 2, 
+	"state_labels" : ["x","y","th","speed"],
+	"control_labels" : ["acc","omega"]
+}
 
 
 class Param:
@@ -32,7 +39,7 @@ class Param:
 		# sim param 
 		self.sim_num_trials = 10
 		self.sim_dt = 0.1
-		self.sim_parallel_on = False
+		self.sim_parallel_on = True
 
 		# these parameters are also used for learning 
 		self.policy_dict = {
@@ -40,7 +47,7 @@ class Param:
 			'path_glas_model_a' : 		None, 	# '../current/models/a1.pt', None
 			'path_glas_model_b' : 		None, 	# '../current/models/b1.pt', None
 			'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None		
-			'mcts_tree_size' : 			100,
+			'mcts_tree_size' : 			10000,
 			'mcts_c_param' : 			1.4,
 			'mcts_pw_C' : 				0.5,
 			'mcts_pw_alpha' : 			0.25,
@@ -49,7 +56,7 @@ class Param:
 			'mcts_beta3' : 				0.0,
 		}
 
-		self.dynamics = single_integrator # "single_integrator", "double_integrator",
+		self.dynamics = dubins_2d # "single_integrator", "double_integrator", "dubins_2d"
 
 		# robot types 
 		self.robot_types = {
@@ -72,9 +79,9 @@ class Param:
 		}
 
 		self.robot_team_composition = {
-			'a': {'standard_robot':2,'evasive_robot':0},
+			'a': {'standard_robot':3,'evasive_robot':0},
 			# 'a': {'standard_robot':2,'evasive_robot':0},
-			'b': {'standard_robot':1,'evasive_robot':0}
+			'b': {'standard_robot':3,'evasive_robot':0}
 		}
 		
 		# environment
@@ -256,7 +263,7 @@ class Param:
 
 		state_dim = self.dynamics["state_dim"]
 		name = self.dynamics["name"]
-		state = np.zeros((len(self.robots),state_dim))
+		state = np.nan*np.ones((len(self.robots),state_dim))
 
 		for robot in self.robots: 
 
@@ -267,10 +274,20 @@ class Param:
 				xlim = self.reset_xlim_B
 				ylim = self.reset_ylim_B
 
-			if name in ["single_integrator","double_integrator","2D_dubins"]:
+			if name in ["single_integrator","double_integrator","dubins_2d"]:
+				radius = robot["radius"]
 				position = self.get_random_position_inside(xlim,ylim)
-			if name in ["single_integrator","double_integrator","2D_dubins"]:
+				count = 0 
+				while collision(position,robot,state[:,0:2],self.robots):
+					position = self.get_random_position_inside(xlim,ylim)
+					count += 1 
+					if count > 10000:
+						exit('infeasible initial condition')
+
+			if name in ["double_integrator","dubins_2d"]:
 				velocity = self.get_random_velocity_inside(robot["speed_limit"])
+			if name in ["dubins_2d"]:
+				orientation = random.random()*2*np.pi 
 
 			if name == "double_integrator":
 				state[robot["idx"],0:2] = position
@@ -278,6 +295,11 @@ class Param:
 
 			if name == "single_integrator":
 				state[robot["idx"],0:2] = position
+
+			if name == "dubins_2d":
+				state[robot["idx"],0:2] = position 
+				state[robot["idx"],2] = orientation
+				state[robot["idx"],3] = np.linalg.norm(velocity)
 
 		return state.tolist() 
 
@@ -354,3 +376,13 @@ class Param:
 		# r  = sqrt(random.random())*speed_lim
 		r  = 0*sqrt(random.random())*speed_lim
 		return r*cos(th), r*sin(th)	
+
+def collision(pose_i,robot_i,poses,robots):
+	for robot_j, pose_j in zip(robots,poses):
+		if robot_j is not robot_i and not np.isnan(pose_j).any():
+			dist = np.linalg.norm(pose_i - pose_j)
+			if dist < robot_i["radius"] + robot_j["radius"]:
+				return True 
+	return False
+
+

@@ -890,6 +890,10 @@ def plot_training(df_param,batched_fns,path_to_model):
 		state_dim = 2 
 	elif dynamics_name == "double_integrator":
 		state_dim = 4 
+	elif dynamics_name == "dubins_2d":
+		state_dim = 4 	
+	else: 
+		exit('plot training dynamics not implemented')
 
 	o_as,o_bs,goals,actions,weights = [],[],[],[],[]
 	for batched_fn in batched_fns:

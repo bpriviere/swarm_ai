@@ -21,7 +21,7 @@ if temp_param.dynamics["name"] == "double_integrator":
 	from cpp.buildRelease import mctscpp as mctscpp
 elif temp_param.dynamics["name"] == "single_integrator":
 	from cpp.buildRelease import mctscppsi as mctscpp
-elif temp_param.dynamics["name"] == "2d_dubins":
+elif temp_param.dynamics["name"] == "dubins_2d":
 	from cpp.buildRelease import mctscppdubins2D as mctscpp
 del(temp_param)
 
@@ -38,6 +38,8 @@ def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
 		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)
 	elif robot_type["dynamics"] == "single_integrator":
 		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,tag_radius,r_sense,radius)
+	elif robot_type["dynamics"] == "dubins_2d":
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)		
 	return rt	
 
 

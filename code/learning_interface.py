@@ -15,8 +15,11 @@ def global_to_local(states,param,idx):
 	elif param.dynamics["name"] == "single_integrator":
 		pos_idx = np.arange(2)
 		goal = np.array([param.goal[0],param.goal[1]])
+	elif param.dynamics["name"] == "dubins_2d":
+		pos_idx = np.arange(2)
+		goal = np.array([param.goal[0],param.goal[1],0,0])
 	else: 
-		exit('not implemented')
+		exit('learning interface dynamics not implemented')
 
 	o_a = []
 	o_b = [] 
@@ -49,8 +52,10 @@ def global_to_value(param,state):
 		goal = np.array([param.goal[0],param.goal[1],0,0])
 	elif param.dynamics["name"] == "single_integrator":
 		goal = np.array([param.goal[0],param.goal[1]])
+	elif param.dynamics["name"] == "dubins_2d":
+		goal = np.array([param.goal[0],param.goal[1],0,0])
 	else: 
-		exit('not implemented')	
+		exit('learning interface dynamics not implemented')
 
 	v_a = []
 	v_b = [] 
@@ -74,8 +79,10 @@ def local_to_global(param,o_a,o_b,relative_goal,team):
 		abs_goal = np.array([param.goal[0],param.goal[1],0,0])
 	elif param.dynamics["name"] == "single_integrator":
 		abs_goal = np.array([param.goal[0],param.goal[1]])
+	elif param.dynamics["name"] == "dubins_2d":
+		abs_goal = np.array([param.goal[0],param.goal[1],0,0])
 	else: 
-		exit('not implemented')
+		exit('learning interface dynamics not implemented')
 
 	# assume knowledge of self-team 
 	if team == "a":

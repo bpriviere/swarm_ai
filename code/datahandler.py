@@ -18,6 +18,11 @@ if temp_param.dynamics["name"] == "single_integrator":
 elif temp_param.dynamics["name"] == "double_integrator":
 	state_dim_per_agent = 4
 	action_dim_per_agent = 2
+elif temp_param.dynamics["name"] == "dubins_2d":
+	state_dim_per_agent = 4
+	action_dim_per_agent = 2
+else: 
+	exit('datahandler dynamics interface not implemented')
 del(temp_param) 
 
 def write_sim_result(sim_result_dict,fn):
