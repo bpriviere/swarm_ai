@@ -37,7 +37,7 @@ class Param:
 	def __init__(self):
 
 		# sim param 
-		self.sim_num_trials = 10
+		self.sim_num_trials = 6
 		self.sim_dt = 0.1
 		self.sim_parallel_on = True
 
@@ -48,15 +48,15 @@ class Param:
 			'path_glas_model_b' : 		None, 	# '../current/models/b1.pt', None
 			'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None		
 			'mcts_tree_size' : 			10000,
-			'mcts_c_param' : 			1.4,
-			'mcts_pw_C' : 				0.5,
+			'mcts_c_param' : 			2.0,
+			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
 			'mcts_beta2' : 				0.5,
 			'mcts_beta3' : 				0.0,
 		}
 
-		self.dynamics = dubins_2d # "single_integrator", "double_integrator", "dubins_2d"
+		self.dynamics = double_integrator # "single_integrator", "double_integrator", "dubins_2d"
 
 		# robot types 
 		self.robot_types = {
@@ -79,9 +79,9 @@ class Param:
 		}
 
 		self.robot_team_composition = {
-			'a': {'standard_robot':3,'evasive_robot':0},
+			'a': {'standard_robot':2,'evasive_robot':0},
 			# 'a': {'standard_robot':2,'evasive_robot':0},
-			'b': {'standard_robot':3,'evasive_robot':0}
+			'b': {'standard_robot':1,'evasive_robot':0}
 		}
 		
 		# environment
@@ -93,7 +93,7 @@ class Param:
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
-		self.l_num_iterations = 1
+		self.l_num_iterations = 10
 		self.l_num_file_per_iteration = 20 
 		self.l_num_points_per_file = 5000
 		self.l_mcts_c_param = 2.0
@@ -129,16 +129,9 @@ class Param:
 		self.l_desired_game = {
 			'Skill_A' : 5, #'a1.pt',
 			'Skill_B' : 5, #'b1.pt',
-			'EnvironmentLength' : 5.0,
-			'NumA' : 5,
-			'NumB' : 5,
-		}
-		self.l_initial_curiculum = {
-			'Skill_A' : [None],
-			'Skill_B' : [None],
-			'EnvironmentLength' : [2.0],
-			'NumA' : [1,2],
-			'NumB' : [1,2],
+			'EnvironmentLength' : 2.0,
+			'NumA' : 3,
+			'NumB' : 3,
 		}
 
 		self.l_subsample_on = False
