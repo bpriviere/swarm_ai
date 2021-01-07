@@ -928,7 +928,7 @@ def format_dir(df_param):
 
 def sample_curriculum(param,curriculum):
 
-	mode = "uniform"
+	mode = "baseline"
 
 	if mode == "naive": 
 		# 'naive' curriculum learning 
@@ -938,10 +938,17 @@ def sample_curriculum(param,curriculum):
 		skill_b = curriculum["Skill_B"][-1]
 		env_l = curriculum["EnvironmentLength"][-1]
 
+	elif mode == "baseline":
+		# no curriculum learning (but skill increments)
+		num_a = param.l_desired_game["NumA"]
+		num_b = param.l_desired_game["NumB"]
+		env_l = param.l_desired_game["EnvironmentLength"]
+		skill_a = curriculum["Skill_A"][-1]
+		skill_b = curriculum["Skill_B"][-1]
+
 	elif mode == "uniform":
 		num_a = random.choice(curriculum["NumA"])
 		num_b = random.choice(curriculum["NumB"])
-		print('curriculum["Skill_A"]',curriculum["Skill_A"])
 		skill_a = random.choice(curriculum["Skill_A"])
 		skill_b = random.choice(curriculum["Skill_B"])
 		env_l = random.choice(curriculum["EnvironmentLength"])
