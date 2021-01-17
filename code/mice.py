@@ -640,6 +640,7 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 	if rank == 0:
 		print("time for training: ", time.time() - start_time)
 		plotter.plot_loss(losses,lrs,training_team)
+		np.save("../current/models/{}_losses.npy".format(os.path.basename(model_fn).split('.')[0]),losses)
 		plotter.save_figs("../current/models/{}_losses.pdf".format(os.path.basename(model_fn).split('.')[0]))
 
 		# plotter.open_figs('plots/model.pdf')
@@ -928,7 +929,7 @@ def format_dir(df_param):
 
 def sample_curriculum(param,curriculum):
 
-	mode = "baseline"
+	mode = "special"
 
 	if mode == "naive": 
 		# 'naive' curriculum learning 

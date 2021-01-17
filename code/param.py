@@ -93,9 +93,9 @@ class Param:
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
-		self.l_num_iterations = 10
+		self.l_num_iterations = 5
 		self.l_num_file_per_iteration = 20 
-		self.l_num_points_per_file = 5000
+		self.l_num_points_per_file = 2500
 		self.l_mcts_c_param = 2.0
 		self.l_mcts_pw_C = 1.0
 		self.l_mcts_pw_alpha = 0.25
@@ -103,9 +103,9 @@ class Param:
 		self.l_mcts_beta2 = 0.5
 		self.l_mcts_beta3 = 0.5
 		self.l_num_learner_nodes = 500
-		self.l_num_expert_nodes = 10000
+		self.l_num_expert_nodes = 5000
 		self.l_env_dl = 1.0
-		self.l_warmstart = False # warmstart policies between iterations
+		self.l_warmstart = True # warmstart policies between iterations
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
 			{
@@ -127,9 +127,9 @@ class Param:
 		]
 
 		self.l_desired_game = {
-			'Skill_A' : 5, #'a1.pt',
-			'Skill_B' : 5, #'b1.pt',
-			'EnvironmentLength' : 2.0,
+			'Skill_A' : 4, #'a1.pt',
+			'Skill_B' : 4, #'b1.pt',
+			'EnvironmentLength' : 3.0,
 			'NumA' : 3,
 			'NumB' : 3,
 		}
@@ -205,7 +205,7 @@ class Param:
 		self.l_batch_size = 4096 #512
 		self.l_n_epoch = 500
 		self.l_lr = 1e-3
-		self.l_lr_scheduler = 'ReduceLROnPlateau' # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
+		self.l_lr_scheduler = None #'ReduceLROnPlateau' # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
 		self.l_wd = 0 
 		self.l_log_interval = 1
 		self.l_raw_fn = '{DATADIR}raw_team{TEAM}_i{LEARNING_ITER}_numfn{NUM_FILE}'
@@ -250,7 +250,7 @@ class Param:
 		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
 
-		self.goal = np.array([0.6*self.env_l,0.5*self.env_l,0,0])
+		self.goal = np.array([0.7*self.env_l,0.5*self.env_l,0,0])
 
 	def make_initial_condition(self):
 
@@ -351,7 +351,7 @@ class Param:
 
 		# max timesteps until the game terminates
 		# self.rollout_horizon = int(100 * self.env_l)
-		num_backnforth = 5
+		num_backnforth = 2
 		self.rollout_horizon = int(num_backnforth * self.num_nodes * self.env_l \
 			/ (self.robot_types["standard_robot"]["speed_limit"] * self.sim_dt))
 

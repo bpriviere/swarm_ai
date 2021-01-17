@@ -173,6 +173,8 @@ def state_to_cpp_game_state(state,turn,team_1_idxs,team_2_idxs):
 
 def expected_value(param,state,policy_dict,team):
 
+	print('policy_dict',policy_dict)
+
 	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
 		param.sim_dt,param.goal,param.rollout_horizon)	
 	gs = state_to_cpp_game_state(state,team,param.team_1_idxs,param.team_2_idxs)
@@ -384,7 +386,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 							'robot_idx' : robot_idx,
 							})
 					if mctssettings.export_root_reward_over_time:
-						sim_result['root_rewards_over_time'].appent(mctsresult.rootRewardOverTime)
+						sim_result['root_rewards_over_time'].append(mctsresult.rootRewardOverTime)
 				else: 
 					action[robot_idx,:] = np.zeros(2) 
 
@@ -529,7 +531,7 @@ def evaluate_expert_value(rank, queue, total, states, param, policy_fn_a, policy
 			'path_glas_model' : policy_fn_b,
 			'deterministic': False,
 		}
-		num_rollouts = 100
+		num_rollouts = 50
 
 	else: 
 		if param.i > 0:

@@ -429,7 +429,8 @@ class Game {
     float w2 = 0.1; 
     float w3 = 0.8; 
 
-    return ( w1*r1 + w2*r2 + w3*reachedGoal ) / (w1+w2+w3);    
+    return reachedGoal;    
+    // return ( w1*r1 + w2*r2 + w3*reachedGoal ) / (w1+w2+w3);    
     // return ( r1 + r2 + reachedGoal ) / 3.0f;    
 
     // return (   numAttackerActive / (float)state.attackers.size()
