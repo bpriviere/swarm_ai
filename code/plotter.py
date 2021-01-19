@@ -349,8 +349,69 @@ def get_n_colors(n,cmap=None):
 	# colors = [ cm.tab20(x) for x in cm_subsection]
 	return colors
 
+def plot_3d_dubins_result(sim_result,title):
+
+	states = sim_result["states"]
+	actions = sim_result["actions"]
+
+	nt, nrobots, state_dim = states.shape 
+
+	x_lim = sim_result["param"]["env_xlim"]
+	y_lim = sim_result["param"]["env_ylim"]
+	z_lim = sim_result["param"]["env_ylim"] # assume zlim and ylim are same 
+
+	colors = get_colors(sim_result["param"])
+
+	from mpl_toolkits.mplot3d import Axes3D
+	fig = plt.figure()
+	ax = fig.add_subplot(111, projection='3d')
+	ax.set_xlim(x_lim)
+	ax.set_ylim(y_lim)
+	ax.set_zlim(z_lim)
+	
+	# goal region 
+
+
+	for i_robot in range(nrobots):
+
+		# trajectory 
+		ax.plot(states[:,i_robot,0],states[:,i_robot,1],states[:,i_robot,2],color=colors[i_robot])
+		# start 
+		ax.plot([states[0,i_robot,0]],[states[0,i_robot,1]],states[0,i_robot,2],color=colors[i_robot],marker='s',markersize=3)
+
+		# end 
+		# Put special markers on attacker robot events
+		if (sim_result["param"]["robots"][i_robot]["team"] == 'a') :
+			# Find the last valid states
+			idx_unkn = np.where(np.isnan(states[:,i_robot,0]) == True)
+			idx_dead = np.where(np.isneginf(states[:,i_robot,0]) == True)
+			idx_goal = np.where(np.isposinf(states[:,i_robot,0]) == True)
+
+			# Plot events
+			if (len(idx_unkn[0])) :
+				# Robot is inactive
+				idx = max(0,min(idx_unkn[0])-1)
+				ax.plot(states[idx,i_robot,0],states[idx,i_robot,1],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="|",markersize=3)
+			if (len(idx_dead[0])) :
+				# Robot is dead
+				idx = max(0,min(idx_dead[0])-1)
+				ax.plot(states[idx,i_robot,0],states[idx,i_robot,1],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="x",markersize=3)
+			if (len(idx_goal[0])) :
+				# Robot is at the goal
+				idx = max(0,min(idx_goal[0])-1)
+				ax.plot(states[idx,i_robot,0],states[idx,i_robot,1],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="o",markersize=3)
+		
+		# tag radius 
+		# ax.add_patch(mpatches.Circle(states[-1,i,0:2], sim_result["param"]["robots"][i]["tag_radius"],color=colors[i],alpha=0.2,fill=False))
+
+
+
+
 
 def plot_tree_results(sim_result,title=None): 
+
+	if sim_result["param"]["dynamics"]["name"] == "dubins_3d":
+		return plot_3d_dubins_result(sim_result,title=title)
 
 	def team_1_reward_to_gamma(reward_1):
 		# gamma = reward_1 * 2 - 1 

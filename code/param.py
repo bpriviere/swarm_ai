@@ -30,6 +30,13 @@ dubins_2d = {
 	"state_labels" : ["x","y","th","speed"],
 	"control_labels" : ["acc","omega"]
 }
+dubins_3d = {
+	"name" : "dubins_3d",
+	"state_dim" : 5, # per robot 
+	"control_dim" : 2, 
+	"state_labels" : ["x","y","z","phi","psi"],
+	"control_labels" : ["phidot","psidot"]
+}
 
 
 class Param:
@@ -269,10 +276,11 @@ class Param:
 
 			if name in ["single_integrator","double_integrator","dubins_2d"]:
 				radius = robot["radius"]
-				position = self.get_random_position_inside(xlim,ylim)
+				state_space = np.array((xlim,ylim))
+				position = self.get_random_position_inside(state_space)
 				count = 0 
 				while collision(position,robot,state[:,0:2],self.robots):
-					position = self.get_random_position_inside(xlim,ylim)
+					position = self.get_random_position_inside(state_space)
 					count += 1 
 					if count > 10000:
 						exit('infeasible initial condition')
@@ -293,6 +301,10 @@ class Param:
 				state[robot["idx"],0:2] = position 
 				state[robot["idx"],2] = orientation
 				state[robot["idx"],3] = np.linalg.norm(velocity)
+
+			if name == "dubins_3d":
+				state_space = np.array((xlim,ylim,ylim,(0,2*np.pi),(0,2*np.pi)))
+				state[robot["idx"],:] = self.get_random_position_inside(state_space)
 
 		return state.tolist() 
 
@@ -356,12 +368,25 @@ class Param:
 			/ (self.robot_types["standard_robot"]["speed_limit"] * self.sim_dt))
 
 
-	def get_random_position_inside(self,xlim,ylim):
+	# def get_random_position_inside(self,xlim,ylim):
 
-		x = random.random()*(xlim[1] - xlim[0]) + xlim[0]
-		y = random.random()*(ylim[1] - ylim[0]) + ylim[0]
+	# 	x = random.random()*(xlim[1] - xlim[0]) + xlim[0]
+	# 	y = random.random()*(ylim[1] - ylim[0]) + ylim[0]
 		
-		return x,y 				
+	# 	return x,y 	
+
+
+	def get_random_position_inside(self,statespace):
+
+		state_dim, _ = statespace.shape
+		position = np.zeros(state_dim)
+
+		for i_state in range(state_dim):
+			position[i_state] = statespace[i_state,0] + random.random()*\
+				(statespace[i_state,1] - statespace[i_state,0])
+		
+		return position
+
 
 	def get_random_velocity_inside(self,speed_lim):
 
