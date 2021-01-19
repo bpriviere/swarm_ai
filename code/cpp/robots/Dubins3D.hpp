@@ -104,15 +104,15 @@ public:
 typedef Eigen::Vector3f RobotActionDubins3D; // phidot, psidot, Vdot 
 
 class RobotTypeDubins3D
-  : public RobotType
+  : public RobotType<3>
 {
 public:
 
   RobotTypeDubins3D() = default;
 
   RobotTypeDubins3D(
-    const Eigen::Vector2f& p_min,
-    const Eigen::Vector2f& p_max,
+    const Eigen::Vector3f& p_min,
+    const Eigen::Vector3f& p_max,
     float v_max,
     float a_max,
     float tag_radius,

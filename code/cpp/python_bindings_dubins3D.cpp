@@ -213,8 +213,8 @@ PYBIND11_MODULE(mctscppdubins3D, m) {
   // RobotType
   py::class_<RobotTypeT> (m, "RobotType")
     .def(py::init<
-      const Eigen::Vector2f&,
-      const Eigen::Vector2f&,
+      const Eigen::Vector3f&,
+      const Eigen::Vector3f&,
       float, float, float, float, float>())                            // Changes between SI (4f) and DI (5f)
     .def_readwrite("p_min", &RobotTypeT::p_min)
     .def_readwrite("p_max", &RobotTypeT::p_max)

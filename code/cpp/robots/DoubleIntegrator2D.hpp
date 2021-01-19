@@ -61,7 +61,7 @@ public:
 typedef Eigen::Vector2f RobotActionDoubleIntegrator2D; // m/s^2
 
 class RobotTypeDoubleIntegrator2D
-  : public RobotType
+  : public RobotType<2>
 {
 public:
 

@@ -89,7 +89,7 @@ public:
 typedef Eigen::Vector2f RobotActionDubins2D; // theta_dot, V_dot [ rad/s, m/s^2 ]
 
 class RobotTypeDubins2D
-  : public RobotType
+  : public RobotType<2>
 {
 public:
 

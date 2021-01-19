@@ -49,7 +49,7 @@ public:
 typedef Eigen::Vector2f RobotActionSingleIntegrator2D; // m/s
 
 class RobotTypeSingleIntegrator2D
-  : public RobotType
+  : public RobotType<2>
 {
 public:
 
