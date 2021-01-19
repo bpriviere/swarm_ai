@@ -165,6 +165,15 @@ public:
     return acceleration_limit;
   }
 
+  RobotActionDubins2D sampleActionUniform(std::default_random_engine& generator) const {
+    // use uniform random sample (no deterministic option)
+    std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
+    std::uniform_real_distribution<float> distMag(0.0, 1.0);
+    float theta = distTheta(generator);
+    float mag = sqrtf(distMag(generator)) * actionLimit();
+    return RobotActionDubins2D(cosf(theta) * mag, sinf(theta) * mag);
+  }
+
   friend std::ostream& operator<<(std::ostream& out, const RobotTypeDubins2D& rt)
   {
     Eigen::IOFormat fmt(2, 0, ",", ";", "", "","[", "]");

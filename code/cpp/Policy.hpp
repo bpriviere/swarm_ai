@@ -50,15 +50,7 @@ public:
       auto result = m_glas.eval(gameState, goal, robotType, teamAttacker, idx, deterministic);
       return result;
     } else {
-      RobotActionT r;
-      std::uniform_real_distribution<float> distUnit(0.0, robotType.actionLimit());
-      do {
-        for (int i = 0; i < Robot::ActionDim; ++i) {
-          r(i) = distUnit(m_generator);
-        }
-      } while (r.norm() > robotType.actionLimit());
-
-      return r;
+      return robotType.sampleActionUniform(m_generator);
     }
   }
 
