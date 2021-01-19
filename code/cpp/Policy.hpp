@@ -50,12 +50,15 @@ public:
       auto result = m_glas.eval(gameState, goal, robotType, teamAttacker, idx, deterministic);
       return result;
     } else {
-      // use uniform random sample (no deterministic option)
-      std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
-      std::uniform_real_distribution<float> distMag(0.0, 1.0);
-      float theta = distTheta(m_generator);
-      float mag = sqrtf(distMag(m_generator)) * robotType.actionLimit();
-      return RobotActionT(cosf(theta) * mag, sinf(theta) * mag);
+      RobotActionT r;
+      std::uniform_real_distribution<float> distUnit(0.0, robotType.actionLimit());
+      do {
+        for (int i = 0; i < Robot::ActionDim; ++i) {
+          r(i) = distUnit(m_generator);
+        }
+      } while (r.norm() > robotType.actionLimit());
+
+      return r;
     }
   }
 
