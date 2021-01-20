@@ -120,7 +120,7 @@ public:
     float radius)
     : RobotType(p_min, p_max, tag_radius, r_sense, radius)
     , velocity_limit(v_max)
-    , acceleration_limit(a_max) // treat this one as an angular acceleration limit
+    , acceleration_limit(a_max) 
   {
     init();
   }
@@ -152,7 +152,8 @@ public:
     bool positionValid;
     bool velocityValid;
     // positionValid = (state.position_X() >= p_min.segment<1>(0) && state.position_Y() >= p_min.segment<1>(1) && state.position_X() <= p_max.segment<1>(0) && state.position_Y() <= p_max.segment<1>(1));
-    positionValid = true;
+    positionValid = (state.position().array() >= p_min.array()).all() && (state.position().array() <= p_max.array()).all();
+    // positionValid = true;
     velocityValid = true;
     return positionValid && velocityValid;
   }
@@ -168,11 +169,13 @@ public:
 
   RobotActionDubins3D sampleActionUniform(std::default_random_engine& generator) const {
     // use uniform random sample (no deterministic option)
-    // std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
-    // std::uniform_real_distribution<float> distMag(0.0, 1.0);
-    // float theta = distTheta(generator);
-    // float mag = sqrtf(distMag(generator)) * actionLimit();
-    return RobotActionDubins3D(0, 0, 0);
+    std::uniform_real_distribution<float> distPhidot(-2*M_PI/5, 2*M_PI/5);
+    std::uniform_real_distribution<float> distPsidot(-2*M_PI/5, 2*M_PI/5);
+    std::uniform_real_distribution<float> distVdot(-acceleration_limit, acceleration_limit);
+    float phidot = distPhidot(generator);
+    float psidot = distPsidot(generator);
+    float vdot = distVdot(generator);
+    return RobotActionDubins3D(phidot,psidot,vdot);
   }
 
   friend std::ostream& operator<<(std::ostream& out, const RobotTypeDubins3D& rt)

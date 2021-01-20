@@ -17,6 +17,7 @@ class PolicyEmptyNet(nn.Module):
 	def __init__(self,param,device):
 		super(PolicyEmptyNet, self).__init__()
 
+		self.action_dim = param.dynamics["control_dim"]
 		self.device = torch.device(device)
 		self.acceleration_limit = param.robot_types["standard_robot"]["acceleration_limit"]
 		self.r_sense = param.robot_types["standard_robot"]["r_sense"]
@@ -61,7 +62,7 @@ class PolicyEmptyNet(nn.Module):
 		y = torch.cat((output_rho_team_a, output_rho_team_b, goal),1)
 		
 		# predict mean and variance 
-		action_dim = 2
+		action_dim = self.action_dim
 		dist = self.policy(y)
 		mu = dist[:,0:action_dim]
 		logvar = dist[:,action_dim:]

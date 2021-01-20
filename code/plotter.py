@@ -368,16 +368,32 @@ def plot_3d_dubins_result(sim_result,title):
 	ax.set_xlim(x_lim)
 	ax.set_ylim(y_lim)
 	ax.set_zlim(z_lim)
+
+	ax.set_xlabel('x')
+	ax.set_ylabel('y')
+	ax.set_zlabel('z')
 	
 	# goal region 
+	goal_z = (y_lim[1]-y_lim[0])/2
+	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+	goal = np.array([sim_result["param"]["goal"][0],sim_result["param"]["goal"][1],goal_z])
 
+	# Make data
+	u = np.linspace(0, 2 * np.pi, 100)
+	v = np.linspace(0, np.pi, 100)
+	x = tag_radius * np.outer(np.cos(u), np.sin(v)) + goal[0]
+	y = tag_radius * np.outer(np.sin(u), np.sin(v)) + goal[1]
+	z = tag_radius * np.outer(np.ones(np.size(u)), np.cos(v)) + goal[2]
+
+	# Plot the surface
+	ax.plot_surface(x, y, z, color='green',alpha=0.6)
 
 	for i_robot in range(nrobots):
 
 		# trajectory 
 		ax.plot(states[:,i_robot,0],states[:,i_robot,1],states[:,i_robot,2],color=colors[i_robot])
 		# start 
-		ax.plot([states[0,i_robot,0]],[states[0,i_robot,1]],states[0,i_robot,2],color=colors[i_robot],marker='s',markersize=3)
+		ax.plot([states[0,i_robot,0]],[states[0,i_robot,1]],states[0,i_robot,2],color=colors[i_robot],marker='s',markersize=10)
 
 		# end 
 		# Put special markers on attacker robot events
@@ -391,15 +407,15 @@ def plot_3d_dubins_result(sim_result,title):
 			if (len(idx_unkn[0])) :
 				# Robot is inactive
 				idx = max(0,min(idx_unkn[0])-1)
-				ax.plot(states[idx,i_robot,0],states[idx,i_robot,1],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="|",markersize=3)
+				ax.plot([states[idx,i_robot,0]],[states[idx,i_robot,1]],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="|",markersize=10)
 			if (len(idx_dead[0])) :
 				# Robot is dead
 				idx = max(0,min(idx_dead[0])-1)
-				ax.plot(states[idx,i_robot,0],states[idx,i_robot,1],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="x",markersize=3)
+				ax.plot([states[idx,i_robot,0]],[states[idx,i_robot,1]],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="x",markersize=10)
 			if (len(idx_goal[0])) :
 				# Robot is at the goal
 				idx = max(0,min(idx_goal[0])-1)
-				ax.plot(states[idx,i_robot,0],states[idx,i_robot,1],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="o",markersize=3)
+				ax.plot([states[idx,i_robot,0]],[states[idx,i_robot,1]],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="o",markersize=10)
 		
 		# tag radius 
 		# ax.add_patch(mpatches.Circle(states[-1,i,0:2], sim_result["param"]["robots"][i]["tag_radius"],color=colors[i],alpha=0.2,fill=False))

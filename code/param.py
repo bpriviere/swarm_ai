@@ -32,10 +32,10 @@ dubins_2d = {
 }
 dubins_3d = {
 	"name" : "dubins_3d",
-	"state_dim" : 5, # per robot 
-	"control_dim" : 2, 
-	"state_labels" : ["x","y","z","phi","psi"],
-	"control_labels" : ["phidot","psidot"]
+	"state_dim" : 6, # per robot 
+	"control_dim" : 3, 
+	"state_labels" : ["x","y","z","phi","psi","v"],
+	"control_labels" : ["phidot","psidot","vdot"]
 }
 
 
@@ -303,7 +303,7 @@ class Param:
 				state[robot["idx"],3] = np.linalg.norm(velocity)
 
 			if name == "dubins_3d":
-				state_space = np.array((xlim,ylim,ylim,(0,2*np.pi),(0,2*np.pi)))
+				state_space = np.array((xlim,ylim,ylim,(0,2*np.pi),(0,2*np.pi),(0,0)))
 				state[robot["idx"],:] = self.get_random_position_inside(state_space)
 
 		return state.tolist() 
