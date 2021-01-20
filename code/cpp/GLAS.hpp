@@ -169,17 +169,17 @@ public:
     policy_input.segment(m_ds_a.sizeOut(), m_ds_b.sizeOut()) = m_ds_b.eval(input_b);
     policy_input.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), m_ds_b.sizeIn()) = goal;
 
-    Eigen::VectorXf action(2);
+    Eigen::VectorXf action(Robot::ActionDim);
 
     // if (isGaussian()) {
       auto policy = m_policy.eval(policy_input);
-      auto mu = policy.segment<2>(0);
+      auto mu = policy.segment<Robot::ActionDim>(0);
       if (deterministic) {
         action = mu;
       } else {
-        auto logvar = policy.segment<2>(2);
+        auto logvar = policy.segment<Robot::ActionDim>(Robot::ActionDim);
         auto sd = logvar.array().exp().sqrt();
-        for (int i = 0; i < 2; ++i) {
+        for (int i = 0; i < Robot::ActionDim; ++i) {
           std::normal_distribution<float> dist(mu(i),sd(i));
           action(i) = dist(m_gen);
         }
@@ -240,7 +240,8 @@ public:
       if (    (!teamAttacker || i != idx) 
            && state.attackers[i].status == Robot::State::Status::Active) {
         auto relState = state.attackers[i].state - my_state;
-        if (relState.template head<2>().squaredNorm() <= robotType.r_senseSquared) {
+        typename Robot::State robotRelState(relState);
+        if (robotRelState.position().squaredNorm() <= robotType.r_senseSquared) {
           input_a.push_back(relState);
         }
       }
@@ -250,7 +251,8 @@ public:
       if (    (teamAttacker || i != idx)
            && state.defenders[i].status == Robot::State::Status::Active) {
         auto relState = state.defenders[i].state - my_state;
-        if (relState.template head<2>().squaredNorm() <= robotType.r_senseSquared) {
+        typename Robot::State robotRelState(relState);
+        if (robotRelState.position().squaredNorm() <= robotType.r_senseSquared) {
           input_b.push_back(relState);
         }
       }
@@ -259,11 +261,12 @@ public:
     relGoal = goal - my_state;
 
     // projecting goal to radius of sensing
-    float alpha = sqrtf(relGoal.template head<2>().squaredNorm() / robotType.r_senseSquared);
-    relGoal.template head<2>() = relGoal.template head<2>() / std::max(alpha, 1.0f);
+    typename Robot::State robotRelGoal(relGoal);
+    float alpha = sqrtf(robotRelGoal.position().squaredNorm() / robotType.r_senseSquared);
+    robotRelGoal.position() = robotRelGoal.position() / std::max(alpha, 1.0f);
 
     // evaluate GLAS
-    auto result = eval(input_a, input_b, relGoal, robotType.actionLimit(), deterministic);
+    auto result = eval(input_a, input_b, robotRelGoal.state, robotType.actionLimit(), deterministic);
     return result;
   }
 
