@@ -169,17 +169,30 @@ public:
     policy_input.segment(m_ds_a.sizeOut(), m_ds_b.sizeOut()) = m_ds_b.eval(input_b);
     policy_input.segment(m_ds_a.sizeOut()+m_ds_b.sizeOut(), m_ds_b.sizeIn()) = goal;
 
-    Eigen::VectorXf action(Robot::ActionDim);
+    // Eigen::VectorXf action(Robot::ActionDim);
+    // Eigen::VectorXf action(2);
+    Eigen::VectorXf action(3);
 
     // if (isGaussian()) {
       auto policy = m_policy.eval(policy_input);
-      auto mu = policy.segment<Robot::ActionDim>(0);
+
+      // auto mu = policy.segment<typename Robot::ActionDim>(0);
+      // auto mu = policy.segment<2>(0);
+      auto mu = policy.segment<3>(0);
       if (deterministic) {
         action = mu;
       } else {
-        auto logvar = policy.segment<Robot::ActionDim>(Robot::ActionDim);
+
+        // auto logvar = policy.segment<Robot::ActionDim>(Robot::ActionDim);
+        // auto logvar = policy.segment<2>(2);
+        auto logvar = policy.segment<3>(3);
+
         auto sd = logvar.array().exp().sqrt();
-        for (int i = 0; i < Robot::ActionDim; ++i) {
+
+        // for (int i = 0; i < Robot::ActionDim; ++i) {
+        // for (int i = 0; i < 2; ++i) {
+        for (int i = 0; i < 3; ++i) {
+          
           std::normal_distribution<float> dist(mu(i),sd(i));
           action(i) = dist(m_gen);
         }
@@ -205,10 +218,13 @@ public:
     // }
 
     // scale action
-    float action_norm = action.norm();
-    if (action_norm > action_limit) {
-      action = action / action_norm * action_limit;
-    }
+    // float action_norm = action.norm();
+    // if (action_norm > action_limit) {
+    //   action = action / action_norm * action_limit;
+    // }
+
+    // Robot.RobotTypeDoubleIntegrator2D robotType;
+    // robotType.scaleAction(action)
 
     // // evaluate value
     // auto val = m_value.eval(y);
@@ -216,6 +232,7 @@ public:
 
     return action;
   }
+
 
   Eigen::VectorXf eval(
     const GameState<Robot>& state,
@@ -267,6 +284,7 @@ public:
 
     // evaluate GLAS
     auto result = eval(input_a, input_b, robotRelGoal.state, robotType.actionLimit(), deterministic);
+    robotType.scaleAction(result);
     return result;
   }
 

@@ -39,6 +39,15 @@ class PolicyEmptyNet(nn.Module):
 			param.l_network_activation,
 			device)	
 
+		if param.dynamics["name"] == "double_integrator":
+			self.scale = self.scale_di
+		elif param.dynamics["name"] == "single_integrator":
+			self.scale = self.scale_si
+		elif param.dynamics["name"] == "dubins_2d":
+			self.scale = self.scale_dubins_2d
+		elif param.dynamics["name"] == "dubins_3d":
+			self.scale = self.scale_dubins_3d
+
 		self.to(self.device)
 
 
@@ -79,8 +88,30 @@ class PolicyEmptyNet(nn.Module):
 			policy = mu + sd * eps
 
 			# scale policy 
-			policy_norm = policy.norm(p=2,dim=1)
-			scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
-			policy = torch.mul(scale.unsqueeze(1), policy)
+			policy = self.scale(policy)
 
 			return policy 
+
+	def scale_di(self,policy):
+		policy_norm = policy.norm(p=2,dim=1)
+		scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
+		policy = torch.mul(scale.unsqueeze(1), policy)
+		return policy 
+
+	def scale_si(self,policy):
+		policy_norm = policy.norm(p=2,dim=1)
+		scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
+		policy = torch.mul(scale.unsqueeze(1), policy)
+		return policy 
+
+	def scale_dubins_2d(self,policy):
+		policy_norm = policy.norm(p=2,dim=1)
+		scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
+		policy = torch.mul(scale.unsqueeze(1), policy)
+		return policy 
+
+	def scale_dubins_3d(self,policy):
+		policy_norm = policy.norm(p=2,dim=1)
+		scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
+		policy = torch.mul(scale.unsqueeze(1), policy)
+		return policy 

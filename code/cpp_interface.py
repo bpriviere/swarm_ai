@@ -369,7 +369,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 
 		elif policy_dict["sim_mode"] == "D_MCTS": 
 			state = np.array([rs.state.copy() for rs in gs.attackers + gs.defenders])
-			action = np.nan*np.zeros((state.shape[0],2))
+			action = np.nan*np.zeros((state.shape[0],param.dynamics["control_dim"]))
 			for robot_idx in team_idx: 
 				if not np.isfinite(state[robot_idx,:]).all(): # non active robot 
 					continue
@@ -400,7 +400,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 					if mctssettings.export_root_reward_over_time:
 						sim_result['root_rewards_over_time'].append(mctsresult.rootRewardOverTime)
 				else: 
-					action[robot_idx,:] = np.zeros(2) 
+					action[robot_idx,:] = np.zeros(param.dynamics["control_dim"]) 
 
 			success = g.step(gs,action,gs)
 
@@ -614,6 +614,7 @@ def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 		num_robots = param.num_nodes_B
 		robot_idxs = param.team_2_idxs
 
+	action_dim = param.dynamics["control_dim"]
 
 	if param.l_subsample_on: 
 
@@ -622,7 +623,7 @@ def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 		weights /= sum(weights)
 		dist = dict()
 		for robot_idx in robot_idxs: 
-			action_idx = robot_idx * 2 + np.arange(2)
+			action_idx = robot_idx * action_dim + np.arange(action_dim)
 			actions = np.array([np.array(a).flatten()[action_idx] for a,v in valuePerAction])
 			choice_idxs = np.random.choice(actions.shape[0],param.l_num_subsamples,p=weights)
 			dist[robot_idx] = np.array([(actions[choice_idx,:],weights[choice_idx]) for choice_idx in choice_idxs])
@@ -635,7 +636,7 @@ def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 
 		dist = defaultdict(list)
 		for robot_idx in robot_idxs: 
-			action_idx = robot_idx * 2 + np.arange(2)
+			action_idx = robot_idx * action_dim + np.arange(action_dim)
 
 			# average = np.average(actions[:,action_idx], weights=values, axis=0)
 			average = np.array(bestAction).flatten()[action_idx]
@@ -689,7 +690,7 @@ def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 			action = action.flatten()
 
 			for robot_idx in robot_idxs:
-				action_idx = robot_idx * 2 + np.arange(2)
+				action_idx = robot_idx * action_dim + np.arange(action_dim)
 				# v = value/norm if norm > 0 else 1/len(valuePerActionSorted)
 				# dist[robot_idx].append([action[action_idx],v])
 				dist[robot_idx].append([action[action_idx],value])

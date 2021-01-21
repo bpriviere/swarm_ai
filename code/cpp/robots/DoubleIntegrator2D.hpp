@@ -136,6 +136,14 @@ public:
     return acceleration_limit;
   }
 
+  void scaleAction(Eigen::VectorXf& action) const {
+    float action_norm = action.norm();
+    if (action_norm > acceleration_limit) {
+      action = action / action_norm * acceleration_limit;
+    }  
+  }
+
+
   RobotActionDoubleIntegrator2D sampleActionUniform(std::default_random_engine& generator) const {
     // use uniform random sample (no deterministic option)
     std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);

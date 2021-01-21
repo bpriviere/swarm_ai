@@ -105,6 +105,7 @@ public:
 
   float velocity_limit;
   float acceleration_limit;
+  float accel_limit_turning;
   std::vector<RobotActionDubins2D> possibleActions;
   RobotActionDubins2D invalidAction;
 
@@ -164,6 +165,11 @@ public:
   float actionLimit() const {
     return acceleration_limit;
   }
+
+  void scaleAction(Eigen::VectorXf& action) const {
+    action(0) = std::min(std::max(action(0),-accel_limit_turning),accel_limit_turning);
+    action(1) = std::min(std::max(action(1),-acceleration_limit),acceleration_limit);
+  }  
 
   RobotActionDubins2D sampleActionUniform(std::default_random_engine& generator) const {
     // use uniform random sample (no deterministic option)

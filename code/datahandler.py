@@ -58,8 +58,10 @@ def read_oa_batch(fn,l_gaussian_on):
 	goal = data[:,(num_a+num_b)*state_dim_per_agent:(num_a+num_b)*state_dim_per_agent+state_dim_per_agent]
 
 	if l_gaussian_on:
-		action = data[:,((num_a+num_b)*state_dim_per_agent+state_dim_per_agent):-2]
-		weight = data[:,-2:]
+		# action = data[:,((num_a+num_b)*state_dim_per_agent+state_dim_per_agent):-2]
+		# weight = data[:,-2:]
+		action = data[:,((num_a+num_b)*state_dim_per_agent+state_dim_per_agent):-action_dim_per_agent]
+		weight = data[:,-action_dim_per_agent:]
 	else: 
 		action = data[:,((num_a+num_b)*state_dim_per_agent+state_dim_per_agent):-1]
 		weight = data[:,-1]

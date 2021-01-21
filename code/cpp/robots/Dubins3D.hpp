@@ -127,6 +127,7 @@ public:
 
   float velocity_limit;
   float acceleration_limit;
+  float accel_limit_turning;
   RobotActionDubins3D invalidAction;
 
   void step(const RobotStateDubins3D& state,
@@ -161,10 +162,18 @@ public:
   void init()
   {
     invalidAction << nanf("") , nanf("");
+    float accel_limit_turning = -2.0f*M_PI/5.0f;
+
   }
 
   float actionLimit() const {
     return acceleration_limit;
+  }
+
+  void scaleAction(Eigen::VectorXf action) const {
+    action(0) = std::min(std::max(action(0),-accel_limit_turning),accel_limit_turning);
+    action(1) = std::min(std::max(action(1),-accel_limit_turning),accel_limit_turning);
+    action(2) = std::min(std::max(action(2),-acceleration_limit),acceleration_limit);
   }
 
   RobotActionDubins3D sampleActionUniform(std::default_random_engine& generator) const {

@@ -969,6 +969,8 @@ def plot_training(df_param,batched_fns,path_to_model):
 		state_dim = 4 
 	elif dynamics_name == "dubins_2d":
 		state_dim = 4 	
+	elif dynamics_name == "dubins_3d":
+		state_dim = 6
 	else: 
 		exit('plot training dynamics not implemented')
 
