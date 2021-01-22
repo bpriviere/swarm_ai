@@ -95,7 +95,7 @@ class Param:
 		self.l_parallel_on = True # set to false only for debug 
 		self.l_num_iterations = 5
 		self.l_num_file_per_iteration = 20 
-		self.l_num_points_per_file = 2500
+		self.l_num_points_per_file = 4000
 		self.l_mcts_c_param = 2.0
 		self.l_mcts_pw_C = 1.0
 		self.l_mcts_pw_alpha = 0.25
@@ -103,7 +103,7 @@ class Param:
 		self.l_mcts_beta2 = 0.5
 		self.l_mcts_beta3 = 0.5
 		self.l_num_learner_nodes = 500
-		self.l_num_expert_nodes = 5000
+		self.l_num_expert_nodes = 10000
 		self.l_env_dl = 1.0
 		self.l_warmstart = True # warmstart policies between iterations
 		self.l_training_teams = ["a","b"]
@@ -202,10 +202,10 @@ class Param:
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 10000000000 # n_points 
-		self.l_batch_size = 4096 #512
-		self.l_n_epoch = 500
+		self.l_batch_size = 1028 #512
+		self.l_n_epoch = 300
 		self.l_lr = 1e-3
-		self.l_lr_scheduler = None #'ReduceLROnPlateau' # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
+		self.l_lr_scheduler = 'ReduceLROnPlateau' #'ReduceLROnPlateau' # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
 		self.l_wd = 0 
 		self.l_log_interval = 1
 		self.l_raw_fn = '{DATADIR}raw_team{TEAM}_i{LEARNING_ITER}_numfn{NUM_FILE}'
@@ -351,7 +351,7 @@ class Param:
 
 		# max timesteps until the game terminates
 		# self.rollout_horizon = int(100 * self.env_l)
-		num_backnforth = 2
+		num_backnforth = 5
 		self.rollout_horizon = int(num_backnforth * self.num_nodes * self.env_l \
 			/ (self.robot_types["standard_robot"]["speed_limit"] * self.sim_dt))
 

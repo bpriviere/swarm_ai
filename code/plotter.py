@@ -770,7 +770,7 @@ def plot_training_value(df_param,batched_fns,path_to_model):
 
 		# select candidate observations 
 		candidate = (v_as[idxs[i_state]],v_bs[idxs[i_state]],n_as[idxs[i_state]],n_bs[idxs[i_state]],n_rgs[idxs[i_state]])
-		print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
+		# print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
 
 		fig, axs = plt.subplots(nrows=1,ncols=2,squeeze=False)
 
@@ -920,7 +920,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 		# select candidate observations 
 		candidate = (o_as[idxs[i_state]],o_bs[idxs[i_state]],goals[idxs[i_state]])
-		print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
+		# print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
 
 		fig, axs = plt.subplots(nrows=2,ncols=2)
 

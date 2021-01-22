@@ -250,10 +250,10 @@ def get_self_play_samples(params):
 
 
 	# print policies 
-	print('self-play policies...')
-	for param in params: 
-		print('param.policy_dict_a: ',param.policy_dict_a)
-		print('param.policy_dict_b: ',param.policy_dict_b)
+	# print('self-play policies...')
+	# for param in params: 
+	# 	print('param.policy_dict_a: ',param.policy_dict_a)
+	# 	print('param.policy_dict_b: ',param.policy_dict_b)
 
 
 	# get self play states 
@@ -805,9 +805,9 @@ def make_dataset(states,params,df_param,testing=None):
 					ITER=other_policy_skill)
 			param.other_policy_dicts.append(other_policy_dict)
 
-		print('evaluate-expert policies...')
-		print('param.my_policy_dict: ',param.my_policy_dict)
-		print('param.other_policy_dicts: ',param.other_policy_dicts)
+		# print('evaluate-expert policies...')
+		# print('param.my_policy_dict: ',param.my_policy_dict)
+		# print('param.other_policy_dicts: ',param.other_policy_dicts)
 
 	total = sum([len(states_per_file) for states_per_file in states])
 	if not df_param.l_parallel_on:
@@ -929,7 +929,7 @@ def format_dir(df_param):
 
 def sample_curriculum(param,curriculum):
 
-	mode = "special"
+	mode = "uniform"
 
 	if mode == "naive": 
 		# 'naive' curriculum learning 
@@ -983,8 +983,10 @@ def make_curriculum(df_param,i):
 		skills_a = [None,1]
 		skills_b = [None,1]
 	else: 
-		skills_a = list(range(1,min((desired_game["Skill_A"]+1,i+1))))
-		skills_b = list(range(1,min((desired_game["Skill_B"]+1,i+1))))
+		# skills_a = list(range(1,min((desired_game["Skill_A"]+1,i+1))))
+		# skills_b = list(range(1,min((desired_game["Skill_B"]+1,i+1))))
+		skills_a = list(range(1,i+1))
+		skills_b = list(range(1,i+1))		
 
 	curriculum = {
 		'Skill_A' : skills_a,
@@ -1033,7 +1035,7 @@ if __name__ == '__main__':
 
 	# training loop 
 	i = 0 
-	width = 4
+	width = 2
 	while True: 
 		
 		curriculum = make_curriculum(df_param,i)
