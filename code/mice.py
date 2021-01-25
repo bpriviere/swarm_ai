@@ -507,6 +507,19 @@ def make_loaders_value(df_param,batched_files):
 
 		v_a,v_b,n_a,n_b,n_rg,value = dh.read_sv_batch(batched_file)
 
+		# # wrap some angles (psi,phi) between -pi to pi 
+		if df_param.dynamics["name"] == "dubins_3d":
+
+			for i in range(n_a.shape[0]):
+
+				for j in range( int(v_a[i,:].shape[0]/6) ):
+					v_a[:,3+6*j] = (v_a[:,3+6*j] + np.pi) % (2 * np.pi) - np.pi
+					v_a[:,4+6*j] = (v_a[:,4+6*j] + np.pi) % (2 * np.pi) - np.pi
+
+				for j in range( int(v_b[i,:].shape[0]/6) ):
+					v_b[:,3+6*j] = (v_b[:,3+6*j] + np.pi) % (2 * np.pi) - np.pi
+					v_b[:,4+6*j] = (v_b[:,4+6*j] + np.pi) % (2 * np.pi) - np.pi
+			
 		data = [
 			torch.from_numpy(v_a).float().to(df_param.device),
 			torch.from_numpy(v_b).float().to(df_param.device),
@@ -515,7 +528,7 @@ def make_loaders_value(df_param,batched_files):
 			torch.from_numpy(n_rg).float().to(df_param.device).unsqueeze(1),
 			torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
 			]
-		
+
 		if k < num_train_batches:
 			train_loader.append(data)
 			train_dataset_size += value.shape[0]

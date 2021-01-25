@@ -314,6 +314,71 @@ def plot_exp8_results(all_sim_results):
 
 	return fig,ax 
 
+def plot_value_dataset_distributions(loader):
+	# loader = [(v_a,v_b,n_a,n_b,n_rg,target_value)]
+	# v_a = {s^j - g} 
+	# v_b = {s^j - g}
+	# 	- e.g. 3d dubins : s = (x,y,z,phi,psi,v)
+
+	state_dim_dubins = 6
+
+	state_dim = state_dim_dubins
+
+	print("formatting data...")
+	for i, (v_a,v_b,n_a,n_b,n_rg,target_value) in enumerate(loader):
+
+		print("{}/{}".format(i,len(loader)))
+
+		v_a = v_a.cpu().detach().numpy()  
+		v_b = v_b.cpu().detach().numpy()  
+		n_a = n_a.cpu().detach().numpy()  
+		n_b = n_b.cpu().detach().numpy()  
+		n_rg = n_rg.cpu().detach().numpy()  
+		target_value = target_value.cpu().detach().numpy()  
+
+		# data_i = np.zeros((v_a.shape[0],2*state_dim+4))
+		# data_i[:,0:state_dim] = v_a 
+		# data_i[:,state_dim:2*state_dim] = v_b
+		# data_i[:,2*state_dim] = n_a
+		# data_i[:,2*state_dim+1] = n_b
+		# data_i[:,2*state_dim+2] = n_rg
+		# data_i[:,2*state_dim+3] = target_value
+
+		data_i = [[] for _ in range(2*state_dim + 4)] 
+		for j in range(v_a.shape[1]):
+			data_i[np.mod(j,state_dim)].extend(v_a[:,j])
+		for j in range(v_b.shape[1]):
+			data_i[state_dim + np.mod(j,state_dim)].extend(v_b[:,j])
+
+		data_i[2*state_dim].extend(n_a)
+		data_i[2*state_dim+1].extend(n_b)
+		data_i[2*state_dim+2].extend(n_rg)
+		data_i[2*state_dim+3].extend(target_value)
+
+		if i == 0:
+			data = data_i 
+		else: 
+			# data = np.vstack((data,data_i))
+			for j,_ in enumerate(data): 
+				data[j].extend(data_i[j])
+
+		# break
+
+	labels = ["xa","ya","za","phia","psia","va","xb","yb","zb","phib","psib","vb","numa","numb","numrg","target_value"]
+
+	print('plotting histogram...')
+	nrows = 4 
+	ncols = 4
+	fig,axs = plt.subplots(nrows=nrows,ncols=ncols)
+	for idx in range(len(data)):
+		print("{}/{}".format(idx,len(data)))
+		i_row = int(np.floor(idx/ncols))
+		i_col = np.mod(idx,ncols)
+
+		axs[i_row,i_col].hist(np.array(data[idx][:])) 
+		axs[i_row,i_col].set_title(labels[idx])
+
+	fig.tight_layout()
 
 
 
