@@ -270,6 +270,51 @@ def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list,env_length):
 			elif dist == 0:
 				ax.arrow(0,0,0,1e-3,color=color,alpha=0.5)
 
+def plot_exp8_results(all_sim_results):
+	results = defaultdict(list)
+	tree_sizes = set()
+	model_names = set() 
+	for sim_result in all_sim_results: 
+		tree_size = sim_result["param"]["policy_dict"]["mcts_tree_size"]
+		model_name = sim_result["param"]["policy_dict"]["path_glas_model_a"]
+		key = (tree_size,model_name)
+		results[key].append(sim_result["value"])
+		tree_sizes.add(tree_size)
+		model_names.add(model_name)
+
+		print('key, value: {},{}'.format(key,sim_result["value"]))
+
+	tree_sizes = sorted(list(tree_sizes))
+	colors = ["blue","orange"]
+
+	print('tree_sizes',tree_sizes)
+	print('model_names',model_names)
+
+	fig,ax = plt.subplots()
+	for i_model, model_name in enumerate(model_names): 
+
+		mean_data = []
+		std_data = [] 
+		for tree_size in tree_sizes: 
+			mean_data.append(np.mean(results[(tree_size,model_name)]))
+			std_data.append(np.std(results[(tree_size,model_name)]))
+
+		mean_data = np.array(mean_data)
+		std_data = np.array(std_data)
+
+		label = model_name 
+		if label is None: 
+			label = "None"
+
+		ax.plot(tree_sizes,mean_data,color=colors[i_model],label=label)
+		ax.fill_between(tree_sizes, mean_data-std_data, mean_data+std_data,color=colors[i_model],alpha=0.5)
+
+	ax.legend(loc='best')
+	ax.set_xscale('log')
+
+	return fig,ax 
+
+
 
 
 def plot_loss(losses,lrs,team):
@@ -387,11 +432,24 @@ def plot_3d_dubins_result(sim_result,title):
 
 	# Plot the surface
 	ax.plot_surface(x, y, z, color='green',alpha=0.6)
+	ax.plot([0.0,goal[0]],[goal[1],goal[1]],[goal[2],goal[2]], color='green',linewidth=1,linestyle="--")
+	ax.plot([goal[0],goal[0]],[y_lim[-1],goal[1]],[goal[2],goal[2]], color='green',linewidth=1,linestyle="--")
+	ax.plot([goal[0],goal[0]],[goal[1],goal[1]],[0.0,goal[2]], color='green',linewidth=1,linestyle="--")
 
 	for i_robot in range(nrobots):
 
 		# trajectory 
 		ax.plot(states[:,i_robot,0],states[:,i_robot,1],states[:,i_robot,2],color=colors[i_robot])
+
+		# projections 
+		ax.plot(np.zeros(states[:,i_robot,0].shape),states[:,i_robot,1],states[:,i_robot,2],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot(states[:,i_robot,0],y_lim[-1]*np.ones(states[:,i_robot,1].shape),states[:,i_robot,2],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot(states[:,i_robot,0],states[:,i_robot,1],np.zeros(states[:,i_robot,2].shape),color=colors[i_robot],linewidth=1,linestyle="--")
+
+		ax.plot([0.0, states[0,i_robot,0]],[states[0,i_robot,1],states[0,i_robot,1]],[states[0,i_robot,2],states[0,i_robot,2]],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot([states[0,i_robot,0],states[0,i_robot,0]],[y_lim[-1],states[0,i_robot,1]],[states[0,i_robot,2],states[0,i_robot,2]],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot([states[0,i_robot,0],states[0,i_robot,0]],[states[0,i_robot,1],states[0,i_robot,1]],[0.0,states[0,i_robot,2]],color=colors[i_robot],linewidth=1,linestyle="--")
+
 		# start 
 		ax.plot([states[0,i_robot,0]],[states[0,i_robot,1]],states[0,i_robot,2],color=colors[i_robot],marker='s',markersize=10)
 
@@ -420,8 +478,56 @@ def plot_3d_dubins_result(sim_result,title):
 		# tag radius 
 		# ax.add_patch(mpatches.Circle(states[-1,i,0:2], sim_result["param"]["robots"][i]["tag_radius"],color=colors[i],alpha=0.2,fill=False))
 
+	set_axes_equal(ax)
 
+	# 
+	fig,axs = plt.subplots(nrows=2,ncols=max((sim_result["param"]["dynamics"]["state_dim"],sim_result["param"]["dynamics"]["control_dim"])),squeeze=False)
 
+	times = sim_result["times"]
+
+	for i_state, label in enumerate(sim_result["param"]["dynamics"]["state_labels"]):
+		for i_robot in range(sim_result["param"]["num_nodes"]):
+			axs[0,i_state].plot(times,states[:,i_robot,i_state],color=colors[i_robot])
+		axs[0,i_state].set_title(label) 
+		axs[0,i_state].grid(True)
+
+	axs[0,0].set_ylim(x_lim)
+	axs[0,1].set_ylim(y_lim)
+	axs[0,2].set_ylim(z_lim)
+
+	for i_control, label in enumerate(sim_result["param"]["dynamics"]["control_labels"]):
+		for i_robot in range(sim_result["param"]["num_nodes"]):		
+			axs[1,i_control].plot(times,actions[:,i_robot,i_control],color=colors[i_robot])
+		axs[1,i_control].set_title(label) 
+		axs[1,i_control].grid(True)
+
+def set_axes_equal(ax):
+    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc..  This is one possible solution to Matplotlib's
+    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
+
+    Input
+      ax: a matplotlib axis, e.g., as output from plt.gca().
+    '''
+
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5*max([x_range, y_range, z_range])
+
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
 
 
 def plot_tree_results(sim_result,title=None): 

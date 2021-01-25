@@ -155,14 +155,14 @@ public:
     // positionValid = (state.position_X() >= p_min.segment<1>(0) && state.position_Y() >= p_min.segment<1>(1) && state.position_X() <= p_max.segment<1>(0) && state.position_Y() <= p_max.segment<1>(1));
     positionValid = (state.position().array() >= p_min.array()).all() && (state.position().array() <= p_max.array()).all();
     // positionValid = true;
-    velocityValid = true;
+    velocityValid = state.velocity()(0) >= 0;
     return positionValid && velocityValid;
   }
 
   void init()
   {
     invalidAction << nanf("") , nanf("");
-    float accel_limit_turning = -2.0f*M_PI/5.0f;
+    float accel_limit_turning = 2.0f*M_PI/5.0f;
 
   }
 
@@ -211,5 +211,5 @@ public:
   typedef RobotTypeDubins3D Type;
 
   static constexpr int StateDim = 6;
-  static constexpr int ActionDim = 3;
+  static constexpr int ActionDim = 3; // phidot,psidot,vdot
 };

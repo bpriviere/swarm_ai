@@ -105,13 +105,17 @@ class PolicyEmptyNet(nn.Module):
 		return policy 
 
 	def scale_dubins_2d(self,policy):
-		policy_norm = policy.norm(p=2,dim=1)
-		scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
-		policy = torch.mul(scale.unsqueeze(1), policy)
+		# policy in bs x 2 : 
+		exit('scale in policy_emptynet not defined...')
+		l = torch.tensor([[0.2, 0.3, 0.]])
+		u = torch.tensor([[0.8, 1., 0.65]])
+		policy = torch.max(torch.min(policy, u), l)
 		return policy 
 
 	def scale_dubins_3d(self,policy):
-		policy_norm = policy.norm(p=2,dim=1)
-		scale = 1.0 / torch.clamp(policy_norm/self.acceleration_limit,min=1)
-		policy = torch.mul(scale.unsqueeze(1), policy)
+		# policy in bs x 3 : phidot,psidot,vdot
+		angular_acc_lim = 2.0*np.pi/5.0
+		l = torch.tensor([[-angular_acc_lim, -angular_acc_lim, -self.acceleration_limit]])
+		u = torch.tensor([[angular_acc_lim, angular_acc_lim, self.acceleration_limit]])
+		policy = torch.max(torch.min(policy, u), l)
 		return policy 

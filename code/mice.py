@@ -929,7 +929,7 @@ def format_dir(df_param):
 
 def sample_curriculum(param,curriculum):
 
-	mode = "special"
+	mode = "uniform"
 
 	if mode == "naive": 
 		# 'naive' curriculum learning 
@@ -989,10 +989,10 @@ def make_curriculum(df_param,i):
 	curriculum = {
 		'Skill_A' : skills_a,
 		'Skill_B' : skills_b,
-		'EnvironmentLength' : list(np.arange(df_param.l_env_dl,\
+		'EnvironmentLength' : list(np.arange(df_param.l_env_l0,\
 			df_param.l_desired_game["EnvironmentLength"]+df_param.l_env_dl,df_param.l_env_dl)),
-		'NumA' : list(range(1,df_param.l_desired_game["NumA"]+1)),
-		'NumB' : list(range(1,df_param.l_desired_game["NumB"]+1)),
+		'NumA' : list(range(df_param.l_numa_0,df_param.l_desired_game["NumA"]+df_param.l_dnuma)),
+		'NumB' : list(range(df_param.l_numb_0,df_param.l_desired_game["NumB"]+df_param.l_dnumb)),
 	}
 
 	return curriculum 
