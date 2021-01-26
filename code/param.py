@@ -139,6 +139,8 @@ class Param:
 		self.l_dnuma = 1
 		self.l_dnumb = 1
 
+		self.l_i0 = 0 # starting iteration for learning; can be used to 'resume' mice
+
 		self.l_desired_game = {
 			'Skill_A' : 4, #'a1.pt',
 			'Skill_B' : 4, #'b1.pt',

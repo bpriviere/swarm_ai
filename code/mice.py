@@ -926,18 +926,29 @@ def get_params(df_param,training_team,i,curriculum):
 
 def format_dir(df_param):
 
+	def get_iter_number_data(fn):
+		i = os.path.basename(fn).split("_i")[-1].split("_")[0]
+		return int(i)
+
+	def get_iter_number_models(fn):
+		i = os.path.basename(fn).split("_")[0][1:]
+		i = i.replace('.pt','')
+		return int(i)
+
 	if df_param.clean_data_on:
 		datadir = df_param.path_current_data
 		if os.path.exists(datadir):
 			for file in glob.glob(datadir + "/*"):
-				os.remove(file)
+				if get_iter_number_data(file) > df_param.l_i0:
+					os.remove(file)
 		os.makedirs(datadir,exist_ok=True)
 
 	if df_param.clean_models_on:
 		modeldir = df_param.path_current_models
 		if os.path.exists(modeldir):
 			for file in glob.glob(modeldir + "/*"):
-				os.remove(file)
+				if get_iter_number_models(file) > df_param.l_i0:
+					os.remove(file)
 		os.makedirs(modeldir,exist_ok=True)	
 
 def sample_curriculum(param,curriculum):
@@ -1045,7 +1056,7 @@ if __name__ == '__main__':
 	format_dir(df_param)
 
 	# training loop 
-	i = 0 
+	i = df_param.l_i0 
 	width = 4
 	while True: 
 		
