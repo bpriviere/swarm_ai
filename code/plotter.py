@@ -1090,7 +1090,7 @@ def plot_training_value(df_param,batched_fns,path_to_model):
 
 		# select candidate observations 
 		candidate = (v_as[idxs[i_state]],v_bs[idxs[i_state]],n_as[idxs[i_state]],n_bs[idxs[i_state]],n_rgs[idxs[i_state]])
-		print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
+		# print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
 
 		fig, axs = plt.subplots(nrows=1,ncols=2,squeeze=False)
 
@@ -1181,6 +1181,35 @@ def plot_training_value(df_param,batched_fns,path_to_model):
 
 		fig.tight_layout()
 
+def plot_exp9(result):
+
+	exp9_result = defaultdict(list)
+	colors = dict()
+	colors_list = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+	curr_color = 0 
+
+	for (dirname, team, model_number), losses in result.items():
+		key = (dirname, team)
+		losses = np.array(losses) # niters x 2 
+		value = losses[:,0]
+		exp9_result[key].extend(list(value))
+		if dirname not in colors.keys():
+			colors[dirname] = colors_list[curr_color]
+			curr_color += 1 
+
+	fig,axs = plt.subplots(ncols=2,squeeze=False)
+	for (dirname, team), losses in exp9_result.items():
+		if team == "a":
+			idx = 0
+		else:
+			idx = 1 
+
+		axs[0,idx].plot(losses,label=dirname,color=colors[dirname])
+
+	axs[0,idx].legend(loc='upper right')
+
+
+
 
 
 
@@ -1242,7 +1271,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 		# select candidate observations 
 		candidate = (o_as[idxs[i_state]],o_bs[idxs[i_state]],goals[idxs[i_state]])
-		print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
+		# print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
 
 		fig, axs = plt.subplots(nrows=2,ncols=2)
 
@@ -2096,6 +2125,17 @@ def policy_to_label(policy):
 			label += '{} '.format(value)
 		elif key in keys:  
 			label += ', {}'.format(value)
+
+	dirname = "None"
+	for key, value in policy.items():
+		if "path" in key and value is not None: 
+			print('value',value)
+			print('os.path.dirname(value)',os.path.dirname(value))
+			dirname = os.path.dirname(value)
+			break 
+
+	# add dir where it comes from 
+	label = dirname + " " + label
 	
 	return label
 

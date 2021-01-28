@@ -100,9 +100,15 @@ class Param:
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
-		self.l_num_iterations = 15
-		self.l_num_file_per_iteration = 20
-		self.l_num_points_per_file = 6000
+    if self.dynamics.name == "dubins_3d":
+      self.l_num_iterations = 15
+      self.l_num_file_per_iteration = 20
+      self.l_num_points_per_file = 6000
+    else: 
+      self.l_num_iterations = 5
+      self.l_num_file_per_iteration = 20 
+      self.l_num_points_per_file = 4000
+
 		self.l_mcts_c_param = 2.0
 		self.l_mcts_pw_C = 1.0
 		self.l_mcts_pw_alpha = 0.25
@@ -217,10 +223,10 @@ class Param:
 		self.l_network_activation = "relu"
 		self.l_test_train_ratio = 0.8
 		self.l_max_dataset_size = 10000000000 # n_points 
-		self.l_batch_size = 4096 #512
-		self.l_n_epoch = 500
+		self.l_batch_size = 1028 #512
+		self.l_n_epoch = 300
 		self.l_lr = 1e-3
-		self.l_lr_scheduler = None #'ReduceLROnPlateau' # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
+		self.l_lr_scheduler = 'ReduceLROnPlateau' #'ReduceLROnPlateau' # one of None, 'ReduceLROnPlateau', 'CosineAnnealingWarmRestarts'
 		self.l_wd = 0 
 		self.l_log_interval = 1
 		self.l_raw_fn = '{DATADIR}raw_team{TEAM}_i{LEARNING_ITER}_numfn{NUM_FILE}'
