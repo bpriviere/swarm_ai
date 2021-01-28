@@ -108,10 +108,10 @@ if __name__ == '__main__':
 	df_param.env_l = 5.0
 	df_param.init_on_sides = True
 	df_param.num_trials = 100
-	max_policy_file = 6
+	max_policy_file = 8
 	skip_policy_file = 2
 	glas_policy_files = range(1,max_policy_file+1,skip_policy_file)
-	mcts_policy_files = range(1,max_policy_file+1,skip_policy_file)
+	mcts_policy_files = range(skip_policy_file,max_policy_file+1,skip_policy_file)
 	name = "current/models" # "saved/t11/models" 
 	# name = "saved/3d_dubins_1/models" 
 

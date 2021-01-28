@@ -143,6 +143,19 @@ public:
     result.phi()        = state.phi() + action.segment<1>(0) * dt;
     result.psi()        = state.psi() + action.segment<1>(1) * dt;
 
+    // wrap angles 
+    // result.phi()(0) = fmod(result.phi()(0) + M_PI,2.0f*M_PI);
+    // if (result.phi()(0) < 0){
+    //   result.phi()(0) += 2.0f*M_PI;  
+    // }
+    // result.phi()(0) = result.phi()(0) - M_PI;
+
+    // result.psi()(0) = fmod(result.psi()(0) + M_PI,2.0f*M_PI);
+    // if (result.psi()(0) < 0){
+    //   result.psi()(0) += 2.0f*M_PI;  
+    // }
+    // result.psi()(0) = result.psi()(0) - M_PI;
+
     auto velocity       = state.velocity() + action.segment<1>(2) * dt;
     float alpha = velocity.norm() / velocity_limit;
     result.velocity() = velocity / std::max(alpha, 1.0f);    
@@ -152,11 +165,15 @@ public:
   {
     bool positionValid;
     bool velocityValid;
+    bool angleValid;
     // positionValid = (state.position_X() >= p_min.segment<1>(0) && state.position_Y() >= p_min.segment<1>(1) && state.position_X() <= p_max.segment<1>(0) && state.position_Y() <= p_max.segment<1>(1));
     positionValid = (state.position().array() >= p_min.array()).all() && (state.position().array() <= p_max.array()).all();
+    angleValid = (state.phi()(0) >= -M_PI && state.phi()(0) <= M_PI) && (state.psi()(0) >= -M_PI && state.psi()(0) <= M_PI);
+
     // positionValid = true;
     velocityValid = state.velocity()(0) >= 0;
-    return positionValid && velocityValid;
+    // return positionValid && velocityValid;
+    return positionValid && velocityValid && angleValid;
   }
 
   void init()

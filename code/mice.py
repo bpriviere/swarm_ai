@@ -939,7 +939,7 @@ def format_dir(df_param):
 		datadir = df_param.path_current_data
 		if os.path.exists(datadir):
 			for file in glob.glob(datadir + "/*"):
-				if get_iter_number_data(file) > df_param.l_i0:
+				if get_iter_number_data(file) >= df_param.l_i0:
 					os.remove(file)
 		os.makedirs(datadir,exist_ok=True)
 
@@ -947,7 +947,7 @@ def format_dir(df_param):
 		modeldir = df_param.path_current_models
 		if os.path.exists(modeldir):
 			for file in glob.glob(modeldir + "/*"):
-				if get_iter_number_models(file) > df_param.l_i0:
+				if get_iter_number_models(file) >= df_param.l_i0:
 					os.remove(file)
 		os.makedirs(modeldir,exist_ok=True)	
 
@@ -1057,7 +1057,7 @@ if __name__ == '__main__':
 
 	# training loop 
 	i = df_param.l_i0 
-	width = 4
+	width = 2
 	while True: 
 		
 		curriculum = make_curriculum(df_param,i)

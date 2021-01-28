@@ -100,9 +100,9 @@ class Param:
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
-		self.l_num_iterations = 10
+		self.l_num_iterations = 15
 		self.l_num_file_per_iteration = 20
-		self.l_num_points_per_file = 4000
+		self.l_num_points_per_file = 6000
 		self.l_mcts_c_param = 2.0
 		self.l_mcts_pw_C = 1.0
 		self.l_mcts_pw_alpha = 0.25

@@ -381,6 +381,78 @@ def plot_value_dataset_distributions(loader):
 	fig.tight_layout()
 
 
+def plot_policy_dataset_distributions(loader):
+	# loader = [(o_a,o_b,goal,action,weight)]
+	# o_a = {s^j - s^i} 
+	# o_b = {s^j - s^i}
+	# goal = {g - s^i}
+	# 	- e.g. 3d dubins : s = (x,y,z,phi,psi,v), a: (phidot, psidot, vdot)
+
+
+	state_dim_dubins = 6
+	action_dim_dubins = 3 
+
+	state_dim = state_dim_dubins
+	action_dim = action_dim_dubins
+
+	print("formatting data...")
+	for i, (o_a,o_b,goal,action,weight) in enumerate(loader):
+
+		print("{}/{}".format(i,len(loader)))
+
+		o_a = o_a.cpu().detach().numpy()  
+		o_b = o_b.cpu().detach().numpy()  
+		goal = goal.cpu().detach().numpy()  
+		action = action.cpu().detach().numpy()  
+		weight = weight.cpu().detach().numpy()  
+
+		data_i = [[] for _ in range(3*state_dim + 2*action_dim)] 
+		for j in range(o_a.shape[1]):
+			data_i[np.mod(j,state_dim)].extend(o_a[:,j])
+		for j in range(o_b.shape[1]):
+			data_i[state_dim + np.mod(j,state_dim)].extend(o_b[:,j])
+		for j in range(goal.shape[1]):
+			data_i[2*state_dim + np.mod(j,state_dim)].extend(goal[:,j])
+
+		data_i[3*state_dim:3*state_dim + action_dim].extend(action)
+		data_i[3*state_dim + action_dim:3*state_dim + 2*action_dim].extend(weight)
+
+		if i == 0:
+			data = data_i 
+		else: 
+			# data = np.vstack((data,data_i))
+			for j,_ in enumerate(data): 
+				data[j].extend(data_i[j])
+
+		# break
+
+	labels = ["xa","ya","za","phia","psia","va",\
+		"xb","yb","zb","phib","psib","vb",\
+		"xg","yg","zg","phig","psig","vg",\
+		"phidot", "psidot", "vdot", \
+		"phidotw", "psidotw", "vdotw",]
+
+	print('plotting histogram...')
+	nrows = 4 
+	ncols = 6
+	fig,axs = plt.subplots(nrows=nrows,ncols=ncols)
+	for idx in range(len(data)):
+		print("{}/{}".format(idx,len(data)))
+		i_row = int(np.floor(idx/ncols))
+		i_col = np.mod(idx,ncols)
+
+		axs[i_row,i_col].hist(np.array(data[idx][:])) 
+		axs[i_row,i_col].set_title(labels[idx])
+
+	for i_row in range(nrows):
+		for i_col in range(ncols):
+			ax = axs[i_row,i_col]
+			for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+				item.set_fontsize(4)
+
+	fig.tight_layout()	
+
+
 
 def plot_loss(losses,lrs,team):
 
