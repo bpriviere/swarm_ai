@@ -28,3 +28,7 @@ pybind11_add_module(mctscppsi
 pybind11_add_module(mctscppdubins2D
   python_bindings_dubins2D.cpp
 )
+
+pybind11_add_module(mctscppdubins3D
+  python_bindings_dubins3D.cpp
+)

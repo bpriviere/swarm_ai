@@ -30,6 +30,13 @@ dubins_2d = {
 	"state_labels" : ["x","y","th","speed"],
 	"control_labels" : ["acc","omega"]
 }
+dubins_3d = {
+	"name" : "dubins_3d",
+	"state_dim" : 6, # per robot 
+	"control_dim" : 3, 
+	"state_labels" : ["x","y","z","phi","psi","v"],
+	"control_labels" : ["phidot","psidot","vdot"]
+}
 
 
 class Param:
@@ -38,7 +45,7 @@ class Param:
 
 		# sim param 
 		self.sim_num_trials = 6
-		self.sim_dt = 0.1
+		self.sim_dt = 0.2
 		self.sim_parallel_on = True
 
 		# these parameters are also used for learning 
@@ -56,16 +63,16 @@ class Param:
 			'mcts_beta3' : 				0.0,
 		}
 
-		self.dynamics = double_integrator # "single_integrator", "double_integrator", "dubins_2d"
+		self.dynamics = dubins_3d # "single_integrator", "double_integrator", "dubins_2d", "dubins_3d"
 
 		# robot types 
 		self.robot_types = {
 			'standard_robot' : {
 				'speed_limit': 1.0,
-				'acceleration_limit':2.0,
-				'tag_radius': 0.10,
+				'acceleration_limit':1.0,
+				'tag_radius': 0.3,
 				'dynamics':'{}'.format(self.dynamics["name"]),
-				'r_sense': 3.0,
+				'r_sense': 5.0,
 				'radius': 0.05,
 			},
 			'evasive_robot' : {
@@ -85,7 +92,7 @@ class Param:
 		}
 		
 		# environment
-		self.env_l = 2.0
+		self.env_l = 5.0
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
@@ -93,9 +100,15 @@ class Param:
 		self.num_cpus = 4 # if device is 'cpu' use up to num_cpus for DistributedDataParallel (None to disable DDP)
 		self.l_sync_every = 4 # synchronize after l_sync_every batches in multi-cpu mode
 		self.l_parallel_on = True # set to false only for debug 
-		self.l_num_iterations = 5
-		self.l_num_file_per_iteration = 20 
-		self.l_num_points_per_file = 4000
+    if self.dynamics.name == "dubins_3d":
+      self.l_num_iterations = 15
+      self.l_num_file_per_iteration = 20
+      self.l_num_points_per_file = 6000
+    else: 
+      self.l_num_iterations = 5
+      self.l_num_file_per_iteration = 20 
+      self.l_num_points_per_file = 4000
+
 		self.l_mcts_c_param = 2.0
 		self.l_mcts_pw_C = 1.0
 		self.l_mcts_pw_alpha = 0.25
@@ -104,7 +117,6 @@ class Param:
 		self.l_mcts_beta3 = 0.5
 		self.l_num_learner_nodes = 500
 		self.l_num_expert_nodes = 10000
-		self.l_env_dl = 1.0
 		self.l_warmstart = True # warmstart policies between iterations
 		self.l_training_teams = ["a","b"]
 		self.l_robot_team_composition_cases = [
@@ -126,12 +138,21 @@ class Param:
 			# },			
 		]
 
+		self.l_env_l0 = 5.0
+		self.l_env_dl = 1.0
+		self.l_numa_0 = 1 
+		self.l_numb_0 = 1
+		self.l_dnuma = 1
+		self.l_dnumb = 1
+
+		self.l_i0 = 0 # starting iteration for learning; can be used to 'resume' mice
+
 		self.l_desired_game = {
 			'Skill_A' : 4, #'a1.pt',
 			'Skill_B' : 4, #'b1.pt',
-			'EnvironmentLength' : 3.0,
-			'NumA' : 3,
-			'NumB' : 3,
+			'EnvironmentLength' : 5.0,
+			'NumA' : 2,
+			'NumB' : 2,
 		}
 
 		self.l_subsample_on = False
@@ -269,10 +290,11 @@ class Param:
 
 			if name in ["single_integrator","double_integrator","dubins_2d"]:
 				radius = robot["radius"]
-				position = self.get_random_position_inside(xlim,ylim)
+				state_space = np.array((xlim,ylim))
+				position = self.get_random_position_inside(state_space)
 				count = 0 
 				while collision(position,robot,state[:,0:2],self.robots):
-					position = self.get_random_position_inside(xlim,ylim)
+					position = self.get_random_position_inside(state_space)
 					count += 1 
 					if count > 10000:
 						exit('infeasible initial condition')
@@ -293,6 +315,14 @@ class Param:
 				state[robot["idx"],0:2] = position 
 				state[robot["idx"],2] = orientation
 				state[robot["idx"],3] = np.linalg.norm(velocity)
+
+			if name == "dubins_3d":
+				if robot["team"] == "a":
+					psilim = np.pi/2
+				else:
+					psilim = -np.pi/2
+				state_space = np.array((xlim,ylim,ylim,(-np.pi/6,np.pi/6),(psilim,psilim),(0,robot["acceleration_limit"]/4)))
+				state[robot["idx"],:] = self.get_random_position_inside(state_space)
 
 		return state.tolist() 
 
@@ -356,12 +386,25 @@ class Param:
 			/ (self.robot_types["standard_robot"]["speed_limit"] * self.sim_dt))
 
 
-	def get_random_position_inside(self,xlim,ylim):
+	# def get_random_position_inside(self,xlim,ylim):
 
-		x = random.random()*(xlim[1] - xlim[0]) + xlim[0]
-		y = random.random()*(ylim[1] - ylim[0]) + ylim[0]
+	# 	x = random.random()*(xlim[1] - xlim[0]) + xlim[0]
+	# 	y = random.random()*(ylim[1] - ylim[0]) + ylim[0]
 		
-		return x,y 				
+	# 	return x,y 	
+
+
+	def get_random_position_inside(self,statespace):
+
+		state_dim, _ = statespace.shape
+		position = np.zeros(state_dim)
+
+		for i_state in range(state_dim):
+			position[i_state] = statespace[i_state,0] + random.random()*\
+				(statespace[i_state,1] - statespace[i_state,0])
+		
+		return position
+
 
 	def get_random_velocity_inside(self,speed_lim):
 

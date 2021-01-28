@@ -18,6 +18,9 @@ def global_to_local(states,param,idx):
 	elif param.dynamics["name"] == "dubins_2d":
 		pos_idx = np.arange(2)
 		goal = np.array([param.goal[0],param.goal[1],0,0])
+	elif param.dynamics["name"] == "dubins_3d":
+		pos_idx = np.arange(3)
+		goal = np.array([param.goal[0],param.goal[1],(param.env_ylim[1]-param.env_ylim[0])/2,0,0,0])		
 	else: 
 		exit('learning interface dynamics not implemented')
 
@@ -54,6 +57,8 @@ def global_to_value(param,state):
 		goal = np.array([param.goal[0],param.goal[1]])
 	elif param.dynamics["name"] == "dubins_2d":
 		goal = np.array([param.goal[0],param.goal[1],0,0])
+	elif param.dynamics["name"] == "dubins_3d":
+		goal = np.array([param.goal[0],param.goal[1],(param.env_ylim[1]-param.env_ylim[0])/2,0,0,0])		
 	else: 
 		exit('learning interface dynamics not implemented')
 
@@ -81,6 +86,8 @@ def local_to_global(param,o_a,o_b,relative_goal,team):
 		abs_goal = np.array([param.goal[0],param.goal[1]])
 	elif param.dynamics["name"] == "dubins_2d":
 		abs_goal = np.array([param.goal[0],param.goal[1],0,0])
+	elif param.dynamics["name"] == "dubins_3d":
+		abs_goal = np.array([param.goal[0],param.goal[1],(param.env_ylim[1]-param.env_ylim[0])/2,0,0,0])		
 	else: 
 		exit('learning interface dynamics not implemented')
 

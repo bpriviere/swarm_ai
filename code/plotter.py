@@ -270,6 +270,188 @@ def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list,env_length):
 			elif dist == 0:
 				ax.arrow(0,0,0,1e-3,color=color,alpha=0.5)
 
+def plot_exp8_results(all_sim_results):
+	results = defaultdict(list)
+	tree_sizes = set()
+	model_names = set() 
+	for sim_result in all_sim_results: 
+		tree_size = sim_result["param"]["policy_dict"]["mcts_tree_size"]
+		model_name = sim_result["param"]["policy_dict"]["path_glas_model_a"]
+		key = (tree_size,model_name)
+		results[key].append(sim_result["value"])
+		tree_sizes.add(tree_size)
+		model_names.add(model_name)
+
+		print('key, value: {},{}'.format(key,sim_result["value"]))
+
+	tree_sizes = sorted(list(tree_sizes))
+	colors = ["blue","orange"]
+
+	print('tree_sizes',tree_sizes)
+	print('model_names',model_names)
+
+	fig,ax = plt.subplots()
+	for i_model, model_name in enumerate(model_names): 
+
+		mean_data = []
+		std_data = [] 
+		for tree_size in tree_sizes: 
+			mean_data.append(np.mean(results[(tree_size,model_name)]))
+			std_data.append(np.std(results[(tree_size,model_name)]))
+
+		mean_data = np.array(mean_data)
+		std_data = np.array(std_data)
+
+		label = model_name 
+		if label is None: 
+			label = "None"
+
+		ax.plot(tree_sizes,mean_data,color=colors[i_model],label=label)
+		ax.fill_between(tree_sizes, mean_data-std_data, mean_data+std_data,color=colors[i_model],alpha=0.5)
+
+	ax.legend(loc='best')
+	ax.set_xscale('log')
+
+	return fig,ax 
+
+def plot_value_dataset_distributions(loader):
+	# loader = [(v_a,v_b,n_a,n_b,n_rg,target_value)]
+	# v_a = {s^j - g} 
+	# v_b = {s^j - g}
+	# 	- e.g. 3d dubins : s = (x,y,z,phi,psi,v)
+
+	state_dim_dubins = 6
+
+	state_dim = state_dim_dubins
+
+	print("formatting data...")
+	for i, (v_a,v_b,n_a,n_b,n_rg,target_value) in enumerate(loader):
+
+		print("{}/{}".format(i,len(loader)))
+
+		v_a = v_a.cpu().detach().numpy()  
+		v_b = v_b.cpu().detach().numpy()  
+		n_a = n_a.cpu().detach().numpy()  
+		n_b = n_b.cpu().detach().numpy()  
+		n_rg = n_rg.cpu().detach().numpy()  
+		target_value = target_value.cpu().detach().numpy()  
+
+		# data_i = np.zeros((v_a.shape[0],2*state_dim+4))
+		# data_i[:,0:state_dim] = v_a 
+		# data_i[:,state_dim:2*state_dim] = v_b
+		# data_i[:,2*state_dim] = n_a
+		# data_i[:,2*state_dim+1] = n_b
+		# data_i[:,2*state_dim+2] = n_rg
+		# data_i[:,2*state_dim+3] = target_value
+
+		data_i = [[] for _ in range(2*state_dim + 4)] 
+		for j in range(v_a.shape[1]):
+			data_i[np.mod(j,state_dim)].extend(v_a[:,j])
+		for j in range(v_b.shape[1]):
+			data_i[state_dim + np.mod(j,state_dim)].extend(v_b[:,j])
+
+		data_i[2*state_dim].extend(n_a)
+		data_i[2*state_dim+1].extend(n_b)
+		data_i[2*state_dim+2].extend(n_rg)
+		data_i[2*state_dim+3].extend(target_value)
+
+		if i == 0:
+			data = data_i 
+		else: 
+			# data = np.vstack((data,data_i))
+			for j,_ in enumerate(data): 
+				data[j].extend(data_i[j])
+
+		# break
+
+	labels = ["xa","ya","za","phia","psia","va","xb","yb","zb","phib","psib","vb","numa","numb","numrg","target_value"]
+
+	print('plotting histogram...')
+	nrows = 4 
+	ncols = 4
+	fig,axs = plt.subplots(nrows=nrows,ncols=ncols)
+	for idx in range(len(data)):
+		print("{}/{}".format(idx,len(data)))
+		i_row = int(np.floor(idx/ncols))
+		i_col = np.mod(idx,ncols)
+
+		axs[i_row,i_col].hist(np.array(data[idx][:])) 
+		axs[i_row,i_col].set_title(labels[idx])
+
+	fig.tight_layout()
+
+
+def plot_policy_dataset_distributions(loader):
+	# loader = [(o_a,o_b,goal,action,weight)]
+	# o_a = {s^j - s^i} 
+	# o_b = {s^j - s^i}
+	# goal = {g - s^i}
+	# 	- e.g. 3d dubins : s = (x,y,z,phi,psi,v), a: (phidot, psidot, vdot)
+
+
+	state_dim_dubins = 6
+	action_dim_dubins = 3 
+
+	state_dim = state_dim_dubins
+	action_dim = action_dim_dubins
+
+	print("formatting data...")
+	for i, (o_a,o_b,goal,action,weight) in enumerate(loader):
+
+		print("{}/{}".format(i,len(loader)))
+
+		o_a = o_a.cpu().detach().numpy()  
+		o_b = o_b.cpu().detach().numpy()  
+		goal = goal.cpu().detach().numpy()  
+		action = action.cpu().detach().numpy()  
+		weight = weight.cpu().detach().numpy()  
+
+		data_i = [[] for _ in range(3*state_dim + 2*action_dim)] 
+		for j in range(o_a.shape[1]):
+			data_i[np.mod(j,state_dim)].extend(o_a[:,j])
+		for j in range(o_b.shape[1]):
+			data_i[state_dim + np.mod(j,state_dim)].extend(o_b[:,j])
+		for j in range(goal.shape[1]):
+			data_i[2*state_dim + np.mod(j,state_dim)].extend(goal[:,j])
+
+		data_i[3*state_dim:3*state_dim + action_dim].extend(action)
+		data_i[3*state_dim + action_dim:3*state_dim + 2*action_dim].extend(weight)
+
+		if i == 0:
+			data = data_i 
+		else: 
+			# data = np.vstack((data,data_i))
+			for j,_ in enumerate(data): 
+				data[j].extend(data_i[j])
+
+		# break
+
+	labels = ["xa","ya","za","phia","psia","va",\
+		"xb","yb","zb","phib","psib","vb",\
+		"xg","yg","zg","phig","psig","vg",\
+		"phidot", "psidot", "vdot", \
+		"phidotw", "psidotw", "vdotw",]
+
+	print('plotting histogram...')
+	nrows = 4 
+	ncols = 6
+	fig,axs = plt.subplots(nrows=nrows,ncols=ncols)
+	for idx in range(len(data)):
+		print("{}/{}".format(idx,len(data)))
+		i_row = int(np.floor(idx/ncols))
+		i_col = np.mod(idx,ncols)
+
+		axs[i_row,i_col].hist(np.array(data[idx][:])) 
+		axs[i_row,i_col].set_title(labels[idx])
+
+	for i_row in range(nrows):
+		for i_col in range(ncols):
+			ax = axs[i_row,i_col]
+			for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+				item.set_fontsize(4)
+
+	fig.tight_layout()	
+
 
 
 def plot_loss(losses,lrs,team):
@@ -349,8 +531,146 @@ def get_n_colors(n,cmap=None):
 	# colors = [ cm.tab20(x) for x in cm_subsection]
 	return colors
 
+def plot_3d_dubins_result(sim_result,title):
+
+	states = sim_result["states"]
+	actions = sim_result["actions"]
+
+	nt, nrobots, state_dim = states.shape 
+
+	x_lim = sim_result["param"]["env_xlim"]
+	y_lim = sim_result["param"]["env_ylim"]
+	z_lim = sim_result["param"]["env_ylim"] # assume zlim and ylim are same 
+
+	colors = get_colors(sim_result["param"])
+
+	from mpl_toolkits.mplot3d import Axes3D
+	fig = plt.figure()
+	ax = fig.add_subplot(111, projection='3d')
+	ax.set_xlim(x_lim)
+	ax.set_ylim(y_lim)
+	ax.set_zlim(z_lim)
+
+	ax.set_xlabel('x')
+	ax.set_ylabel('y')
+	ax.set_zlabel('z')
+	
+	# goal region 
+	goal_z = (y_lim[1]-y_lim[0])/2
+	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+	goal = np.array([sim_result["param"]["goal"][0],sim_result["param"]["goal"][1],goal_z])
+
+	# Make data
+	u = np.linspace(0, 2 * np.pi, 100)
+	v = np.linspace(0, np.pi, 100)
+	x = tag_radius * np.outer(np.cos(u), np.sin(v)) + goal[0]
+	y = tag_radius * np.outer(np.sin(u), np.sin(v)) + goal[1]
+	z = tag_radius * np.outer(np.ones(np.size(u)), np.cos(v)) + goal[2]
+
+	# Plot the surface
+	ax.plot_surface(x, y, z, color='green',alpha=0.6)
+	ax.plot([0.0,goal[0]],[goal[1],goal[1]],[goal[2],goal[2]], color='green',linewidth=1,linestyle="--")
+	ax.plot([goal[0],goal[0]],[y_lim[-1],goal[1]],[goal[2],goal[2]], color='green',linewidth=1,linestyle="--")
+	ax.plot([goal[0],goal[0]],[goal[1],goal[1]],[0.0,goal[2]], color='green',linewidth=1,linestyle="--")
+
+	for i_robot in range(nrobots):
+
+		# trajectory 
+		ax.plot(states[:,i_robot,0],states[:,i_robot,1],states[:,i_robot,2],color=colors[i_robot])
+
+		# projections 
+		ax.plot(np.zeros(states[:,i_robot,0].shape),states[:,i_robot,1],states[:,i_robot,2],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot(states[:,i_robot,0],y_lim[-1]*np.ones(states[:,i_robot,1].shape),states[:,i_robot,2],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot(states[:,i_robot,0],states[:,i_robot,1],np.zeros(states[:,i_robot,2].shape),color=colors[i_robot],linewidth=1,linestyle="--")
+
+		ax.plot([0.0, states[0,i_robot,0]],[states[0,i_robot,1],states[0,i_robot,1]],[states[0,i_robot,2],states[0,i_robot,2]],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot([states[0,i_robot,0],states[0,i_robot,0]],[y_lim[-1],states[0,i_robot,1]],[states[0,i_robot,2],states[0,i_robot,2]],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot([states[0,i_robot,0],states[0,i_robot,0]],[states[0,i_robot,1],states[0,i_robot,1]],[0.0,states[0,i_robot,2]],color=colors[i_robot],linewidth=1,linestyle="--")
+
+		# start 
+		ax.plot([states[0,i_robot,0]],[states[0,i_robot,1]],states[0,i_robot,2],color=colors[i_robot],marker='s',markersize=10)
+
+		# end 
+		# Put special markers on attacker robot events
+		if (sim_result["param"]["robots"][i_robot]["team"] == 'a') :
+			# Find the last valid states
+			idx_unkn = np.where(np.isnan(states[:,i_robot,0]) == True)
+			idx_dead = np.where(np.isneginf(states[:,i_robot,0]) == True)
+			idx_goal = np.where(np.isposinf(states[:,i_robot,0]) == True)
+
+			# Plot events
+			if (len(idx_unkn[0])) :
+				# Robot is inactive
+				idx = max(0,min(idx_unkn[0])-1)
+				ax.plot([states[idx,i_robot,0]],[states[idx,i_robot,1]],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="|",markersize=10)
+			if (len(idx_dead[0])) :
+				# Robot is dead
+				idx = max(0,min(idx_dead[0])-1)
+				ax.plot([states[idx,i_robot,0]],[states[idx,i_robot,1]],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="x",markersize=10)
+			if (len(idx_goal[0])) :
+				# Robot is at the goal
+				idx = max(0,min(idx_goal[0])-1)
+				ax.plot([states[idx,i_robot,0]],[states[idx,i_robot,1]],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="o",markersize=10)
+		
+		# tag radius 
+		# ax.add_patch(mpatches.Circle(states[-1,i,0:2], sim_result["param"]["robots"][i]["tag_radius"],color=colors[i],alpha=0.2,fill=False))
+
+	set_axes_equal(ax)
+
+	# 
+	fig,axs = plt.subplots(nrows=2,ncols=max((sim_result["param"]["dynamics"]["state_dim"],sim_result["param"]["dynamics"]["control_dim"])),squeeze=False)
+
+	times = sim_result["times"]
+
+	for i_state, label in enumerate(sim_result["param"]["dynamics"]["state_labels"]):
+		for i_robot in range(sim_result["param"]["num_nodes"]):
+			axs[0,i_state].plot(times,states[:,i_robot,i_state],color=colors[i_robot])
+		axs[0,i_state].set_title(label) 
+		axs[0,i_state].grid(True)
+
+	axs[0,0].set_ylim(x_lim)
+	axs[0,1].set_ylim(y_lim)
+	axs[0,2].set_ylim(z_lim)
+
+	for i_control, label in enumerate(sim_result["param"]["dynamics"]["control_labels"]):
+		for i_robot in range(sim_result["param"]["num_nodes"]):		
+			axs[1,i_control].plot(times,actions[:,i_robot,i_control],color=colors[i_robot])
+		axs[1,i_control].set_title(label) 
+		axs[1,i_control].grid(True)
+
+def set_axes_equal(ax):
+    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc..  This is one possible solution to Matplotlib's
+    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
+
+    Input
+      ax: a matplotlib axis, e.g., as output from plt.gca().
+    '''
+
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5*max([x_range, y_range, z_range])
+
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+
 
 def plot_tree_results(sim_result,title=None): 
+
+	if sim_result["param"]["dynamics"]["name"] == "dubins_3d":
+		return plot_3d_dubins_result(sim_result,title=title)
 
 	def team_1_reward_to_gamma(reward_1):
 		# gamma = reward_1 * 2 - 1 
@@ -921,6 +1241,8 @@ def plot_training(df_param,batched_fns,path_to_model):
 		state_dim = 4 
 	elif dynamics_name == "dubins_2d":
 		state_dim = 4 	
+	elif dynamics_name == "dubins_3d":
+		state_dim = 6
 	else: 
 		exit('plot training dynamics not implemented')
 

@@ -5,15 +5,17 @@
 
 #include "RobotState.hpp"
 
+template<size_t EnvDim>
 class RobotType
 {
 public:
+  typedef Eigen::Matrix<float, EnvDim, 1> VectorEnv;
 
   RobotType() = default;
 
   RobotType(
-    const Eigen::Vector2f& p_min,
-    const Eigen::Vector2f& p_max,
+    const VectorEnv& p_min,
+    const VectorEnv& p_max,
     float tag_radius,
     float r_sense,
     float radius)
@@ -25,8 +27,8 @@ public:
   {
   }
 
-  Eigen::Vector2f p_min;
-  Eigen::Vector2f p_max;
+  VectorEnv p_min;
+  VectorEnv p_max;
   float tag_radiusSquared;
   float r_senseSquared;
   float radius;
