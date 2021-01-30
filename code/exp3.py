@@ -106,25 +106,22 @@ if __name__ == '__main__':
 
 	df_param = Param()
 
-  if df_param.dynamics["name"] == "dubins_3d":
-    df_param.env_l = 5.0
-  else: 
-    df_param.env_l = 3.0
-    
-  df_param.init_on_sides = True
-  df_param.num_trials = 100
-  max_policy_file = 6
-  skip_policy_files = 3
-  glas_policy_files = np.arange(1,max_policy_file+1,skip_policy_files)
-  mcts_policy_files = np.arange(skip_policy_file,max_policy_file+1,skip_policy_files)
-  name = "current/models" # "saved/t11/models" 
-	mode = 0
+	if df_param.dynamics["name"] == "dubins_3d":
+		df_param.env_l = 5.0
+	else: 
+		df_param.env_l = 3.0
 
-	if mode == 0 : 
+	df_param.init_on_sides = True
+	df_param.num_trials = 100
+	max_policy_file = 6
+	skip_policy_files = 2
+	glas_policy_files = np.arange(1,max_policy_file+1,skip_policy_files)
+	mcts_policy_files = np.arange(skip_policy_files,max_policy_file+1,skip_policy_files)
+	name = "current/models" # "saved/t11/models" 
+	mode = 1 # 0 : panagou, mcts expert biased/unbiased, panagou, d_mcts in mcts_policy_files
+
+	if mode in [0,1]: 
 		df_param.attackerPolicyDicts = []
-		df_param.attackerPolicyDicts.extend([{
-			'sim_mode' : "PANAGOU"
-			}])
 		df_param.attackerPolicyDicts.extend([{
 			'sim_mode' : 				"MCTS",
 			'path_glas_model_a' : 		None,
@@ -167,11 +164,8 @@ if __name__ == '__main__':
 			'mcts_beta2' : 				df_param.l_mcts_beta2,
 			'mcts_beta3' : 				df_param.l_mcts_beta3,
 		} for i in mcts_policy_files])
-    
+
 		df_param.defenderPolicyDicts = []
-		df_param.defenderPolicyDicts.extend([{
-			'sim_mode' : "PANAGOU"
-			}])
 		df_param.defenderPolicyDicts.extend([{
 			'sim_mode' : 				"MCTS",
 			'path_glas_model_a' : 		None,
@@ -214,6 +208,13 @@ if __name__ == '__main__':
 			'mcts_beta2' : 				df_param.l_mcts_beta2,
 			'mcts_beta3' : 				df_param.l_mcts_beta3,
 			} for i in mcts_policy_files])
+	if mode == 0:
+		df_param.attackerPolicyDicts.extend([{
+			'sim_mode' : "PANAGOU"
+			}])
+		df_param.defenderPolicyDicts.extend([{
+			'sim_mode' : "PANAGOU"
+			}])
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-game_file", default=None, required=False)
@@ -222,18 +223,18 @@ if __name__ == '__main__':
 	if not args.game_file is None: 
 		initial_conditions,robot_team_compositions = read_games_file(args.game_file)
 	else: 
-    if df_param.dynamics["name"] == "dubins_3d":
-      df_param.robot_team_compositions = [
-        {
-        'a': {'standard_robot':2,'evasive_robot':0},
-        'b': {'standard_robot':2,'evasive_robot':0}
-        }]
-    else: 
-      df_param.robot_team_compositions = [
-        {
-        'a': {'standard_robot':3,'evasive_robot':0},
-        'b': {'standard_robot':2,'evasive_robot':0}
-        }]					
+		if df_param.dynamics["name"] == "dubins_3d":
+			df_param.robot_team_compositions = [
+				{
+				'a': {'standard_robot':2,'evasive_robot':0},
+				'b': {'standard_robot':2,'evasive_robot':0}
+				}]
+		else: 
+			df_param.robot_team_compositions = [
+				{
+				'a': {'standard_robot':3,'evasive_robot':0},
+				'b': {'standard_robot':2,'evasive_robot':0}
+				}]					
 
 		initial_conditions,robot_team_compositions = make_games(df_param)
 

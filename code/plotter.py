@@ -2129,8 +2129,8 @@ def policy_to_label(policy):
 	dirname = "None"
 	for key, value in policy.items():
 		if "path" in key and value is not None: 
-			print('value',value)
-			print('os.path.dirname(value)',os.path.dirname(value))
+			# print('value',value)
+			# print('os.path.dirname(value)',os.path.dirname(value))
 			dirname = os.path.dirname(value)
 			break 
 
