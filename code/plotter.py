@@ -917,14 +917,20 @@ def plot_tree_results(sim_result,title=None):
 	# tree vis 
 	if len(sim_result["trees"]) > 0:
 
-		max_trees = 2
+		max_trees = 5
 		if len(sim_result["trees"]) > max_trees:
 			sim_result["trees"] = sim_result["trees"][0:max_trees]
 
-		fig,axs = plt.subplots(nrows=len(sim_result["trees"]),ncols=3,squeeze=False,constrained_layout=True)
-		# fig,axs = plt.subplots(nrows=len(sim_result["trees"]),ncols=2,squeeze=False,constrained_layout=True)
 
 		for i_tree, data in enumerate(sim_result["trees"]):
+			
+			fig,axs = plt.subplots(nrows=1,ncols=3,squeeze=False,constrained_layout=True)
+			fig2,axs2 = plt.subplots(nrows=1,ncols=num_nodes,squeeze=False,constrained_layout=True)
+			# fig,axs = plt.subplots(nrows=len(sim_result["trees"]),ncols=2,squeeze=False,constrained_layout=True)
+
+			for i_node in range(num_nodes):
+				plot_tree(axs2[0,i_node],data,i_node)
+				axs2[0,i_node].set_title("Robot {} at Tree Index {}".format(i_node,i_tree))
 
 			# [number of nodes x (parentIdx, reward, isBest, \{position, velocity\}_{for all robots})]
 
@@ -938,7 +944,7 @@ def plot_tree_results(sim_result,title=None):
 			tree_colors = get_2_colors(2,1)
 
 			# first col, position 
-			ax = axs[i_tree,0]
+			ax = axs[0,0]
 			segments = []
 			best_segments = []
 			cs = []
@@ -973,7 +979,7 @@ def plot_tree_results(sim_result,title=None):
 			ax.set_ylim([env_ylim[0],env_ylim[1]])
 
 			# second col, velocity embedding 
-			ax = axs[i_tree,1]
+			ax = axs[0,1]
 			segments = []
 			best_segments = []
 			cs = []
@@ -1002,7 +1008,7 @@ def plot_tree_results(sim_result,title=None):
 			ax.set_ylim([-acceleration_lims,acceleration_lims])
 
 			# third col, histogram of tree depth
-			ax = axs[i_tree,2]
+			ax = axs[0,2]
 			# ax = axs[i_tree,1]
 			num_nodes_by_depth = defaultdict(int)
 			for row in data:
@@ -1442,12 +1448,94 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 		fig.tight_layout()
 
-def plot_exp6(sim_result,dirname):
+def plot_tree(ax, tree, robot_idx_j, zoom_on=False, env_xlim=None, env_ylim=None):
+	# color by rewards 
+	rewards = tree[:,1]
+	size = plt.rcParams['lines.markersize'] ** 2
 
+	# 
+	position_idxs = 3 + 4*robot_idx_j + np.arange(2) 
+
+	segments = []
+	linewidths = [] 
+	best_segments = [] 
+	segment_colors = [] 
+	node_colors = [] 
+	poses = []
+	cmap = cm.viridis
+	for i_row,row in enumerate(tree):
+		parentIdx = int(row[0])
+
+		if np.isfinite(np.sum(row[position_idxs])) \
+			and np.isfinite(np.sum(tree[parentIdx][position_idxs])) \
+			and not np.isnan(np.sum(row[position_idxs])).any() \
+			and not np.isnan(np.sum(tree[parentIdx][position_idxs])).any() :
+
+			node_colors.append(cmap(rewards[i_row]))
+			poses.append(row[position_idxs])
+
+			if parentIdx >= 0:
+				segments.append([row[position_idxs], tree[parentIdx][position_idxs]])
+				if row[2] == 1 and tree[parentIdx][2] == 1:
+					best_segments.append(segments[-1])
+				segment_colors.append(cmap(rewards[i_row]))
+
+	# ln_coll = matplotlib.collections.LineCollection(segments, linewidth=0.2, colors=segment_colors)
+	# ax.add_collection(ln_coll)
+	# ln_coll = matplotlib.collections.LineCollection(best_segments, colors='k', zorder=3, linewidth=1.0)
+	# ax.add_collection(ln_coll)
+
+	ln_coll = matplotlib.collections.LineCollection(segments, linewidth=0.2, colors='k', alpha=0.2)
+	ax.add_collection(ln_coll)
+	# ln_coll = matplotlib.collections.LineCollection(best_segments, colors='k', zorder=3, linewidth=1.0)
+	# ax.add_collection(ln_coll)	
+
+	# plot nodes 
+	poses = np.array(poses)
+	if poses.shape[0] > 0:
+		# ax.scatter(poses[:,0],poses[:,1],c=node_colors,s=0.1*size)
+		ax.scatter(poses[0,0],poses[0,1],c='k',s=0.1*size)
+
+	if zoom_on: 
+		buffer_val = 0.2 
+		ax_lim_done = False
+		if poses.shape[0] > 1: 
+			xlims = [np.min(poses[:,0]), np.max(poses[:,0])]
+			ylims = [np.min(poses[:,1]), np.max(poses[:,1])]
+			xlims[0] = xlims[0] - buffer_val*(xlims[1]-xlims[0])
+			xlims[1] = xlims[1] + buffer_val*(xlims[1]-xlims[0])
+			ylims[0] = ylims[0] - buffer_val*(ylims[1]-ylims[0])
+			ylims[1] = ylims[1] + buffer_val*(ylims[1]-ylims[0])
+
+			if ylims[1] - ylims[0] > 0 and xlims[1] - xlims[0] > 0:
+				ax_lim_done = True
+				delta = (xlims[1] - xlims[0]) - (ylims[1] - ylims[0])
+				if delta > 0:
+					ylims[0] = ylims[0] - delta/2
+					ylims[1] = ylims[1] + delta/2
+				elif delta < 0: 
+					xlims[0] = xlims[0] + delta/2
+					xlims[1] = xlims[1] - delta/2				
+				ax.set_xlim(xlims)
+				ax.set_ylim(ylims)
+
+		if not ax_lim_done: 
+			ax.set_xlim([env_xlim[0],env_xlim[1]])
+			ax.set_ylim([env_ylim[0],env_ylim[1]])
+	
+		# arrange 
+		ax.set_aspect('equal')
+		ax.grid(True)
+
+
+def plot_exp6(sim_result,dirname):
 
 	# takes one sim result that has many trees (for each timestep) and plots each of the trees
 	# if MCTS sim mode the trees for each robot are identical 
 	# if D_MCTS sim mode, each robot has a tree for each other robot 	
+
+	env_xlim = sim_result["param"]["env_xlim"]
+	env_ylim = sim_result["param"]["env_ylim"]
 
 	def plot_state_space(ax,goal,sim_result,goal_color,robot_idxs,colors,states,env_xlim,env_ylim,zoom_on=False):
 		ax.add_patch(mpatches.Circle(goal, sim_result["param"]["robots"][0]["tag_radius"], color=goal_color,alpha=0.5))
@@ -1466,77 +1554,6 @@ def plot_exp6(sim_result,dirname):
 			ax.set_aspect('equal')
 			ax.grid(True)
 
-	def plot_tree(ax, tree, robot_idx_j, zoom_on=False):
-		# color by rewards 
-		rewards = tree[:,1]
-
-		# 
-		position_idxs = 3 + 4*robot_idx_j + np.arange(2) 
-
-		segments = []
-		linewidths = [] 
-		best_segments = [] 
-		segment_colors = [] 
-		node_colors = [] 
-		poses = []
-		cmap = cm.viridis
-		for i_row,row in enumerate(tree):
-			parentIdx = int(row[0])
-
-			if np.isfinite(np.sum(row[position_idxs])) \
-				and np.isfinite(np.sum(tree[parentIdx][position_idxs])) \
-				and not np.isnan(np.sum(row[position_idxs])).any() \
-				and not np.isnan(np.sum(tree[parentIdx][position_idxs])).any() :
-
-				node_colors.append(cmap(rewards[i_row]))
-				poses.append(row[position_idxs])
-
-				if parentIdx >= 0:
-					segments.append([row[position_idxs], tree[parentIdx][position_idxs]])
-					if row[2] == 1 and tree[parentIdx][2] == 1:
-						best_segments.append(segments[-1])
-					segment_colors.append(cmap(rewards[i_row]))
-
-		ln_coll = matplotlib.collections.LineCollection(segments, linewidth=0.2, colors=segment_colors)
-		ax.add_collection(ln_coll)
-		ln_coll = matplotlib.collections.LineCollection(best_segments, colors='k', zorder=3, linewidth=1.0)
-		ax.add_collection(ln_coll)
-
-		# plot nodes 
-		poses = np.array(poses)
-		if poses.shape[0] > 0:
-			ax.scatter(poses[:,0],poses[:,1],c=node_colors,s=0.1*size)
-
-		if zoom_on: 
-			buffer_val = 0.2 
-			ax_lim_done = False
-			if poses.shape[0] > 1: 
-				xlims = [np.min(poses[:,0]), np.max(poses[:,0])]
-				ylims = [np.min(poses[:,1]), np.max(poses[:,1])]
-				xlims[0] = xlims[0] - buffer_val*(xlims[1]-xlims[0])
-				xlims[1] = xlims[1] + buffer_val*(xlims[1]-xlims[0])
-				ylims[0] = ylims[0] - buffer_val*(ylims[1]-ylims[0])
-				ylims[1] = ylims[1] + buffer_val*(ylims[1]-ylims[0])
-
-				if ylims[1] - ylims[0] > 0 and xlims[1] - xlims[0] > 0:
-					ax_lim_done = True
-					delta = (xlims[1] - xlims[0]) - (ylims[1] - ylims[0])
-					if delta > 0:
-						ylims[0] = ylims[0] - delta/2
-						ylims[1] = ylims[1] + delta/2
-					elif delta < 0: 
-						xlims[0] = xlims[0] + delta/2
-						xlims[1] = xlims[1] - delta/2				
-					ax.set_xlim(xlims)
-					ax.set_ylim(ylims)
-
-			if not ax_lim_done: 
-				ax.set_xlim([env_xlim[0],env_xlim[1]])
-				ax.set_ylim([env_ylim[0],env_ylim[1]])
-		
-			# arrange 
-			ax.set_aspect('equal')
-			ax.grid(True)
 
 	# parameters 
 	tree_timestep = sim_result["param"]["tree_timestep"] 
@@ -1603,7 +1620,7 @@ def plot_exp6(sim_result,dirname):
 			visible_robot_idxs.extend(tree_params[key]["tree_team_2_idxs"])
 
 			for robot_idx_j in visible_robot_idxs:
-				plot_tree(ax, tree, robot_idx_j, zoom_on=False)
+				plot_tree(ax, tree, robot_idx_j, zoom_on=False, env_xlim=env_xlim, env_ylim=env_ylim)
 
 			# micro fig, zoom in on trees to see structure 
 			for robot_idx_j in visible_robot_idxs: 
@@ -1612,7 +1629,7 @@ def plot_exp6(sim_result,dirname):
 				
 				# plot state space 
 				plot_state_space(ax,goal,sim_result,goal_color,robot_idxs,colors,states,env_xlim,env_ylim)
-				plot_tree(ax, tree, robot_idx_j, zoom_on=True)
+				plot_tree(ax, tree, robot_idx_j, zoom_on=True, env_xlim=env_xlim, env_ylim=env_ylim)
 
 		# save
 		fig.savefig(os.path.join(dirname,"{:03.0f}.png".format(i_tree_time)), dpi=100)
@@ -2332,6 +2349,92 @@ def plot_exp3_results(all_sim_results):
 		fig.tight_layout()
 		# ax.legend()
 		# ax.grid(True)
+
+	# make plots with same data easier to understand: 
+	# two plots (attacker and defender) 
+	# x-axis learning iteraiton (or flat line)
+	# y-axis performance : mean + std in 
+	fig,axs = plt.subplots(nrows=1,ncols=2,squeeze=False)
+	# get colors 
+	colors = get_n_colors(len(attackerPolicies))
+
+	for i in range(2):
+
+		to_plot = []
+		other_to_plots = dict()
+
+		if i==0:
+			self_policies = attackerPolicies
+			adv_policies = defenderPolicies
+		elif i==1:
+			self_policies = defenderPolicies
+			adv_policies = attackerPolicies
+
+		for idx, policy_dict in enumerate(self_policies):
+			
+			if i == 0:
+				J_mean = np.sum(mean_rw_result[idx,:])/len(self_policies)
+				J_std = np.sqrt(np.sum(np.square(std_rw_result[idx,:])))/len(self_policies)
+			else:
+				J_mean = np.sum(mean_rw_result[:,idx])/len(self_policies)
+				J_std = np.sqrt(np.sum(np.square(std_rw_result[:,idx])))/len(self_policies)
+			
+			if policy_dict["sim_mode"] == "D_MCTS":
+
+				# get learning index 
+				if policy_dict["path_glas_model_a"] is not None: 
+					learning_idx = os.path.basename(policy_dict["path_glas_model_a"]).split(".")[0][1:]
+				else:
+					learning_idx = 0 
+
+				to_plot.append((learning_idx,\
+					J_mean,\
+					J_std,\
+					idx))
+
+			elif policy_dict["sim_mode"] == "MCTS":
+
+				if policy_dict["path_glas_model_a"] is not None: 
+					key = "Biased MCTS"
+				else: 
+					key = "Unbiased MCTS"
+
+				other_to_plots[key] = (\
+					J_mean,\
+					J_std,
+					idx)
+
+			elif policy_dict["sim_mode"] == "PANAGOU":
+
+				key = "PANGAOU"
+
+				other_to_plots[key] = (\
+					J_mean,\
+					J_std,
+					idx)
+
+		# sort 
+		sorted(to_plot, key=lambda x: x[0])
+		to_plot = np.array(to_plot,dtype=np.float32)
+		color_dmcts_idx = int(to_plot[0,3])
+		axs[0,i].plot(to_plot[:,0],to_plot[:,1],color=colors[color_dmcts_idx],label="DMCTS")
+		axs[0,i].fill_between(to_plot[:,0], to_plot[:,1]-to_plot[:,2], to_plot[:,1]+to_plot[:,2],color=colors[color_dmcts_idx],alpha=0.5)
+		for key,value in other_to_plots.items():
+			axs[0,i].plot([to_plot[0,0],to_plot[-1,0]],[value[0],value[0]],color=colors[value[2]],label=key)
+			axs[0,i].fill_between(to_plot[:,0], value[0]-value[1], value[0]+value[1],color=colors[value[2]],alpha=0.5)
+
+		axs[0,i].set_ylim([0,1])
+		axs[0,i].set_xticks(to_plot[:,0])
+		axs[0,i].grid(True)
+		axs[0,i].set_xlabel("Learning Iteration")
+		axs[0,i].set_ylabel("Performance")
+		axs[0,i].set_aspect("equal")
+	
+		if i == 1:
+			axs[0,i].legend(loc='best')
+
+	fig.tight_layout()
+
 
 
 def plot_test_model(df_param,stats):
