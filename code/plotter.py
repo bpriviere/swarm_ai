@@ -2366,24 +2366,26 @@ def plot_exp3_results(all_sim_results):
 		if i==0:
 			self_policies = attackerPolicies
 			adv_policies = defenderPolicies
+			title = "Attacker"
 		elif i==1:
 			self_policies = defenderPolicies
 			adv_policies = attackerPolicies
+			title = "Defender"
 
 		for idx, policy_dict in enumerate(self_policies):
 			
 			if i == 0:
 				J_mean = np.sum(mean_rw_result[idx,:])/len(self_policies)
-				J_std = np.sqrt(np.sum(np.square(std_rw_result[idx,:])))/len(self_policies)
+				J_std = (np.sum(np.square(std_rw_result[idx,:])))/len(self_policies)
 			else:
-				J_mean = np.sum(mean_rw_result[:,idx])/len(self_policies)
-				J_std = np.sqrt(np.sum(np.square(std_rw_result[:,idx])))/len(self_policies)
+				J_mean = 1-np.sum(mean_rw_result[:,idx])/len(self_policies)
+				J_std = (np.sum(np.square(std_rw_result[:,idx])))/len(self_policies)
 			
 			if policy_dict["sim_mode"] == "D_MCTS":
 
 				# get learning index 
 				if policy_dict["path_glas_model_a"] is not None: 
-					learning_idx = os.path.basename(policy_dict["path_glas_model_a"]).split(".")[0][1:]
+					learning_idx = int(os.path.basename(policy_dict["path_glas_model_a"]).split(".")[0][1:])
 				else:
 					learning_idx = 0 
 
@@ -2414,26 +2416,34 @@ def plot_exp3_results(all_sim_results):
 					idx)
 
 		# sort 
+		print(to_plot)
 		sorted(to_plot, key=lambda x: x[0])
 		to_plot = np.array(to_plot,dtype=np.float32)
 		color_dmcts_idx = int(to_plot[0,3])
-		axs[0,i].plot(to_plot[:,0],to_plot[:,1],color=colors[color_dmcts_idx],label="DMCTS")
-		axs[0,i].fill_between(to_plot[:,0], to_plot[:,1]-to_plot[:,2], to_plot[:,1]+to_plot[:,2],color=colors[color_dmcts_idx],alpha=0.5)
+		axs[0,i].plot(to_plot[:,0],to_plot[:,1],color=colors[color_dmcts_idx],label="DMCTS",alpha=0.9)
+		axs[0,i].fill_between(to_plot[:,0], to_plot[:,1]-to_plot[:,2], to_plot[:,1]+to_plot[:,2],\
+			color=colors[color_dmcts_idx],alpha=0.25)
 		for key,value in other_to_plots.items():
-			axs[0,i].plot([to_plot[0,0],to_plot[-1,0]],[value[0],value[0]],color=colors[value[2]],label=key)
-			axs[0,i].fill_between(to_plot[:,0], value[0]-value[1], value[0]+value[1],color=colors[value[2]],alpha=0.5)
+			axs[0,i].plot([to_plot[0,0],to_plot[-1,0]],[value[0],value[0]],color=colors[value[2]],label=key,alpha=0.9)
+			axs[0,i].fill_between(to_plot[:,0], value[0]-value[1], value[0]+value[1],color=colors[value[2]],alpha=0.25)
 
 		axs[0,i].set_ylim([0,1])
 		axs[0,i].set_xticks(to_plot[:,0])
 		axs[0,i].grid(True)
 		axs[0,i].set_xlabel("Learning Iteration")
-		axs[0,i].set_ylabel("Performance")
-		axs[0,i].set_aspect("equal")
+		axs[0,i].set_title(title)
+
+		x0,x1 = axs[0][i].get_xlim()
+		y0,y1 = axs[0][i].get_ylim()
+		axs[0][i].set_aspect(abs(x1-x0)/abs(y1-y0))
+		# axs[0,i].set_aspect("equal")
 	
 		if i == 1:
 			axs[0,i].legend(loc='best')
+		if i == 0:
+			axs[0,i].set_ylabel("Performance")
 
-	fig.tight_layout()
+	# fig.tight_layout()
 
 
 
