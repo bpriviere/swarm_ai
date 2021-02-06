@@ -44,13 +44,14 @@ from std_msgs.msg import String
 import sys
 import time 
 import numpy as np 
-sys.path.append("/home/ben/projects/swarm_ai/code/")
+sys.path.append("/home/whoenig/projects/caltech/swarm_ai/code")
+sys.path = ['/home/whoenig/projects/caltech/swarm_ai/hardware/mice-ros-pkg/scrips', '/opt/ros/noetic/lib/python3/dist-packages', '/usr/lib/python38.zip', '/usr/lib/python3.8', '/usr/lib/python3.8/lib-dynload', '/home/whoenig/.local/lib/python3.8/site-packages', '/usr/local/lib/python3.8/dist-packages', '/usr/lib/python3/dist-packages', '/home/whoenig/projects/caltech/swarm_ai/code']
 
 # my packages 
+from cpp.buildRelease import mctscpp as mctscpp
 from param import Param
 from cpp_interface import create_cpp_policy, create_cpp_value, state_to_cpp_game_state, param_to_cpp_game
 from learning_interface import global_to_local, local_to_global
-from cpp.buildRelease import mctscpp as mctscpp
 
 
 # def d_mcts(param,ros_state,mctssettings,policy_dict_a,policy_dict_b,policy_a,policy_b,valuePredictor_a,valuePredictor_b):
