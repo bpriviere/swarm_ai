@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import rospy
 from tf import TransformListener
@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     rospy.init_node("CrazyflieDistributed", anonymous=True)
 
-    with open("../launch/crazyflies.yaml", 'r') as ymlfile:
+    with open(rospy.get_param("crazyflies_yaml"), 'r') as ymlfile:
         cfg = yaml.safe_load(ymlfile)
 
     tf = TransformListener()

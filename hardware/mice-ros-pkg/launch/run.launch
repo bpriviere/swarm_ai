@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+  <param name="crazyflies_yaml" value="$(find mice-ros-pkg)/launch/crazyflies.yaml" />
+
+  <node name="robot1" pkg="mice-ros-pkg" type="robot.py" output="screen">
+    <param name="cfid" value="50" />
+    <param name="type" value="attacker" />
+  </node>
+
+  <node name="robot2" pkg="mice-ros-pkg" type="robot.py" output="screen">
+    <param name="cfid" value="51" />
+    <param name="type" value="defender" />
+  </node>
+
+</launch>
