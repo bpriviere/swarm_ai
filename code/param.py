@@ -62,7 +62,7 @@ class Param:
 			'mcts_beta3' : 				0.0,
 		}
 
-		self.dynamics = dubins_3d # "single_integrator", "double_integrator", "dubins_3d"
+		self.dynamics = double_integrator # "single_integrator", "double_integrator", "dubins_3d"
 
 		if self.dynamics["name"] == "dubins_3d":
 			self.sim_dt = 0.2
