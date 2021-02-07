@@ -588,7 +588,7 @@ def plot_3d_dubins_result(sim_result,title):
 		ax.plot([states[0,i_robot,0],states[0,i_robot,0]],[states[0,i_robot,1],states[0,i_robot,1]],[0.0,states[0,i_robot,2]],color=colors[i_robot],linewidth=1,linestyle="--")
 
 		# start 
-		ax.plot([states[0,i_robot,0]],[states[0,i_robot,1]],states[0,i_robot,2],color=colors[i_robot],marker='s',markersize=10)
+		ax.plot([states[0,i_robot,0]],[states[0,i_robot,1]],states[0,i_robot,2],color=colors[i_robot],marker='s',markersize=5, alpha=0.2)
 
 		# end 
 		# Put special markers on attacker robot events
@@ -628,6 +628,9 @@ def plot_3d_dubins_result(sim_result,title):
 		axs[0,i_state].set_title(label) 
 		axs[0,i_state].grid(True)
 
+		if i_state in [3,4,5]:
+			axs[0,i_state].set_ylim([-np.pi,np.pi])
+
 	axs[0,0].set_ylim(x_lim)
 	axs[0,1].set_ylim(y_lim)
 	axs[0,2].set_ylim(z_lim)
@@ -635,8 +638,10 @@ def plot_3d_dubins_result(sim_result,title):
 	for i_control, label in enumerate(sim_result["param"]["dynamics"]["control_labels"]):
 		for i_robot in range(sim_result["param"]["num_nodes"]):		
 			axs[1,i_control].plot(times,actions[:,i_robot,i_control],color=colors[i_robot])
-		axs[1,i_control].set_title(label) 
+		# axs[1,i_control].set_title(label) 
 		axs[1,i_control].grid(True)
+
+	# fig.tight_layout()
 
 def set_axes_equal(ax):
     '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
@@ -1248,7 +1253,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 	elif dynamics_name == "dubins_2d":
 		state_dim = 4 	
 	elif dynamics_name == "dubins_3d":
-		state_dim = 6
+		state_dim = 7
 	else: 
 		exit('plot training dynamics not implemented')
 

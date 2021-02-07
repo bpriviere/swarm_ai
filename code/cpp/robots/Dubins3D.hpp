@@ -2,6 +2,9 @@
 #include "RobotState.hpp"
 #include "RobotType.hpp"
 
+
+// from: https://scholarsarchive.byu.edu/facpub/1900/
+
 // Uncomment the following line to clip the environment, rather than executing a validity check
 // #define CLIP_ENVIRONMENT
 // Uncomment the following line to scale the velocity
@@ -15,7 +18,7 @@ public:
   RobotStateDubins3D() = default;
 
   RobotStateDubins3D(
-    const Eigen::Matrix<float, 6, 1>& s)
+    const Eigen::Matrix<float, 7, 1>& s)
     // const Eigen::Vector6f& s)
     : RobotState()
     , state(s)
@@ -23,8 +26,8 @@ public:
     status = Status::Active;
   }
 
-  // x, y, z, phi, psi, V 
-  Eigen::Matrix<float,6,1> state;
+  // x, y, z, psi (heading), gamma (flight path), phi (bank), V (velocity)  
+  Eigen::Matrix<float,7,1> state;
   // Eigen::Vector6f state;
 
   const auto position() const {
@@ -59,29 +62,37 @@ public:
     return state.segment<1>(2);
   }  
   
-  const auto phi() const {
-    return state.segment<1>(3);
-  }
-
-  auto phi() {
-    return state.segment<1>(3);
-  }
-
   const auto psi() const {
-    return state.segment<1>(4);
+    return state.segment<1>(3);
   }
 
   auto psi() {
+    return state.segment<1>(3);
+  }
+
+  const auto gamma() const {
+    return state.segment<1>(4);
+  }
+
+  auto gamma() {
     return state.segment<1>(4);
   }  
 
-  const auto velocity() const {
+  const auto phi() const {
     return state.segment<1>(5);
   }
 
-  auto velocity() {
+  auto phi() {
     return state.segment<1>(5);
   }  
+
+  const auto velocity() const {
+    return state.segment<1>(6);
+  }
+
+  auto velocity() {
+    return state.segment<1>(6);
+  }    
 
 
   bool isApprox(const RobotStateDubins3D& other) const
@@ -135,26 +146,13 @@ public:
     float dt,
     RobotStateDubins3D& result) const
   {
-    // state: x,y,z,phi,psi,V
-    // action: phidot, psidot, Vdot
-    result.position_X() = state.position_X() + state.velocity()*cos(state.phi()(0))*sin(state.psi()(0)) * dt;
-    result.position_Y() = state.position_Y() + state.velocity()*cos(state.phi()(0))*cos(state.psi()(0)) * dt;
-    result.position_Z() = state.position_Z() - state.velocity()*sin(state.phi()(0)) * dt;
-    result.phi()        = state.phi() + action.segment<1>(0) * dt;
-    result.psi()        = state.psi() + action.segment<1>(1) * dt;
+    result.position_X() = state.position_X() + state.velocity()*cos(state.gamma()(0))*sin(state.psi()(0)) * dt;
+    result.position_Y() = state.position_Y() + state.velocity()*cos(state.gamma()(0))*cos(state.psi()(0)) * dt;
+    result.position_Z() = state.position_Z() - state.velocity()*sin(state.gamma()(0)) * dt;
 
-    // wrap angles 
-    // result.phi()(0) = fmod(result.phi()(0) + M_PI,2.0f*M_PI);
-    // if (result.phi()(0) < 0){
-    //   result.phi()(0) += 2.0f*M_PI;  
-    // }
-    // result.phi()(0) = result.phi()(0) - M_PI;
-
-    // result.psi()(0) = fmod(result.psi()(0) + M_PI,2.0f*M_PI);
-    // if (result.psi()(0) < 0){
-    //   result.psi()(0) += 2.0f*M_PI;  
-    // }
-    // result.psi()(0) = result.psi()(0) - M_PI;
+    result.psi()(0)     = state.psi()(0) + 0.1f * 9.81f / state.velocity()(0) * tan(state.phi()(0)) * dt; 
+    result.gamma()      = state.gamma() + action.segment<1>(0) * dt;
+    result.phi()        = state.phi() + action.segment<1>(1) * dt;
 
     auto velocity       = state.velocity() + action.segment<1>(2) * dt;
     float alpha = velocity.norm() / velocity_limit;
@@ -168,7 +166,8 @@ public:
     bool angleValid;
     // positionValid = (state.position_X() >= p_min.segment<1>(0) && state.position_Y() >= p_min.segment<1>(1) && state.position_X() <= p_max.segment<1>(0) && state.position_Y() <= p_max.segment<1>(1));
     positionValid = (state.position().array() >= p_min.array()).all() && (state.position().array() <= p_max.array()).all();
-    angleValid = (state.phi()(0) >= -M_PI && state.phi()(0) <= M_PI) && (state.psi()(0) >= -M_PI && state.psi()(0) <= M_PI);
+    angleValid = (state.phi()(0) >= -M_PI && state.phi()(0) <= M_PI) && (state.psi()(0) >= -M_PI && state.psi()(0) <= M_PI) && (state.gamma()(0) >= -M_PI && state.gamma()(0) <= M_PI);
+    // angleValid = true;
 
     // positionValid = true;
     velocityValid = state.velocity()(0) >= 0;
@@ -227,6 +226,6 @@ public:
   typedef RobotActionDubins3D Action;
   typedef RobotTypeDubins3D Type;
 
-  static constexpr int StateDim = 6;
-  static constexpr int ActionDim = 3; // phidot,psidot,vdot
+  static constexpr int StateDim = 7;
+  static constexpr int ActionDim = 3; // gammadot, phidot, vdot 
 };

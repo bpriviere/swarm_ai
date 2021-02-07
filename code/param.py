@@ -32,10 +32,11 @@ dubins_2d = {
 }
 dubins_3d = {
 	"name" : "dubins_3d",
-	"state_dim" : 6, # per robot 
+	"state_dim" : 7, # per robot 
 	"control_dim" : 3, 
-	"state_labels" : ["x","y","z","phi","psi","v"],
-	"control_labels" : ["phidot","psidot","vdot"]
+	# inertial position, heading, flight path, bank, velocity
+	"state_labels" : ["x","y","z","psi","gamma","phi","v"], 
+	"control_labels" : ["gammadot","phidot","vdot"]
 }
 
 
@@ -65,7 +66,7 @@ class Param:
 		self.dynamics = dubins_3d # "single_integrator", "double_integrator", "dubins_3d"
 
 		if self.dynamics["name"] == "dubins_3d":
-			self.sim_dt = 0.2
+			self.sim_dt = 0.1
 			# robot types 
 			self.robot_types = {
 				'standard_robot' : {
@@ -115,7 +116,7 @@ class Param:
 		}
 		
 		# environment
-		self.env_l = 5.0
+		self.env_l = 10.0
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
@@ -131,7 +132,7 @@ class Param:
 			self.l_desired_game = {
 				'Skill_A' : 4, #'a1.pt',
 				'Skill_B' : 4, #'b1.pt',
-				'EnvironmentLength' : 5.0,
+				'EnvironmentLength' : 10.0,
 				'NumA' : 2,
 				'NumB' : 2,
 			}
@@ -329,10 +330,15 @@ class Param:
 
 			if name == "dubins_3d":
 				if robot["team"] == "a":
-					psilim = np.pi/2
+					gammalim = np.pi/2
 				else:
-					psilim = -np.pi/2
-				state_space = np.array((xlim,ylim,ylim,(-np.pi/6,np.pi/6),(psilim,psilim),(0,robot["acceleration_limit"]/4)))
+					gammalim = -np.pi/2
+				state_space = np.array(\
+					(xlim,ylim,ylim,\
+					(gammalim,gammalim),\
+					(-np.pi/6,np.pi/6),\
+					(-np.pi/6,np.pi/6),\
+					(robot["speed_limit"]/2,robot["speed_limit"]/2)))
 				state[robot["idx"],:] = self.get_random_position_inside(state_space)
 
 		return state.tolist() 

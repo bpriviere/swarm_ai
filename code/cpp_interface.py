@@ -74,7 +74,7 @@ def param_to_cpp_game(robot_team_composition,robot_types,env_xlim,env_ylim,dt,go
 	elif dynamics_name == "dubins_3d":
 		temp_goal = goal 
 		# x,y,z,phi,psi,v
-		goal = np.array([goal[0],goal[1],(env_ylim[1]-env_ylim[0])/2,0,0,0])
+		goal = np.array([goal[0],goal[1],(env_ylim[1]-env_ylim[0])/2,0,0,0,0])
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, rollout_horizon)
 	return g
 

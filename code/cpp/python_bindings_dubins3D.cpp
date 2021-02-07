@@ -185,7 +185,7 @@ PYBIND11_MODULE(mctscppdubins3D, m) {
 
   robotState.def(py::init())
     // .def(py::init<const Eigen::Vector6f&>())                          // This might need to change
-    .def(py::init<const Eigen::Matrix<float, 6, 1>&>())                          // This might need to change
+    .def(py::init<const Eigen::Matrix<float, 7, 1>&>())                          // This might need to change
     // .def_property_readonly("position", &RobotStateT::position)
     // .def_property_readonly("velocity", &RobotStateT::velocity)
     .def_readwrite("state", &RobotStateT::state)
