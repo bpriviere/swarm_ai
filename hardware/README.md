@@ -10,6 +10,7 @@ Distributed implementation using the Crazyswarm framework. Each robot executes i
 * Use symbolic link to include `mice-ros-pkg`: 
 
 ```
+$ mkdir path/to/crazyswarm/ros_ws/src/userPackages
 crazyswarm/ros_ws/src/userPackages$ ln -s /path/to/mice-ros-pkg .
 ```
 
@@ -21,7 +22,7 @@ crazyswarm/ros_ws/src/userPackages$ ln -s /path/to/mice-ros-pkg .
 * In Terminal 1:
 ```
 $ source /path/to/crazyswarm/ros_ws/devel/setup.bash
-crazyswarm/ros_ws/crazyswarm/scripts$ python chooser.py --basepath ../../userPackages/mice-ros-pkg/launch/
+$ crazyswarm/ros_ws/src/crazyswarm/scripts$ python chooser2.py --configpath ../../userPackages/mice-ros-pkg/launch/
 ```
 * Update mice-ros-pkg/launch/run.launch if needed to select type and match CF Ids. Note that only robot.py scripts will be executed for which chooser.py enabled those robots.
 
@@ -44,6 +45,12 @@ mice-ros-pkg/scripts$ roslaunch mice-ros-pkg lab.launch
 ```
 
 #### Terminal 3: Run simulation or connect to robots
+
+Prepare terminal:
+```
+$ source /path/to/crazyswarm/ros_ws/devel/setup.bash
+mice-ros-pkg/scripts$ export PYTHONPATH=$PYTHONPATH:/path/to/crazyswarm/ros_ws/src/crazyswarm/scripts
+```
 
 Run robot.py, one per each robot
 ```

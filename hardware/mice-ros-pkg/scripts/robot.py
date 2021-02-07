@@ -5,7 +5,9 @@ import sys
 import time 
 import yaml
 import numpy as np 
-sys.path.append("/home/whoenig/projects/caltech/swarm_ai/code")
+import os
+# sys.path.append("/home/whoenig/projects/caltech/swarm_ai/code")
+sys.path.append("/home/ben/projects/swarm_ai/code")
 
 # ROS packages
 import rospy
@@ -59,6 +61,35 @@ def d_mcts_i(param,state,robot_idx,mctssettings,policy_dict_a,policy_dict_b,poli
 
     return action_i 
 
+def get_status(param,robot_idx,cpp_state):
+    # cpp_state num agents x 4 nd array 
+
+    if robot_idx in param.team_1_idxs: 
+        # check tagged
+        for defender_robot_idx in param.team_2_idxs: 
+            dist = np.linalg.norm(cpp_state[robot_idx,0:2] - cpp_state[defender_robot_idx,0:2])
+            if dist < param.robot_types["standard_robot"]["tag_radius"] : 
+                return "Tagged" 
+
+        # check reached goal
+        dist = np.linalg.norm(cpp_state[robot_idx,0:2] - param.goal[0:2])
+        if dist < param.robot_types["standard_robot"]["tag_radius"] : 
+            return "ReachedGoal"
+
+    # check bounds 
+    speed_lim = param.robot_types["standard_robot"]["speed_limit"]
+    # speed_lim = VEL_LIMIT
+    speed = np.linalg.norm(cpp_state[robot_idx,3:5])
+    if  cpp_state[robot_idx,0] < param.env_xlim[0] or \
+        cpp_state[robot_idx,0] > param.env_xlim[1] or \
+        cpp_state[robot_idx,1] < param.env_ylim[0] or \
+        cpp_state[robot_idx,1] > param.env_ylim[1] or \
+        speed > speed_lim:
+        return "OutOfBounds"
+
+    return "Active"
+
+
 
 def ros_state_to_cpp_state(param,ros_state):
     cpp_state = ros_state
@@ -75,9 +106,10 @@ def get_ros_state(tf, cfids, last_state, dt, VEL_LIMIT):
         result[i,0:2] = position[0:2]
 
         if last_state is not None:
-            v = np.clip((result[i,0:2] - last_state[i,0:2]) / dt, -VEL_LIMIT, VEL_LIMIT)
-            # ToDo: filter result?
-            result[i,2:4] = v
+            # v = np.clip((result[i,0:2] - last_state[i,0:2]) / dt, -VEL_LIMIT, VEL_LIMIT)
+            v = (result[i,0:2] - last_state[i,0:2]) / dt 
+            alpha = 0.1
+            result[i,2:4] = (1-alpha) * v + alpha * last_state[i,3:5]
         else:
             result[i,2:4] = [0,0]
 
@@ -135,8 +167,8 @@ def run(cf, tf, cfids, robot_idx):
 
     # some tuning parameters
     HEIGHT = 0.5
-    ENV_LIMIT = 1.5
-    VEL_LIMIT = 0.5
+    # VEL_LIMIT = 0.5
+    VEL_LIMIT = 1.0
     ACC_LIMIT = 2
 
 
@@ -152,7 +184,7 @@ def run(cf, tf, cfids, robot_idx):
         0,                      # vz
     ])
 
-    dt = 0.1
+    dt = 0.05
     rate = rospy.Rate(1/dt) # hz
     ros_state = None
 
@@ -161,29 +193,63 @@ def run(cf, tf, cfids, robot_idx):
     mctssettings = get_mcts_settings(param)
     policy_dict_a, policy_dict_b = make_policy_dicts(param) 
     policy_a, policy_b, valuePredictor_a, valuePredictor_b = load_heuristics(policy_dict_a,policy_dict_b)
+
+    # define goal location 
+    print('goal x: ',param.goal[0])
+    print('goal y: ',param.goal[1])
+    print('todo: add goal to rvis...')
+
+    # define colors 
+    if robot_idx in param.team_1_idxs: 
+        color = "BLUE" # attacker
+    elif robot_idx in param.team_2_idxs: 
+        color = "RED"  # defender 
+    print("todo: assign color...")
     
     while not rospy.is_shutdown():
 
         ros_state = get_ros_state(tf, cfids, ros_state, dt, VEL_LIMIT)
         cpp_state = ros_state_to_cpp_state(param,ros_state)
 
+        # check status
+        status = get_status(param,robot_idx,cpp_state)
+
+        print("robot idx: {}, x_curr: {}, status: {}".format(robot_idx,cpp_state[robot_idx,:],status))
+
+        if status == "ReachedGoal":
+            color = "GREEN"
+            done = True
+        elif status in ["Tagged","OutOfBounds"]:
+            color = "OFF"
+            done = True 
+        elif status == "Active": 
+            done = False         
+
+        if done: 
+            print("todo: assign color...")
+            print("todo: drop robot...")
+            break 
+            
+
         start = time.time()
         action = d_mcts_i(param,cpp_state,robot_idx,mctssettings,policy_dict_a,policy_dict_b,policy_a,policy_b,valuePredictor_a,valuePredictor_b)
         duration = time.time() - start 
 
-        timeit_str = "exec time: {}".format(duration)
-        action_str = "action: {}".format(action)
-
-        rospy.loginfo(timeit_str)
-        rospy.loginfo(action_str)
+        # timeit_str = "exec time: {}".format(duration)
+        # action_str = "action: {}".format(action)
+        # rospy.loginfo(timeit_str)
+        # rospy.loginfo(action_str)
 
         # propagate desired state
-        x_des[0:2] = np.clip(x_des[0:2] + x_des[3:5] * dt, -ENV_LIMIT, ENV_LIMIT)
-        x_des[3:5] = np.clip(x_des[3:5] + action * dt, -VEL_LIMIT, VEL_LIMIT)
-        acc = np.clip([action[0], action[1], 0], -ACC_LIMIT, ACC_LIMIT)
+        action = action * np.min((ACC_LIMIT/np.linalg.norm(action),1))
+        acc = np.array([action[0],action[1],0])
+        x_des[0:2] = x_des[0:2] + x_des[3:5] * dt
+        x_des[3:5] = x_des[3:5] + acc[0:2] * dt 
+
 
         cf.cmdFullState(x_des[0:3], x_des[3:6], acc, yaw=0, omega=[0,0,0])
-        print(x_des)
+        # print(x_des)
+
         rate.sleep()
 
 

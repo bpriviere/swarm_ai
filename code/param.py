@@ -49,11 +49,14 @@ class Param:
 
 		# these parameters are also used for learning 
 		self.policy_dict = {
-			'sim_mode' : 				"MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
-			'path_glas_model_a' : 		None, 	# '../current/models/a1.pt', None
-			'path_glas_model_b' : 		None, 	# '../current/models/b1.pt', None
-			'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None		
-			'mcts_tree_size' : 			10000,
+			'sim_mode' : 				"D_MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
+			# 'path_glas_model_a' : 		None, 	# '../current/models/a1.pt', None
+			# 'path_glas_model_b' : 		None, 	# '../current/models/b1.pt', None
+			# 'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None		
+			'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/a9.pt', 
+			'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/b9.pt', 
+			'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/results/double_integrator/v9.pt',	
+			'mcts_tree_size' : 			50,
 			'mcts_c_param' : 			2.0,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
@@ -109,13 +112,13 @@ class Param:
 
 
 		self.robot_team_composition = {
-			'a': {'standard_robot':2,'evasive_robot':0},
+			'a': {'standard_robot':1,'evasive_robot':0},
 			# 'a': {'standard_robot':2,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 		}
 		
 		# environment
-		self.env_l = 5.0
+		self.env_l = 2.0
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
