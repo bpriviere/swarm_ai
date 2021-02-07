@@ -2,7 +2,9 @@
 
 import rospy
 import tf2_ros
+from std_msgs.msg import Empty
 import geometry_msgs.msg
+from visualization_msgs.msg import Marker
 
 import yaml
 import numpy as np
@@ -51,6 +53,10 @@ class CrazyflieROS(Crazyflie):
         rospy.Service(prefix + '/update_params', UpdateParams, self.handle_update_params)
 
         rospy.Subscriber(prefix + "/cmd_full_state", FullState, self.handle_cmd_full_state)
+        rospy.Subscriber(prefix + "/cmd_stop", Empty, self.handle_cmd_stop)
+
+        # LED support
+        self.ledsPublisher = rospy.Publisher("/leds", Marker, queue_size=1)
 
     def handle_set_group_mask(self, req):
         self.setGroupMask(req.groupMask)
@@ -65,7 +71,9 @@ class CrazyflieROS(Crazyflie):
         return LandResponse()
 
     def handle_go_to(self, req):
-        print("ERROR NOT IMPLEMENTED!")
+        goal = [req.goal.x, req.goal.y, req.goal.z]
+        self.goTo(goal, yaw, req.duration.to_sec(), req.relative, req.groupMask)
+        return GoToResponse()
 
     def handle_upload_trajectory(self, req):
         print("ERROR NOT IMPLEMENTED!")
@@ -74,10 +82,15 @@ class CrazyflieROS(Crazyflie):
         print("ERROR NOT IMPLEMENTED!")
 
     def handle_notify_setpoints_stop(self, req):
-        print("ERROR NOT IMPLEMENTED!")
+        self.notifySetpointsStop(req.remainValidMillisecs)
+        return NotifySetpointsStopResponse()
 
     def handle_update_params(self, req):
-        print("ERROR NOT IMPLEMENTED!")
+        print("Warning: Update params not implemented in simulation!", req)
+        for param in req.params:
+            if "ring/solid" in param:
+                self.updateLED()
+        return UpdateParamsResponse()
 
     def handle_cmd_full_state(self, msg):
         pos = [msg.pose.position.x, msg.pose.position.y, msg.pose.position.z]
@@ -86,6 +99,31 @@ class CrazyflieROS(Crazyflie):
         omega = [msg.twist.angular.x, msg.twist.angular.y, msg.twist.angular.z]
         # TODO: extract yaw from quat?
         self.cmdFullState(pos, vel, acc, 0, omega)
+
+    def handle_cmd_stop(self, msg):
+        self.cmdStop()
+
+    def updateLED(self):
+
+        if rospy.has_param("/cf" + str(self.id) + "/ring/solidRed") and \
+            rospy.has_param("/cf" + str(self.id) + "/ring/solidGreen") and \
+            rospy.has_param("/cf" + str(self.id) + "/ring/solidBlue"):
+            
+            marker = Marker()
+            marker.header.frame_id = "cf" + str(self.id)
+            marker.ns = "LED"
+            marker.id = self.id
+            marker.type = marker.SPHERE
+            marker.action = marker.ADD
+            marker.scale.x = 0.3
+            marker.scale.y = 0.3
+            marker.scale.z = 0.3
+            marker.color.a = 0.2
+            marker.color.r = rospy.get_param("/cf" + str(self.id) + "/ring/solidRed")
+            marker.color.g = rospy.get_param("/cf" + str(self.id) + "/ring/solidGreen")
+            marker.color.b = rospy.get_param("/cf" + str(self.id) + "/ring/solidBlue")
+            marker.frame_locked = True
+            self.ledsPublisher.publish(marker)
 
 class CrazyflieServerROS:
     def __init__(self, timehelper, crazyflies_yaml="../launch/crazyflies.yaml"):

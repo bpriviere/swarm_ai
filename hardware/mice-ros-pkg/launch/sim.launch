@@ -5,6 +5,6 @@
   <node name="sim" pkg="mice-ros-pkg" type="sim.py" output="screen">
   </node>
 
-  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find crazyswarm)/launch/test.rviz"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(find mice-ros-pkg)/launch/rviz.rviz"/>
 
 </launch>

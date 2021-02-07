@@ -13,6 +13,7 @@ sys.path.append("/home/ben/projects/swarm_ai/code")
 import rospy
 from tf import TransformListener
 from pycrazyswarm.crazyflie import Crazyflie
+from visualization_msgs.msg import Marker
 
 # my packages 
 from cpp.buildRelease import mctscpp as mctscpp
@@ -171,7 +172,6 @@ def run(cf, tf, cfids, robot_idx):
     VEL_LIMIT = 1.0
     ACC_LIMIT = 2
 
-
     cf.takeoff(HEIGHT, 2.0)
     time.sleep(2.0)
 
@@ -194,19 +194,37 @@ def run(cf, tf, cfids, robot_idx):
     policy_dict_a, policy_dict_b = make_policy_dicts(param) 
     policy_a, policy_b, valuePredictor_a, valuePredictor_b = load_heuristics(policy_dict_a,policy_dict_b)
 
-    # define goal location 
-    print('goal x: ',param.goal[0])
-    print('goal y: ',param.goal[1])
-    print('todo: add goal to rvis...')
+    # first robot visualizes goal
+    if robot_idx == 0:
+        pub = rospy.Publisher("/env", Marker, queue_size=1)
+
+        marker = Marker()
+        marker.header.frame_id = "world"
+        marker.ns = "goal"
+        marker.id = 0
+        marker.type = marker.SPHERE
+        marker.action = marker.ADD
+        marker.scale.x = 0.3
+        marker.scale.y = 0.3
+        marker.scale.z = 0.3
+        marker.color.a = 0.2
+        marker.color.r = 0
+        marker.color.g = 1
+        marker.color.b = 0
+        marker.pose.position.x = param.goal[0]
+        marker.pose.position.y = param.goal[1]
+        marker.pose.position.z = HEIGHT
 
     # define colors 
-    if robot_idx in param.team_1_idxs: 
-        color = "BLUE" # attacker
-    elif robot_idx in param.team_2_idxs: 
-        color = "RED"  # defender 
-    print("todo: assign color...")
+    if robot_idx in param.team_1_idxs:
+        cf.setLEDColor(0,0,1) # blue == attacker
+    elif robot_idx in param.team_2_idxs:
+        cf.setLEDColor(1,0,0) # red == defender
     
     while not rospy.is_shutdown():
+
+        if robot_idx == 0:
+            pub.publish(marker)
 
         ros_state = get_ros_state(tf, cfids, ros_state, dt, VEL_LIMIT)
         cpp_state = ros_state_to_cpp_state(param,ros_state)
@@ -217,19 +235,11 @@ def run(cf, tf, cfids, robot_idx):
         print("robot idx: {}, x_curr: {}, status: {}".format(robot_idx,cpp_state[robot_idx,:],status))
 
         if status == "ReachedGoal":
-            color = "GREEN"
-            done = True
+            cf.setLEDColor(0,1,0) # green
+            break
         elif status in ["Tagged","OutOfBounds"]:
-            color = "OFF"
-            done = True 
-        elif status == "Active": 
-            done = False         
-
-        if done: 
-            print("todo: assign color...")
-            print("todo: drop robot...")
-            break 
-            
+            print("TODO: disable LED ring")
+            break
 
         start = time.time()
         action = d_mcts_i(param,cpp_state,robot_idx,mctssettings,policy_dict_a,policy_dict_b,policy_a,policy_b,valuePredictor_a,valuePredictor_b)
@@ -251,6 +261,15 @@ def run(cf, tf, cfids, robot_idx):
         # print(x_des)
 
         rate.sleep()
+
+    # drop/land the robot
+
+    # option 1: aggressive motor cut
+    cf.cmdStop()
+
+    # # option 2: "fast" landing
+    # cf.notifySetpointsStop()
+    # cf.land(0, 1.0)
 
 
 if __name__ == '__main__':
