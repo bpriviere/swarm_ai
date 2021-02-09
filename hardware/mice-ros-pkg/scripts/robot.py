@@ -111,8 +111,8 @@ def get_ros_state(tf, cfids, last_state, dt, VEL_LIMIT):
             result[i,0:2] = position[0:2]
 
             if last_state is not None:
-                # v = np.clip((result[i,0:2] - last_state[i,0:2]) / dt, -VEL_LIMIT, VEL_LIMIT)
-                v = (result[i,0:2] - last_state[i,0:2]) / dt 
+                v = np.clip((result[i,0:2] - last_state[i,0:2]) / dt, -VEL_LIMIT, VEL_LIMIT)
+                # v = (result[i,0:2] - last_state[i,0:2]) / dt 
                 alpha = 0.1
                 result[i,2:4] = (1-alpha) * v + alpha * last_state[i,3:5]
             else:
@@ -174,8 +174,8 @@ def run(cf, tf, cfids, robot_idx):
 
     # some tuning parameters
     HEIGHT = 0.5
-    # VEL_LIMIT = 0.5
-    VEL_LIMIT = 1.0
+    VEL_LIMIT = 0.5
+    # VEL_LIMIT = 1.0
     ACC_LIMIT = 2
     SEED = 1
 
@@ -196,22 +196,6 @@ def run(cf, tf, cfids, robot_idx):
     cf.setParam("ring/effect", 7) # enable solid color LED ring
     cf.takeoff(HEIGHT, 2.0)
     time.sleep(2.0)
-
-    x_des = np.array([
-        param.state[robot_idx][0],  # x
-        param.state[robot_idx][1],  # y
-        HEIGHT,                 # z
-        0,                      # vx
-        0,                      # vy
-        0,                      # vz
-    ])
-
-    cf.goTo(x_des[0:3], 0, 5)
-    time.sleep(5)
-
-    dt = 0.05
-    rate = rospy.Rate(1/dt) # hz
-    ros_state = None
 
     # first robot visualizes goal
     if robot_idx == 0:
@@ -241,7 +225,24 @@ def run(cf, tf, cfids, robot_idx):
         cf.setLEDColor(0,0,1) # blue == attacker
     elif robot_idx in param.team_2_idxs:
         cf.setLEDColor(1,0,0) # red == defender
-    
+
+    x_des = np.array([
+        param.state[robot_idx][0],  # x
+        param.state[robot_idx][1],  # y
+        HEIGHT,                 # z
+        0,                      # vx
+        0,                      # vy
+        0,                      # vz
+    ])
+
+    cf.goTo(x_des[0:3], 0, 5)
+    time.sleep(5)
+
+    dt = 0.05
+    rate = rospy.Rate(1/dt) # hz
+    ros_state = None
+
+
     while not rospy.is_shutdown():
 
         ros_state = get_ros_state(tf, cfids, ros_state, dt, VEL_LIMIT)
@@ -250,7 +251,7 @@ def run(cf, tf, cfids, robot_idx):
         # check status
         status = get_status(param,robot_idx,cpp_state)
 
-        print("robot idx: {}, x_curr: {}, status: {}".format(robot_idx,cpp_state[robot_idx,:],status))
+        # print("robot idx: {}, x_curr: {}, status: {}".format(robot_idx,cpp_state[robot_idx,:],status))
 
         if status == "ReachedGoal":
             cf.setLEDColor(0,1,0) # green
@@ -272,7 +273,7 @@ def run(cf, tf, cfids, robot_idx):
         action = action * np.min((ACC_LIMIT/np.linalg.norm(action),1))
         acc = np.array([action[0],action[1],0])
         x_des[0:2] = x_des[0:2] + x_des[3:5] * dt
-        x_des[3:5] = x_des[3:5] + acc[0:2] * dt 
+        x_des[3:5] = np.clip(x_des[3:5] + acc[0:2] * dt, -VEL_LIMIT, VEL_LIMIT)
 
 
         cf.cmdFullState(x_des[0:3], x_des[3:6], acc, yaw=0, omega=[0,0,0])
@@ -282,12 +283,12 @@ def run(cf, tf, cfids, robot_idx):
 
     # drop/land the robot
 
-    # option 1: aggressive motor cut
-    cf.cmdStop()
+    # # option 1: aggressive motor cut
+    # cf.cmdStop()
 
-    # # option 2: "fast" landing
-    # cf.notifySetpointsStop()
-    # cf.land(0, 1.0)
+    # option 2: "fast" landing
+    cf.notifySetpointsStop()
+    cf.land(0, 1.5)
 
 
 if __name__ == '__main__':
