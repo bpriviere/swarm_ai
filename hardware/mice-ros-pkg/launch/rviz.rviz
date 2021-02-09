@@ -5,6 +5,7 @@ Panels:
     Property Tree Widget:
       Expanded:
         - /Global Options1
+        - /Marker1
       Splitter Ratio: 0.5
     Tree Height: 708
   - Class: rviz/Selection
@@ -53,7 +54,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/TF
       Enabled: true
-      Frame Timeout: 15
+      Frame Timeout: 2
       Frames:
         All Enabled: true
         cf50:
@@ -108,15 +109,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/Marker
       Enabled: true
-      Marker Topic: /leds
-      Name: Marker
-      Namespaces:
-        {}
-      Queue Size: 100
-      Value: true
-    - Class: rviz/Marker
-      Enabled: true
-      Marker Topic: /env
+      Marker Topic: /visualization_marker
       Name: Marker
       Namespaces:
         {}
@@ -166,9 +159,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.6953979730606079
+      Pitch: 0.6903981566429138
       Target Frame: <Fixed Frame>
-      Yaw: 3.133579969406128
+      Yaw: 3.5985848903656006
     Saved: ~
 Window Geometry:
   Displays:

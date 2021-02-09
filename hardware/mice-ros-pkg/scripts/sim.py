@@ -12,30 +12,13 @@ from crazyflie_driver.srv import *
 from crazyflie_driver.msg import TrajectoryPolynomialPiece, FullState, Position, VelocityWorld
 from pycrazyswarm.crazyflieSim import TimeHelper, Crazyflie
 
-# Z = 1.0
 
-class TimeHelperROS(TimeHelper):
-    def __init__(self, vis, dt, writecsv, disturbanceSize):
-        super().__init__(vis, dt, writecsv, disturbanceSize)
-        self.br = tf2_ros.TransformBroadcaster()
-        self.transform = geometry_msgs.msg.TransformStamped()
-        self.transform.header.frame_id = "world"
-        self.transform.transform.rotation.x = 0
-        self.transform.transform.rotation.y = 0
-        self.transform.transform.rotation.z = 0
-        self.transform.transform.rotation.w = 1
+class TimeHelperROS:
+    def __init__(self):
+        self.start = rospy.Time.now()
 
-    def step(self, duration):
-        super().step(duration)
-        self.transform.header.stamp = rospy.Time.now()
-        for cf in self.crazyflies:
-            cfid = cf.id
-            x, y, z = cf.position()
-            self.transform.child_frame_id = "/cf" + str(cfid)
-            self.transform.transform.translation.x = x
-            self.transform.transform.translation.y = y
-            self.transform.transform.translation.z = z
-            self.br.sendTransform(self.transform)
+    def time(self):
+        return (rospy.Time.now() - self.start).to_sec()
 
 
 class CrazyflieROS(Crazyflie):
@@ -56,7 +39,10 @@ class CrazyflieROS(Crazyflie):
         rospy.Subscriber(prefix + "/cmd_stop", Empty, self.handle_cmd_stop)
 
         # LED support
-        self.ledsPublisher = rospy.Publisher("/leds", Marker, queue_size=1)
+        self.ledsPublisher = rospy.Publisher("/visualization_marker", Marker, queue_size=1)
+
+        # hacky stop support
+        self.stopped = False
 
     def handle_set_group_mask(self, req):
         self.setGroupMask(req.groupMask)
@@ -72,7 +58,7 @@ class CrazyflieROS(Crazyflie):
 
     def handle_go_to(self, req):
         goal = [req.goal.x, req.goal.y, req.goal.z]
-        self.goTo(goal, yaw, req.duration.to_sec(), req.relative, req.groupMask)
+        self.goTo(goal, req.yaw, req.duration.to_sec(), req.relative, req.groupMask)
         return GoToResponse()
 
     def handle_upload_trajectory(self, req):
@@ -90,6 +76,11 @@ class CrazyflieROS(Crazyflie):
         for param in req.params:
             if "ring/solid" in param:
                 self.updateLED()
+            if param == "ring/effect":
+                v = rospy.get_param("/cf" + str(self.id) + "/ring/effect")
+                if v == 0:
+                    self.removeLED()
+
         return UpdateParamsResponse()
 
     def handle_cmd_full_state(self, msg):
@@ -102,6 +93,16 @@ class CrazyflieROS(Crazyflie):
 
     def handle_cmd_stop(self, msg):
         self.cmdStop()
+        self.stopped = True
+        self.removeLED()
+
+    def removeLED(self):
+        marker = Marker()
+        marker.header.frame_id = "cf" + str(self.id)
+        marker.ns = "LED"
+        marker.id = self.id
+        marker.action = marker.DELETE
+        self.ledsPublisher.publish(marker)
 
     def updateLED(self):
 
@@ -122,6 +123,7 @@ class CrazyflieROS(Crazyflie):
             marker.color.r = rospy.get_param("/cf" + str(self.id) + "/ring/solidRed")
             marker.color.g = rospy.get_param("/cf" + str(self.id) + "/ring/solidGreen")
             marker.color.b = rospy.get_param("/cf" + str(self.id) + "/ring/solidBlue")
+            marker.pose.orientation.w = 1.0
             marker.frame_locked = True
             self.ledsPublisher.publish(marker)
 
@@ -154,9 +156,31 @@ if __name__ == "__main__":
 
     rospy.init_node("CrazyflieROSSim", anonymous=False)
 
-    timeHelper = TimeHelperROS("null", 0.1, False, 0)
+    timeHelper = TimeHelperROS()
     srv = CrazyflieServerROS(timeHelper, rospy.get_param("crazyflies_yaml"))
-    timeHelper.crazyflies = srv.crazyflies
+
+    dt = 0.1
+    rate = rospy.Rate(1/dt) # hz
+
+    br = tf2_ros.TransformBroadcaster()
+    transform = geometry_msgs.msg.TransformStamped()
+    transform.header.frame_id = "world"
+    transform.transform.rotation.x = 0
+    transform.transform.rotation.y = 0
+    transform.transform.rotation.z = 0
+    transform.transform.rotation.w = 1
 
     while not rospy.is_shutdown():
-        timeHelper.sleep(1)
+        transform.header.stamp = rospy.Time.now()
+        for cf in srv.crazyflies:
+            cf.integrate(dt, 0)
+            if not cf.stopped:
+                cfid = cf.id
+                pos = cf.position()
+                if np.isfinite(pos).all():
+                    transform.child_frame_id = "/cf" + str(cfid)
+                    transform.transform.translation.x = pos[0]
+                    transform.transform.translation.y = pos[1]
+                    transform.transform.translation.z = pos[2]
+                    br.sendTransform(transform)
+        rate.sleep()

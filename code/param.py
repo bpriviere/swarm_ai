@@ -57,6 +57,7 @@ class Param:
 			'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/b9.pt', 
 			'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/results/double_integrator/v9.pt',	
 			'mcts_tree_size' : 			50,
+			'mcts_tree_size' : 			500,
 			'mcts_c_param' : 			2.0,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,

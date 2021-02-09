@@ -8,6 +8,7 @@ import numpy as np
 import os
 # sys.path.append("/home/whoenig/projects/caltech/swarm_ai/code")
 sys.path.append("/home/ben/projects/swarm_ai/code")
+import random
 
 # ROS packages
 import rospy
@@ -100,21 +101,26 @@ def ros_state_to_cpp_state(param,ros_state):
 def get_ros_state(tf, cfids, last_state, dt, VEL_LIMIT):
 
     # result is x,y,vx,vy (one row per robot)
-    result = np.empty((len(cfids), 4))
+    result = np.zeros((len(cfids), 4))
     for i, cfid in enumerate(cfids):
         # get latest transform
         position, quaternion = tf.lookupTransform("/world", "/cf" + str(cfid), rospy.Time(0))
-        result[i,0:2] = position[0:2]
+        latestCommonTime = tf.getLatestCommonTime("/world", "/cf" + str(cfid))
+        d = rospy.Time.now() - latestCommonTime
+        if d.to_sec() < 2 and position[2] > 0.2:
+            result[i,0:2] = position[0:2]
 
-        if last_state is not None:
-            # v = np.clip((result[i,0:2] - last_state[i,0:2]) / dt, -VEL_LIMIT, VEL_LIMIT)
-            v = (result[i,0:2] - last_state[i,0:2]) / dt 
-            alpha = 0.1
-            result[i,2:4] = (1-alpha) * v + alpha * last_state[i,3:5]
+            if last_state is not None:
+                # v = np.clip((result[i,0:2] - last_state[i,0:2]) / dt, -VEL_LIMIT, VEL_LIMIT)
+                v = (result[i,0:2] - last_state[i,0:2]) / dt 
+                alpha = 0.1
+                result[i,2:4] = (1-alpha) * v + alpha * last_state[i,3:5]
+            else:
+                result[i,2:4] = [0,0]
         else:
-            result[i,2:4] = [0,0]
+            result[i] = np.nan
 
-    # print('ros_state', result)
+    print('ros_state', result)
     return result
 
 
@@ -171,22 +177,11 @@ def run(cf, tf, cfids, robot_idx):
     # VEL_LIMIT = 0.5
     VEL_LIMIT = 1.0
     ACC_LIMIT = 2
+    SEED = 1
 
-    cf.takeoff(HEIGHT, 2.0)
-    time.sleep(2.0)
-
-    x_des = np.array([
-        cf.initialPosition[0],  # x
-        cf.initialPosition[1],  # y
-        HEIGHT,                 # z
-        0,                      # vx
-        0,                      # vy
-        0,                      # vz
-    ])
-
-    dt = 0.05
-    rate = rospy.Rate(1/dt) # hz
-    ros_state = None
+    # fix the seed so that all nodes compute the same initial condition
+    random.seed(SEED)
+    np.random.seed(SEED)
 
     # define game 
     param = Param()
@@ -194,9 +189,32 @@ def run(cf, tf, cfids, robot_idx):
     policy_dict_a, policy_dict_b = make_policy_dicts(param) 
     policy_a, policy_b, valuePredictor_a, valuePredictor_b = load_heuristics(policy_dict_a,policy_dict_b)
 
+    pub = rospy.Publisher("/visualization_marker", Marker, queue_size=1)
+    # print(param.state)
+    # exit()
+
+    cf.setParam("ring/effect", 7) # enable solid color LED ring
+    cf.takeoff(HEIGHT, 2.0)
+    time.sleep(2.0)
+
+    x_des = np.array([
+        param.state[robot_idx][0],  # x
+        param.state[robot_idx][1],  # y
+        HEIGHT,                 # z
+        0,                      # vx
+        0,                      # vy
+        0,                      # vz
+    ])
+
+    cf.goTo(x_des[0:3], 0, 5)
+    time.sleep(5)
+
+    dt = 0.05
+    rate = rospy.Rate(1/dt) # hz
+    ros_state = None
+
     # first robot visualizes goal
     if robot_idx == 0:
-        pub = rospy.Publisher("/env", Marker, queue_size=1)
 
         marker = Marker()
         marker.header.frame_id = "world"
@@ -214,6 +232,9 @@ def run(cf, tf, cfids, robot_idx):
         marker.pose.position.x = param.goal[0]
         marker.pose.position.y = param.goal[1]
         marker.pose.position.z = HEIGHT
+        marker.pose.orientation.w = 1.0
+        pub.publish(marker)
+
 
     # define colors 
     if robot_idx in param.team_1_idxs:
@@ -222,9 +243,6 @@ def run(cf, tf, cfids, robot_idx):
         cf.setLEDColor(1,0,0) # red == defender
     
     while not rospy.is_shutdown():
-
-        if robot_idx == 0:
-            pub.publish(marker)
 
         ros_state = get_ros_state(tf, cfids, ros_state, dt, VEL_LIMIT)
         cpp_state = ros_state_to_cpp_state(param,ros_state)
@@ -238,7 +256,7 @@ def run(cf, tf, cfids, robot_idx):
             cf.setLEDColor(0,1,0) # green
             break
         elif status in ["Tagged","OutOfBounds"]:
-            print("TODO: disable LED ring")
+            cf.setParam("ring/effect", 0) # disable LED ring
             break
 
         start = time.time()
