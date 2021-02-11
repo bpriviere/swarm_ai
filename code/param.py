@@ -56,14 +56,17 @@ class Param:
 			'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/a9.pt', 
 			'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/b9.pt', 
 			'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/results/double_integrator/v9.pt',	
-			'mcts_tree_size' : 			50,
+			# 'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator_init_on_sides_false/a12.pt', 
+			# 'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator_init_on_sides_false/b12.pt', 
+			# 'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/results/double_integrator_init_on_sides_false/v12.pt',	
+			# 'mcts_tree_size' : 			500,
 			'mcts_tree_size' : 			500,
 			'mcts_c_param' : 			2.0,
 			'mcts_pw_C' : 				1.0,
 			'mcts_pw_alpha' : 			0.25,
 			'mcts_beta1' : 				0.0,
 			'mcts_beta2' : 				0.5,
-			'mcts_beta3' : 				0.0,
+			'mcts_beta3' : 				0.5,
 		}
 
 		self.dynamics = double_integrator # "single_integrator", "double_integrator", "dubins_3d"
@@ -94,12 +97,17 @@ class Param:
 			# robot types 
 			self.robot_types = {
 				'standard_robot' : {
-					'speed_limit': 1.0,
-					'acceleration_limit':2.0,
-					'tag_radius': 0.1,
+					# 'speed_limit': 1.0,
+					# 'acceleration_limit':2.0,
+					'speed_limit': 0.25,
+					'acceleration_limit':0.5,	
+					# 'tag_radius': 0.12,
+					'tag_radius': 0.12,
+					# 'tag_radius': 0.1,
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 5.0,
-					'radius': 0.05,
+					# 'radius': 0.15,
+					'radius': 0.1,
 				},
 				'evasive_robot' : {
 					'speed_limit': 0.0625,
@@ -113,13 +121,13 @@ class Param:
 
 
 		self.robot_team_composition = {
-			'a': {'standard_robot':1,'evasive_robot':0},
+			'a': {'standard_robot':2,'evasive_robot':0},
 			# 'a': {'standard_robot':2,'evasive_robot':0},
 			'b': {'standard_robot':1,'evasive_robot':0}
 		}
 		
 		# environment
-		self.env_l = 2.0
+		self.env_l = 2.75
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
@@ -259,6 +267,7 @@ class Param:
 		self.tree_timestep = 10
 		self.plot_tree_on = False
 
+		# self.init_on_sides = False
 		self.init_on_sides = True
 		
 		self.update()
@@ -272,21 +281,47 @@ class Param:
 		for key,value in some_dict.items():
 			setattr(self,key,value)
 
+	# def make_environment(self):
+	# 	self.env_xlim = [0,self.env_l]
+	# 	self.env_ylim = [0,self.env_l]
+
+	# 	if self.init_on_sides: 
+	# 		self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
+	# 		self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
+	# 	else: 
+	# 		self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
+	# 		self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
+
+	# 	self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
+	# 	self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
+
+	# 	self.goal = np.array([0.7*self.env_l,0.5*self.env_l,0,0])
+
+
 	def make_environment(self):
-		self.env_xlim = [0,self.env_l]
-		self.env_ylim = [0,self.env_l]
+		
+		# self.env_xlim = [0,self.env_l]
+		# self.env_ylim = [0,self.env_l]
+
+		self.env_xlim = [0.1*self.env_l,self.env_l]
+		self.env_ylim = [0.1*self.env_l,0.8*self.env_l]
+
+		dx = self.env_xlim[1] - self.env_xlim[0]
+		dy = self.env_ylim[1] - self.env_ylim[0]
 
 		if self.init_on_sides: 
-			self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
-			self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
+			self.reset_xlim_A = [self.env_xlim[0] + 0.1*dx, self.env_xlim[0] + 0.2*dx] 
+			self.reset_xlim_B = [self.env_xlim[0] + 0.8*dx, self.env_xlim[0] + 0.9*dx] 
 		else: 
-			self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
-			self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
+			self.reset_xlim_A = [self.env_xlim[0] + 0.1*dx, self.env_xlim[0] + 0.9*dx] 
+			self.reset_xlim_B = [self.env_xlim[0] + 0.1*dx, self.env_xlim[0] + 0.9*dx] 
+		
+		self.reset_ylim_A = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
+		self.reset_ylim_B = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
 
-		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
-		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
-
-		self.goal = np.array([0.7*self.env_l,0.5*self.env_l,0,0])
+		# self.goal = np.array([0.8*self.env_l,0.5*self.env_l,0,0])		
+		self.goal = np.array([self.env_xlim[0] + 0.7*dx,\
+			self.env_ylim[0] + 0.5*dy,0,0])		
 
 	def make_initial_condition(self):
 
@@ -432,7 +467,8 @@ def collision(pose_i,robot_i,poses,robots):
 	for robot_j, pose_j in zip(robots,poses):
 		if robot_j is not robot_i and not np.isnan(pose_j).any():
 			dist = np.linalg.norm(pose_i - pose_j)
-			if dist < robot_i["radius"] + robot_j["radius"]:
+			# if dist < 2*(robot_i["radius"] + robot_j["radius"]):
+			if dist < 1.75*(robot_i["radius"] + robot_j["radius"]):
 				return True 
 	return False
 
