@@ -63,7 +63,7 @@ class Param:
 			'mcts_beta3' : 				0.0,
 		}
 
-		self.dynamics = dubins_3d # "single_integrator", "double_integrator", "dubins_3d"
+		self.dynamics = double_integrator # "single_integrator", "double_integrator", "dubins_3d"
 
 		if self.dynamics["name"] == "dubins_3d":
 			self.sim_dt = 0.1
@@ -73,6 +73,7 @@ class Param:
 					'speed_limit': 1.0,
 					'acceleration_limit':1.0,
 					'tag_radius': 0.3,
+					'goal_radius': 0.3,
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 5.0,
 					'radius': 0.05,
@@ -81,6 +82,7 @@ class Param:
 					'speed_limit': 0.0625,
 					'acceleration_limit':0.5,
 					'tag_radius': 0.0125,
+					'goal_radius': 0.3,					
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 0.5,
 					'radius': 0.025,
@@ -91,17 +93,19 @@ class Param:
 			# robot types 
 			self.robot_types = {
 				'standard_robot' : {
-					'speed_limit': 1.0,
-					'acceleration_limit':2.0,
-					'tag_radius': 0.1,
+					'speed_limit': 0.5,
+					'acceleration_limit':0.5,
+					'tag_radius': 0.15,
+					'goal_radius': 0.45,			
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 5.0,
-					'radius': 0.05,
+					'radius': 0.10,
 				},
 				'evasive_robot' : {
 					'speed_limit': 0.0625,
 					'acceleration_limit':0.5,
 					'tag_radius': 0.0125,
+					'goal_radius': 0.3,					
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 0.5,
 					'radius': 0.025,
@@ -116,7 +120,7 @@ class Param:
 		}
 		
 		# environment
-		self.env_l = 10.0
+		self.env_l = 2.5
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
@@ -283,7 +287,7 @@ class Param:
 		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
 
-		self.goal = np.array([0.7*self.env_l,0.5*self.env_l,0,0])
+		self.goal = np.array([0.8*self.env_l,0.5*self.env_l,0,0])
 
 	def make_initial_condition(self):
 

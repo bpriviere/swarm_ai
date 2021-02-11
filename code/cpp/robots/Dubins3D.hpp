@@ -127,9 +127,10 @@ public:
     float v_max,
     float a_max,
     float tag_radius,
+    float goal_radius,
     float r_sense,
     float radius)
-    : RobotType(p_min, p_max, tag_radius, r_sense, radius)
+    : RobotType(p_min, p_max, tag_radius, goal_radius, r_sense, radius)
     , velocity_limit(v_max)
     , acceleration_limit(a_max) 
   {

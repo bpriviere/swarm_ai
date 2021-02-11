@@ -124,7 +124,7 @@ class Game {
     for (size_t i = 0; i < NumAttackers; ++i) {
       if (nextState.attackers[i].status == RobotStateT::Status::Active) {
         float distToGoalSquared = (nextState.attackers[i].position() - RobotStateT(m_goal).position()).squaredNorm();
-        if (distToGoalSquared <= m_attackerTypes[i].tag_radiusSquared) {
+        if (distToGoalSquared <= m_attackerTypes[i].goal_radiusSquared) {
           // std::cout << "d2g " << distToGoalSquared << std::endl;
           nextState.attackers[i].status = RobotStateT::Status::ReachedGoal;
           // mark the robot as not active anymore (use infinity for the Python side to know the state)

@@ -558,14 +558,15 @@ def plot_3d_dubins_result(sim_result,title):
 	# goal region 
 	goal_z = (y_lim[1]-y_lim[0])/2
 	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+	goal_radius = sim_result["param"]["robots"][0]["goal_radius"]
 	goal = np.array([sim_result["param"]["goal"][0],sim_result["param"]["goal"][1],goal_z])
 
 	# Make data
 	u = np.linspace(0, 2 * np.pi, 100)
 	v = np.linspace(0, np.pi, 100)
-	x = tag_radius * np.outer(np.cos(u), np.sin(v)) + goal[0]
-	y = tag_radius * np.outer(np.sin(u), np.sin(v)) + goal[1]
-	z = tag_radius * np.outer(np.ones(np.size(u)), np.cos(v)) + goal[2]
+	x = goal_radius * np.outer(np.cos(u), np.sin(v)) + goal[0]
+	y = goal_radius * np.outer(np.sin(u), np.sin(v)) + goal[1]
+	z = goal_radius * np.outer(np.ones(np.size(u)), np.cos(v)) + goal[2]
 
 	# Plot the surface
 	ax.plot_surface(x, y, z, color='green',alpha=0.6)
@@ -700,6 +701,7 @@ def plot_tree_results(sim_result,title=None):
 	num_nodes = sim_result["param"]["num_nodes"]
 	goal = sim_result["param"]["goal"]
 	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+	goal_radius = sim_result["param"]["robots"][0]["goal_radius"]
 	env_xlim = sim_result["param"]["env_xlim"]	
 	env_ylim = sim_result["param"]["env_ylim"]	
 
@@ -718,7 +720,7 @@ def plot_tree_results(sim_result,title=None):
 	ax.grid(True)
 	ax.set_aspect('equal')
 	ax.set_title('State Space')
-	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
+	ax.add_patch(mpatches.Circle(goal, goal_radius, color=goal_color,alpha=0.5))
 	for i in range(num_nodes):
 		# Robot position (each time step)
 		ax.plot(states[:,i,0],states[:,i,1],linewidth=1,color=colors[i],marker="o",markersize=0.75)
