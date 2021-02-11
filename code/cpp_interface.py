@@ -36,18 +36,19 @@ def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
 	velocity_limit = robot_type["speed_limit"]
 	acceleration_limit = robot_type["acceleration_limit"]
 	tag_radius = robot_type["tag_radius"]
+	goal_radius = robot_type["goal_radius"]
 	r_sense = robot_type["r_sense"]
 	radius = robot_type["radius"]
 	if robot_type["dynamics"] == "double_integrator":
-		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,goal_radius,r_sense,radius)
 	elif robot_type["dynamics"] == "single_integrator":
-		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,tag_radius,r_sense,radius)
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,tag_radius,goal_radius,r_sense,radius)
 	elif robot_type["dynamics"] == "dubins_2d":
-		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)		
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,goal_radius,r_sense,radius)		
 	elif robot_type["dynamics"] == "dubins_3d":
 		p_min.append(env_ylim[0])
 		p_max.append(env_ylim[1])
-		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)			
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,goal_radius,r_sense,radius)			
 	return rt	
 
 
@@ -74,7 +75,7 @@ def param_to_cpp_game(robot_team_composition,robot_types,env_xlim,env_ylim,dt,go
 	elif dynamics_name == "dubins_3d":
 		temp_goal = goal 
 		# x,y,z,phi,psi,v
-		goal = np.array([goal[0],goal[1],(env_ylim[1]-env_ylim[0])/2,0,0,0])
+		goal = np.array([goal[0],goal[1],(env_ylim[1]-env_ylim[0])/2,0,0,0,0])
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, rollout_horizon)
 	return g
 

@@ -32,10 +32,11 @@ dubins_2d = {
 }
 dubins_3d = {
 	"name" : "dubins_3d",
-	"state_dim" : 6, # per robot 
+	"state_dim" : 7, # per robot 
 	"control_dim" : 3, 
-	"state_labels" : ["x","y","z","phi","psi","v"],
-	"control_labels" : ["phidot","psidot","vdot"]
+	# inertial position, heading, flight path, bank, velocity
+	"state_labels" : ["x","y","z","psi","gamma","phi","v"], 
+	"control_labels" : ["gammadot","phidot","vdot"]
 }
 
 
@@ -72,13 +73,14 @@ class Param:
 		self.dynamics = double_integrator # "single_integrator", "double_integrator", "dubins_3d"
 
 		if self.dynamics["name"] == "dubins_3d":
-			self.sim_dt = 0.2
+			self.sim_dt = 0.1
 			# robot types 
 			self.robot_types = {
 				'standard_robot' : {
 					'speed_limit': 1.0,
 					'acceleration_limit':1.0,
 					'tag_radius': 0.3,
+					'goal_radius': 0.3,
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 5.0,
 					'radius': 0.05,
@@ -87,6 +89,7 @@ class Param:
 					'speed_limit': 0.0625,
 					'acceleration_limit':0.5,
 					'tag_radius': 0.0125,
+					'goal_radius': 0.3,					
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 0.5,
 					'radius': 0.025,
@@ -97,22 +100,27 @@ class Param:
 			# robot types 
 			self.robot_types = {
 				'standard_robot' : {
-					# 'speed_limit': 1.0,
-					# 'acceleration_limit':2.0,
 					'speed_limit': 0.25,
-					'acceleration_limit':0.5,	
-					# 'tag_radius': 0.12,
-					'tag_radius': 0.12,
-					# 'tag_radius': 0.1,
+					'acceleration_limit': 0.1,
+					'tag_radius': 0.15,
+					'goal_radius': 0.5, # 0.45,			
 					'dynamics':'{}'.format(self.dynamics["name"]),
-					'r_sense': 5.0,
-					# 'radius': 0.15,
-					'radius': 0.1,
+					'r_sense': 2.0,
+					'radius': 0.10,
+          # hardware
+# 					'speed_limit': 0.25,
+# 					'acceleration_limit':0.5,	
+# 					'tag_radius': 0.12,
+# 					'dynamics':'{}'.format(self.dynamics["name"]),
+# 					'r_sense': 5.0,
+# 					'radius': 0.15,
+# 					'radius': 0.1,
 				},
 				'evasive_robot' : {
 					'speed_limit': 0.0625,
 					'acceleration_limit':0.5,
 					'tag_radius': 0.0125,
+					'goal_radius': 0.3,					
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 0.5,
 					'radius': 0.025,
@@ -121,13 +129,13 @@ class Param:
 
 
 		self.robot_team_composition = {
-			'a': {'standard_robot':2,'evasive_robot':0},
+			'a': {'standard_robot':3,'evasive_robot':0},
 			# 'a': {'standard_robot':2,'evasive_robot':0},
-			'b': {'standard_robot':1,'evasive_robot':0}
+			'b': {'standard_robot':2,'evasive_robot':0}
 		}
 		
 		# environment
-		self.env_l = 2.75
+		self.env_l = 2.0 # hardware: 2.75 
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
@@ -143,7 +151,7 @@ class Param:
 			self.l_desired_game = {
 				'Skill_A' : 4, #'a1.pt',
 				'Skill_B' : 4, #'b1.pt',
-				'EnvironmentLength' : 5.0,
+				'EnvironmentLength' : 10.0,
 				'NumA' : 2,
 				'NumB' : 2,
 			}
@@ -151,7 +159,7 @@ class Param:
 			self.l_num_iterations = 10
 			self.l_num_file_per_iteration = 20 
 			self.l_num_points_per_file = 4000
-			self.l_env_l0 = 1.0
+			self.l_env_l0 = 2.0
 			self.l_desired_game = {
 				'Skill_A' : 4, #'a1.pt',
 				'Skill_B' : 4, #'b1.pt',
@@ -281,23 +289,6 @@ class Param:
 		for key,value in some_dict.items():
 			setattr(self,key,value)
 
-	# def make_environment(self):
-	# 	self.env_xlim = [0,self.env_l]
-	# 	self.env_ylim = [0,self.env_l]
-
-	# 	if self.init_on_sides: 
-	# 		self.reset_xlim_A = [0.1*self.env_l,0.2*self.env_l]
-	# 		self.reset_xlim_B = [0.8*self.env_l,0.9*self.env_l]
-	# 	else: 
-	# 		self.reset_xlim_A = [0.1*self.env_l,0.9*self.env_l]
-	# 		self.reset_xlim_B = [0.1*self.env_l,0.9*self.env_l]
-
-	# 	self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
-	# 	self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
-
-	# 	self.goal = np.array([0.7*self.env_l,0.5*self.env_l,0,0])
-
-
 	def make_environment(self):
 		
 		# self.env_xlim = [0,self.env_l]
@@ -319,9 +310,10 @@ class Param:
 		self.reset_ylim_A = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
 		self.reset_ylim_B = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
 
-		# self.goal = np.array([0.8*self.env_l,0.5*self.env_l,0,0])		
-		self.goal = np.array([self.env_xlim[0] + 0.7*dx,\
-			self.env_ylim[0] + 0.5*dy,0,0])		
+    self.goal = np.array([\
+                          1.0*dx + self.env_xlim[0],\
+                          0.5*dy + self.env_ylim[0],\
+                          0,0])
 
 	def make_initial_condition(self):
 
@@ -368,10 +360,15 @@ class Param:
 
 			if name == "dubins_3d":
 				if robot["team"] == "a":
-					psilim = np.pi/2
+					gammalim = np.pi/2
 				else:
-					psilim = -np.pi/2
-				state_space = np.array((xlim,ylim,ylim,(-np.pi/6,np.pi/6),(psilim,psilim),(0,robot["acceleration_limit"]/4)))
+					gammalim = -np.pi/2
+				state_space = np.array(\
+					(xlim,ylim,ylim,\
+					(gammalim,gammalim),\
+					(-np.pi/6,np.pi/6),\
+					(-np.pi/6,np.pi/6),\
+					(robot["speed_limit"]/2,robot["speed_limit"]/2)))
 				state[robot["idx"],:] = self.get_random_position_inside(state_space)
 
 		return state.tolist() 
@@ -431,7 +428,7 @@ class Param:
 
 		# max timesteps until the game terminates
 		# self.rollout_horizon = int(100 * self.env_l)
-		num_backnforth = 5
+		num_backnforth = 3
 		self.rollout_horizon = int(num_backnforth * self.num_nodes * self.env_l \
 			/ (self.robot_types["standard_robot"]["speed_limit"] * self.sim_dt))
 
@@ -468,7 +465,7 @@ def collision(pose_i,robot_i,poses,robots):
 		if robot_j is not robot_i and not np.isnan(pose_j).any():
 			dist = np.linalg.norm(pose_i - pose_j)
 			# if dist < 2*(robot_i["radius"] + robot_j["radius"]):
-			if dist < 1.75*(robot_i["radius"] + robot_j["radius"]):
+			if dist < 1.2*(robot_i["radius"] + robot_j["radius"]):
 				return True 
 	return False
 

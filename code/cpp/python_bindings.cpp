@@ -214,12 +214,13 @@ PYBIND11_MODULE(mctscpp, m) {
     .def(py::init<
       const Eigen::Vector2f&,
       const Eigen::Vector2f&,
-      float, float, float, float, float>())
+      float, float, float, float, float, float>())
     .def_readwrite("p_min", &RobotTypeT::p_min)
     .def_readwrite("p_max", &RobotTypeT::p_max)
     .def_readwrite("velocity_limit", &RobotTypeT::velocity_limit)
     .def_readonly("acceleration_limit", &RobotTypeT::acceleration_limit)
     .def_readwrite("tag_radiusSquared", &RobotTypeT::tag_radiusSquared)
+    .def_readwrite("goal_radiusSquared", &RobotTypeT::goal_radiusSquared)
     .def_readwrite("r_senseSquared", &RobotTypeT::r_senseSquared)
     .def_readwrite("radius", &RobotTypeT::radius)
     .def("__repr__", &toString<RobotTypeT>);
