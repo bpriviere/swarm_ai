@@ -51,12 +51,12 @@ class Param:
 		# these parameters are also used for learning 
 		self.policy_dict = {
 			'sim_mode' : 				"D_MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
-			# 'path_glas_model_a' : 		None, 	# '../current/models/a1.pt', None
-			# 'path_glas_model_b' : 		None, 	# '../current/models/b1.pt', None
-			# 'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None		
-			'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/a9.pt', 
-			'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/b9.pt', 
-			'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/results/double_integrator/v9.pt',	
+			'path_glas_model_a' : 		None, 	# '../current/models/a1.pt', None
+			'path_glas_model_b' : 		None, 	# '../current/models/b1.pt', None
+			'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None		
+			# 'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/a9.pt', 
+			# 'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/b9.pt', 
+			# 'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/results/double_integrator/v9.pt',	
 			# 'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator_init_on_sides_false/a12.pt', 
 			# 'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator_init_on_sides_false/b12.pt', 
 			# 'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/results/double_integrator_init_on_sides_false/v12.pt',	
@@ -82,7 +82,7 @@ class Param:
 					'tag_radius': 0.3,
 					'goal_radius': 0.3,
 					'dynamics':'{}'.format(self.dynamics["name"]),
-					'r_sense': 5.0,
+					'r_sense': 2.0,
 					'radius': 0.05,
 				},
 				'evasive_robot' : {
@@ -105,9 +105,9 @@ class Param:
 					'tag_radius': 0.15,
 					'goal_radius': 0.5, # 0.45,			
 					'dynamics':'{}'.format(self.dynamics["name"]),
-					'r_sense': 2.0,
+					'r_sense': 5.0,
 					'radius': 0.10,
-          # hardware
+# 				old hardware
 # 					'speed_limit': 0.25,
 # 					'acceleration_limit':0.5,	
 # 					'tag_radius': 0.12,
@@ -310,10 +310,10 @@ class Param:
 		self.reset_ylim_A = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
 		self.reset_ylim_B = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
 
-    self.goal = np.array([\
-                          1.0*dx + self.env_xlim[0],\
-                          0.5*dy + self.env_ylim[0],\
-                          0,0])
+		self.goal = np.array([\
+			1.0*dx + self.env_xlim[0],\
+			0.5*dy + self.env_ylim[0],\
+			0,0])
 
 	def make_initial_condition(self):
 
