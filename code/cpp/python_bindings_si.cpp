@@ -60,6 +60,7 @@ public:
   Reward expectedReward;
   std::vector<std::pair<GameT::GameActionT, float>> valuePerAction;
   Eigen::MatrixXf tree;
+  std::vector<float> rootRewardOverTime;
 };
 
 class MCTSSettings
@@ -74,6 +75,7 @@ public:
     , beta3(0)
     , export_dot(nullptr)
     , export_tree(false)
+    , export_root_reward_over_time(false)    
   {
   }
 
@@ -85,6 +87,7 @@ public:
   float beta3; // gain for rollout
   const char* export_dot;
   bool export_tree;
+  bool export_root_reward_over_time;  
 };
 
 MCTSResult search(
@@ -116,6 +119,9 @@ MCTSResult search(
     std::ofstream stream(settings.export_dot);
     mcts.exportToDot(stream);
   }
+  if (settings.export_root_reward_over_time) {
+    result.rootRewardOverTime = mcts.rootRewardOverTime();
+  }  
   return result;
 }
 
@@ -153,7 +159,8 @@ PYBIND11_MODULE(mctscppsi, m) {
     .def_readonly("bestAction", &MCTSResult::bestAction)
     .def_readonly("expectedReward", &MCTSResult::expectedReward)
     .def_readonly("valuePerAction", &MCTSResult::valuePerAction)
-    .def_readonly("tree", &MCTSResult::tree);
+    .def_readonly("tree", &MCTSResult::tree)
+    .def_readonly("rootRewardOverTime", &MCTSResult::rootRewardOverTime);    
 
   py::class_<MCTSSettings> (m, "MCTSSettings")
     .def(py::init())
@@ -164,7 +171,8 @@ PYBIND11_MODULE(mctscppsi, m) {
     .def_readwrite("beta1", &MCTSSettings::beta1)
     .def_readwrite("beta3", &MCTSSettings::beta3)
     .def_readwrite("export_dot", &MCTSSettings::export_dot)
-    .def_readwrite("export_tree", &MCTSSettings::export_tree);
+    .def_readwrite("export_tree", &MCTSSettings::export_tree)
+    .def_readwrite("export_root_reward_over_time", &MCTSSettings::export_root_reward_over_time);    
 
   // RobotState
   py::class_<RobotT::State> robotState(m, "RobotState");
@@ -206,12 +214,13 @@ PYBIND11_MODULE(mctscppsi, m) {
     .def(py::init<
       const Eigen::Vector2f&,
       const Eigen::Vector2f&,
-      float, float, float, float>())
+      float, float, float, float, float>())
     .def_readwrite("p_min", &RobotTypeT::p_min)
     .def_readwrite("p_max", &RobotTypeT::p_max)
     .def_readwrite("velocity_limit", &RobotTypeT::velocity_limit)
     // .def_readonly("acceleration_limit", &RobotTypeT::acceleration_limit)
     .def_readwrite("tag_radiusSquared", &RobotTypeT::tag_radiusSquared)
+    .def_readwrite("goal_radiusSquared", &RobotTypeT::goal_radiusSquared)
     .def_readwrite("r_senseSquared", &RobotTypeT::r_senseSquared)
     .def_readwrite("radius", &RobotTypeT::radius)
     .def("__repr__", &toString<RobotTypeT>);

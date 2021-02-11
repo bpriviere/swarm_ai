@@ -9,7 +9,20 @@ def global_to_local(states,param,idx):
 
 	n_robots, n_state_dim = states.shape
 
-	goal = np.array([param.goal[0],param.goal[1],0,0])
+	if param.dynamics["name"] == "double_integrator":
+		pos_idx = np.arange(2)
+		goal = np.array([param.goal[0],param.goal[1],0,0])
+	elif param.dynamics["name"] == "single_integrator":
+		pos_idx = np.arange(2)
+		goal = np.array([param.goal[0],param.goal[1]])
+	elif param.dynamics["name"] == "dubins_2d":
+		pos_idx = np.arange(2)
+		goal = np.array([param.goal[0],param.goal[1],0,0])
+	elif param.dynamics["name"] == "dubins_3d":
+		pos_idx = np.arange(3)
+		goal = np.array([param.goal[0],param.goal[1],(param.env_ylim[1]-param.env_ylim[0])/2,0,0,0,0])		
+	else: 
+		exit('learning interface dynamics not implemented')
 
 	o_a = []
 	o_b = [] 
@@ -22,7 +35,7 @@ def global_to_local(states,param,idx):
 	for idx_j in range(n_robots):
 		if idx_j != idx \
 		and np.isfinite(states[idx_j,:]).all() \
-		and np.linalg.norm(states[idx_j,0:2] - states[idx,0:2]) < param.robots[idx]["r_sense"]:
+		and np.linalg.norm(states[idx_j,pos_idx] - states[idx,pos_idx]) < param.robots[idx]["r_sense"]:
 			if idx_j in param.team_1_idxs:  
 				o_a.append(states[idx_j,:] - states[idx,:])
 			elif idx_j in param.team_2_idxs:
@@ -38,7 +51,16 @@ def global_to_value(param,state):
 
 	n_robots, n_state_dim = state.shape
 
-	goal = np.array([param.goal[0],param.goal[1],0,0])
+	if param.dynamics["name"] == "double_integrator":
+		goal = np.array([param.goal[0],param.goal[1],0,0])
+	elif param.dynamics["name"] == "single_integrator":
+		goal = np.array([param.goal[0],param.goal[1]])
+	elif param.dynamics["name"] == "dubins_2d":
+		goal = np.array([param.goal[0],param.goal[1],0,0])
+	elif param.dynamics["name"] == "dubins_3d":
+		goal = np.array([param.goal[0],param.goal[1],(param.env_ylim[1]-param.env_ylim[0])/2,0,0,0,0])		
+	else: 
+		exit('learning interface dynamics not implemented')
 
 	v_a = []
 	v_b = [] 
@@ -58,6 +80,17 @@ def local_to_global(param,o_a,o_b,relative_goal,team):
 	# o_a = {s^j - s^i}
 	# o_b = {s^j - s^i}
 
+	if param.dynamics["name"] == "double_integrator":
+		abs_goal = np.array([param.goal[0],param.goal[1],0,0])
+	elif param.dynamics["name"] == "single_integrator":
+		abs_goal = np.array([param.goal[0],param.goal[1]])
+	elif param.dynamics["name"] == "dubins_2d":
+		abs_goal = np.array([param.goal[0],param.goal[1],0,0])
+	elif param.dynamics["name"] == "dubins_3d":
+		abs_goal = np.array([param.goal[0],param.goal[1],(param.env_ylim[1]-param.env_ylim[0])/2,0,0,0,0])		
+	else: 
+		exit('learning interface dynamics not implemented')
+
 	# assume knowledge of self-team 
 	if team == "a":
 		i_a = 1
@@ -68,7 +101,7 @@ def local_to_global(param,o_a,o_b,relative_goal,team):
 
 	# robot team composition 
 	# assume knowledge of state_dim
-	state_dim = 4
+	state_dim = param.dynamics["state_dim"]
 	num_a = o_a.shape[0] + i_a
 	num_b = o_b.shape[0] + i_b
 	robot_team_composition = {
@@ -77,10 +110,7 @@ def local_to_global(param,o_a,o_b,relative_goal,team):
 		}
 
 	# state 
-	# assume knowledge of g_x,g_y
-	g_x = param.goal[0]
-	g_y = param.goal[1]
-	s_i = np.array([g_x,g_y,0,0]) - relative_goal
+	s_i = abs_goal - relative_goal
 
 	team_1_idxs = []
 	team_2_idxs = [] 

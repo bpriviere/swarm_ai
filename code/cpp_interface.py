@@ -9,12 +9,26 @@ from collections import defaultdict
 from multiprocessing import current_process
 
 # ours
-from cpp.buildRelease import mctscpp
 from benchmark.panagou import PanagouPolicy
 import datahandler as dh
-
 from learning.continuous_emptynet import ContinuousEmptyNet
 from learning_interface import local_to_global, global_to_local
+
+from param import Param 
+
+temp_param = Param()
+if temp_param.dynamics["name"] == "double_integrator":
+	from cpp.buildRelease import mctscpp as mctscpp
+elif temp_param.dynamics["name"] == "single_integrator":
+	from cpp.buildRelease import mctscppsi as mctscpp
+elif temp_param.dynamics["name"] == "dubins_2d":
+	from cpp.buildRelease import mctscppdubins2D as mctscpp
+elif temp_param.dynamics["name"] == "dubins_3d":
+	from cpp.buildRelease import mctscppdubins3D as mctscpp
+else: 
+	exit('datahandler dynamics interface not implemented')
+del(temp_param) 
+
 
 def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
 	p_min = [env_xlim[0], env_ylim[0]]
@@ -22,9 +36,19 @@ def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
 	velocity_limit = robot_type["speed_limit"]
 	acceleration_limit = robot_type["acceleration_limit"]
 	tag_radius = robot_type["tag_radius"]
+	goal_radius = robot_type["goal_radius"]
 	r_sense = robot_type["r_sense"]
 	radius = robot_type["radius"]
-	rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,r_sense,radius)
+	if robot_type["dynamics"] == "double_integrator":
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,goal_radius,r_sense,radius)
+	elif robot_type["dynamics"] == "single_integrator":
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,tag_radius,goal_radius,r_sense,radius)
+	elif robot_type["dynamics"] == "dubins_2d":
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,goal_radius,r_sense,radius)		
+	elif robot_type["dynamics"] == "dubins_3d":
+		p_min.append(env_ylim[0])
+		p_max.append(env_ylim[1])
+		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,goal_radius,r_sense,radius)			
 	return rt	
 
 
@@ -40,6 +64,18 @@ def robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,team
 def param_to_cpp_game(robot_team_composition,robot_types,env_xlim,env_ylim,dt,goal,rollout_horizon):
 	attackerTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"a",env_xlim,env_ylim)
 	defenderTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"b",env_xlim,env_ylim)
+	# adjust goal 
+	for key,value in robot_team_composition["a"].items():
+		dynamics_name = robot_types[key]["dynamics"]
+		break 
+	if dynamics_name == "double_integrator":
+		pass 
+	elif dynamics_name == "single_integrator":
+		goal = goal[0:2]
+	elif dynamics_name == "dubins_3d":
+		temp_goal = goal 
+		# x,y,z,phi,psi,v
+		goal = np.array([goal[0],goal[1],(env_ylim[1]-env_ylim[0])/2,0,0,0,0])
 	g = mctscpp.Game(attackerTypes, defenderTypes, dt, goal, rollout_horizon)
 	return g
 
@@ -150,6 +186,8 @@ def state_to_cpp_game_state(state,turn,team_1_idxs,team_2_idxs):
 
 def expected_value(param,state,policy_dict,team):
 
+	print('policy_dict',policy_dict)
+
 	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
 		param.sim_dt,param.goal,param.rollout_horizon)	
 	gs = state_to_cpp_game_state(state,team,param.team_1_idxs,param.team_2_idxs)
@@ -245,7 +283,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 
 	gs = state_to_cpp_game_state(param.state,"a",param.team_1_idxs,param.team_2_idxs)
 	count = 0
-	invalid_team_action = [np.nan*np.ones(2) for _ in range(param.num_nodes)]
+	invalid_team_action = [np.nan*np.ones(param.dynamics["control_dim"]) for _ in range(param.num_nodes)]
 	team_action = list(invalid_team_action)
 	gs.depth = 0
 	while True:
@@ -312,6 +350,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 				valuePredictor,
 				mctssettings)
 			gs.depth = depth
+
 			if mctsresult.success: 
 				action = mctsresult.bestAction
 				success = g.step(gs, action, gs)
@@ -331,7 +370,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 
 		elif policy_dict["sim_mode"] == "D_MCTS": 
 			state = np.array([rs.state.copy() for rs in gs.attackers + gs.defenders])
-			action = np.nan*np.zeros((state.shape[0],2))
+			action = np.nan*np.zeros((state.shape[0],param.dynamics["control_dim"]))
 			for robot_idx in team_idx: 
 				if not np.isfinite(state[robot_idx,:]).all(): # non active robot 
 					continue
@@ -360,9 +399,9 @@ def play_game(param,policy_dict_a,policy_dict_b):
 							'robot_idx' : robot_idx,
 							})
 					if mctssettings.export_root_reward_over_time:
-						sim_result['root_rewards_over_time'].appent(mctsresult.rootRewardOverTime)
+						sim_result['root_rewards_over_time'].append(mctsresult.rootRewardOverTime)
 				else: 
-					action[robot_idx,:] = np.zeros(2) 
+					action[robot_idx,:] = np.zeros(param.dynamics["control_dim"]) 
 
 			success = g.step(gs,action,gs)
 
@@ -505,7 +544,7 @@ def evaluate_expert_value(rank, queue, total, states, param, policy_fn_a, policy
 			'path_glas_model' : policy_fn_b,
 			'deterministic': False,
 		}
-		num_rollouts = 100
+		num_rollouts = 50
 
 	else: 
 		if param.i > 0:
@@ -576,6 +615,7 @@ def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 		num_robots = param.num_nodes_B
 		robot_idxs = param.team_2_idxs
 
+	action_dim = param.dynamics["control_dim"]
 
 	if param.l_subsample_on: 
 
@@ -584,7 +624,7 @@ def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 		weights /= sum(weights)
 		dist = dict()
 		for robot_idx in robot_idxs: 
-			action_idx = robot_idx * 2 + np.arange(2)
+			action_idx = robot_idx * action_dim + np.arange(action_dim)
 			actions = np.array([np.array(a).flatten()[action_idx] for a,v in valuePerAction])
 			choice_idxs = np.random.choice(actions.shape[0],param.l_num_subsamples,p=weights)
 			dist[robot_idx] = np.array([(actions[choice_idx,:],weights[choice_idx]) for choice_idx in choice_idxs])
@@ -597,7 +637,7 @@ def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 
 		dist = defaultdict(list)
 		for robot_idx in robot_idxs: 
-			action_idx = robot_idx * 2 + np.arange(2)
+			action_idx = robot_idx * action_dim + np.arange(action_dim)
 
 			# average = np.average(actions[:,action_idx], weights=values, axis=0)
 			average = np.array(bestAction).flatten()[action_idx]
@@ -651,7 +691,7 @@ def valuePerAction_to_policy_dist(param,valuePerAction,bestAction):
 			action = action.flatten()
 
 			for robot_idx in robot_idxs:
-				action_idx = robot_idx * 2 + np.arange(2)
+				action_idx = robot_idx * action_dim + np.arange(action_dim)
 				# v = value/norm if norm > 0 else 1/len(valuePerActionSorted)
 				# dist[robot_idx].append([action[action_idx],v])
 				dist[robot_idx].append([action[action_idx],value])

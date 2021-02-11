@@ -270,6 +270,188 @@ def plot_oa_pairs(sampled_oa_pairs,abs_goal,team,rsense,action_list,env_length):
 			elif dist == 0:
 				ax.arrow(0,0,0,1e-3,color=color,alpha=0.5)
 
+def plot_exp8_results(all_sim_results):
+	results = defaultdict(list)
+	tree_sizes = set()
+	model_names = set() 
+	for sim_result in all_sim_results: 
+		tree_size = sim_result["param"]["policy_dict"]["mcts_tree_size"]
+		model_name = sim_result["param"]["policy_dict"]["path_glas_model_a"]
+		key = (tree_size,model_name)
+		results[key].append(sim_result["value"])
+		tree_sizes.add(tree_size)
+		model_names.add(model_name)
+
+		print('key, value: {},{}'.format(key,sim_result["value"]))
+
+	tree_sizes = sorted(list(tree_sizes))
+	colors = ["blue","orange"]
+
+	print('tree_sizes',tree_sizes)
+	print('model_names',model_names)
+
+	fig,ax = plt.subplots()
+	for i_model, model_name in enumerate(model_names): 
+
+		mean_data = []
+		std_data = [] 
+		for tree_size in tree_sizes: 
+			mean_data.append(np.mean(results[(tree_size,model_name)]))
+			std_data.append(np.std(results[(tree_size,model_name)]))
+
+		mean_data = np.array(mean_data)
+		std_data = np.array(std_data)
+
+		label = model_name 
+		if label is None: 
+			label = "None"
+
+		ax.plot(tree_sizes,mean_data,color=colors[i_model],label=label)
+		ax.fill_between(tree_sizes, mean_data-std_data, mean_data+std_data,color=colors[i_model],alpha=0.5)
+
+	ax.legend(loc='best')
+	ax.set_xscale('log')
+
+	return fig,ax 
+
+def plot_value_dataset_distributions(loader):
+	# loader = [(v_a,v_b,n_a,n_b,n_rg,target_value)]
+	# v_a = {s^j - g} 
+	# v_b = {s^j - g}
+	# 	- e.g. 3d dubins : s = (x,y,z,phi,psi,v)
+
+	state_dim_dubins = 6
+
+	state_dim = state_dim_dubins
+
+	print("formatting data...")
+	for i, (v_a,v_b,n_a,n_b,n_rg,target_value) in enumerate(loader):
+
+		print("{}/{}".format(i,len(loader)))
+
+		v_a = v_a.cpu().detach().numpy()  
+		v_b = v_b.cpu().detach().numpy()  
+		n_a = n_a.cpu().detach().numpy()  
+		n_b = n_b.cpu().detach().numpy()  
+		n_rg = n_rg.cpu().detach().numpy()  
+		target_value = target_value.cpu().detach().numpy()  
+
+		# data_i = np.zeros((v_a.shape[0],2*state_dim+4))
+		# data_i[:,0:state_dim] = v_a 
+		# data_i[:,state_dim:2*state_dim] = v_b
+		# data_i[:,2*state_dim] = n_a
+		# data_i[:,2*state_dim+1] = n_b
+		# data_i[:,2*state_dim+2] = n_rg
+		# data_i[:,2*state_dim+3] = target_value
+
+		data_i = [[] for _ in range(2*state_dim + 4)] 
+		for j in range(v_a.shape[1]):
+			data_i[np.mod(j,state_dim)].extend(v_a[:,j])
+		for j in range(v_b.shape[1]):
+			data_i[state_dim + np.mod(j,state_dim)].extend(v_b[:,j])
+
+		data_i[2*state_dim].extend(n_a)
+		data_i[2*state_dim+1].extend(n_b)
+		data_i[2*state_dim+2].extend(n_rg)
+		data_i[2*state_dim+3].extend(target_value)
+
+		if i == 0:
+			data = data_i 
+		else: 
+			# data = np.vstack((data,data_i))
+			for j,_ in enumerate(data): 
+				data[j].extend(data_i[j])
+
+		# break
+
+	labels = ["xa","ya","za","phia","psia","va","xb","yb","zb","phib","psib","vb","numa","numb","numrg","target_value"]
+
+	print('plotting histogram...')
+	nrows = 4 
+	ncols = 4
+	fig,axs = plt.subplots(nrows=nrows,ncols=ncols)
+	for idx in range(len(data)):
+		print("{}/{}".format(idx,len(data)))
+		i_row = int(np.floor(idx/ncols))
+		i_col = np.mod(idx,ncols)
+
+		axs[i_row,i_col].hist(np.array(data[idx][:])) 
+		axs[i_row,i_col].set_title(labels[idx])
+
+	fig.tight_layout()
+
+
+def plot_policy_dataset_distributions(loader):
+	# loader = [(o_a,o_b,goal,action,weight)]
+	# o_a = {s^j - s^i} 
+	# o_b = {s^j - s^i}
+	# goal = {g - s^i}
+	# 	- e.g. 3d dubins : s = (x,y,z,phi,psi,v), a: (phidot, psidot, vdot)
+
+
+	state_dim_dubins = 6
+	action_dim_dubins = 3 
+
+	state_dim = state_dim_dubins
+	action_dim = action_dim_dubins
+
+	print("formatting data...")
+	for i, (o_a,o_b,goal,action,weight) in enumerate(loader):
+
+		print("{}/{}".format(i,len(loader)))
+
+		o_a = o_a.cpu().detach().numpy()  
+		o_b = o_b.cpu().detach().numpy()  
+		goal = goal.cpu().detach().numpy()  
+		action = action.cpu().detach().numpy()  
+		weight = weight.cpu().detach().numpy()  
+
+		data_i = [[] for _ in range(3*state_dim + 2*action_dim)] 
+		for j in range(o_a.shape[1]):
+			data_i[np.mod(j,state_dim)].extend(o_a[:,j])
+		for j in range(o_b.shape[1]):
+			data_i[state_dim + np.mod(j,state_dim)].extend(o_b[:,j])
+		for j in range(goal.shape[1]):
+			data_i[2*state_dim + np.mod(j,state_dim)].extend(goal[:,j])
+
+		data_i[3*state_dim:3*state_dim + action_dim].extend(action)
+		data_i[3*state_dim + action_dim:3*state_dim + 2*action_dim].extend(weight)
+
+		if i == 0:
+			data = data_i 
+		else: 
+			# data = np.vstack((data,data_i))
+			for j,_ in enumerate(data): 
+				data[j].extend(data_i[j])
+
+		# break
+
+	labels = ["xa","ya","za","phia","psia","va",\
+		"xb","yb","zb","phib","psib","vb",\
+		"xg","yg","zg","phig","psig","vg",\
+		"phidot", "psidot", "vdot", \
+		"phidotw", "psidotw", "vdotw",]
+
+	print('plotting histogram...')
+	nrows = 4 
+	ncols = 6
+	fig,axs = plt.subplots(nrows=nrows,ncols=ncols)
+	for idx in range(len(data)):
+		print("{}/{}".format(idx,len(data)))
+		i_row = int(np.floor(idx/ncols))
+		i_col = np.mod(idx,ncols)
+
+		axs[i_row,i_col].hist(np.array(data[idx][:])) 
+		axs[i_row,i_col].set_title(labels[idx])
+
+	for i_row in range(nrows):
+		for i_col in range(ncols):
+			ax = axs[i_row,i_col]
+			for item in ([ax.title, ax.xaxis.label, ax.yaxis.label] + ax.get_xticklabels() + ax.get_yticklabels()):
+				item.set_fontsize(4)
+
+	fig.tight_layout()	
+
 
 
 def plot_loss(losses,lrs,team):
@@ -349,8 +531,152 @@ def get_n_colors(n,cmap=None):
 	# colors = [ cm.tab20(x) for x in cm_subsection]
 	return colors
 
+def plot_3d_dubins_result(sim_result,title):
+
+	states = sim_result["states"]
+	actions = sim_result["actions"]
+
+	nt, nrobots, state_dim = states.shape 
+
+	x_lim = sim_result["param"]["env_xlim"]
+	y_lim = sim_result["param"]["env_ylim"]
+	z_lim = sim_result["param"]["env_ylim"] # assume zlim and ylim are same 
+
+	colors = get_colors(sim_result["param"])
+
+	from mpl_toolkits.mplot3d import Axes3D
+	fig = plt.figure()
+	ax = fig.add_subplot(111, projection='3d')
+	ax.set_xlim(x_lim)
+	ax.set_ylim(y_lim)
+	ax.set_zlim(z_lim)
+
+	ax.set_xlabel('x')
+	ax.set_ylabel('y')
+	ax.set_zlabel('z')
+	
+	# goal region 
+	goal_z = (y_lim[1]-y_lim[0])/2
+	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+	goal_radius = sim_result["param"]["robots"][0]["goal_radius"]
+	goal = np.array([sim_result["param"]["goal"][0],sim_result["param"]["goal"][1],goal_z])
+
+	# Make data
+	u = np.linspace(0, 2 * np.pi, 100)
+	v = np.linspace(0, np.pi, 100)
+	x = goal_radius * np.outer(np.cos(u), np.sin(v)) + goal[0]
+	y = goal_radius * np.outer(np.sin(u), np.sin(v)) + goal[1]
+	z = goal_radius * np.outer(np.ones(np.size(u)), np.cos(v)) + goal[2]
+
+	# Plot the surface
+	ax.plot_surface(x, y, z, color='green',alpha=0.6)
+	ax.plot([0.0,goal[0]],[goal[1],goal[1]],[goal[2],goal[2]], color='green',linewidth=1,linestyle="--")
+	ax.plot([goal[0],goal[0]],[y_lim[-1],goal[1]],[goal[2],goal[2]], color='green',linewidth=1,linestyle="--")
+	ax.plot([goal[0],goal[0]],[goal[1],goal[1]],[0.0,goal[2]], color='green',linewidth=1,linestyle="--")
+
+	for i_robot in range(nrobots):
+
+		# trajectory 
+		ax.plot(states[:,i_robot,0],states[:,i_robot,1],states[:,i_robot,2],color=colors[i_robot])
+
+		# projections 
+		ax.plot(np.zeros(states[:,i_robot,0].shape),states[:,i_robot,1],states[:,i_robot,2],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot(states[:,i_robot,0],y_lim[-1]*np.ones(states[:,i_robot,1].shape),states[:,i_robot,2],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot(states[:,i_robot,0],states[:,i_robot,1],np.zeros(states[:,i_robot,2].shape),color=colors[i_robot],linewidth=1,linestyle="--")
+
+		ax.plot([0.0, states[0,i_robot,0]],[states[0,i_robot,1],states[0,i_robot,1]],[states[0,i_robot,2],states[0,i_robot,2]],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot([states[0,i_robot,0],states[0,i_robot,0]],[y_lim[-1],states[0,i_robot,1]],[states[0,i_robot,2],states[0,i_robot,2]],color=colors[i_robot],linewidth=1,linestyle="--")
+		ax.plot([states[0,i_robot,0],states[0,i_robot,0]],[states[0,i_robot,1],states[0,i_robot,1]],[0.0,states[0,i_robot,2]],color=colors[i_robot],linewidth=1,linestyle="--")
+
+		# start 
+		ax.plot([states[0,i_robot,0]],[states[0,i_robot,1]],states[0,i_robot,2],color=colors[i_robot],marker='s',markersize=5, alpha=0.2)
+
+		# end 
+		# Put special markers on attacker robot events
+		if (sim_result["param"]["robots"][i_robot]["team"] == 'a') :
+			# Find the last valid states
+			idx_unkn = np.where(np.isnan(states[:,i_robot,0]) == True)
+			idx_dead = np.where(np.isneginf(states[:,i_robot,0]) == True)
+			idx_goal = np.where(np.isposinf(states[:,i_robot,0]) == True)
+
+			# Plot events
+			if (len(idx_unkn[0])) :
+				# Robot is inactive
+				idx = max(0,min(idx_unkn[0])-1)
+				ax.plot([states[idx,i_robot,0]],[states[idx,i_robot,1]],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="|",markersize=10)
+			if (len(idx_dead[0])) :
+				# Robot is dead
+				idx = max(0,min(idx_dead[0])-1)
+				ax.plot([states[idx,i_robot,0]],[states[idx,i_robot,1]],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="x",markersize=10)
+			if (len(idx_goal[0])) :
+				# Robot is at the goal
+				idx = max(0,min(idx_goal[0])-1)
+				ax.plot([states[idx,i_robot,0]],[states[idx,i_robot,1]],states[idx,i_robot,2],linewidth=1,color=colors[i_robot],marker="o",markersize=10)
+		
+		# tag radius 
+		# ax.add_patch(mpatches.Circle(states[-1,i,0:2], sim_result["param"]["robots"][i]["tag_radius"],color=colors[i],alpha=0.2,fill=False))
+
+	set_axes_equal(ax)
+
+	# 
+	fig,axs = plt.subplots(nrows=2,ncols=max((sim_result["param"]["dynamics"]["state_dim"],sim_result["param"]["dynamics"]["control_dim"])),squeeze=False)
+
+	times = sim_result["times"]
+
+	for i_state, label in enumerate(sim_result["param"]["dynamics"]["state_labels"]):
+		for i_robot in range(sim_result["param"]["num_nodes"]):
+			axs[0,i_state].plot(times,states[:,i_robot,i_state],color=colors[i_robot])
+		axs[0,i_state].set_title(label) 
+		axs[0,i_state].grid(True)
+
+		if i_state in [3,4,5]:
+			axs[0,i_state].set_ylim([-np.pi,np.pi])
+
+	axs[0,0].set_ylim(x_lim)
+	axs[0,1].set_ylim(y_lim)
+	axs[0,2].set_ylim(z_lim)
+
+	for i_control, label in enumerate(sim_result["param"]["dynamics"]["control_labels"]):
+		for i_robot in range(sim_result["param"]["num_nodes"]):		
+			axs[1,i_control].plot(times,actions[:,i_robot,i_control],color=colors[i_robot])
+		# axs[1,i_control].set_title(label) 
+		axs[1,i_control].grid(True)
+
+	# fig.tight_layout()
+
+def set_axes_equal(ax):
+    '''Make axes of 3D plot have equal scale so that spheres appear as spheres,
+    cubes as cubes, etc..  This is one possible solution to Matplotlib's
+    ax.set_aspect('equal') and ax.axis('equal') not working for 3D.
+
+    Input
+      ax: a matplotlib axis, e.g., as output from plt.gca().
+    '''
+
+    x_limits = ax.get_xlim3d()
+    y_limits = ax.get_ylim3d()
+    z_limits = ax.get_zlim3d()
+
+    x_range = abs(x_limits[1] - x_limits[0])
+    x_middle = np.mean(x_limits)
+    y_range = abs(y_limits[1] - y_limits[0])
+    y_middle = np.mean(y_limits)
+    z_range = abs(z_limits[1] - z_limits[0])
+    z_middle = np.mean(z_limits)
+
+    # The plot bounding box is a sphere in the sense of the infinity
+    # norm, hence I call half the max range the plot radius.
+    plot_radius = 0.5*max([x_range, y_range, z_range])
+
+    ax.set_xlim3d([x_middle - plot_radius, x_middle + plot_radius])
+    ax.set_ylim3d([y_middle - plot_radius, y_middle + plot_radius])
+    ax.set_zlim3d([z_middle - plot_radius, z_middle + plot_radius])
+
 
 def plot_tree_results(sim_result,title=None): 
+
+	if sim_result["param"]["dynamics"]["name"] == "dubins_3d":
+		return plot_3d_dubins_result(sim_result,title=title)
 
 	def team_1_reward_to_gamma(reward_1):
 		# gamma = reward_1 * 2 - 1 
@@ -375,6 +701,7 @@ def plot_tree_results(sim_result,title=None):
 	num_nodes = sim_result["param"]["num_nodes"]
 	goal = sim_result["param"]["goal"]
 	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+	goal_radius = sim_result["param"]["robots"][0]["goal_radius"]
 	env_xlim = sim_result["param"]["env_xlim"]	
 	env_ylim = sim_result["param"]["env_ylim"]	
 
@@ -384,14 +711,16 @@ def plot_tree_results(sim_result,title=None):
 
 	colors = get_colors(sim_result["param"])
 
-	fig,axs = plt.subplots(nrows=2,ncols=3,constrained_layout=True)
+	# first figure: state space and value function 
+
+	fig,axs = plt.subplots(nrows=1,ncols=2,constrained_layout=True,squeeze=False)
 
 	# state space
 	ax = axs[0,0]
 	ax.grid(True)
 	ax.set_aspect('equal')
 	ax.set_title('State Space')
-	ax.add_patch(mpatches.Circle(goal, tag_radius, color=goal_color,alpha=0.5))
+	ax.add_patch(mpatches.Circle(goal, goal_radius, color=goal_color,alpha=0.5))
 	for i in range(num_nodes):
 		# Robot position (each time step)
 		ax.plot(states[:,i,0],states[:,i,1],linewidth=1,color=colors[i],marker="o",markersize=0.75)
@@ -472,60 +801,26 @@ def plot_tree_results(sim_result,title=None):
 			ax.plot(times,mus,color=colors[i],alpha=0.5) 
 			ax.fill_between(times,mus-sigmas,mus+sigmas,color=colors[i],alpha=0.25) 
 
-	# time varying velocity
-	ax = axs[1,0]
-	ax.grid(True)
-	ax.set_title('Speed Profile')
-	for i in range(num_nodes):
-		ax.axhline(sim_result["param"]["robots"][i]["speed_limit"],color=colors[i],linestyle='--')
-		ax.plot(times,np.linalg.norm(states[:,i,2:],axis=1),color=colors[i])
-	ax.set_ylim(bottom=0)
-
-	# time varying acc
-	ax = axs[1,1]
-	ax.grid(True)
-	ax.set_title('Acceleration Profile')
-	for i in range(num_nodes):
-		ax.axhline(sim_result["param"]["robots"][i]["acceleration_limit"],color=colors[i],linestyle='--')
-		ax.plot(times,np.linalg.norm(actions[:,i],axis=1),color=colors[i])
-	ax.set_ylim(bottom=0)
-
-	# velociy-space trajectories
-	# ax = axs[2,0]
-	# ax.grid(True)
-	# ax.set_title('Velocity Trajectories')
-	# for i in range(num_nodes):
-	# 	# ax.axhline(sim_result["param"]["robots"][i]["speed_limit"],color=colors[i],linestyle='--')
-	# 	ax.plot(states[:,i,2],states[:,i,3],color=colors[i])
-	# 	arrow_dirs_x = states[1:,i,2] - states[0:-1,i,2]
-	# 	arrow_dirs_y = states[1:,i,3] - states[0:-1,i,3]
-	# 	for k,t in enumerate(times[0:-1]):
-	# 		ax.arrow(states[k,i,2],states[k,i,3],arrow_dirs_x[k],arrow_dirs_y[k],color=colors[i])
-	# ax.set_xlabel('v_x')
-	# ax.set_ylabel('v_y')
-
-	# # acceleration-space trajectories 
-	# ax = axs[2,1]
-	# ax.grid(True)
-	# ax.set_title('X-Acceleration')
-	# for i in range(num_nodes):
-	# 	# ax.axhline(sim_result["param"]["robots"][i]["speed_limit"],color=colors[i],linestyle='--')
-	# 	ax.plot(actions[:,i,0],actions[:,i,1],color=colors[i])
-	# 	arrow_dirs_x = actions[1:,i,0] - actions[0:-1,i,0]
-	# 	arrow_dirs_y = actions[1:,i,1] - actions[0:-1,i,1]
-	# 	for k,t in enumerate(times[0:-1]):
-	# 		ax.arrow(actions[k,i,0],actions[k,i,1],arrow_dirs_x[k],arrow_dirs_y[k],color=colors[i])
-	# ax.set_xlabel('a_x')
-	# ax.set_ylabel('a_y')
+	ax.set_xlim([0,times[-1]])
+	ax.set_ylim([0,1])
+	ax.set_aspect(times[-1])
 
 
-	for i in range(num_nodes):
-		axs[0][2].plot(times,actions[:,i,0],color=colors[i])
-		axs[1][2].plot(times,actions[:,i,1],color=colors[i])
-	axs[0][2].set_title('X-Acceleration')
-	axs[1][2].set_title('Y-Acceleration')
-	axs[0][2].grid(True)
-	axs[1][2].grid(True)
+	# second figure: state and control trajectories
+	dynamics = sim_result["param"]["dynamics"] 
+	fig,axs = plt.subplots(nrows=2,ncols=max((dynamics["state_dim"],dynamics["control_dim"])),squeeze=False)
+
+	for i_state, label in enumerate(dynamics["state_labels"]):
+		for i_robot in range(num_nodes):
+			axs[0,i_state].plot(times,states[:,i_robot,i_state],color=colors[i_robot])
+		axs[0,i_state].set_title(label) 
+		axs[0,i_state].grid(True)
+
+	for i_control, label in enumerate(dynamics["control_labels"]):
+		for i_robot in range(num_nodes):		
+			axs[1,i_control].plot(times,actions[:,i_robot,i_control],color=colors[i_robot])
+		axs[1,i_control].set_title(label) 
+		axs[1,i_control].grid(True)
 
 	path_glas_model_a = None
 	if "path_glas_model_a" in sim_result["param"]["policy_dict_a"]: 
@@ -574,11 +869,9 @@ def plot_tree_results(sim_result,title=None):
 				mus = np.array(mus)
 				sigmas = np.array(sigmas)
 
-				axs[0][2].plot(ts,mus[:,0],color=colors[robot_idx],linestyle='--') 
-				axs[0][2].fill_between(ts,mus[:,0]-sigmas[:,0],mus[:,0]+sigmas[:,0],color=colors[robot_idx],alpha=0.5) 
-
-				axs[1][2].plot(ts,mus[:,1],color=colors[robot_idx],linestyle='--') 
-				axs[1][2].fill_between(ts,mus[:,1]-sigmas[:,1],mus[:,1]+sigmas[:,1],color=colors[robot_idx],alpha=0.5) 			
+				for i_control in range(dynamics["control_dim"]):
+					axs[1][i_control].plot(ts,mus[:,i_control],color=colors[robot_idx],linestyle='--') 
+					axs[1][i_control].fill_between(ts,mus[:,i_control]-sigmas[:,i_control],mus[:,i_control]+sigmas[:,i_control],color=colors[robot_idx],alpha=0.5) 
 
 	if path_glas_model_b is not None: 
 
@@ -620,11 +913,9 @@ def plot_tree_results(sim_result,title=None):
 				mus = np.array(mus)
 				sigmas = np.array(sigmas)
 
-				axs[0][2].plot(ts,mus[:,0],color=colors[robot_idx],linestyle='--') 
-				axs[0][2].fill_between(ts,mus[:,0]-sigmas[:,0],mus[:,0]+sigmas[:,0],color=colors[robot_idx],alpha=0.5) 
-
-				axs[1][2].plot(ts,mus[:,1],color=colors[robot_idx],linestyle='--') 
-				axs[1][2].fill_between(ts,mus[:,1]-sigmas[:,1],mus[:,1]+sigmas[:,1],color=colors[robot_idx],alpha=0.5) 	
+				for i_control in range(dynamics["control_dim"]):
+					axs[1][i_control].plot(ts,mus[:,i_control],color=colors[robot_idx],linestyle='--') 
+					axs[1][i_control].fill_between(ts,mus[:,i_control]-sigmas[:,i_control],mus[:,i_control]+sigmas[:,i_control],color=colors[robot_idx],alpha=0.5) 
 
 	# add figure title 
 	if title is not None: 
@@ -633,14 +924,20 @@ def plot_tree_results(sim_result,title=None):
 	# tree vis 
 	if len(sim_result["trees"]) > 0:
 
-		max_trees = 2
+		max_trees = 5
 		if len(sim_result["trees"]) > max_trees:
 			sim_result["trees"] = sim_result["trees"][0:max_trees]
 
-		fig,axs = plt.subplots(nrows=len(sim_result["trees"]),ncols=3,squeeze=False,constrained_layout=True)
-		# fig,axs = plt.subplots(nrows=len(sim_result["trees"]),ncols=2,squeeze=False,constrained_layout=True)
 
 		for i_tree, data in enumerate(sim_result["trees"]):
+			
+			fig,axs = plt.subplots(nrows=1,ncols=3,squeeze=False,constrained_layout=True)
+			fig2,axs2 = plt.subplots(nrows=1,ncols=num_nodes,squeeze=False,constrained_layout=True)
+			# fig,axs = plt.subplots(nrows=len(sim_result["trees"]),ncols=2,squeeze=False,constrained_layout=True)
+
+			for i_node in range(num_nodes):
+				plot_tree(axs2[0,i_node],data,i_node)
+				axs2[0,i_node].set_title("Robot {} at Tree Index {}".format(i_node,i_tree))
 
 			# [number of nodes x (parentIdx, reward, isBest, \{position, velocity\}_{for all robots})]
 
@@ -654,7 +951,7 @@ def plot_tree_results(sim_result,title=None):
 			tree_colors = get_2_colors(2,1)
 
 			# first col, position 
-			ax = axs[i_tree,0]
+			ax = axs[0,0]
 			segments = []
 			best_segments = []
 			cs = []
@@ -689,7 +986,7 @@ def plot_tree_results(sim_result,title=None):
 			ax.set_ylim([env_ylim[0],env_ylim[1]])
 
 			# second col, velocity embedding 
-			ax = axs[i_tree,1]
+			ax = axs[0,1]
 			segments = []
 			best_segments = []
 			cs = []
@@ -718,7 +1015,7 @@ def plot_tree_results(sim_result,title=None):
 			ax.set_ylim([-acceleration_lims,acceleration_lims])
 
 			# third col, histogram of tree depth
-			ax = axs[i_tree,2]
+			ax = axs[0,2]
 			# ax = axs[i_tree,1]
 			num_nodes_by_depth = defaultdict(int)
 			for row in data:
@@ -806,7 +1103,7 @@ def plot_training_value(df_param,batched_fns,path_to_model):
 
 		# select candidate observations 
 		candidate = (v_as[idxs[i_state]],v_bs[idxs[i_state]],n_as[idxs[i_state]],n_bs[idxs[i_state]],n_rgs[idxs[i_state]])
-		print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
+		# print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
 
 		fig, axs = plt.subplots(nrows=1,ncols=2,squeeze=False)
 
@@ -897,6 +1194,35 @@ def plot_training_value(df_param,batched_fns,path_to_model):
 
 		fig.tight_layout()
 
+def plot_exp9(result):
+
+	exp9_result = defaultdict(list)
+	colors = dict()
+	colors_list = plt.rcParams["axes.prop_cycle"].by_key()["color"]
+	curr_color = 0 
+
+	for (dirname, team, model_number), losses in result.items():
+		key = (dirname, team)
+		losses = np.array(losses) # niters x 2 
+		value = losses[:,0]
+		exp9_result[key].extend(list(value))
+		if dirname not in colors.keys():
+			colors[dirname] = colors_list[curr_color]
+			curr_color += 1 
+
+	fig,axs = plt.subplots(ncols=2,squeeze=False)
+	for (dirname, team), losses in exp9_result.items():
+		if team == "a":
+			idx = 0
+		else:
+			idx = 1 
+
+		axs[0,idx].plot(losses,label=dirname,color=colors[dirname])
+
+	axs[0,idx].legend(loc='upper right')
+
+
+
 
 
 
@@ -914,12 +1240,24 @@ def plot_training(df_param,batched_fns,path_to_model):
 	self_color = 'black'
 	LIMS = df_param.robot_types["standard_robot"]["acceleration_limit"]*np.array([[-1,1],[-1,1]])
 	rsense = df_param.robot_types["standard_robot"]["r_sense"]
+	dynamics_name = df_param.robot_types["standard_robot"]["dynamics"]
 	env_xlim = df_param.env_xlim 
 	env_ylim = df_param.env_ylim 
 	nbins = 20
 	num_vis = 10
 	n_samples = 100
 	eps = 0.01  
+
+	if dynamics_name == "single_integrator":
+		state_dim = 2 
+	elif dynamics_name == "double_integrator":
+		state_dim = 4 
+	elif dynamics_name == "dubins_2d":
+		state_dim = 4 	
+	elif dynamics_name == "dubins_3d":
+		state_dim = 7
+	else: 
+		exit('plot training dynamics not implemented')
 
 	o_as,o_bs,goals,actions,weights = [],[],[],[],[]
 	for batched_fn in batched_fns:
@@ -946,7 +1284,7 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 		# select candidate observations 
 		candidate = (o_as[idxs[i_state]],o_bs[idxs[i_state]],goals[idxs[i_state]])
-		print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
+		# print('candidate {}/{}: {}'.format(i_state,num_vis,candidate))
 
 		fig, axs = plt.subplots(nrows=2,ncols=2)
 
@@ -1031,28 +1369,35 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 		# game state encoding  
 		# - self 
-		vx = -1*candidate[2][2]
-		vy = -1*candidate[2][3]
+		
 		axs[0][0].scatter(0,0,color=self_color)
-		axs[0][0].arrow(0,0,vx,vy,color=self_color,alpha=0.5)	
 
 		# - goal 
 		axs[0][0].scatter(candidate[2][0],candidate[2][1],color=goal_color,alpha=0.5)
 
-
 		# - neighbors 
-		num_a = int(len(candidate[0])/4)
-		num_b = int(len(candidate[1])/4)
+		num_a = int(len(candidate[0])/state_dim)
+		num_b = int(len(candidate[1])/state_dim)
 		for robot_idx in range(num_a):
-			axs[0][0].scatter(candidate[0][robot_idx*4],candidate[0][robot_idx*4+1],color=team_1_color)
-			axs[0][0].arrow(candidate[0][robot_idx*4],candidate[0][robot_idx*4+1],\
-				vx+candidate[0][robot_idx*4+2],vy+candidate[0][robot_idx*4+3],\
-				color=team_1_color,alpha=0.5)
+			axs[0][0].scatter(candidate[0][robot_idx*state_dim],candidate[0][robot_idx*state_dim+1],color=team_1_color)
 		for robot_idx in range(num_b):
-			axs[0][0].scatter(candidate[1][robot_idx*4],candidate[1][robot_idx*4+1],color=team_2_color)
-			axs[0][0].arrow(candidate[1][robot_idx*4],candidate[1][robot_idx*4+1],\
-				vx+candidate[1][robot_idx*4+2],vy+candidate[1][robot_idx*4+3],\
-				color=team_2_color,alpha=0.5)
+			axs[0][0].scatter(candidate[1][robot_idx*state_dim],candidate[1][robot_idx*state_dim+1],color=team_2_color)
+
+		# velocities 
+		if dynamics_name in ["double_integrator"]:
+			vx = -1*candidate[2][2]
+			vy = -1*candidate[2][3]
+
+			axs[0][0].arrow(0,0,vx,vy,color=self_color,alpha=0.5)	
+
+			for robot_idx in range(num_a):
+				axs[0][0].arrow(candidate[0][robot_idx*state_dim],candidate[0][robot_idx*state_dim+1],\
+					vx+candidate[0][robot_idx*state_dim+2],vy+candidate[0][robot_idx*state_dim+3],\
+					color=team_1_color,alpha=0.5)
+			for robot_idx in range(num_b):
+				axs[0][0].arrow(candidate[1][robot_idx*state_dim],candidate[1][robot_idx*state_dim+1],\
+					vx+candidate[1][robot_idx*state_dim+2],vy+candidate[1][robot_idx*state_dim+3],\
+					color=team_2_color,alpha=0.5)
 
 		# - arrange  
 		l = np.max((np.abs(axs[0][0].get_xlim()),np.abs(axs[0][0].get_ylim())))
@@ -1110,12 +1455,94 @@ def plot_training(df_param,batched_fns,path_to_model):
 
 		fig.tight_layout()
 
-def plot_exp6(sim_result,dirname):
+def plot_tree(ax, tree, robot_idx_j, zoom_on=False, env_xlim=None, env_ylim=None):
+	# color by rewards 
+	rewards = tree[:,1]
+	size = plt.rcParams['lines.markersize'] ** 2
 
+	# 
+	position_idxs = 3 + 4*robot_idx_j + np.arange(2) 
+
+	segments = []
+	linewidths = [] 
+	best_segments = [] 
+	segment_colors = [] 
+	node_colors = [] 
+	poses = []
+	cmap = cm.viridis
+	for i_row,row in enumerate(tree):
+		parentIdx = int(row[0])
+
+		if np.isfinite(np.sum(row[position_idxs])) \
+			and np.isfinite(np.sum(tree[parentIdx][position_idxs])) \
+			and not np.isnan(np.sum(row[position_idxs])).any() \
+			and not np.isnan(np.sum(tree[parentIdx][position_idxs])).any() :
+
+			node_colors.append(cmap(rewards[i_row]))
+			poses.append(row[position_idxs])
+
+			if parentIdx >= 0:
+				segments.append([row[position_idxs], tree[parentIdx][position_idxs]])
+				if row[2] == 1 and tree[parentIdx][2] == 1:
+					best_segments.append(segments[-1])
+				segment_colors.append(cmap(rewards[i_row]))
+
+	# ln_coll = matplotlib.collections.LineCollection(segments, linewidth=0.2, colors=segment_colors)
+	# ax.add_collection(ln_coll)
+	# ln_coll = matplotlib.collections.LineCollection(best_segments, colors='k', zorder=3, linewidth=1.0)
+	# ax.add_collection(ln_coll)
+
+	ln_coll = matplotlib.collections.LineCollection(segments, linewidth=0.2, colors='k', alpha=0.2)
+	ax.add_collection(ln_coll)
+	# ln_coll = matplotlib.collections.LineCollection(best_segments, colors='k', zorder=3, linewidth=1.0)
+	# ax.add_collection(ln_coll)	
+
+	# plot nodes 
+	poses = np.array(poses)
+	if poses.shape[0] > 0:
+		# ax.scatter(poses[:,0],poses[:,1],c=node_colors,s=0.1*size)
+		ax.scatter(poses[0,0],poses[0,1],c='k',s=0.1*size)
+
+	if zoom_on: 
+		buffer_val = 0.2 
+		ax_lim_done = False
+		if poses.shape[0] > 1: 
+			xlims = [np.min(poses[:,0]), np.max(poses[:,0])]
+			ylims = [np.min(poses[:,1]), np.max(poses[:,1])]
+			xlims[0] = xlims[0] - buffer_val*(xlims[1]-xlims[0])
+			xlims[1] = xlims[1] + buffer_val*(xlims[1]-xlims[0])
+			ylims[0] = ylims[0] - buffer_val*(ylims[1]-ylims[0])
+			ylims[1] = ylims[1] + buffer_val*(ylims[1]-ylims[0])
+
+			if ylims[1] - ylims[0] > 0 and xlims[1] - xlims[0] > 0:
+				ax_lim_done = True
+				delta = (xlims[1] - xlims[0]) - (ylims[1] - ylims[0])
+				if delta > 0:
+					ylims[0] = ylims[0] - delta/2
+					ylims[1] = ylims[1] + delta/2
+				elif delta < 0: 
+					xlims[0] = xlims[0] + delta/2
+					xlims[1] = xlims[1] - delta/2				
+				ax.set_xlim(xlims)
+				ax.set_ylim(ylims)
+
+		if not ax_lim_done: 
+			ax.set_xlim([env_xlim[0],env_xlim[1]])
+			ax.set_ylim([env_ylim[0],env_ylim[1]])
+	
+		# arrange 
+		ax.set_aspect('equal')
+		ax.grid(True)
+
+
+def plot_exp6(sim_result,dirname):
 
 	# takes one sim result that has many trees (for each timestep) and plots each of the trees
 	# if MCTS sim mode the trees for each robot are identical 
 	# if D_MCTS sim mode, each robot has a tree for each other robot 	
+
+	env_xlim = sim_result["param"]["env_xlim"]
+	env_ylim = sim_result["param"]["env_ylim"]
 
 	def plot_state_space(ax,goal,sim_result,goal_color,robot_idxs,colors,states,env_xlim,env_ylim,zoom_on=False):
 		ax.add_patch(mpatches.Circle(goal, sim_result["param"]["robots"][0]["tag_radius"], color=goal_color,alpha=0.5))
@@ -1134,77 +1561,6 @@ def plot_exp6(sim_result,dirname):
 			ax.set_aspect('equal')
 			ax.grid(True)
 
-	def plot_tree(ax, tree, robot_idx_j, zoom_on=False):
-		# color by rewards 
-		rewards = tree[:,1]
-
-		# 
-		position_idxs = 3 + 4*robot_idx_j + np.arange(2) 
-
-		segments = []
-		linewidths = [] 
-		best_segments = [] 
-		segment_colors = [] 
-		node_colors = [] 
-		poses = []
-		cmap = cm.viridis
-		for i_row,row in enumerate(tree):
-			parentIdx = int(row[0])
-
-			if np.isfinite(np.sum(row[position_idxs])) \
-				and np.isfinite(np.sum(tree[parentIdx][position_idxs])) \
-				and not np.isnan(np.sum(row[position_idxs])).any() \
-				and not np.isnan(np.sum(tree[parentIdx][position_idxs])).any() :
-
-				node_colors.append(cmap(rewards[i_row]))
-				poses.append(row[position_idxs])
-
-				if parentIdx >= 0:
-					segments.append([row[position_idxs], tree[parentIdx][position_idxs]])
-					if row[2] == 1 and tree[parentIdx][2] == 1:
-						best_segments.append(segments[-1])
-					segment_colors.append(cmap(rewards[i_row]))
-
-		ln_coll = matplotlib.collections.LineCollection(segments, linewidth=0.2, colors=segment_colors)
-		ax.add_collection(ln_coll)
-		ln_coll = matplotlib.collections.LineCollection(best_segments, colors='k', zorder=3, linewidth=1.0)
-		ax.add_collection(ln_coll)
-
-		# plot nodes 
-		poses = np.array(poses)
-		if poses.shape[0] > 0:
-			ax.scatter(poses[:,0],poses[:,1],c=node_colors,s=0.1*size)
-
-		if zoom_on: 
-			buffer_val = 0.2 
-			ax_lim_done = False
-			if poses.shape[0] > 1: 
-				xlims = [np.min(poses[:,0]), np.max(poses[:,0])]
-				ylims = [np.min(poses[:,1]), np.max(poses[:,1])]
-				xlims[0] = xlims[0] - buffer_val*(xlims[1]-xlims[0])
-				xlims[1] = xlims[1] + buffer_val*(xlims[1]-xlims[0])
-				ylims[0] = ylims[0] - buffer_val*(ylims[1]-ylims[0])
-				ylims[1] = ylims[1] + buffer_val*(ylims[1]-ylims[0])
-
-				if ylims[1] - ylims[0] > 0 and xlims[1] - xlims[0] > 0:
-					ax_lim_done = True
-					delta = (xlims[1] - xlims[0]) - (ylims[1] - ylims[0])
-					if delta > 0:
-						ylims[0] = ylims[0] - delta/2
-						ylims[1] = ylims[1] + delta/2
-					elif delta < 0: 
-						xlims[0] = xlims[0] + delta/2
-						xlims[1] = xlims[1] - delta/2				
-					ax.set_xlim(xlims)
-					ax.set_ylim(ylims)
-
-			if not ax_lim_done: 
-				ax.set_xlim([env_xlim[0],env_xlim[1]])
-				ax.set_ylim([env_ylim[0],env_ylim[1]])
-		
-			# arrange 
-			ax.set_aspect('equal')
-			ax.grid(True)
 
 	# parameters 
 	tree_timestep = sim_result["param"]["tree_timestep"] 
@@ -1271,7 +1627,7 @@ def plot_exp6(sim_result,dirname):
 			visible_robot_idxs.extend(tree_params[key]["tree_team_2_idxs"])
 
 			for robot_idx_j in visible_robot_idxs:
-				plot_tree(ax, tree, robot_idx_j, zoom_on=False)
+				plot_tree(ax, tree, robot_idx_j, zoom_on=False, env_xlim=env_xlim, env_ylim=env_ylim)
 
 			# micro fig, zoom in on trees to see structure 
 			for robot_idx_j in visible_robot_idxs: 
@@ -1280,7 +1636,7 @@ def plot_exp6(sim_result,dirname):
 				
 				# plot state space 
 				plot_state_space(ax,goal,sim_result,goal_color,robot_idxs,colors,states,env_xlim,env_ylim)
-				plot_tree(ax, tree, robot_idx_j, zoom_on=True)
+				plot_tree(ax, tree, robot_idx_j, zoom_on=True, env_xlim=env_xlim, env_ylim=env_ylim)
 
 		# save
 		fig.savefig(os.path.join(dirname,"{:03.0f}.png".format(i_tree_time)), dpi=100)
@@ -1793,6 +2149,17 @@ def policy_to_label(policy):
 			label += '{} '.format(value)
 		elif key in keys:  
 			label += ', {}'.format(value)
+
+	dirname = "None"
+	for key, value in policy.items():
+		if "path" in key and value is not None: 
+			# print('value',value)
+			# print('os.path.dirname(value)',os.path.dirname(value))
+			dirname = os.path.dirname(value)
+			break 
+
+	# add dir where it comes from 
+	label = dirname + " " + label
 	
 	return label
 
@@ -1989,6 +2356,102 @@ def plot_exp3_results(all_sim_results):
 		fig.tight_layout()
 		# ax.legend()
 		# ax.grid(True)
+
+	# make plots with same data easier to understand: 
+	# two plots (attacker and defender) 
+	# x-axis learning iteraiton (or flat line)
+	# y-axis performance : mean + std in 
+	fig,axs = plt.subplots(nrows=1,ncols=2,squeeze=False)
+	# get colors 
+	colors = get_n_colors(len(attackerPolicies))
+
+	for i in range(2):
+
+		to_plot = []
+		other_to_plots = dict()
+
+		if i==0:
+			self_policies = attackerPolicies
+			adv_policies = defenderPolicies
+			title = "Attacker"
+		elif i==1:
+			self_policies = defenderPolicies
+			adv_policies = attackerPolicies
+			title = "Defender"
+
+		for idx, policy_dict in enumerate(self_policies):
+			
+			if i == 0:
+				J_mean = np.sum(mean_rw_result[idx,:])/len(self_policies)
+				J_std = (np.sum(np.square(std_rw_result[idx,:])))/len(self_policies)
+			else:
+				J_mean = 1-np.sum(mean_rw_result[:,idx])/len(self_policies)
+				J_std = (np.sum(np.square(std_rw_result[:,idx])))/len(self_policies)
+			
+			if policy_dict["sim_mode"] == "D_MCTS":
+
+				# get learning index 
+				if policy_dict["path_glas_model_a"] is not None: 
+					learning_idx = int(os.path.basename(policy_dict["path_glas_model_a"]).split(".")[0][1:])
+				else:
+					learning_idx = 0 
+
+				to_plot.append((learning_idx,\
+					J_mean,\
+					J_std,\
+					idx))
+
+			elif policy_dict["sim_mode"] == "MCTS":
+
+				if policy_dict["path_glas_model_a"] is not None: 
+					key = "Biased MCTS"
+				else: 
+					key = "Unbiased MCTS"
+
+				other_to_plots[key] = (\
+					J_mean,\
+					J_std,
+					idx)
+
+			elif policy_dict["sim_mode"] == "PANAGOU":
+
+				key = "PANGAOU"
+
+				other_to_plots[key] = (\
+					J_mean,\
+					J_std,
+					idx)
+
+		# sort 
+		print(to_plot)
+		sorted(to_plot, key=lambda x: x[0])
+		to_plot = np.array(to_plot,dtype=np.float32)
+		color_dmcts_idx = int(to_plot[0,3])
+		axs[0,i].plot(to_plot[:,0],to_plot[:,1],color=colors[color_dmcts_idx],label="DMCTS",alpha=0.9)
+		axs[0,i].fill_between(to_plot[:,0], to_plot[:,1]-to_plot[:,2], to_plot[:,1]+to_plot[:,2],\
+			color=colors[color_dmcts_idx],alpha=0.25)
+		for key,value in other_to_plots.items():
+			axs[0,i].plot([to_plot[0,0],to_plot[-1,0]],[value[0],value[0]],color=colors[value[2]],label=key,alpha=0.9)
+			axs[0,i].fill_between(to_plot[:,0], value[0]-value[1], value[0]+value[1],color=colors[value[2]],alpha=0.25)
+
+		axs[0,i].set_ylim([0,1])
+		axs[0,i].set_xticks(to_plot[:,0])
+		axs[0,i].grid(True)
+		axs[0,i].set_xlabel("Learning Iteration")
+		axs[0,i].set_title(title)
+
+		x0,x1 = axs[0][i].get_xlim()
+		y0,y1 = axs[0][i].get_ylim()
+		axs[0][i].set_aspect(abs(x1-x0)/abs(y1-y0))
+		# axs[0,i].set_aspect("equal")
+	
+		if i == 1:
+			axs[0,i].legend(loc='best')
+		if i == 0:
+			axs[0,i].set_ylabel("Performance")
+
+	# fig.tight_layout()
+
 
 
 def plot_test_model(df_param,stats):

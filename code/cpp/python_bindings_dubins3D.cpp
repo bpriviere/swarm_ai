@@ -8,7 +8,7 @@
 #include <pybind11/eigen.h>
 #include <pybind11/stl.h>
 
-#include "robots/Dubins2D.hpp"
+#include "robots/Dubins3D.hpp"
 
 // #include "robots/RobotState.hpp"
 #include "GameState.hpp"
@@ -24,7 +24,7 @@
 namespace py = pybind11;
 using namespace pybind11::literals;
 
-typedef Dubins2D RobotT;
+typedef Dubins3D RobotT;
 typedef RobotT::State RobotStateT;
 typedef RobotT::Type RobotTypeT;
 typedef GameState<RobotT> GameStateT;
@@ -137,7 +137,7 @@ GameT::GameActionT eval(
 }
 
 
-PYBIND11_MODULE(mctscppdubins2D, m) {
+PYBIND11_MODULE(mctscppdubins3D, m) {
 
 
   // helper functions
@@ -184,7 +184,8 @@ PYBIND11_MODULE(mctscppdubins2D, m) {
     .value("Invalid", RobotState::Status::Invalid);
 
   robotState.def(py::init())
-    .def(py::init<const Eigen::Vector4f&>())                          // This might need to change
+    // .def(py::init<const Eigen::Vector6f&>())                          // This might need to change
+    .def(py::init<const Eigen::Matrix<float, 7, 1>&>())                          // This might need to change
     // .def_property_readonly("position", &RobotStateT::position)
     // .def_property_readonly("velocity", &RobotStateT::velocity)
     .def_readwrite("state", &RobotStateT::state)
@@ -212,8 +213,8 @@ PYBIND11_MODULE(mctscppdubins2D, m) {
   // RobotType
   py::class_<RobotTypeT> (m, "RobotType")
     .def(py::init<
-      const Eigen::Vector2f&,
-      const Eigen::Vector2f&,
+      const Eigen::Vector3f&,
+      const Eigen::Vector3f&,
       float, float, float, float, float, float>())                            // Changes between SI (4f) and DI (5f)
     .def_readwrite("p_min", &RobotTypeT::p_min)
     .def_readwrite("p_max", &RobotTypeT::p_max)
@@ -292,7 +293,7 @@ PYBIND11_MODULE(mctscppdubins2D, m) {
       const std::vector<RobotTypeT>&,
       const std::vector<RobotTypeT>&,
       float,
-      const Eigen::Vector4f&,                        // This might need to change
+      const Eigen::Matrix<float, RobotT::StateDim, 1>&,                        // This might need to change
       size_t,
       std::default_random_engine&>(),
       "attackerTypes"_a,

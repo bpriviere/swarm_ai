@@ -147,7 +147,7 @@ def get_uniform_samples(params):
 	for param in params:
 
 		# delta-uniform sampling for curriculum 
-		robot_team_composition, _, _, env_l = sample_curriculum(param.curriculum)
+		robot_team_composition, _, _, env_l = sample_curriculum(param,param.curriculum)
 
 		# update
 		param.robot_team_composition = robot_team_composition
@@ -169,7 +169,10 @@ def get_self_play_samples(params):
 	for param in params:
 
 		# delta-uniform sampling for curriculum 
-		robot_team_composition, skill_a, skill_b, env_l = sample_curriculum(param.curriculum)
+		robot_team_composition, skill_a, skill_b, env_l = sample_curriculum(param,param.curriculum)
+
+		# print('skill_a',skill_a)
+		# print('skill_b',skill_b)
 
 		# update
 		param.robot_team_composition = robot_team_composition
@@ -247,10 +250,10 @@ def get_self_play_samples(params):
 
 
 	# print policies 
-	print('self-play policies...')
-	for param in params: 
-		print('param.policy_dict_a: ',param.policy_dict_a)
-		print('param.policy_dict_b: ',param.policy_dict_b)
+	# print('self-play policies...')
+	# for param in params: 
+	# 	print('param.policy_dict_a: ',param.policy_dict_a)
+	# 	print('param.policy_dict_b: ',param.policy_dict_b)
 
 
 	# get self play states 
@@ -512,7 +515,7 @@ def make_loaders_value(df_param,batched_files):
 			torch.from_numpy(n_rg).float().to(df_param.device).unsqueeze(1),
 			torch.from_numpy(value).float().to(df_param.device).unsqueeze(1),
 			]
-		
+
 		if k < num_train_batches:
 			train_loader.append(data)
 			train_dataset_size += value.shape[0]
@@ -637,6 +640,7 @@ def train_model_parallel(rank, world_size, df_param, batched_files, training_tea
 	if rank == 0:
 		print("time for training: ", time.time() - start_time)
 		plotter.plot_loss(losses,lrs,training_team)
+		np.save("../current/models/{}_losses.npy".format(os.path.basename(model_fn).split('.')[0]),losses)
 		plotter.save_figs("../current/models/{}_losses.pdf".format(os.path.basename(model_fn).split('.')[0]))
 
 		# plotter.open_figs('plots/model.pdf')
@@ -801,9 +805,9 @@ def make_dataset(states,params,df_param,testing=None):
 					ITER=other_policy_skill)
 			param.other_policy_dicts.append(other_policy_dict)
 
-		print('evaluate-expert policies...')
-		print('param.my_policy_dict: ',param.my_policy_dict)
-		print('param.other_policy_dicts: ',param.other_policy_dicts)
+		# print('evaluate-expert policies...')
+		# print('param.my_policy_dict: ',param.my_policy_dict)
+		# print('param.other_policy_dicts: ',param.other_policy_dicts)
 
 	total = sum([len(states_per_file) for states_per_file in states])
 	if not df_param.l_parallel_on:
@@ -909,21 +913,32 @@ def get_params(df_param,training_team,i,curriculum):
 
 def format_dir(df_param):
 
+	def get_iter_number_data(fn):
+		i = os.path.basename(fn).split("_i")[-1].split("_")[0]
+		return int(i)
+
+	def get_iter_number_models(fn):
+		i = os.path.basename(fn).split("_")[0][1:]
+		i = i.replace('.pt','')
+		return int(i)
+
 	if df_param.clean_data_on:
 		datadir = df_param.path_current_data
 		if os.path.exists(datadir):
 			for file in glob.glob(datadir + "/*"):
-				os.remove(file)
+				if get_iter_number_data(file) >= df_param.l_i0:
+					os.remove(file)
 		os.makedirs(datadir,exist_ok=True)
 
 	if df_param.clean_models_on:
 		modeldir = df_param.path_current_models
 		if os.path.exists(modeldir):
 			for file in glob.glob(modeldir + "/*"):
-				os.remove(file)
+				if get_iter_number_models(file) >= df_param.l_i0:
+					os.remove(file)
 		os.makedirs(modeldir,exist_ok=True)	
 
-def sample_curriculum(curriculum):
+def sample_curriculum(param,curriculum):
 
 	mode = "uniform"
 
@@ -934,6 +949,14 @@ def sample_curriculum(curriculum):
 		skill_a = curriculum["Skill_A"][-1]
 		skill_b = curriculum["Skill_B"][-1]
 		env_l = curriculum["EnvironmentLength"][-1]
+
+	elif mode == "baseline":
+		# no curriculum learning (but skill increments)
+		num_a = param.l_desired_game["NumA"]
+		num_b = param.l_desired_game["NumB"]
+		env_l = param.l_desired_game["EnvironmentLength"]
+		skill_a = curriculum["Skill_A"][-1]
+		skill_b = curriculum["Skill_B"][-1]
 
 	elif mode == "uniform":
 		num_a = random.choice(curriculum["NumA"])
@@ -956,34 +979,36 @@ def sample_curriculum(curriculum):
 
 	return robot_team_composition, skill_a, skill_b, env_l 
 
-def isTrainingConverged(df_param,i,k):
-	return i >= df_param.l_num_iterations + k * df_param.l_num_iterations
 
-def isCurriculumConverged(df_param,curriculum,desired_game):
-	for key, desired_game_value in desired_game.items():
-		if desired_game_value not in curriculum[key]:
-			return False
-	return True
+def isConverged(df_param,i):
+	return i > df_param.l_num_iterations
 
-def incrementCurriculum(df_param,curriculum,desired_game):
-	
-	done = isCurriculumConverged(df_param,curriculum,desired_game)
+def make_curriculum(df_param,i):
 
-	if done: 
-		return curriculum, done 
+	desired_game = df_param.l_desired_game
 
+	if i == 0:
+		skills_a = [None]
+		skills_b = [None]
+	elif i == 1:
+		skills_a = [None,1]
+		skills_b = [None,1]
 	else: 
-		if not desired_game["EnvironmentLength"] in curriculum["EnvironmentLength"]: 
-			curriculum["EnvironmentLength"].append(curriculum["EnvironmentLength"][-1] + df_param.l_env_dl)
-		if not desired_game["NumA"] in curriculum["NumA"]: 
-			curriculum["NumA"].append(curriculum["NumA"][-1] + 1)
-		if not desired_game["NumB"] in curriculum["NumB"]: 
-			curriculum["NumB"].append(curriculum["NumB"][-1] + 1)
-		if not desired_game["Skill_A"] in curriculum["Skill_A"]: 
-			curriculum["Skill_A"].append(len(curriculum["Skill_A"]))
-		if not desired_game["Skill_B"] in curriculum["Skill_B"]: 
-			curriculum["Skill_B"].append(len(curriculum["Skill_B"]))
-		return curriculum , done 
+		# skills_a = list(range(1,min((desired_game["Skill_A"]+1,i+1))))
+		# skills_b = list(range(1,min((desired_game["Skill_B"]+1,i+1))))
+		skills_a = list(range(1,i+1))
+		skills_b = list(range(1,i+1))		
+
+	curriculum = {
+		'Skill_A' : skills_a,
+		'Skill_B' : skills_b,
+		'EnvironmentLength' : list(np.arange(df_param.l_env_l0,\
+			df_param.l_desired_game["EnvironmentLength"]+df_param.l_env_dl,df_param.l_env_dl)),
+		'NumA' : list(range(df_param.l_numa_0,df_param.l_desired_game["NumA"]+df_param.l_dnuma)),
+		'NumB' : list(range(df_param.l_numb_0,df_param.l_desired_game["NumB"]+df_param.l_dnumb)),
+	}
+
+	return curriculum 
 
 if __name__ == '__main__':
 
@@ -1019,137 +1044,126 @@ if __name__ == '__main__':
 	# format directory 
 	format_dir(df_param)
 
-	# initial curriculum 
-	curriculum = df_param.l_initial_curiculum
-	print('\n\n -------------- {} curriculum: {} -------------- \n\n'.format(0,curriculum))	
-
-	i = 0 
-	k = 0 
-	width = 4
-	# curriculum loop  
+	# training loop 
+	i = df_param.l_i0 
+	width = 2
 	while True: 
+		
+		curriculum = make_curriculum(df_param,i)
+		print('\n\n -------------- {} curriculum: {} -------------- \n\n'.format(0,curriculum))	
 
-		# training loop 
-		while True: 
+		# agent loop -> team loop for team-homogeneous policies 
+		for training_team in df_param.l_training_teams:
 
-			# team loop 
-			for training_team in df_param.l_training_teams:
+			print('i: {}, training team: {}'.format(i,training_team))
 
-				print('k: {}, i: {}, training team: {}'.format(k,i,training_team))
-
-				if df_param.make_data_on: 
-
-					params = get_params(df_param,training_team,i,curriculum)
-
-					if df_param.l_mode == "IL":
-						states = get_uniform_samples(params)
-					else: 
-						states = get_self_play_samples(params)
-					
-					make_dataset(states,params,df_param,testing=testing)
-
-				if df_param.make_labelled_data_on:
-					make_labelled_dataset(df_param,i)
-
-				# model to be trained 
-				model_fn = df_param.l_model_fn.format(\
-						DATADIR=df_param.path_current_models,\
-						TEAM=training_team,\
-						ITER=i+1)
-				if df_param.l_warmstart and i > 0:
-					warmstart_fn = df_param.l_model_fn.format(\
-							DATADIR=df_param.path_current_models,\
-							TEAM=training_team,\
-							ITER=i)
-				else:
-					warmstart_fn = None
-
-				# data to be used
-				# batched_fns = glob.glob(df_param.l_labelled_fn.format(\
-				# 		DATADIR=df_param.path_current_data,\
-				# 		TEAM=training_team,\
-				# 		LEARNING_ITER=i,\
-				# 		# LEARNING_ITER='**',\
-				# 		NUM_A='**',\
-				# 		NUM_B='**',\
-				# 		NUM_FILE='**'))
-
-				batched_fns = []
-				for unused_var in range(max((0,i-width)), i+1):
-					batched_fns.extend(glob.glob(df_param.l_labelled_fn.format(\
-							DATADIR=df_param.path_current_data,\
-							TEAM=training_team,\
-							# LEARNING_ITER=i,\
-							LEARNING_ITER=unused_var,\
-							# LEARNING_ITER='**',\
-							NUM_A='**',\
-							NUM_B='**',\
-							NUM_FILE='**')))
-
-				train_model(df_param,batched_fns,training_team,model_fn,warmstart_fn)
-
-				if df_param.mice_testing_on: 
-					stats = test_model(df_param,model_fn,testing)
-					plotter.plot_test_model(df_param,stats)
-					plotter.save_figs('plots/model.pdf')
-					plotter.open_figs('plots/model.pdf')
-					exit()
-
-			# value
-			print('k: {}, i: {}, value'.format(k,i)) 
-
-			# get initial state distribution 
 			if df_param.make_data_on: 
-				params = get_params(df_param,"v",i,curriculum)
+
+				params = get_params(df_param,training_team,i,curriculum)
 
 				if df_param.l_mode == "IL":
 					states = get_uniform_samples(params)
 				else: 
 					states = get_self_play_samples(params)
-			
-				# make labelled data 
-				policy_fn_a = df_param.l_model_fn.format(\
-							DATADIR=df_param.path_current_models,\
-							TEAM="a",\
-							ITER=i+1)
-				policy_fn_b = df_param.l_model_fn.format(\
-							DATADIR=df_param.path_current_models,\
-							TEAM="b",\
-							ITER=i+1)
-				make_dataset_value(states,params,df_param,policy_fn_a,policy_fn_b)
+				
+				make_dataset(states,params,df_param,testing=testing)
 
 			if df_param.make_labelled_data_on:
-				make_labelled_dataset_value(df_param,i)
+				make_labelled_dataset(df_param,i)
 
-			# train value 
-			# batched_fns = glob.glob(df_param.l_labelled_value_fn.format(\
-			# 			DATADIR=df_param.path_current_data,\
-			# 			LEARNING_ITER=i,\
-			# 			NUM_A='**',\
-			# 			NUM_B='**',\
-			# 			NUM_FILE='**'))
+			# model to be trained 
+			model_fn = df_param.l_model_fn.format(\
+					DATADIR=df_param.path_current_models,\
+					TEAM=training_team,\
+					ITER=i+1)
+			if df_param.l_warmstart and i > 0:
+				warmstart_fn = df_param.l_model_fn.format(\
+						DATADIR=df_param.path_current_models,\
+						TEAM=training_team,\
+						ITER=i)
+			else:
+				warmstart_fn = None
+
+			# data to be used
+			# batched_fns = glob.glob(df_param.l_labelled_fn.format(\
+			# 		DATADIR=df_param.path_current_data,\
+			# 		TEAM=training_team,\
+			# 		LEARNING_ITER=i,\
+			# 		# LEARNING_ITER='**',\
+			# 		NUM_A='**',\
+			# 		NUM_B='**',\
+			# 		NUM_FILE='**'))
+
 			batched_fns = []
 			for unused_var in range(max((0,i-width)), i+1):
-				batched_fns.extend(glob.glob(df_param.l_labelled_value_fn.format(\
-					DATADIR=df_param.path_current_data,\
-					LEARNING_ITER=unused_var,\
-					NUM_A='**',\
-					NUM_B='**',\
-					NUM_FILE='**')))
-			model_fn = df_param.l_value_model_fn.format(\
+				batched_fns.extend(glob.glob(df_param.l_labelled_fn.format(\
+						DATADIR=df_param.path_current_data,\
+						TEAM=training_team,\
+						# LEARNING_ITER=i,\
+						LEARNING_ITER=unused_var,\
+						# LEARNING_ITER='**',\
+						NUM_A='**',\
+						NUM_B='**',\
+						NUM_FILE='**')))
+
+			train_model(df_param,batched_fns,training_team,model_fn,warmstart_fn)
+
+			if df_param.mice_testing_on: 
+				stats = test_model(df_param,model_fn,testing)
+				plotter.plot_test_model(df_param,stats)
+				plotter.save_figs('plots/model.pdf')
+				plotter.open_figs('plots/model.pdf')
+				exit()
+
+		# value
+		print('i: {}, value'.format(i)) 
+
+		# get initial state distribution 
+		if df_param.make_data_on: 
+			params = get_params(df_param,"v",i,curriculum)
+
+			if df_param.l_mode == "IL":
+				states = get_uniform_samples(params)
+			else: 
+				states = get_self_play_samples(params)
+		
+			# make labelled data 
+			policy_fn_a = df_param.l_model_fn.format(\
 						DATADIR=df_param.path_current_models,\
+						TEAM="a",\
 						ITER=i+1)
-			train_model_value(df_param,batched_fns,model_fn)
+			policy_fn_b = df_param.l_model_fn.format(\
+						DATADIR=df_param.path_current_models,\
+						TEAM="b",\
+						ITER=i+1)
+			make_dataset_value(states,params,df_param,policy_fn_a,policy_fn_b)
 
-			i = i + 1 
+		if df_param.make_labelled_data_on:
+			make_labelled_dataset_value(df_param,i)
 
-			if isTrainingConverged(df_param,i,k):
-				curriculum, curriculumDone = incrementCurriculum(df_param,curriculum,df_param.l_desired_game)
-				k = k + 1
-				print('\n\n -------------- {} curriculum: {} -------------- \n\n'.format(k,curriculum))
-				break 
+		# train value 
+		# batched_fns = glob.glob(df_param.l_labelled_value_fn.format(\
+		# 			DATADIR=df_param.path_current_data,\
+		# 			LEARNING_ITER=i,\
+		# 			NUM_A='**',\
+		# 			NUM_B='**',\
+		# 			NUM_FILE='**'))
+		batched_fns = []
+		for unused_var in range(max((0,i-width)), i+1):
+			batched_fns.extend(glob.glob(df_param.l_labelled_value_fn.format(\
+				DATADIR=df_param.path_current_data,\
+				LEARNING_ITER=unused_var,\
+				NUM_A='**',\
+				NUM_B='**',\
+				NUM_FILE='**')))
+		model_fn = df_param.l_value_model_fn.format(\
+					DATADIR=df_param.path_current_models,\
+					ITER=i+1)
+		train_model_value(df_param,batched_fns,model_fn)
 
-		if curriculumDone:
+		if isConverged(df_param,i):
 			break 
+
+		i = i + 1 
 
 	print('done!')

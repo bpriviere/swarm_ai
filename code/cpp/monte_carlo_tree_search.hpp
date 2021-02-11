@@ -298,7 +298,7 @@ class MonteCarloTreeSearch {
     Node* nodePtr = &node;
     while (nodePtr && !m_env.isTerminal(nodePtr->state)) {
 
-      // Use progressive widening, see https://hal.archives-ouvertes.fr/hal-00542673v1/document
+    //   // Use progressive widening, see https://hal.archives-ouvertes.fr/hal-00542673v1/document
       size_t maxChildren = ceil(m_pw_C * powf(nodePtr->number_of_visits, m_pw_alpha));
       // if (nodePtr->parent == nullptr) {
       //   maxChildren = std::max<size_t>(maxChildren, 25);
@@ -317,6 +317,25 @@ class MonteCarloTreeSearch {
       nodePtr = child;
     }
     return nodePtr;
+
+      // PUCT see: 
+    //   int depth = nodePtr->computeDepth();
+    //   float max_depth = 10.0; // hardcode 
+    //   float alpha_d = 1.0f/(10.0f*(max_depth - depth) - 3.0f); 
+      
+    //   if (floor(powf(nodePtr->number_of_visits, alpha_d)) > floor(powf(nodePtr->number_of_visits-1, alpha_d))) {
+    //     Node* child = expand(nodePtr, policyAttacker, policyDefender, valuePredictor);
+    //     if (child != nullptr) {
+    //       return child;
+    //     }
+    //   }
+    //   Node* child = bestChild(nodePtr, m_Cp);
+    //   if (child == nullptr) {
+    //     return nodePtr;
+    //   }
+    //   nodePtr = child;
+    // }
+    // return nodePtr;  
   }
 
   Node* expand(Node* nodePtr, const Policy& policyAttacker, const Policy& policyDefender, const ValuePredictor& valuePredictor)
@@ -408,6 +427,27 @@ class MonteCarloTreeSearch {
     }
     return nullptr;
 #else
+    // Node* result = nullptr;
+    // float bestValue = -1;
+    // for (Node* c : nodePtr->children) {
+    //   float value = 0;
+    //   if (!isnan(c->estimated_value)) {
+    //     value =   m_beta1 * c->estimated_value
+    //            + (1-m_beta1) * m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits;
+    //   } else {
+    //     value = m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits;
+    //   }
+    //   value += Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits);
+    //   assert(value >= 0);
+    //   if (value > bestValue) {
+    //     bestValue = value;
+    //     result = c;
+    //   }
+    // }
+    // return result;
+
+    
+    // PUCT Polynomial exploration 
     Node* result = nullptr;
     float bestValue = -1;
     for (Node* c : nodePtr->children) {
@@ -418,7 +458,18 @@ class MonteCarloTreeSearch {
       } else {
         value = m_env.rewardToFloat(nodePtr->state, c->reward) / c->number_of_visits;
       }
-      value += Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits);
+
+      // value += Cp * sqrtf(2 * logf(nodePtr->number_of_visits) / c->number_of_visits);
+
+      int depth = nodePtr->computeDepth();
+      float max_depth = 10.0; // hardcode 
+      float p = 10.0 ;  // >1 only req
+      float exp = 1.0f / (2.0f * p) * (1.0f - 3.0f / (10.0f * (max_depth - depth))) ; 
+      value += Cp * sqrtf( powf(nodePtr->number_of_visits,exp) / c->number_of_visits) ; 
+      
+      // float exp = 0.1f ; 
+      // value += Cp * sqrtf( powf(nodePtr->number_of_visits,exp) / c->number_of_visits) ;       
+
       assert(value >= 0);
       if (value > bestValue) {
         bestValue = value;
@@ -426,6 +477,8 @@ class MonteCarloTreeSearch {
       }
     }
     return result;
+
+
 #endif
   }
 

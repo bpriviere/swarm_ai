@@ -199,7 +199,7 @@ class PanagouPolicy:
 					pass
 
 				# Step the state
-				if (distance_to_goal < robot["tag_radius"]) : 
+				if (distance_to_goal < robot["goal_radius"]) : 
 					# Attacker has won, propogate out the last state for all robots
 					print("A%d WINS || " % (i_robot) ,end='')
 					state[:,:] = states[-1][:,:]

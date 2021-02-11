@@ -89,14 +89,14 @@ public:
 typedef Eigen::Vector2f RobotActionDubins2D; // theta_dot, V_dot [ rad/s, m/s^2 ]
 
 class RobotTypeDubins2D
-  : public RobotType
+  : public RobotType<2>
 {
 public:
 
   RobotTypeDubins2D() = default;
 
-  RobotTypeDubins2D( const Eigen::Vector2f& p_min, const Eigen::Vector2f& p_max, float v_max, float a_max, float tag_radius, float r_sense, float radius)
-    : RobotType(p_min, p_max, tag_radius, r_sense, radius)
+  RobotTypeDubins2D( const Eigen::Vector2f& p_min, const Eigen::Vector2f& p_max, float v_max, float a_max, float tag_radius, float goal_radius, float r_sense, float radius)
+    : RobotType(p_min, p_max, tag_radius, goal_radius, r_sense, radius)
     , velocity_limit(v_max)
     , acceleration_limit(a_max)
   {
@@ -105,6 +105,7 @@ public:
 
   float velocity_limit;
   float acceleration_limit;
+  float accel_limit_turning;
   std::vector<RobotActionDubins2D> possibleActions;
   RobotActionDubins2D invalidAction;
 
@@ -163,6 +164,20 @@ public:
 
   float actionLimit() const {
     return acceleration_limit;
+  }
+
+  void scaleAction(Eigen::VectorXf& action) const {
+    action(0) = std::min(std::max(action(0),-accel_limit_turning),accel_limit_turning);
+    action(1) = std::min(std::max(action(1),-acceleration_limit),acceleration_limit);
+  }  
+
+  RobotActionDubins2D sampleActionUniform(std::default_random_engine& generator) const {
+    // use uniform random sample (no deterministic option)
+    std::uniform_real_distribution<float> distTheta(0.0, 2*M_PI);
+    std::uniform_real_distribution<float> distMag(0.0, 1.0);
+    float theta = distTheta(generator);
+    float mag = sqrtf(distMag(generator)) * actionLimit();
+    return RobotActionDubins2D(cosf(theta) * mag, sinf(theta) * mag);
   }
 
   friend std::ostream& operator<<(std::ostream& out, const RobotTypeDubins2D& rt)
