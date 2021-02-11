@@ -1,15 +1,22 @@
 crazyflies:
 - channel: 80
-  id: 50
-  initialPosition:
-  - 0.1
-  - 1.0
-  - 0.0
-  type: CF21SingleMarker
-- channel: 80
   id: 51
   initialPosition:
-  - 1.8
-  - 1.0
+  - 2.0
+  - 0.25
   - 0.0
   type: CF21SingleMarker
+- channel: 60
+  id: 3
+  initialPosition:
+  - 1.0
+  - 0.25
+  - 0.0
+  type: defaultSingleMarker
+- channel: 60
+  id: 5
+  initialPosition:
+  - 2.5
+  - 0.25
+  - 0.0
+  type: defaultSingleMarker

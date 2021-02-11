@@ -70,12 +70,12 @@ def get_status(param,robot_idx,cpp_state):
         # check tagged
         for defender_robot_idx in param.team_2_idxs: 
             dist = np.linalg.norm(cpp_state[robot_idx,0:2] - cpp_state[defender_robot_idx,0:2])
-            if dist < param.robot_types["standard_robot"]["tag_radius"] : 
+            if dist < 2 * param.robot_types["standard_robot"]["tag_radius"] : 
                 return "Tagged" 
 
         # check reached goal
         dist = np.linalg.norm(cpp_state[robot_idx,0:2] - param.goal[0:2])
-        if dist < param.robot_types["standard_robot"]["tag_radius"] : 
+        if dist < 2 * param.robot_types["standard_robot"]["tag_radius"] : 
             return "ReachedGoal"
 
     # check bounds 
@@ -172,12 +172,16 @@ def load_heuristics(policy_dict_a,policy_dict_b):
 
 def run(cf, tf, cfids, robot_idx):
 
+    # if not robot_idx in [0,1] :
+    #     return 
+
     # some tuning parameters
     HEIGHT = 0.5
-    VEL_LIMIT = 0.5
+    VEL_LIMIT = 0.125
+    # VEL_LIMIT = 0.5
     # VEL_LIMIT = 1.0
-    ACC_LIMIT = 2
-    SEED = 1
+    ACC_LIMIT = 0.123
+    SEED = 3
 
     # fix the seed so that all nodes compute the same initial condition
     random.seed(SEED)
@@ -194,7 +198,7 @@ def run(cf, tf, cfids, robot_idx):
     # exit()
 
     cf.setParam("ring/effect", 7) # enable solid color LED ring
-    cf.takeoff(HEIGHT, 2.0)
+    cf.takeoff(0.3 + 0.2 * robot_idx, 2.0)
     time.sleep(2.0)
 
     # first robot visualizes goal
@@ -229,7 +233,7 @@ def run(cf, tf, cfids, robot_idx):
     x_des = np.array([
         param.state[robot_idx][0],  # x
         param.state[robot_idx][1],  # y
-        HEIGHT,                 # z
+        0.3 + 0.2 * robot_idx,                 # z
         0,                      # vx
         0,                      # vy
         0,                      # vz
@@ -237,10 +241,16 @@ def run(cf, tf, cfids, robot_idx):
 
     cf.goTo(x_des[0:3], 0, 5)
     time.sleep(5)
+    
+    x_des[2] = HEIGHT 
+    cf.goTo(x_des[0:3], 0, 2)
+    time.sleep(2)
 
     dt = 0.05
     rate = rospy.Rate(1/dt) # hz
     ros_state = None
+
+    durations = [] 
 
 
     while not rospy.is_shutdown():
@@ -257,12 +267,20 @@ def run(cf, tf, cfids, robot_idx):
             cf.setLEDColor(0,1,0) # green
             break
         elif status in ["Tagged","OutOfBounds"]:
-            cf.setParam("ring/effect", 0) # disable LED ring
+            # cf.setParam("ring/effect", 0) # disable LED ring
             break
+        # elif status == "Tagger":
+        #     time.sleep(5)
 
         start = time.time()
         action = d_mcts_i(param,cpp_state,robot_idx,mctssettings,policy_dict_a,policy_dict_b,policy_a,policy_b,valuePredictor_a,valuePredictor_b)
         duration = time.time() - start 
+
+        durations.append(duration)
+
+        print('duration',duration)
+        print('mean duration',np.mean(np.array(durations)))
+        print('std duration', np.std(np.array(durations)))
 
         # timeit_str = "exec time: {}".format(duration)
         # action_str = "action: {}".format(action)
@@ -284,11 +302,11 @@ def run(cf, tf, cfids, robot_idx):
     # drop/land the robot
 
     # # option 1: aggressive motor cut
-    # cf.cmdStop()
+    cf.cmdStop()
 
     # option 2: "fast" landing
-    cf.notifySetpointsStop()
-    cf.land(0, 1.5)
+    # cf.notifySetpointsStop()
+    # cf.land(0, 3.0)
 
 
 if __name__ == '__main__':

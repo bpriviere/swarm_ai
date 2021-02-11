@@ -4,12 +4,22 @@
 
   <node name="robot1" pkg="mice-ros-pkg" type="robot.py" output="screen">
     <param name="cfid" value="50" />
-    <!-- <param name="type" value="attacker" /> -->
   </node>
 
   <node name="robot2" pkg="mice-ros-pkg" type="robot.py" output="screen">
     <param name="cfid" value="51" />
-    <!-- <param name="type" value="defender" /> -->
   </node>
+
+  <node name="robot3" pkg="mice-ros-pkg" type="robot.py" output="screen">
+    <param name="cfid" value="22" />
+  </node>  
+
+  <node name="robot4" pkg="mice-ros-pkg" type="robot.py" output="screen">
+    <param name="cfid" value="3" />
+  </node> 
+
+  <node name="robot5" pkg="mice-ros-pkg" type="robot.py" output="screen">
+    <param name="cfid" value="5" />
+  </node>     
 
 </launch>
