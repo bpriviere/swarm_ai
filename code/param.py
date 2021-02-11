@@ -93,10 +93,10 @@ class Param:
 			# robot types 
 			self.robot_types = {
 				'standard_robot' : {
-					'speed_limit': 0.5,
-					'acceleration_limit':0.5,
+					'speed_limit': 0.25,
+					'acceleration_limit': 0.1,
 					'tag_radius': 0.15,
-					'goal_radius': 0.45,			
+					'goal_radius': 0.5, # 0.45,			
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 5.0,
 					'radius': 0.10,
@@ -114,13 +114,13 @@ class Param:
 
 
 		self.robot_team_composition = {
-			'a': {'standard_robot':2,'evasive_robot':0},
+			'a': {'standard_robot':3,'evasive_robot':0},
 			# 'a': {'standard_robot':2,'evasive_robot':0},
-			'b': {'standard_robot':1,'evasive_robot':0}
+			'b': {'standard_robot':2,'evasive_robot':0}
 		}
 		
 		# environment
-		self.env_l = 2.5
+		self.env_l = 2.0
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
@@ -144,7 +144,7 @@ class Param:
 			self.l_num_iterations = 10
 			self.l_num_file_per_iteration = 20 
 			self.l_num_points_per_file = 4000
-			self.l_env_l0 = 1.0
+			self.l_env_l0 = 2.0
 			self.l_desired_game = {
 				'Skill_A' : 4, #'a1.pt',
 				'Skill_B' : 4, #'b1.pt',
@@ -287,7 +287,8 @@ class Param:
 		self.reset_ylim_A = [0.1*self.env_l,0.9*self.env_l]
 		self.reset_ylim_B = [0.1*self.env_l,0.9*self.env_l]
 
-		self.goal = np.array([0.8*self.env_l,0.5*self.env_l,0,0])
+		# self.goal = np.array([0.8*self.env_l,0.5*self.env_l,0,0])
+		self.goal = np.array([1.0*self.env_l,0.5*self.env_l,0,0])
 
 	def make_initial_condition(self):
 
@@ -402,7 +403,7 @@ class Param:
 
 		# max timesteps until the game terminates
 		# self.rollout_horizon = int(100 * self.env_l)
-		num_backnforth = 5
+		num_backnforth = 3
 		self.rollout_horizon = int(num_backnforth * self.num_nodes * self.env_l \
 			/ (self.robot_types["standard_robot"]["speed_limit"] * self.sim_dt))
 
