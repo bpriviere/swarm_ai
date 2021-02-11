@@ -353,17 +353,12 @@ def find_best_actions(param,robots,prev_best) :
 
 		# Integrate the attacker's state with the new theta guess
 		U = theta_to_u(att_robot,att_theta)
-		times = np.arange(0,max(t_capture+param.sim_dt,param.sim_dt*2),param.sim_dt)
-		states = integrate(att_robot, att_robot["x0"], U, times[1:], param.sim_dt)
+		states = integrate(att_robot, att_robot["x0"], U, t_capture)
 
-		# Interpolate to find the exact distance to the goal at t_capture
-		x_capture = np.interp(t_capture, times, states[:,0])
-		y_capture = np.interp(t_capture, times, states[:,1])
+		# Calculate the distance to the goal
+		dist2goal = np.linalg.norm(states[0:2] - param.goal[0:2])
 
-		dist2goal = np.power(param.goal[0]-x_capture,2) + np.power(param.goal[1]-y_capture,2)
-
-		eqns = (dist2goal)
-		return eqns
+		return dist2goal
 
 	print_debug = 0
 	attacker_direct_to_goal = 1
@@ -410,7 +405,7 @@ def find_best_actions(param,robots,prev_best) :
 				# Calculate how long it will take for this defender to capture the attacker
 				def_theta_guess = np.arctan2(att_robot["x0"][1]-def_robot["x0"][1],att_robot["x0"][0]-def_robot["x0"][0])
 				#def_theta_guess = def_theta_prev	
-				def_theta_best, t_end = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)
+				def_theta_nom, t_end = find_best_intercept(att_robot,def_robot,att_theta_nom,def_theta_guess,param.sim_dt)
 
 				if (att_terminal_time < t_end) :
 					# Attacker will win, use the nominal attacker results
@@ -425,6 +420,7 @@ def find_best_actions(param,robots,prev_best) :
 					if (attacker_direct_to_goal) :
 						# Go straight to the goal
 						att_theta_best = att_theta_nom
+						def_theta_best = def_theta_nom
 
 						# We know what the attacker will do from before,
 						# so we don't need to calculate that (and t_end) again
@@ -436,9 +432,8 @@ def find_best_actions(param,robots,prev_best) :
 						if not res.success :
 							# Iteration thing didn't work, let's just got with the nominal solution
 							# for the attacker and the previous value for the defender
-							att_theta_best = att_theta_prev
-							def_theta_best = def_theta_prev
-							t_end = t_end_prev
+							att_theta_best = att_theta_nom
+							def_theta_best = def_theta_nom
 
 						else : 
 							# We have a solution, roll with it
@@ -447,18 +442,12 @@ def find_best_actions(param,robots,prev_best) :
 							# Simulate the results to get the results we need (from the defender's side)
 							def_theta_best,t_end = find_best_intercept(att_robot,def_robot,att_theta_best,def_theta_guess,param.sim_dt)
 
-					# Calculate the distance to goal
+					# Calculate the attacker poition at t_end
 					U = theta_to_u(att_robot,att_theta_best)
-					times = np.arange(0,max(t_end+param.sim_dt,param.sim_dt*2),param.sim_dt)
-					att_states = integrate(att_robot, att_robot["x0"], U, times[1:], param.sim_dt)
-
-					# Interpolate to find the exact distance to the goal
-					x_capture = np.interp(t_end, times, att_states[:,0])
-					y_capture = np.interp(t_end, times, att_states[:,1])
-					pos = np.array([x_capture,y_capture])
+					att_states = integrate(att_robot, att_robot["x0"], U, t_end)
 
 					# Calculate distance to goal
-					dist2goal = np.linalg.norm(pos - param.goal[0:2])
+					dist2goal = np.linalg.norm(att_states[0:2] - param.goal[0:2])
 
 			# Store the results
 			best_actions[i_robot,j_robot] = (i_robot, j_robot, att_theta_best, def_theta_best, t_end, dist2goal)
@@ -581,49 +570,21 @@ def step(robot, x0, U, dt):  # Change to an X and Y acceleration
 
 	return state
 
-def integrate(robot, state, U, times, dt):
-    # originally robot, theta, state, times, dt
-	# Here dt probably should be automatically calculated but that's a future matt problem...
-  
-	states = np.zeros((len(times)+1,4))
-	states[0,:] = state 
-
-	for i_time,time in enumerate(times): 
-		states[i_time+1,:] = step(robot, states[i_time,:], U, dt)
-	return states
-
 def find_nominal_soln(param,robot,state):
 
 	def equations(p):
 		th, Tend = p
 
-		Tend = min(Tend,20.0)
-		times = np.arange(0,max(Tend+param.sim_dt,param.sim_dt*2),param.sim_dt)
-
 		# Convert theta (th) into U = [ accX, accY ]
 		U = theta_to_u(robot,th)
 
 		# Simulate system
-		states = integrate(robot,state,U,times,param.sim_dt)
-
-		# Interpolate to find the exact value
-		Tsample = max(Tend,0.0) 
-
-		Xsample = np.interp(Tsample, times, states[1:,0])
-		Ysample = np.interp(Tsample, times, states[1:,1])
+		states = integrate(robot,state,U,Tend)
 
 		# Extract useful information
 		eqns = (
-			Xsample - param.goal[0], 
-			Ysample - param.goal[1], 
-			)
-		return eqns
-
-	def approx_equations(p):
-		th, T = p
-		eqns = (
-			state[0] - param.goal[0] + state[2]*T + ((robot["acceleration_limit"]*T**2)/2)*np.cos(th), 
-			state[1] - param.goal[1] + state[3]*T + ((robot["acceleration_limit"]*T**2)/2)*np.sin(th),
+			np.linalg.norm(states[0] - param.goal[0]), 
+			np.linalg.norm(states[1] - param.goal[1]), 
 			)
 		return eqns
 
@@ -640,13 +601,9 @@ def find_nominal_soln(param,robot,state):
 	#	# so hack in the "direct to goal, infinite turning" solution
 	#	return theta_guess,Tend_guess
 
-	# Solve using the approximate equations to improve the initial guess
-	#print("Nominal Approx")
-	theta_approx, Tend_approx = fsolve(approx_equations, (theta_guess, Tend_guess))
-
 	# Calculate the best solution using the full dynamics
 	#print("Nominal Exact")
-	theta_exact, Tend_exact =  fsolve(equations, (theta_approx, Tend_approx))
+	theta_exact, Tend_exact =  fsolve(equations, (theta_guess, Tend_guess))
 
 	# Debugging
 	if (print_debug) : 
@@ -655,10 +612,6 @@ def find_nominal_soln(param,robot,state):
 			theta_approx*57.7, Tend_approx, \
 			theta_exact*57.7, Tend_exact))
 
-	# Make sure the goal was acheived 
-	if (abs(theta_approx - theta_exact) > 45/57.7) :
-		a = 1
-		b = 2
 
 	return theta_exact,Tend_exact
 
@@ -668,40 +621,19 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 
 	def equations(p):
 		def_theta, Tend = p
-
-		Tend = min(Tend,20) # Stop tend getting out of hand
-
-		# This should be 10 iterations between now and capture (rather than a fixed dt time)
-		times = np.arange(0,max(Tend+sim_dt,sim_dt*2),sim_dt)
-
+	
 		# Convert theta (th) into U = [ accX, accY ]
 		att_U = theta_to_u(att_robot,att_theta)
 		def_U = theta_to_u(def_robot,def_theta)
 
-		# Simulate system
-		att_states = integrate(att_robot,att_robot["x0"],att_U,times[1:],sim_dt)
-		def_states = integrate(def_robot,def_robot["x0"],def_U,times[1:],sim_dt)
-
-		# Interpolate to find the state at Tend (rather than times[-1])
-		Tsample = max(Tend,0.0) 
-
-		att_X = np.interp(Tsample, times, att_states[:,0])
-		att_Y = np.interp(Tsample, times, att_states[:,1])
-		def_X = np.interp(Tsample, times, def_states[:,0])
-		def_Y = np.interp(Tsample, times, def_states[:,1])
+		# Calculate final state
+		att_state = integrate(att_robot,att_robot["x0"],att_U,Tend) 
+		def_state = integrate(def_robot,def_robot["x0"],def_U,Tend) 
 
 		# Calculate the distance between the attacker and defender in the x- and y-axes
 		eqns = (
-			att_X - def_X, 
-			att_Y - def_Y, 
-			)
-		return eqns
-
-	def approx_equations(p):
-		def_theta, Tend = p
-		eqns = (
-			(att_robot['x0'][0] + att_robot['x0'][2]*Tend + ((att_robot["acceleration_limit"]*Tend**2)/2)*np.cos(att_theta)) - (def_robot['x0'][0] + def_robot['x0'][2]*Tend + ((def_robot["acceleration_limit"]*Tend**2)/2)*np.cos(def_theta)), 
-			(att_robot['x0'][1] + att_robot['x0'][3]*Tend + ((att_robot["acceleration_limit"]*Tend**2)/2)*np.sin(att_theta)) - (def_robot['x0'][1] + def_robot['x0'][3]*Tend + ((def_robot["acceleration_limit"]*Tend**2)/2)*np.sin(def_theta)),
+			np.linalg.norm(att_state[0] - def_state[0]),
+			np.linalg.norm(att_state[1] - def_state[1]),
 			)
 		return eqns
 
@@ -733,17 +665,57 @@ def find_best_intercept(att_robot,def_robot,att_theta,defender_action_guess,sim_
 			Tend = 10
 
 		else : 
-			def_theta_approx, Tend_approx = fsolve(approx_equations, (defender_action_guess, t_end_guess), maxfev=20)	
-			#def_theta_approx = defender_action_guess # Override the best guess to our supplied initial guess	
-
 			# Solve using the full simulator
-			def_theta, Tend =  fsolve(equations, (def_theta_approx, Tend_approx), maxfev=21)
+			def_theta, Tend =  fsolve(equations, (defender_action_guess, t_end_guess), maxfev=21)
 
 		if (print_debug) : print("\t       Guess intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (defender_action_guess*57.7, t_end_guess))
 		if (print_debug) : print("\t      Approx intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta_approx*57.7, Tend_approx))
 		if (print_debug) : print("\t       Exact intercept theta %7.2f [ deg ] at t = %5.2f [ s ]" % (def_theta*57.7, Tend))
 
 	return def_theta,Tend
+
+def integrate(robot,x0,U,t_end) :
+	# State = [ posX posY Vx Vy ]
+	# U = [ aX aY ]
+
+	# Magnitude of acceleration
+	a = np.linalg.norm(U)
+
+	# Magnitude of starting velocity
+	v0 = np.linalg.norm(x0[2:])
+
+	# time at which max velocity is reached
+	if a > 0.0 :
+		t_maxV = (robot["speed_limit"]-v0) / a
+	else :
+		t_maxV = np.inf
+
+	if t_end <= t_maxV :
+		# Final positions (constant acceleration)
+		posX_final = x0[0] + x0[2]*t_end + 0.5*U[0]*t_end**2
+		posY_final = x0[1] + x0[3]*t_end + 0.5*U[1]*t_end**2
+
+		# Final velocities 
+		Vx_final = x0[2] + U[0]*t_end
+		Vy_final = x0[3] + U[1]*t_end
+
+	else :
+		# Calculate the final velocities
+		Vx_final = robot["speed_limit"] * U[0] / a
+		Vy_final = robot["speed_limit"] * U[1] / a
+
+		# Constant acceleration phase
+		posX_final = x0[0] + x0[2]*t_maxV + 0.5 *U[0]*t_maxV**2
+		posY_final = x0[1] + x0[3]*t_maxV + 0.5 *U[1]*t_maxV**2
+
+		# Constant velocity phase
+		posX_final += Vx_final * (t_end - t_maxV)
+		posY_final += Vy_final * (t_end - t_maxV)
+
+	state = [posX_final, posY_final, Vx_final, Vy_final]
+
+
+	return state
 
 def theta_to_u(robot,theta):
 	return robot["acceleration_limit"]*np.array((np.cos(theta),np.sin(theta)))
@@ -766,17 +738,15 @@ def main():
 			[   0.85,   0.10,   0.000,   0.000 ] ]) 
 
 		initial_condition = np.array( [ \
-			[   0.17646,   0.10618,   0.000,   0.000 ], \
-			[   0.18721,   0.8071,   0.000,   0.000 ], \
-			[   0.77,   0.59908,   0.000,   0.000 ], \
-			[   0.89076,   0.87235,   0.000,   0.000 ] ]) 
+			[   0.394,   1.113,  -0.000,   0.000 ], \
+			[   1.731,   1.080,   0.000,  -0.000 ] ]) 
 
 
 		df_param = Param()
 		df_param.update(initial_condition=initial_condition)
 
 		# Set the goal
-		df_param.goal = [0.6, 0.5, 0.   , 0.   ]
+		df_param.goal = [1.2, 0.7, 0.   , 0.   ]
 
 	else: 
 		print("====\nUsing Random Initial Conditions\n====")
