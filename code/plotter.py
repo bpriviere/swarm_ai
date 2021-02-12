@@ -2363,11 +2363,13 @@ def plot_exp3_results(all_sim_results):
 	# y-axis performance : mean + std in 
 	fig,axs = plt.subplots(nrows=1,ncols=2,squeeze=False)
 	# get colors 
-	colors = get_n_colors(len(attackerPolicies))
+	# colors = get_n_colors(len(attackerPolicies))
+	colors = get_n_colors(3)
 
 	for i in range(2):
 
-		to_plot = []
+		to_plot_learner = []
+		to_plot_expert = []
 		other_to_plots = dict()
 
 		if i==0:
@@ -2396,46 +2398,60 @@ def plot_exp3_results(all_sim_results):
 				else:
 					learning_idx = 0 
 
-				to_plot.append((learning_idx,\
+				to_plot_learner.append((learning_idx,\
 					J_mean,\
 					J_std,\
 					idx))
 
 			elif policy_dict["sim_mode"] == "MCTS":
 
+				# get learning index 
 				if policy_dict["path_glas_model_a"] is not None: 
-					key = "Biased MCTS"
-				else: 
-					key = "Unbiased MCTS"
+					learning_idx = int(os.path.basename(policy_dict["path_glas_model_a"]).split(".")[0][1:])
+				else:
+					learning_idx = 0 				
 
-				other_to_plots[key] = (\
+				to_plot_expert.append((learning_idx,\
 					J_mean,\
-					J_std,
-					idx)
+					J_std,\
+					idx))
 
 			elif policy_dict["sim_mode"] == "PANAGOU":
 
-				key = "PANGAOU"
+				key = "PANAGOU"
 
 				other_to_plots[key] = (\
 					J_mean,\
 					J_std,
 					idx)
 
-		# sort 
-		print(to_plot)
-		sorted(to_plot, key=lambda x: x[0])
-		to_plot = np.array(to_plot,dtype=np.float32)
-		color_dmcts_idx = int(to_plot[0,3])
-		axs[0,i].plot(to_plot[:,0],to_plot[:,1],color=colors[color_dmcts_idx],label="DMCTS",alpha=0.9)
-		axs[0,i].fill_between(to_plot[:,0], to_plot[:,1]-to_plot[:,2], to_plot[:,1]+to_plot[:,2],\
-			color=colors[color_dmcts_idx],alpha=0.25)
-		for key,value in other_to_plots.items():
-			axs[0,i].plot([to_plot[0,0],to_plot[-1,0]],[value[0],value[0]],color=colors[value[2]],label=key,alpha=0.9)
-			axs[0,i].fill_between(to_plot[:,0], value[0]-value[1], value[0]+value[1],color=colors[value[2]],alpha=0.25)
+		# learner
+		print(to_plot_learner)
+		sorted(to_plot_learner, key=lambda x: x[0])
+		to_plot_learner = np.array(to_plot_learner,dtype=np.float32)
+		color_dmcts_idx = int(to_plot_learner[0,3])
+		axs[0,i].plot(to_plot_learner[:,0],to_plot_learner[:,1],color=colors[0],label="Learner",alpha=0.9)
+		axs[0,i].fill_between(to_plot_learner[:,0], to_plot_learner[:,1]-to_plot_learner[:,2], to_plot_learner[:,1]+to_plot_learner[:,2],\
+			color=colors[0],alpha=0.25)
+
+		# expert 
+		print(to_plot_expert)
+		sorted(to_plot_expert, key=lambda x: x[0])
+		to_plot_expert = np.array(to_plot_expert,dtype=np.float32)
+		color_dmcts_idx = int(to_plot_expert[0,3])
+		axs[0,i].plot(to_plot_expert[:,0],to_plot_expert[:,1],color=colors[1],label="Expert",alpha=0.9)
+		axs[0,i].fill_between(to_plot_expert[:,0], to_plot_expert[:,1]-to_plot_expert[:,2], to_plot_expert[:,1]+to_plot_expert[:,2],\
+			color=colors[1],alpha=0.25)
+
+		# panagou
+		if "PANAGOU" in other_to_plots.keys():
+			value = other_to_plots["PANAGOU"]
+			label = "Baseline"
+			axs[0,i].plot([to_plot_learner[0,0],to_plot_learner[-1,0]],[value[0],value[0]],color=colors[2],label=label,alpha=0.9)
+			axs[0,i].fill_between(to_plot_learner[:,0], value[0]-value[1], value[0]+value[1],color=colors[2],alpha=0.25)
 
 		axs[0,i].set_ylim([0,1])
-		axs[0,i].set_xticks(to_plot[:,0])
+		axs[0,i].set_xticks(to_plot_learner[:,0])
 		axs[0,i].grid(True)
 		axs[0,i].set_xlabel("Learning Iteration")
 		axs[0,i].set_title(title)
