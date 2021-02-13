@@ -180,8 +180,8 @@ def run(cf, tf, cfids, robot_idx):
     VEL_LIMIT = 0.25
     # VEL_LIMIT = 0.5
     # VEL_LIMIT = 1.0
-    ACC_LIMIT = 0.5
-    SEED = 3  
+    ACC_LIMIT = 0.25
+    SEED = 22
 
     # fix the seed so that all nodes compute the same initial condition
     random.seed(SEED)
@@ -246,7 +246,7 @@ def run(cf, tf, cfids, robot_idx):
     cf.goTo(x_des[0:3], 0, 2)
     time.sleep(2)
 
-    dt = 0.1
+    dt = 0.05
     rate = rospy.Rate(1/dt) # hz
     ros_state = None
 

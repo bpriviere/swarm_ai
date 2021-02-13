@@ -51,9 +51,12 @@ class Param:
 		# these parameters are also used for learning 
 		self.policy_dict = {
 			'sim_mode' : 				"D_MCTS", # "MCTS, D_MCTS, RANDOM, PANAGOU, GLAS"
-			'path_glas_model_a' : 		None, 	# '../current/models/a1.pt', None
-			'path_glas_model_b' : 		None, 	# '../current/models/b1.pt', None
-			'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None		
+			# 'path_glas_model_a' : 		None, 	# '../current/models/a1.pt', None
+			# 'path_glas_model_b' : 		None, 	# '../current/models/b1.pt', None
+			# 'path_value_fnc' : 			None, 	# '../current/models/v1.pt', None					
+			'path_glas_model_a' : 		"/home/ben/projects/swarm_ai/saved/double_integrator_hardware/a4.pt",
+			'path_glas_model_b' : 		"/home/ben/projects/swarm_ai/saved/double_integrator_hardware/b4.pt",
+			'path_value_fnc' : 			"/home/ben/projects/swarm_ai/saved/double_integrator_hardware/v4.pt",
 			# 'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/a9.pt', 
 			# 'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/b9.pt', 
 			# 'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/results/double_integrator/v9.pt',	
@@ -132,9 +135,9 @@ class Param:
 
 
 		self.robot_team_composition = {
-			'a': {'standard_robot':2,'evasive_robot':0},
+			'a': {'standard_robot':3,'evasive_robot':0},
 			# 'a': {'standard_robot':2,'evasive_robot':0},
-			'b': {'standard_robot':1,'evasive_robot':0}
+			'b': {'standard_robot':2,'evasive_robot':0}
 		}
 		
 		# environment
@@ -294,14 +297,14 @@ class Param:
 
 	def make_environment(self):
 		
-		self.env_xlim = [0,self.env_l]
-		self.env_ylim = [0,self.env_l]
+		# self.env_xlim = [0,self.env_l]
+		# self.env_ylim = [0,self.env_l]
 
-		# self.env_xlim = [0.1*self.env_l,self.env_l]
-		# self.env_ylim = [0.1*self.env_l,0.8*self.env_l]
+		self.env_xlim = [0.1*self.env_l,self.env_l]
+		self.env_ylim = [0.1*self.env_l,0.8*self.env_l]
 
-		dx = self.env_xlim[1] - self.env_xlim[0]
 		dy = self.env_ylim[1] - self.env_ylim[0]
+		dx = self.env_xlim[1] - self.env_xlim[0]
 
 		if self.init_on_sides: 
 			self.reset_xlim_A = [self.env_xlim[0] + 0.1*dx, self.env_xlim[0] + 0.2*dx] 
@@ -310,11 +313,14 @@ class Param:
 			self.reset_xlim_A = [self.env_xlim[0] + 0.1*dx, self.env_xlim[0] + 0.9*dx] 
 			self.reset_xlim_B = [self.env_xlim[0] + 0.1*dx, self.env_xlim[0] + 0.9*dx] 
 		
-		# self.reset_ylim_A = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
-		# self.reset_ylim_B = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
+		self.reset_ylim_A = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
+		self.reset_ylim_B = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
 
-		self.reset_ylim_A = [self.env_ylim[0] + 0.3*dy, self.env_ylim[0] + 0.6*dy] 
-		self.reset_ylim_B = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 		
+		# self.reset_ylim_A = [self.env_ylim[0] + 0.3*dy, self.env_ylim[0] + 0.7*dy] 
+		# self.reset_ylim_B = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 		
+
+		# self.reset_ylim_A = [self.env_ylim[0] + 0.2*dy, self.env_ylim[0] + 0.8*dy] 
+		# self.reset_ylim_B = [self.env_ylim[0] + 0.2*dy, self.env_ylim[0] + 0.8*dy] 		
 
 		self.goal = np.array([\
 			1.0*dx + self.env_xlim[0],\
@@ -482,6 +488,8 @@ def collision(pose_i,robot_i,poses,robots):
 			dist = np.linalg.norm(pose_i - pose_j)
 			# if dist < 2*(robot_i["radius"] + robot_j["radius"]):
 			if dist < 1.2*(robot_i["radius"] + robot_j["radius"]):
+			# if dist < (robot_i["radius"] + robot_j["radius"]):
+			# if dist < (robot_i["tag_radius"]):
 				return True 
 	return False
 
