@@ -276,13 +276,40 @@ def get_self_play_samples(params):
 	for param in params: 
 		fn = '{}/states_for_{}.pickle'.format(\
 			os.path.dirname(param.dataset_fn),os.path.basename(param.dataset_fn))
-		with open(fn, 'rb') as h:
-			states_per_file = pickle.load(h)
-		self_play_states.append(states_per_file[0:param.l_num_points_per_file]) 
+		try: 
+			with open(fn, 'rb') as h:
+				states_per_file = pickle.load(h)
+			self_play_states.append(states_per_file[0:param.l_num_points_per_file]) 
+		except: 
+			print('load fail')
+			pass 
 
-	plotter.merge_figs(glob.glob('../current/models/temp_**'),\
-		'../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1))
+	fns = glob.glob('../current/models/temp_**')
+	merged_fn = '../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1)
+	for i_fn,fn in enumerate(fns): 
+		if i_fn == 0:
+			to_merge = [fn]
+		else:
+			to_merge = [fn, merged_fn]
+
+		try: 
+			plotter.merge_figs(to_merge,merged_fn)
+		except: 
+			print('merge fail')
+			os.remove(fn)
+			
 	print('self-play sample collection completed.')
+
+	# try: 
+	# 	plotter.merge_figs(glob.glob('../current/models/temp_**'),\
+	# 		'../current/models/{}{}_self_play_samples.pdf'.format(params[0].training_team, params[0].i+1))
+	# except: 
+	# 	print('merge fail')
+	# 	fns = glob.glob('../current/models/temp_**')
+	# 	for fn in fns: 
+	# 		os.remove(fn)
+	# 	pass 
+	# print('self-play sample collection completed.')
 
 	return self_play_states
 
@@ -321,16 +348,22 @@ def instance_self_play(rank, queue, total, param):
 		else:
 			queue.put_nowait(len(sim_result["states"]))
 
-	# plot figs 
-	plotter.save_figs('../current/models/temp_{}.pdf'.format(os.path.basename(param.dataset_fn)))
 	
 	# write data
 	fn = '{}/states_for_{}.pickle'.format(\
 		os.path.dirname(param.dataset_fn),os.path.basename(param.dataset_fn)) 
-	with open(fn, 'wb') as h:
-		pickle.dump(states_per_file, h)	
-	# print('completed self-play states {}'.format(param.dataset_fn))
+	try: 
+		with open(fn, 'wb') as h:
+			pickle.dump(states_per_file, h)	
+			# plot figs 
+			# print("{}:{}:{}".format(param.dataset_fn,np.array(states_per_file).shape,states_per_file))
+			# print("{}:{}".format(param.dataset_fn,np.array(states_per_file).shape))
+			plotter.save_figs('../current/models/temp_{}.pdf'.format(os.path.basename(param.dataset_fn)))
 
+		# print('completed self-play states {}'.format(param.dataset_fn))
+	except: 
+		print('self play fail')
+		os.remove(fn)
 
 def policy_title(policy_dict,team):
 	title = policy_dict["sim_mode"] 
@@ -734,12 +767,18 @@ def load_param(some_dict):
 def evaluate_expert_wrapper(arg):
 	# When using multiprocessing, load cpp_interface per process
 	from cpp_interface import evaluate_expert
-	evaluate_expert(*arg)
+	try: 
+		evaluate_expert(*arg)
+	except:
+		print('evaluate expert value fail')
 
 def evaluate_expert_value_wrapper(arg):
 	# When using multiprocessing, load cpp_interface per process
 	from cpp_interface import evaluate_expert_value
-	evaluate_expert_value(*arg)	
+	try: 
+		evaluate_expert_value(*arg)	
+	except: 
+		print('evaluate expert value fail')
 
 def make_dataset_value(states,params,df_param,policy_fn_a,policy_fn_b):
 
