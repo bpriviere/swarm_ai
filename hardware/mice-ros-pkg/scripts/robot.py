@@ -70,12 +70,12 @@ def get_status(param,robot_idx,cpp_state):
         # check tagged
         for defender_robot_idx in param.team_2_idxs: 
             dist = np.linalg.norm(cpp_state[robot_idx,0:2] - cpp_state[defender_robot_idx,0:2])
-            if dist < 2 * param.robot_types["standard_robot"]["tag_radius"] : 
+            if dist < param.robot_types["standard_robot"]["tag_radius"] : 
                 return "Tagged" 
 
         # check reached goal
         dist = np.linalg.norm(cpp_state[robot_idx,0:2] - param.goal[0:2])
-        if dist < 2 * param.robot_types["standard_robot"]["tag_radius"] : 
+        if dist < param.robot_types["standard_robot"]["goal_radius"] : 
             return "ReachedGoal"
 
     # check bounds 
@@ -180,8 +180,8 @@ def run(cf, tf, cfids, robot_idx):
     VEL_LIMIT = 0.25
     # VEL_LIMIT = 0.5
     # VEL_LIMIT = 1.0
-    ACC_LIMIT = 0.1
-    SEED = 3
+    ACC_LIMIT = 0.5
+    SEED = 3  
 
     # fix the seed so that all nodes compute the same initial condition
     random.seed(SEED)
@@ -210,9 +210,9 @@ def run(cf, tf, cfids, robot_idx):
         marker.id = 0
         marker.type = marker.SPHERE
         marker.action = marker.ADD
-        marker.scale.x = 0.3
-        marker.scale.y = 0.3
-        marker.scale.z = 0.3
+        marker.scale.x = param.robot_types["standard_robot"]["goal_radius"]
+        marker.scale.y = param.robot_types["standard_robot"]["goal_radius"]
+        marker.scale.z = param.robot_types["standard_robot"]["goal_radius"]
         marker.color.a = 0.2
         marker.color.r = 0
         marker.color.g = 1
@@ -246,7 +246,7 @@ def run(cf, tf, cfids, robot_idx):
     cf.goTo(x_des[0:3], 0, 2)
     time.sleep(2)
 
-    dt = 0.05
+    dt = 0.1
     rate = rospy.Rate(1/dt) # hz
     ros_state = None
 

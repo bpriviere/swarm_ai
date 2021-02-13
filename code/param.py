@@ -96,16 +96,15 @@ class Param:
 				}
 			}
 		else:
-			# self.sim_dt = 0.1
-			self.sim_dt = 0.25
+			self.sim_dt = 0.1
 			# robot types 
 			self.robot_types = {
 				# new double integrator
 				'standard_robot' : {
 					'speed_limit': 0.25,
-					'acceleration_limit': 0.1,
-					'tag_radius': 0.15,
-					'goal_radius': 0.5, # 0.45,			
+					'acceleration_limit': 0.5,
+					'tag_radius': 0.22,
+					'goal_radius': 0.8, # 0.45,			
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 2.0,
 					'radius': 0.10,
@@ -133,13 +132,13 @@ class Param:
 
 
 		self.robot_team_composition = {
-			'a': {'standard_robot':3,'evasive_robot':0},
+			'a': {'standard_robot':2,'evasive_robot':0},
 			# 'a': {'standard_robot':2,'evasive_robot':0},
-			'b': {'standard_robot':2,'evasive_robot':0}
+			'b': {'standard_robot':1,'evasive_robot':0}
 		}
 		
 		# environment
-		self.env_l = 2.0 # hardware: 2.75 
+		self.env_l = 2.75 # hardware: 2.75 
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
@@ -163,11 +162,11 @@ class Param:
 			self.l_num_iterations = 10
 			self.l_num_file_per_iteration = 20 
 			self.l_num_points_per_file = 4000
-			self.l_env_l0 = 2.0
+			self.l_env_l0 = 2.75
 			self.l_desired_game = {
 				'Skill_A' : 4, #'a1.pt',
 				'Skill_B' : 4, #'b1.pt',
-				'EnvironmentLength' : 3.0,
+				'EnvironmentLength' : 2.75,
 				'NumA' : 3,
 				'NumB' : 3,
 			}
@@ -311,18 +310,21 @@ class Param:
 			self.reset_xlim_A = [self.env_xlim[0] + 0.1*dx, self.env_xlim[0] + 0.9*dx] 
 			self.reset_xlim_B = [self.env_xlim[0] + 0.1*dx, self.env_xlim[0] + 0.9*dx] 
 		
-		self.reset_ylim_A = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
-		self.reset_ylim_B = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
+		# self.reset_ylim_A = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
+		# self.reset_ylim_B = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 
 
-		# self.goal = np.array([\
-		# 	1.0*dx + self.env_xlim[0],\
-		# 	0.5*dy + self.env_ylim[0],\
-		# 	0,0])
+		self.reset_ylim_A = [self.env_ylim[0] + 0.3*dy, self.env_ylim[0] + 0.6*dy] 
+		self.reset_ylim_B = [self.env_ylim[0] + 0.1*dy, self.env_ylim[0] + 0.9*dy] 		
 
 		self.goal = np.array([\
-			0.7*dx + self.env_xlim[0],\
+			1.0*dx + self.env_xlim[0],\
 			0.5*dy + self.env_ylim[0],\
-			0,0])		
+			0,0])
+
+		# self.goal = np.array([\
+		# 	0.7*dx + self.env_xlim[0],\
+		# 	0.5*dy + self.env_ylim[0],\
+		# 	0,0])		
 
 		# self.goal = np.array([\
 		# 	0.7*dx + self.env_xlim[0],\
