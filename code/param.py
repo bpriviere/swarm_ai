@@ -96,26 +96,41 @@ class Param:
 				}
 			}
 		else:
-			self.sim_dt = 0.1
+			# self.sim_dt = 0.1
+			self.sim_dt = 0.25
 			# robot types 
 			self.robot_types = {
+
+				# new double integrator 
 				'standard_robot' : {
 					'speed_limit': 0.25,
 					'acceleration_limit': 0.1,
 					'tag_radius': 0.15,
 					'goal_radius': 0.5, # 0.45,			
 					'dynamics':'{}'.format(self.dynamics["name"]),
-					'r_sense': 5.0,
+					'r_sense': 2.0,
 					'radius': 0.10,
-# 				old hardware
-# 					'speed_limit': 0.25,
-# 					'acceleration_limit':0.5,	
-# 					'tag_radius': 0.12,
-# 					'dynamics':'{}'.format(self.dynamics["name"]),
-# 					'r_sense': 5.0,
-# 					'radius': 0.15,
-# 					'radius': 0.1,
+
+				# old double integrator
+				# 'standard_robot' : {
+				# 	'speed_limit': 1.0,
+				# 	'acceleration_limit':2.0,
+				# 	'tag_radius': 0.1,
+				# 	'goal_radius': 0.1,
+				# 	'dynamics':'{}'.format(self.dynamics["name"]),
+				# 	'r_sense': 5.0,
+				# 	'radius': 0.05,		
+
+				# old hardware
+				# 	'speed_limit': 0.25,
+				# 	'acceleration_limit':0.5,	
+				# 	'tag_radius': 0.12,
+				# 	'dynamics':'{}'.format(self.dynamics["name"]),
+				# 	'r_sense': 5.0,
+				# 	'radius': 0.15,
+				# 	'radius': 0.1,
 				},
+
 				'evasive_robot' : {
 					'speed_limit': 0.0625,
 					'acceleration_limit':0.5,
@@ -314,6 +329,11 @@ class Param:
 			1.0*dx + self.env_xlim[0],\
 			0.5*dy + self.env_ylim[0],\
 			0,0])
+
+		# self.goal = np.array([\
+		# 	0.7*dx + self.env_xlim[0],\
+		# 	0.5*dy + self.env_ylim[0],\
+		# 	0,0])		
 
 	def make_initial_condition(self):
 
