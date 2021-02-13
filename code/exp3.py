@@ -113,108 +113,66 @@ if __name__ == '__main__':
 
 	df_param.init_on_sides = True
 	df_param.num_trials = 100
-	max_policy_file = 6
-	skip_policy_files = 2
+	max_policy_file = 12
+	skip_policy_files = 3
 	glas_policy_files = np.arange(1,max_policy_file+1,skip_policy_files)
-	mcts_policy_files = np.arange(skip_policy_files,max_policy_file+1,skip_policy_files)
+	mcts_policy_files = np.arange(0,max_policy_file+1,skip_policy_files)
 	name = "current/models" # "saved/t11/models" 
-	mode = 1 # 0 : panagou, mcts expert biased/unbiased, panagou, d_mcts in mcts_policy_files
 
-	if mode in [0,1]: 
-		df_param.attackerPolicyDicts = []
-		df_param.attackerPolicyDicts.extend([{
-			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		None,
-			'path_glas_model_b' : 		None,
-			'path_value_fnc' : 			None,
-			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
-			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
-			'mcts_c_param' : 			df_param.l_mcts_c_param,
-			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
-			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
-			'mcts_beta1' : 				df_param.l_mcts_beta1,
-			'mcts_beta2' : 				df_param.l_mcts_beta2,
-			'mcts_beta3' : 				df_param.l_mcts_beta3,
-			}])
-		df_param.attackerPolicyDicts.extend([{
-			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,mcts_policy_files[-1]),
-			'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,mcts_policy_files[-1]),
-			'path_value_fnc' : 			'../{}/v{}.pt'.format(name,mcts_policy_files[-1]),
-			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
-			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
-			'mcts_c_param' : 			df_param.l_mcts_c_param,
-			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
-			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
-			'mcts_beta1' : 				df_param.l_mcts_beta1,
-			'mcts_beta2' : 				df_param.l_mcts_beta2,
-			'mcts_beta3' : 				df_param.l_mcts_beta3,
-			}])	
-		df_param.attackerPolicyDicts.extend([{
-			'sim_mode' : 				"D_MCTS",
-			'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,i) if i > 0  else None,
-			'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,i) if i > 0  else None,
-			'path_value_fnc' : 			'../{}/v{}.pt'.format(name,i) if i > 0  else None,
-			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
-			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
-			'mcts_c_param' : 			df_param.l_mcts_c_param,
-			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
-			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
-			'mcts_beta1' : 				df_param.l_mcts_beta1,
-			'mcts_beta2' : 				df_param.l_mcts_beta2,
-			'mcts_beta3' : 				df_param.l_mcts_beta3,
-		} for i in mcts_policy_files])
+	to_include = ["panagou","expert_biased","learner_biased"]
+	df_param.attackerPolicyDicts = []
+	df_param.defenderPolicyDicts = []
 
-		df_param.defenderPolicyDicts = []
-		df_param.defenderPolicyDicts.extend([{
-			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		None,
-			'path_glas_model_b' : 		None,
-			'path_value_fnc' : 			None,
-			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
-			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
-			'mcts_c_param' : 			df_param.l_mcts_c_param,
-			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
-			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
-			'mcts_beta1' : 				df_param.l_mcts_beta1,
-			'mcts_beta2' : 				df_param.l_mcts_beta2,
-			'mcts_beta3' : 				df_param.l_mcts_beta3,
-			}])
-		df_param.defenderPolicyDicts.extend([{
-			'sim_mode' : 				"MCTS",
-			'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,mcts_policy_files[-1]),
-			'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,mcts_policy_files[-1]),
-			'path_value_fnc' : 			'../{}/v{}.pt'.format(name,mcts_policy_files[-1]),
-			'mcts_tree_size' : 			df_param.l_num_expert_nodes,
-			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
-			'mcts_c_param' : 			df_param.l_mcts_c_param,
-			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
-			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
-			'mcts_beta1' : 				df_param.l_mcts_beta1,
-			'mcts_beta2' : 				df_param.l_mcts_beta2,
-			'mcts_beta3' : 				df_param.l_mcts_beta3,
-			}])		
-		df_param.defenderPolicyDicts.extend([{
-			'sim_mode' : 				"D_MCTS",
-			'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,i) if i > 0  else None,
-			'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,i) if i > 0  else None,
-			'path_value_fnc' : 			'../{}/v{}.pt'.format(name,i) if i > 0  else None,
-			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
-			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
-			'mcts_c_param' : 			df_param.l_mcts_c_param,
-			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
-			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
-			'mcts_beta1' : 				df_param.l_mcts_beta1,
-			'mcts_beta2' : 				df_param.l_mcts_beta2,
-			'mcts_beta3' : 				df_param.l_mcts_beta3,
+	for policyDict in [df_param.attackerPolicyDicts,df_param.defenderPolicyDicts]:
+		if "panagou" in to_include:
+			policyDict.extend([{
+				'sim_mode' : "PANAGOU"
+				}])
+		if "expert_biased" in to_include:
+			policyDict.extend([{
+				'sim_mode' : 				"MCTS",
+				'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,i) if i > 0  else None,
+				'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,i) if i > 0  else None,
+				'path_value_fnc' : 			'../{}/v{}.pt'.format(name,i) if i > 0  else None,
+				'mcts_tree_size' : 			df_param.l_num_expert_nodes,
+				'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+				'mcts_c_param' : 			df_param.l_mcts_c_param,
+				'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+				'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+				'mcts_beta1' : 				df_param.l_mcts_beta1,
+				'mcts_beta2' : 				df_param.l_mcts_beta2,
+				'mcts_beta3' : 				df_param.l_mcts_beta3,
+				} for i in mcts_policy_files])
+		if "expert_unbiased" in to_include:
+			policyDict.extend([{
+				'sim_mode' : 				"MCTS",
+				'path_glas_model_a' : 		None,
+				'path_glas_model_b' : 		None,
+				'path_value_fnc' : 			None,
+				'mcts_tree_size' : 			df_param.l_num_expert_nodes,
+				'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+				'mcts_c_param' : 			df_param.l_mcts_c_param,
+				'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+				'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+				'mcts_beta1' : 				df_param.l_mcts_beta1,
+				'mcts_beta2' : 				df_param.l_mcts_beta2,
+				'mcts_beta3' : 				df_param.l_mcts_beta3,
+				}])
+		if "learner_biased" in to_include: 
+			policyDict.extend([{
+				'sim_mode' : 				"D_MCTS",
+				'path_glas_model_a' : 		'../{}/a{}.pt'.format(name,i) if i > 0  else None,
+				'path_glas_model_b' : 		'../{}/b{}.pt'.format(name,i) if i > 0  else None,
+				'path_value_fnc' : 			'../{}/v{}.pt'.format(name,i) if i > 0  else None,
+				'mcts_tree_size' : 			df_param.l_num_learner_nodes,
+				'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+				'mcts_c_param' : 			df_param.l_mcts_c_param,
+				'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+				'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+				'mcts_beta1' : 				df_param.l_mcts_beta1,
+				'mcts_beta2' : 				df_param.l_mcts_beta2,
+				'mcts_beta3' : 				df_param.l_mcts_beta3,
 			} for i in mcts_policy_files])
-	if mode == 0:
-		df_param.attackerPolicyDicts.extend([{
-			'sim_mode' : "PANAGOU"
-			}])
-		df_param.defenderPolicyDicts.extend([{
-			'sim_mode' : "PANAGOU"
-			}])
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-game_file", default=None, required=False)
