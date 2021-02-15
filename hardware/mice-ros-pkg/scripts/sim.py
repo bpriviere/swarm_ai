@@ -36,6 +36,7 @@ class CrazyflieROS(Crazyflie):
         rospy.Service(prefix + '/update_params', UpdateParams, self.handle_update_params)
 
         rospy.Subscriber(prefix + "/cmd_full_state", FullState, self.handle_cmd_full_state)
+        rospy.Subscriber(prefix + "/cmd_position", Position, self.handle_cmd_position)
         rospy.Subscriber(prefix + "/cmd_stop", Empty, self.handle_cmd_stop)
 
         # LED support
@@ -90,6 +91,10 @@ class CrazyflieROS(Crazyflie):
         omega = [msg.twist.angular.x, msg.twist.angular.y, msg.twist.angular.z]
         # TODO: extract yaw from quat?
         self.cmdFullState(pos, vel, acc, 0, omega)
+
+    def handle_cmd_position(self, msg):
+        pos = [msg.x, msg.y, msg.z]
+        self.cmdPosition(pos, msg.yaw)
 
     def handle_cmd_stop(self, msg):
         self.cmdStop()

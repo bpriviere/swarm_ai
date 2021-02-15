@@ -193,6 +193,9 @@ def run(cf, tf, cfids, robot_idx):
     policy_dict_a, policy_dict_b = make_policy_dicts(param) 
     policy_a, policy_b, valuePredictor_a, valuePredictor_b = load_heuristics(policy_dict_a,policy_dict_b)
 
+    if param.num_nodes != len(cfids):
+        exit("Enabled Robots does not match params settings!")
+
     pub = rospy.Publisher("/visualization_marker", Marker, queue_size=1)
     # print(param.state)
     # exit()
@@ -263,14 +266,8 @@ def run(cf, tf, cfids, robot_idx):
 
         # print("robot idx: {}, x_curr: {}, status: {}".format(robot_idx,cpp_state[robot_idx,:],status))
 
-        if status == "ReachedGoal":
-            cf.setLEDColor(0,1,0) # green
+        if status != "Active":
             break
-        elif status in ["Tagged","OutOfBounds"]:
-            # cf.setParam("ring/effect", 0) # disable LED ring
-            break
-        # elif status == "Tagger":
-        #     time.sleep(5)
 
         start = time.time()
         action = d_mcts_i(param,cpp_state,robot_idx,mctssettings,policy_dict_a,policy_dict_b,policy_a,policy_b,valuePredictor_a,valuePredictor_b)
@@ -300,8 +297,25 @@ def run(cf, tf, cfids, robot_idx):
         rate.sleep()
 
     # drop/land the robot
+    time_to_land = 0
+    if status == "ReachedGoal":
+        cf.setLEDColor(0,1,0) # green
+        time_to_land = 2.0
+    elif status == "Tagged":
+        cf.setParam("ring/effect", 0) # disable LED ring
+        time_to_land = 0
+    elif status == "OutOfBounds":
+        # keep LED ring on
+        time_to_land = 1.0
 
-    # # option 1: aggressive motor cut
+    if time_to_land > 0:
+        dx = x_des[2] / time_to_land * dt
+        for _ in range(int(time_to_land/dt)):
+            x_des[2] -= dx
+            cf.cmdPosition(x_des[0:3])
+            rate.sleep()
+
+    # cut motor power
     cf.cmdStop()
 
     # option 2: "fast" landing
@@ -331,9 +345,9 @@ if __name__ == '__main__':
         tf.waitForTransform("/world", "/cf" + str(cfid), rospy.Time(0), rospy.Duration(5))
 
     if cf is None:
-        exit("No CF with required ID found!")
-
-    run(cf, tf, cfids, my_robot_idx)
+        print("Warning: No CF with required ID found! Shutting down node.")
+    else:
+        run(cf, tf, cfids, my_robot_idx)
 
     # rospy.sleep(2.5)
     # cf.land(0.02, 2.0)
