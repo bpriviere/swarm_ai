@@ -177,11 +177,11 @@ def run(cf, tf, cfids, robot_idx):
 
     # some tuning parameters
     HEIGHT = 0.5
-    VEL_LIMIT = 0.25
+    VEL_LIMIT = 0.25 # 0.25 
     # VEL_LIMIT = 0.5
     # VEL_LIMIT = 1.0
-    ACC_LIMIT = 0.25
-    SEED = 22
+    ACC_LIMIT = 0.5 # 0.5 
+    SEED = 264
 
     # fix the seed so that all nodes compute the same initial condition
     random.seed(SEED)

@@ -1056,6 +1056,127 @@ def plot_tree_results(sim_result,title=None):
 		if title is not None: 
 			fig.suptitle(title)
 
+def plot_exp10_trees(param,sim_result):
+
+	fig,ax = plt.subplots()
+
+	goal = sim_result["param"]["goal"]
+	goal_radius = sim_result["param"]["robots"][0]["goal_radius"]
+	goal_color = 'green'
+
+	for i_tree, data in enumerate(sim_result["trees"]):
+		for i_node in range(param.num_nodes): 
+			plot_tree(ax,data,i_node)
+
+		# ax.add_patch(mpatches.Circle(goal, goal_radius, color=goal_color,alpha=0.1))
+		ax.set_xticks([])
+		ax.set_yticks([])
+		ax.set_xlim(param.env_xlim)
+		ax.set_ylim(param.env_xlim)
+		x0,x1 = ax.get_xlim()
+		y0,y1 = ax.get_ylim()
+		ax.set_aspect(abs(x1-x0)/abs(y1-y0))
+		ax.axis('off')
+
+		break
+
+def plot_exp10_policies(param,X,Y,states,policies):
+
+	fig,ax = plt.subplots()
+
+	goal = param.goal 
+	goal_radius = param.robot_types["standard_robot"]["goal_radius"]
+	goal_color = 'green'
+
+	defender_radius = param.robot_types["standard_robot"]["tag_radius"]
+	defender_color = 'orange'
+
+	attacker_radius = param.robot_types["standard_robot"]["tag_radius"]
+	attacker_color = 'blue' 
+
+	ax.add_patch(mpatches.Circle(goal,goal_radius,color=goal_color,alpha=0.5))
+
+	for robot in range(states.shape[2]):
+		
+		if robot in param.team_1_idxs: 
+			pos = states[0,0,robot,0:2]
+			color = attacker_color
+			radius = attacker_radius
+		elif robot in param.team_2_idxs: 
+			pos = states[0,0,robot,0:2]
+			color = defender_color
+			radius = defender_radius
+
+		if robot != 0 :
+			ax.add_patch(mpatches.Circle(pos,radius,color=color,alpha=0.5))
+
+	data = policies 
+	data[:,:,0] = data[:,:,0] / np.sqrt(data[:,:,0]**2 + data[:,:,1]**2)
+	data[:,:,1] = data[:,:,1] / np.sqrt(data[:,:,0]**2 + data[:,:,1]**2)
+	data = np.transpose(data,axes=(1,0,2))
+	C = np.linalg.norm(data,axis=2)
+
+	# make less dense 
+	idx = np.arange(0,X.shape[0],2)
+	X = X[idx]
+	Y = Y[idx]
+	# data1 = data[idx,idx,0]
+	# data2 = data[idx,idx,1]
+	idx_grid = np.ix_(idx,idx,[0,1])
+	data = data[idx_grid]
+	idx_grid = np.ix_(idx,idx)
+	C = C[idx_grid]
+
+	# im = ax.quiver(X,Y,data[:,:,0],data[:,:,1],C,scale_units='xy')
+	# im = ax.quiver(X,Y,data[:,:,0],data[:,:,1],C)
+	im = ax.quiver(X,Y,data[:,:,0],data[:,:,1],C,scale=25.0)
+	# im = ax.quiver(X,Y,data[:,:,0],data[:,:,1],C,scale_units='xy',width=0.01)
+
+	fig.colorbar(im)
+	ax.set_xlim(param.env_xlim)
+	ax.set_ylim(param.env_ylim)
+	ax.axis("off")
+
+def plot_exp10_values(param,X,Y,states,values):
+
+	fig,ax = plt.subplots()
+
+	goal = param.goal 
+	goal_radius = param.robot_types["standard_robot"]["goal_radius"]
+	goal_color = 'green'
+
+	defender_radius = param.robot_types["standard_robot"]["tag_radius"]
+	defender_color = 'orange'
+
+	attacker_radius = param.robot_types["standard_robot"]["tag_radius"]
+	attacker_color = 'blue' 
+
+	ax.add_patch(mpatches.Circle(goal,goal_radius,color=goal_color,alpha=0.5))
+
+	for robot in range(states.shape[2]):
+		
+		if robot in param.team_1_idxs: 
+			pos = states[0,0,robot,0:2]
+			color = attacker_color
+			radius = attacker_radius
+		elif robot in param.team_2_idxs: 
+			pos = states[0,0,robot,0:2]
+			color = defender_color
+			radius = defender_radius
+
+		if robot != 0 :
+			ax.add_patch(mpatches.Circle(pos,radius,color=color,alpha=0.5))
+
+	data = values
+	data = data.T 
+	im = ax.imshow(data,origin='lower',extent=(X[0], X[-1], Y[0], Y[-1]))
+
+	fig.colorbar(im)
+	ax.set_xlim(param.env_xlim)
+	ax.set_ylim(param.env_ylim)
+	ax.axis("off")	
+
+
 def plot_training_value(df_param,batched_fns,path_to_model):
 	import torch 
 	# from learning.continuous_emptynet import ContinuousEmptyNet
@@ -2668,6 +2789,99 @@ def calc_heading(vx,vy):
 	
 	return heading
 
+
+def plot_animation2(sim_result):
+
+	from matplotlib import animation
+
+	states = sim_result["states"]
+	actions = sim_result["actions"]
+
+	nt, nrobots, state_dim = states.shape 
+
+	if "times" in sim_result.keys():
+		times = sim_result["times"]
+	else: 
+		times = range(nt)
+	if "rewards" in sim_result.keys():
+		rewards = sim_result["rewards"]
+	else: 
+		rewards = np.nan*np.ones((nt,2))
+
+	team_1_idxs = sim_result["param"]["team_1_idxs"]
+	num_nodes = sim_result["param"]["num_nodes"]
+	goal = sim_result["param"]["goal"]
+	tag_radius = sim_result["param"]["robots"][0]["tag_radius"]
+	goal_radius = sim_result["param"]["robots"][0]["goal_radius"]
+	env_xlim = sim_result["param"]["env_xlim"]	
+	env_ylim = sim_result["param"]["env_ylim"]	
+
+	team_1_color = 'blue'
+	team_2_color = 'orange'
+	goal_color = 'green'
+
+	colors = get_colors(sim_result["param"])
+
+	fig,axs = plt.subplots(nrows=1,ncols=1,constrained_layout=True,squeeze=False)
+
+	# state space
+	ax = axs[0,0]
+
+	def init(): 
+		ax.clear()
+		ax.grid(True)
+		ax.set_aspect('equal')
+		ax.set_title('State Space')
+		ax.add_patch(mpatches.Circle(goal, goal_radius, color=goal_color,alpha=0.5))
+		ax.set_xlim([env_xlim[0],env_xlim[1]])
+		ax.set_ylim([env_ylim[0],env_ylim[1]])
+
+	# animate over trajectory
+	def animate(i_t):
+
+		print(i_t)
+		init()
+
+		time_idxs = range(i_t) #times[0:i_t]
+
+		# print(time_idxs)
+
+		if i_t == 0:
+			return ln 
+
+		for i in range(num_nodes):
+			# Robot position (each time step)
+			ax.plot(states[time_idxs,i,0],states[time_idxs,i,1],linewidth=1,color=colors[i],marker="o",markersize=0.75)
+			# Tag radius (last time step)
+			if i in sim_result["param"]["team_2_idxs"]:
+				ax.add_patch(mpatches.Circle(states[time_idxs[-1],i,0:2], sim_result["param"]["robots"][i]["tag_radius"],color=colors[i],alpha=0.2,fill=False))
+			# Put special markers on attacker robot events
+			if (sim_result["param"]["robots"][i]["team"] == 'a') :
+				# Find the last valid states
+				idx_unkn = np.where(np.isnan(states[time_idxs,i,0]) == True)
+				idx_dead = np.where(np.isneginf(states[time_idxs,i,0]) == True)
+				idx_goal = np.where(np.isposinf(states[time_idxs,i,0]) == True)
+
+				# Plot events
+				if (len(idx_unkn[0])) :
+					# Robot is unknown
+					idx = max(0,min(idx_unkn[0])-1)
+					ax.plot(states[idx,i,0],states[idx,i,1],linewidth=1,color=colors[i],marker="|",markersize=3)
+				if (len(idx_dead[0])) :
+					# Robot is dead
+					idx = max(0,min(idx_dead[0])-1)
+					ax.plot(states[idx,i,0],states[idx,i,1],linewidth=1,color=colors[i],marker="x",markersize=3)
+				if (len(idx_goal[0])) :
+					# Robot is at the goal
+					idx = max(0,min(idx_goal[0])-1)
+					ax.plot(states[idx,i,0],states[idx,i,1],linewidth=1,color=colors[i],marker="o",markersize=3)
+
+		return ln 
+
+	ln = ax.plot([],[])
+	anim = animation.FuncAnimation(fig, animate, frames=len(times)+1, interval=1)
+	vid_fn = "plots/vid.mp4"
+	anim.save(vid_fn, fps=10, extra_args=['-vcodec', 'libx264'])
 
 def plot_animation(sim_result,args):
 	'''
