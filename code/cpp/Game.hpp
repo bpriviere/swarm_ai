@@ -67,7 +67,7 @@ class Game {
   {
   }
 
-  bool step(const GameStateT& state, const GameActionT& action, GameStateT& nextState, int & num_collisions)
+  bool step(const GameStateT& state, const GameActionT& action, GameStateT& nextState, int & num_collisions, int & num_expansions)
   {
     assert(state.attackers.size() == m_attackerTypes.size());
     assert(state.defenders.size() == m_defenderTypes.size());
@@ -190,7 +190,7 @@ class Game {
     }
 
     nextState.depth += 1;
-
+    num_expansions += 1;
     nextState.cumulativeReward += computeReward(nextState);
 
     return true;
@@ -350,7 +350,8 @@ class Game {
 #endif
 
       int num_collisions = 0 ; // doesnt get updated for rollout (only in tree expansion)
-      bool valid = step(s, action, nextState, num_collisions);
+      int num_expansions = 0 ;
+      bool valid = step(s, action, nextState, num_collisions, num_expansions);
 
       if (valid) {
         s = nextState;

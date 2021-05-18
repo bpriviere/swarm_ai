@@ -2428,6 +2428,69 @@ def plot_exp5_results(all_sim_results):
 	fig.suptitle('Reached Goal Reward vs Tree Size')
 	# fig.tight_layout()
 
+def plot_exp11_results(all_sim_results):
+	
+	nc_results = defaultdict(list) # num collisions per timestep 
+	for sim_result in all_sim_results:
+		key = (\
+			policy_to_label(sim_result["param"]["policy_dict_a"]),
+			policy_to_label(sim_result["param"]["policy_dict_b"]))		
+		nc_results[key].append(sim_result["num_collisions"] / sim_result["times"][-1])
+
+	attackerPolicies = all_sim_results[0]["param"]["attackerPolicyDicts"]
+	defenderPolicies = all_sim_results[0]["param"]["defenderPolicyDicts"]
+
+	# print('nc_results',nc_results)
+
+	# interested in total faulty expansions for Learned and Unbiased (2x1) 
+	unbiased_result = [] 
+	biased_result = [] 
+	for key,nc_result in nc_results.items():
+
+		if "None" in key[0]:
+			unbiased_result.append(nc_result[0][0])
+		else :
+			biased_result.append(nc_result[0][0])
+		if "None" in key[1]:
+			unbiased_result.append(nc_result[0][1])
+		else :
+			biased_result.append(nc_result[0][1])
+
+	unbiased_result = np.array(unbiased_result) # number results x 1 
+	biased_result = np.array(biased_result)
+
+	# print("unbiased_result",unbiased_result)
+	# print("biased_result",biased_result)
+	print("np.mean(unbiased_result)",np.mean(unbiased_result))
+	print("np.std(unbiased_result)",np.std(unbiased_result))
+	print("np.mean(biased_result)",np.mean(biased_result))
+	print("np.std(biased_result)",np.std(biased_result))
+
+	# mean_nc_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	# std_nc_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	# for a_idx, policy_dict_a in enumerate(attackerPolicies):
+	# 	for b_idx, policy_dict_b in enumerate(defenderPolicies):
+	# 		# key = (sim_mode_a, path_glas_model_a,sim_mode_b,path_glas_model_b)
+	# 		key = (\
+	# 			policy_to_label(policy_dict_a),
+	# 			policy_to_label(policy_dict_b))			
+	# 		mean_nc_result[a_idx,b_idx] = np.mean(nc_results[key])
+	# 		std_nc_result[a_idx,b_idx] = np.std(nc_results[key])
+
+
+
+	# print('mean_nc_result',mean_nc_result)
+	# print('std_nc_result',std_nc_result)
+	# print('attackerPolicies',attackerPolicies)
+	# print('defenderPolicies',defenderPolicies)
+
+	# print('np.sum(mean_nc_result[0,0],',mean_nc_result)
+
+
+
+
+
+
 def plot_exp3_results(all_sim_results):
 
 	rw_results = defaultdict(list) # game reward

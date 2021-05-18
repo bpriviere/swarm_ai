@@ -87,6 +87,7 @@ class MonteCarloTreeSearch {
     , m_beta1(beta1)
     , m_beta3(beta3)
     , m_num_collisions(0)
+    , m_num_expansions(0)
     {}
 
   bool search(
@@ -150,6 +151,7 @@ class MonteCarloTreeSearch {
   }
 
   int getNumberCollisions() {
+    // return m_num_collisions / m_num_expansions;
     return m_num_collisions;
   }
 
@@ -366,7 +368,7 @@ class MonteCarloTreeSearch {
     // sample a new action and add it if valid
     m_nodes.resize(m_nodes.size() + 1);
     auto& newNode = m_nodes[m_nodes.size()-1];
-    bool success = m_env.step(nodePtr->state, action, newNode.state, m_num_collisions);
+    bool success = m_env.step(nodePtr->state, action, newNode.state, m_num_collisions, m_num_expansions);
 #if CHECK_STATE_DUPLICATES
     if (success) {
       for (const auto c : nodePtr->children) {
@@ -510,6 +512,7 @@ class MonteCarloTreeSearch {
   float m_beta1;
   float m_beta3;
   int m_num_collisions;
+  int m_num_expansions;
 };
 
 }  // namespace libMultiRobotPlanning

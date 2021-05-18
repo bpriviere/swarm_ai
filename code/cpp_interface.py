@@ -281,11 +281,11 @@ def play_game(param,policy_dict_a,policy_dict_b):
 		'tree_params': [],
 		'n_rgs': [],
 		'root_rewards_over_time': [],
-		'num_collisions': 0,
+		'num_collisions': np.array([0,0]),
 	}
 
 	gs = state_to_cpp_game_state(param.state,"a",param.team_1_idxs,param.team_2_idxs)
-	num_collisions = 0
+	num_collisions = np.array([0,0])
 	count = 0
 	invalid_team_action = [np.nan*np.ones(param.dynamics["control_dim"]) for _ in range(param.num_nodes)]
 	team_action = list(invalid_team_action)
@@ -299,6 +299,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 			other_policies = [policy_b]
 			valuePredictor = valuePredictor_a
 			team = 'a'
+			tempturn = 0
 		elif gs.turn == mctscpp.GameState.Turn.Defenders:
 			policy_dict = policy_dict_b
 			team_idx = param.team_2_idxs
@@ -306,6 +307,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 			other_policies = [policy_a]
 			valuePredictor = valuePredictor_b
 			team = 'b'
+			tempturn = 1
 
 		# output result
 		isTerminal = g.isTerminal(gs)
@@ -394,7 +396,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 				if mctsresult.success: 
 					action_i = mctsresult.bestAction
 					action[robot_idx,:] = action_i[self_idx]
-					num_collisions += mctsresult.num_collisions
+					num_collisions[tempturn] += mctsresult.num_collisions 
 					if mctssettings.export_tree:
 						sim_result['trees'].append(mctsresult.tree)
 						sim_result['tree_params'].append({
@@ -408,7 +410,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 				else: 
 					action[robot_idx,:] = np.zeros(param.dynamics["control_dim"]) 
 
-			success = g.step(gs,action,gs)
+			success = g.step(gs,action,gs,0,0)
 
 		elif policy_dict["sim_mode"] == "GLAS":
 			action = mctscpp.eval(g, gs, policy_a, policy_b, policy_dict["deterministic"])

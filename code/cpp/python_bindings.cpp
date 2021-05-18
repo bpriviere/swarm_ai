@@ -61,7 +61,7 @@ public:
   std::vector<std::pair<GameT::GameActionT, float>> valuePerAction;
   Eigen::MatrixXf tree;
   std::vector<float> rootRewardOverTime;
-  int num_collisions;
+  float num_collisions;
 };
 
 class MCTSSettings

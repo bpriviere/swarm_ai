@@ -45,7 +45,7 @@ class Param:
 	def __init__(self):
 
 		# sim param 
-		self.sim_num_trials = 50
+		self.sim_num_trials = 1
 		self.sim_parallel_on = True
 
 		# these parameters are not used for learning 
@@ -72,7 +72,7 @@ class Param:
 			# 'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/double_integrator_largescale/a12.pt', 
 			# 'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/double_integrator_largescale/b12.pt', 
 			# 'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/double_integrator_largescale/v12.pt',				
-			'mcts_tree_size' : 			1000,
+			'mcts_tree_size' : 			500,
 			'mcts_c_param' : 			2.0,
 			'mcts_pw_C' : 				1.0,
 			# 'mcts_pw_alpha' : 			0.2,
