@@ -746,6 +746,17 @@ def plot_tree_results(sim_result,title=None):
 				# Robot is at the goal
 				idx = max(0,min(idx_goal[0])-1)
 				ax.plot(states[idx,i,0],states[idx,i,1],linewidth=1,color=colors[i],marker="o",markersize=3)
+
+		if "obstacles" in sim_result["param"].keys():
+			for obstacle in sim_result["param"]["obstacles"]:
+				for step in range(len(times)):
+
+					# Rectangle((x,y),width,height)
+					rect = patches.Rectangle((obstacle[step][0,0], obstacle[step][1,0]), \
+						(obstacle[step][0,1]-obstacle[step][0,0]), \
+						(obstacle[step][1,1]-obstacle[step][1,0]), \
+						facecolor='gray',alpha=step/len(times))
+					ax.add_patch(rect)
 		
 	ax.set_xlim([env_xlim[0],env_xlim[1]])
 	ax.set_ylim([env_ylim[0],env_ylim[1]])
@@ -2848,6 +2859,15 @@ def plot_animation2(sim_result):
 
 		if i_t == 0:
 			return ln 
+
+		if "obstacles" in sim_result["param"].keys():
+			for obstacle in sim_result["param"]["obstacles"]:
+				# Rectangle((x,y),width,height)
+				rect = patches.Rectangle((obstacle[i_t][0,0], obstacle[i_t][1,0]), \
+					(obstacle[i_t][0,1]-obstacle[i_t][0,0]), \
+					(obstacle[i_t][1,1]-obstacle[i_t][1,0]), \
+					facecolor='gray') 
+				ax.add_patch(rect)
 
 		for i in range(num_nodes):
 			# Robot position (each time step)

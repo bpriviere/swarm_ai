@@ -61,6 +61,7 @@ public:
   std::vector<std::pair<GameT::GameActionT, float>> valuePerAction;
   Eigen::MatrixXf tree;
   std::vector<float> rootRewardOverTime;
+  int num_collisions;
 };
 
 class MCTSSettings
@@ -111,6 +112,7 @@ MCTSResult search(
   if (result.success) {
     result.expectedReward = mcts.rootNodeReward() / mcts.rootNodeNumVisits();
     result.valuePerAction = mcts.valuePerAction();
+    result.num_collisions = mcts.getNumberCollisions();
     if (settings.export_tree) {
       result.tree = mcts.exportToMatrix();
     }
@@ -160,6 +162,7 @@ PYBIND11_MODULE(mctscpp, m) {
     .def_readonly("expectedReward", &MCTSResult::expectedReward)
     .def_readonly("valuePerAction", &MCTSResult::valuePerAction)
     .def_readonly("tree", &MCTSResult::tree)
+    .def_readonly("num_collisions", &MCTSResult::num_collisions)
     .def_readonly("rootRewardOverTime", &MCTSResult::rootRewardOverTime);
 
   py::class_<MCTSSettings> (m, "MCTSSettings")
@@ -214,9 +217,12 @@ PYBIND11_MODULE(mctscpp, m) {
     .def(py::init<
       const Eigen::Vector2f&,
       const Eigen::Vector2f&,
+      // std::vector<Eigen::Matrix<float,-1,2,2>>,
+      std::vector<std::vector<Eigen::Matrix<float,2,2>>>,
       float, float, float, float, float, float>())
     .def_readwrite("p_min", &RobotTypeT::p_min)
     .def_readwrite("p_max", &RobotTypeT::p_max)
+    .def_readwrite("obstacles", &RobotTypeT::m_obstacles)
     .def_readwrite("velocity_limit", &RobotTypeT::velocity_limit)
     .def_readonly("acceleration_limit", &RobotTypeT::acceleration_limit)
     .def_readwrite("tag_radiusSquared", &RobotTypeT::tag_radiusSquared)

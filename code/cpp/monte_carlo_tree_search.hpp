@@ -86,6 +86,7 @@ class MonteCarloTreeSearch {
     , m_pw_alpha(pw_alpha)
     , m_beta1(beta1)
     , m_beta3(beta3)
+    , m_num_collisions(0)
     {}
 
   bool search(
@@ -146,6 +147,10 @@ class MonteCarloTreeSearch {
   size_t rootNodeNumVisits() const {
     assert(m_nodes.size() >= 1);
     return m_nodes[0].number_of_visits;
+  }
+
+  int getNumberCollisions() {
+    return m_num_collisions;
   }
 
   std::vector<std::pair<Action, float>> valuePerAction() const {
@@ -361,7 +366,7 @@ class MonteCarloTreeSearch {
     // sample a new action and add it if valid
     m_nodes.resize(m_nodes.size() + 1);
     auto& newNode = m_nodes[m_nodes.size()-1];
-    bool success = m_env.step(nodePtr->state, action, newNode.state);
+    bool success = m_env.step(nodePtr->state, action, newNode.state, m_num_collisions);
 #if CHECK_STATE_DUPLICATES
     if (success) {
       for (const auto c : nodePtr->children) {
@@ -504,6 +509,7 @@ class MonteCarloTreeSearch {
   float m_pw_alpha;
   float m_beta1;
   float m_beta3;
+  int m_num_collisions;
 };
 
 }  // namespace libMultiRobotPlanning

@@ -70,6 +70,7 @@ public:
   RobotTypeDoubleIntegrator2D(
     const Eigen::Vector2f& p_min,
     const Eigen::Vector2f& p_max,
+    std::vector<std::vector<Eigen::Matrix<float,2,2>>> obstacles,
     float v_max,
     float a_max,
     float tag_radius,
@@ -79,6 +80,7 @@ public:
     : RobotType(p_min, p_max, tag_radius, goal_radius, r_sense, radius)
     , velocity_limit(v_max)
     , acceleration_limit(a_max)
+    , m_obstacles(obstacles)
   {
     init();
   }
@@ -86,6 +88,9 @@ public:
   float velocity_limit;
   float acceleration_limit;
   RobotActionDoubleIntegrator2D invalidAction;
+
+  // vector of vector of matrix. first vector chooses the obstacle, second vector chooses timestep  
+  std::vector<std::vector<Eigen::Matrix<float,2,2>>> m_obstacles;
 
   void step(const RobotStateDoubleIntegrator2D& state,
     const RobotActionDoubleIntegrator2D& action,
@@ -108,7 +113,7 @@ public:
 #endif
   }
 
-  bool isStateValid(const RobotStateDoubleIntegrator2D& state) const
+  bool isStateValid(const RobotStateDoubleIntegrator2D& state, int & step) const
   {
     bool positionValid;
     bool velocityValid;
@@ -116,6 +121,22 @@ public:
     positionValid = true;
 #else
     positionValid = (state.position().array() >= p_min.array()).all() && (state.position().array() <= p_max.array()).all();
+
+    bool obstacle_free = true;
+    // for (Eigen::Matrix<float,-1,2,2> obstacle : m_obstacles){
+    for (std::vector<Eigen::Matrix<float,2,2>> obstacle : m_obstacles){
+      // std::cout << "cpp obstacles: " << obstacle.array() << std::endl;
+      if (
+        state.position()(0) >= obstacle[step](0,0) && 
+        state.position()(0) <= obstacle[step](0,1) &&
+        state.position()(1) >= obstacle[step](1,0) &&
+        state.position()(1) <= obstacle[step](1,1) ){
+        obstacle_free = false; 
+        break; 
+      }
+    }
+    positionValid = positionValid && obstacle_free; 
+
     // positionValid = true;
 #endif
 
@@ -131,6 +152,9 @@ public:
   void init()
   {
     invalidAction << nanf("") , nanf("");
+    // for (Eigen::Matrix<float,2,2> obstacle : m_obstacles){
+      // std::cout << "cpp obstacles: " << obstacle.array() << std::endl;
+    // }
   }
 
   float actionLimit() const {

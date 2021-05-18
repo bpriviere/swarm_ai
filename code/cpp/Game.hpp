@@ -67,7 +67,7 @@ class Game {
   {
   }
 
-  bool step(const GameStateT& state, const GameActionT& action, GameStateT& nextState)
+  bool step(const GameStateT& state, const GameActionT& action, GameStateT& nextState, int & num_collisions)
   {
     assert(state.attackers.size() == m_attackerTypes.size());
     assert(state.defenders.size() == m_defenderTypes.size());
@@ -78,6 +78,8 @@ class Game {
     size_t NumAttackers = state.attackers.size();
     size_t NumDefenders = state.defenders.size();
 
+    int timestep = int( state.depth / 2); 
+
     // copy current state
     nextState = state;
     // update active robots
@@ -85,9 +87,10 @@ class Game {
       for (size_t i = 0; i < NumAttackers; ++i) {
         if (nextState.attackers[i].status == RobotStateT::Status::Active) {
           m_attackerTypes[i].step(nextState.attackers[i], action[i], m_dt, nextState.attackers[i]);
-          if (!m_attackerTypes[i].isStateValid(nextState.attackers[i])) {
+          if (!m_attackerTypes[i].isStateValid(nextState.attackers[i],timestep)) {
             nextState.attackers[i].status = RobotStateT::Status::Invalid;
             nextState.attackers[i].state.fill(nanf(""));
+            num_collisions = num_collisions + 1;
           }
         }
       }
@@ -104,9 +107,10 @@ class Game {
       for (size_t i = 0; i < NumDefenders; ++i) {
         if (nextState.defenders[i].status == RobotStateT::Status::Active) {
           m_defenderTypes[i].step(nextState.defenders[i], action[NumAttackers + i], m_dt, nextState.defenders[i]);
-          if (!m_defenderTypes[i].isStateValid(nextState.defenders[i])) {
+          if (!m_defenderTypes[i].isStateValid(nextState.defenders[i],timestep)) {
             nextState.defenders[i].status = RobotStateT::Status::Invalid;
             nextState.defenders[i].state.fill(nanf(""));
+            num_collisions = num_collisions + 1;
           }
         }
       }
@@ -159,6 +163,7 @@ class Game {
               nextState.attackers[i].state.fill(nanf(""));
               nextState.attackers[j].status = RobotStateT::Status::Invalid;
               nextState.attackers[j].state.fill(nanf(""));
+              num_collisions = num_collisions + 1;
             }
           }
         }
@@ -177,6 +182,7 @@ class Game {
               nextState.defenders[i].state.fill(nanf(""));
               nextState.defenders[j].status = RobotStateT::Status::Invalid;
               nextState.defenders[j].state.fill(nanf(""));
+              num_collisions = num_collisions + 1;
             }
           }
         }
@@ -198,9 +204,11 @@ class Game {
     size_t NumAttackers = state.attackers.size();
     size_t NumDefenders = state.defenders.size();
 
+    int timestep = int( state.depth / 2); 
+
     for (size_t i = 0; i < NumAttackers; ++i) {
       if (state.attackers[i].status == RobotStateT::Status::Active) {
-        if (!m_attackerTypes[i].isStateValid(state.attackers[i])) {
+        if (!m_attackerTypes[i].isStateValid(state.attackers[i],timestep)) {
           return false;
         }
         for (size_t j = i+1; j < NumAttackers; ++j) {
@@ -216,7 +224,7 @@ class Game {
     }
 
     for (size_t i = 0; i < NumDefenders; ++i) {
-      if (!m_defenderTypes[i].isStateValid(state.defenders[i])) {
+      if (!m_defenderTypes[i].isStateValid(state.defenders[i],timestep)) {
         return false;
       }
       for (size_t j = i+1; j < NumDefenders; ++j) {
@@ -341,7 +349,8 @@ class Game {
       const auto action = sampleAction(s, policyAttacker, policyDefender, deterministic, 0.0);
 #endif
 
-      bool valid = step(s, action, nextState);
+      int num_collisions = 0 ; // doesnt get updated for rollout (only in tree expansion)
+      bool valid = step(s, action, nextState, num_collisions);
 
       if (valid) {
         s = nextState;
@@ -429,8 +438,8 @@ class Game {
     float w2 = 0.1; 
     float w3 = 0.8; 
 
-    return reachedGoal;    
-    // return ( w1*r1 + w2*r2 + w3*reachedGoal ) / (w1+w2+w3);    
+    // return reachedGoal;    
+    return ( w1*r1 + w2*r2 + w3*reachedGoal ) / (w1+w2+w3);    
     
     // return ( r1 + r2 + reachedGoal ) / 3.0f;    
 

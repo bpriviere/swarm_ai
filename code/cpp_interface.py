@@ -30,7 +30,7 @@ else:
 del(temp_param) 
 
 
-def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
+def create_cpp_robot_type(robot_type, env_xlim, env_ylim,obstacles):
 	p_min = [env_xlim[0], env_ylim[0]]
 	p_max = [env_xlim[1], env_ylim[1]]
 	velocity_limit = robot_type["speed_limit"]
@@ -40,7 +40,9 @@ def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
 	r_sense = robot_type["r_sense"]
 	radius = robot_type["radius"]
 	if robot_type["dynamics"] == "double_integrator":
-		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,acceleration_limit,tag_radius,goal_radius,r_sense,radius)
+		# print("python obstacles:",obstacles)
+		rt = mctscpp.RobotType(p_min,p_max,obstacles,velocity_limit,acceleration_limit,tag_radius,goal_radius,r_sense,radius)
+		# exit()
 	elif robot_type["dynamics"] == "single_integrator":
 		rt = mctscpp.RobotType(p_min,p_max,velocity_limit,tag_radius,goal_radius,r_sense,radius)
 	elif robot_type["dynamics"] == "dubins_2d":
@@ -52,18 +54,18 @@ def create_cpp_robot_type(robot_type, env_xlim, env_ylim):
 	return rt	
 
 
-def robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,team,env_xlim,env_ylim):
+def robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,team,env_xlim,env_ylim, obstacles):
 	types = [] 
 	for robot_type_name, num in robot_team_composition[team].items():
-		rt = create_cpp_robot_type(robot_types[robot_type_name], env_xlim, env_ylim)
+		rt = create_cpp_robot_type(robot_types[robot_type_name], env_xlim, env_ylim, obstacles)
 		for _ in range(num):
 			types.append(rt)
 	return types
 
 
-def param_to_cpp_game(robot_team_composition,robot_types,env_xlim,env_ylim,dt,goal,rollout_horizon):
-	attackerTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"a",env_xlim,env_ylim)
-	defenderTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"b",env_xlim,env_ylim)
+def param_to_cpp_game(robot_team_composition,robot_types,env_xlim,env_ylim,dt,goal,rollout_horizon,obstacles=[]):
+	attackerTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"a",env_xlim,env_ylim,obstacles)
+	defenderTypes = robot_composition_to_cpp_robot_types(robot_team_composition,robot_types,"b",env_xlim,env_ylim,obstacles)
 	# adjust goal 
 	for key,value in robot_team_composition["a"].items():
 		dynamics_name = robot_types[key]["dynamics"]
@@ -189,7 +191,7 @@ def expected_value(param,state,policy_dict,team):
 	print('policy_dict',policy_dict)
 
 	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
-		param.sim_dt,param.goal,param.rollout_horizon)	
+		param.sim_dt,param.goal,param.rollout_horizon,obstacles=param.obstacles)	
 	gs = state_to_cpp_game_state(state,team,param.team_1_idxs,param.team_2_idxs)
 
 	policy_a = create_cpp_policy(policy_dict, 'a')
@@ -250,7 +252,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 		pp.init_sim(param.state)
 
 	g = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
-		param.sim_dt,param.goal,param.rollout_horizon)
+		param.sim_dt,param.goal,param.rollout_horizon,obstacles=param.obstacles)
 	policy_a = create_cpp_policy(policy_dict_a, 'a')
 	policy_b = create_cpp_policy(policy_dict_b, 'b')
 
@@ -279,9 +281,11 @@ def play_game(param,policy_dict_a,policy_dict_b):
 		'tree_params': [],
 		'n_rgs': [],
 		'root_rewards_over_time': [],
+		'num_collisions': 0,
 	}
 
 	gs = state_to_cpp_game_state(param.state,"a",param.team_1_idxs,param.team_2_idxs)
+	num_collisions = 0
 	count = 0
 	invalid_team_action = [np.nan*np.ones(param.dynamics["control_dim"]) for _ in range(param.num_nodes)]
 	team_action = list(invalid_team_action)
@@ -378,7 +382,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 				state_i, robot_team_composition_i, self_idx, team_1_idxs_i, team_2_idxs_i = \
 					local_to_global(param,o_a,o_b,goal,team)
 				game_i = param_to_cpp_game(robot_team_composition_i,param.robot_types,param.env_xlim,param.env_ylim,\
-					param.sim_dt,param.goal,param.rollout_horizon)
+					param.sim_dt,param.goal,param.rollout_horizon,obstacles=param.obstacles)
 				gamestate_i = state_to_cpp_game_state(state_i,team,team_1_idxs_i,team_2_idxs_i)
 				gamestate_i.depth = 0
 				mctsresult = mctscpp.search(game_i, gamestate_i, \
@@ -390,6 +394,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 				if mctsresult.success: 
 					action_i = mctsresult.bestAction
 					action[robot_idx,:] = action_i[self_idx]
+					num_collisions += mctsresult.num_collisions
 					if mctssettings.export_tree:
 						sim_result['trees'].append(mctsresult.tree)
 						sim_result['tree_params'].append({
@@ -441,6 +446,7 @@ def play_game(param,policy_dict_a,policy_dict_b):
 	sim_result['actions'] = np.array(sim_result['actions'], dtype=np.float32)
 	sim_result['times'] = param.sim_dt*np.arange(sim_result['states'].shape[0])
 	sim_result['rewards'] = np.array(sim_result['rewards'], dtype=np.float32)
+	sim_result['num_collisions'] = num_collisions
 
 	return sim_result
 
@@ -454,7 +460,7 @@ def evaluate_expert(rank, queue, total, states,param,quiet_on=True):
 		pbar = tqdm.tqdm(total=total)
 
 	game = param_to_cpp_game(param.robot_team_composition,param.robot_types,param.env_xlim,param.env_ylim,\
-		param.sim_dt,param.goal,param.rollout_horizon)
+		param.sim_dt,param.goal,param.rollout_horizon,obstacles=param.obstacles)
 
 	my_policy = create_cpp_policy(param.my_policy_dict, param.training_team)
 	value_path = param.l_value_model_fn.format(\
