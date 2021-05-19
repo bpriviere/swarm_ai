@@ -105,32 +105,32 @@ def format_dir(df_param):
 if __name__ == '__main__':
 
 	df_param = Param()
-	df_param.env_l = 3.0
+	# df_param.env_l = 3.0
 
 	df_param.init_on_sides = True
 	df_param.num_trials = 100
 	mcts_policy_files = [0,20] 
-	name = "../saved/double_integrator_converged"
+	name = "/home/ben/projects/swarm_ai/saved/double_integrator_learning_converged/current/models"
+
 
 	df_param.attackerPolicyDicts = []
 	df_param.defenderPolicyDicts = []
 
 	for policyDict in [df_param.attackerPolicyDicts,df_param.defenderPolicyDicts]:
-		if "learner_biased" in to_include: 
-			policyDict.extend([{
-				'sim_mode' : 				"D_MCTS",
-				'path_glas_model_a' : 		'{}/a{}.pt'.format(name,i) if i > 0  else None,
-				'path_glas_model_b' : 		'{}/b{}.pt'.format(name,i) if i > 0  else None,
-				'path_value_fnc' : 			'{}/v{}.pt'.format(name,i) if i > 0  else None,
-				'mcts_tree_size' : 			df_param.l_num_learner_nodes,
-				'mcts_rollout_horizon' : 	df_param.rollout_horizon,
-				'mcts_c_param' : 			df_param.l_mcts_c_param,
-				'mcts_pw_C' : 				df_param.l_mcts_pw_C,
-				'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
-				'mcts_beta1' : 				df_param.l_mcts_beta1,
-				'mcts_beta2' : 				df_param.l_mcts_beta2,
-				'mcts_beta3' : 				df_param.l_mcts_beta3,
-			} for i in mcts_policy_files])
+		policyDict.extend([{
+			'sim_mode' : 				"D_MCTS",
+			'path_glas_model_a' : 		'{}/a{}.pt'.format(name,i) if i > 0  else None,
+			'path_glas_model_b' : 		'{}/b{}.pt'.format(name,i) if i > 0  else None,
+			'path_value_fnc' : 			'{}/v{}.pt'.format(name,i) if i > 0  else None,
+			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
+			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
+			'mcts_c_param' : 			df_param.l_mcts_c_param,
+			'mcts_pw_C' : 				df_param.l_mcts_pw_C,
+			'mcts_pw_alpha' : 			df_param.l_mcts_pw_alpha,
+			'mcts_beta1' : 				df_param.l_mcts_beta1,
+			'mcts_beta2' : 				df_param.l_mcts_beta2,
+			'mcts_beta3' : 				df_param.l_mcts_beta3,
+		} for i in mcts_policy_files])
 
 	parser = argparse.ArgumentParser()
 	parser.add_argument("-game_file", default=None, required=False)
@@ -147,7 +147,7 @@ if __name__ == '__main__':
 
 		initial_conditions,robot_team_compositions = make_games(df_param)
 
-	run_on = True
+	run_on = False
 	if run_on: 
 
 		params = get_params(df_param,initial_conditions,robot_team_compositions)
@@ -168,7 +168,7 @@ if __name__ == '__main__':
 
 	# Plot results of all the runs
 	print("\nGenerating Plots")
-	plotter.plot_exp3_results(sim_results)
+	plotter.plot_exp12_results(sim_results)
 
 	# Plot results of each run
 	count = 0 

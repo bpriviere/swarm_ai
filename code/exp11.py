@@ -114,17 +114,20 @@ if __name__ == '__main__':
 
 	df_param = Param()
 	df_param.init_on_sides = True
-	df_param.num_trials = 10
+	df_param.num_trials = 500
 
 	df_param.attackerPolicyDicts = []
 	df_param.defenderPolicyDicts = []
 
+	dirname = "/home/ben/projects/swarm_ai/saved/double_integrator_learning_converged/current/models"
+
+
 	for policyDict in [df_param.attackerPolicyDicts,df_param.defenderPolicyDicts]:
 		policyDict.extend([{
 			'sim_mode' : 				"D_MCTS",
-			'path_glas_model_a' : 		"/home/ben/projects/swarm_ai/saved/double_integrator_converged/a20.pt",
-			'path_glas_model_b' : 		"/home/ben/projects/swarm_ai/saved/double_integrator_converged/b20.pt",
-			'path_value_fnc' : 			"/home/ben/projects/swarm_ai/saved/double_integrator_converged/v20.pt",
+			'path_glas_model_a' : 		"{}/a20.pt".format(dirname),
+			'path_glas_model_b' : 		"{}/b20.pt".format(dirname),
+			'path_value_fnc' : 			"{}/v20.pt".format(dirname),
 			'mcts_tree_size' : 			df_param.l_num_learner_nodes,
 			'mcts_rollout_horizon' : 	df_param.rollout_horizon,
 			'mcts_c_param' : 			df_param.l_mcts_c_param,

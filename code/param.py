@@ -63,9 +63,9 @@ class Param:
 			# 'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/a9.pt', 
 			# 'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator/b9.pt', 
 			# 'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/results/double_integrator/v9.pt',	
-			'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/double_integrator_converged/a20.pt', 
-			'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/double_integrator_converged/b20.pt', 
-			'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/double_integrator_converged/v20.pt',	
+			'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/double_integrator_learning_converged/current/models/a20.pt', 
+			'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/double_integrator_learning_converged/current/models/b20.pt', 
+			'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/double_integrator_learning_converged/current/models/v20.pt',	
 			# 'path_glas_model_a' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator_init_on_sides_false/a12.pt', 
 			# 'path_glas_model_b' : 		'/home/ben/projects/swarm_ai/saved/results/double_integrator_init_on_sides_false/b12.pt', 
 			# 'path_value_fnc' : 			'/home/ben/projects/swarm_ai/saved/results/double_integrator_init_on_sides_false/v12.pt',	
@@ -129,7 +129,7 @@ class Param:
 					'acceleration_limit': 2.0,
 					'tag_radius': 0.2,
 					# 'goal_radius': 0.2, # 0.45,			
-					'goal_radius': 0.45,			
+					'goal_radius': 0.2,			
 					'dynamics':'{}'.format(self.dynamics["name"]),
 					'r_sense': 2.0,
 					'radius': 0.10,
@@ -173,7 +173,7 @@ class Param:
 		}
 		
 		# environment
-		self.env_l = 10.0 # hardware: 2.75 
+		self.env_l = 3.0 # hardware: 2.75 
 
 		# learning (l) parameters 
 		self.device = 'cuda' # 'cpu', 'cuda'
@@ -523,7 +523,7 @@ class Param:
 		times = self.sim_dt * np.arange(self.rollout_horizon)
 
 		# design 
-		length_scale = 0.75
+		length_scale = 0.075 * self.env_l
 		lengths = [
 			(length_scale,length_scale), 
 			(length_scale,length_scale),

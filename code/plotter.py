@@ -2664,6 +2664,146 @@ def plot_exp3_results(all_sim_results):
 	# fig.tight_layout()
 
 
+def plot_exp12_results(all_sim_results):
+
+	rw_results = defaultdict(list) # game reward
+	rg_results = defaultdict(list) # reached goal reward 
+	for sim_result in all_sim_results:
+		key = (\
+			policy_to_label(sim_result["param"]["policy_dict_a"]),
+			policy_to_label(sim_result["param"]["policy_dict_b"]))
+		# results[key].append(sim_result["rewards"][-1,0])
+		# results[key].append(sim_result["reached_goal"])
+		rw_results[key].append(sim_result["rewards"][-1,0])
+		rg_results[key].append(sim_result["reached_goal"])
+
+	attackerPolicies = all_sim_results[0]["param"]["attackerPolicyDicts"]
+	defenderPolicies = all_sim_results[0]["param"]["defenderPolicyDicts"]
+
+	mean_rw_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	std_rw_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	mean_rg_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	std_rg_result = np.zeros((len(attackerPolicies),len(defenderPolicies)))
+	for a_idx, policy_dict_a in enumerate(attackerPolicies):
+		for b_idx, policy_dict_b in enumerate(defenderPolicies):
+			# key = (sim_mode_a, path_glas_model_a,sim_mode_b,path_glas_model_b)
+			key = (\
+				policy_to_label(policy_dict_a),
+				policy_to_label(policy_dict_b))			
+			mean_rw_result[a_idx,b_idx] = np.mean(rw_results[key])
+			std_rw_result[a_idx,b_idx] = np.std(rw_results[key])
+
+			mean_rg_result[a_idx,b_idx] = np.mean(rg_results[key])
+			std_rg_result[a_idx,b_idx] = np.std(rg_results[key])
+
+	xticklabels = []
+	for policy_dict_a in attackerPolicies:
+		xticklabels.append(policy_to_label(policy_dict_a))
+
+	yticklabels = []
+	for policy_dict_b in defenderPolicies:
+		yticklabels.append(policy_to_label(policy_dict_b))
+
+	for mean_result, title in zip([mean_rw_result, mean_rg_result],["Game Reward","Reached Goal"]): 
+
+		fig,ax = plt.subplots()
+		# im = ax.imshow(mean_result,origin='lower',vmin=0,vmax=1,cmap=cm.seaborn)
+		if mean_result.shape[0] > 8:
+			ax = sns.heatmap(mean_result.T,vmin=0,vmax=1,annot=True,annot_kws={"size":4})
+		else:
+			ax = sns.heatmap(mean_result.T,vmin=0,vmax=1,annot=True)
+		# fig.colorbar(im)
+		# ax.set_xticks(range(len(attackerPolicies)))
+		# ax.set_yticks(range(len(defenderPolicies)))
+		ax.set_xticklabels(xticklabels,rotation=45, ha='right')
+		ax.set_yticklabels(yticklabels,rotation=45, ha='right')
+		ax.tick_params(axis='both',labelsize=5)
+		ax.set_xlabel('attackers')
+		ax.set_ylabel('defenders')
+		fig.suptitle(title)
+		fig.tight_layout()
+		# ax.legend()
+		# ax.grid(True)
+
+	# make plots with same data easier to understand: 
+	# two plots (attacker and defender) 
+	# x-axis learning iteraiton (or flat line)
+	# y-axis performance : mean + std in 
+	fig,axs = plt.subplots(nrows=1,ncols=2,squeeze=False)
+	# get colors 
+	# colors = get_n_colors(len(attackerPolicies))
+	colors = get_n_colors(3)
+
+	for i in range(2):
+
+		to_plot_learner = []
+		to_plot_expert = []
+		other_to_plots = dict()
+
+		if i==0:
+			self_policies = attackerPolicies
+			adv_policies = defenderPolicies
+			title = "Attacker"
+		elif i==1:
+			self_policies = defenderPolicies
+			adv_policies = attackerPolicies
+			title = "Defender"
+
+		for idx, policy_dict in enumerate(self_policies):
+			
+			if i == 0:
+				J_mean = np.sum(mean_rw_result[idx,:])/len(self_policies)
+				J_std = (np.sum(np.square(std_rw_result[idx,:])))/len(self_policies)
+			else:
+				J_mean = 1-np.sum(mean_rw_result[:,idx])/len(self_policies)
+				J_std = (np.sum(np.square(std_rw_result[:,idx])))/len(self_policies)
+			
+			if policy_dict["sim_mode"] == "D_MCTS":
+
+				# get learning index 
+				if policy_dict["path_glas_model_a"] is not None: 
+					learning_idx = int(os.path.basename(policy_dict["path_glas_model_a"]).split(".")[0][1:])
+				else:
+					learning_idx = 0 
+
+				to_plot_learner.append((learning_idx,\
+					J_mean,\
+					J_std,\
+					idx))
+
+			elif policy_dict["sim_mode"] == "MCTS":
+
+				# get learning index 
+				if policy_dict["path_glas_model_a"] is not None: 
+					learning_idx = int(os.path.basename(policy_dict["path_glas_model_a"]).split(".")[0][1:])
+				else:
+					learning_idx = 0 				
+
+				to_plot_expert.append((learning_idx,\
+					J_mean,\
+					J_std,\
+					idx))
+
+			elif policy_dict["sim_mode"] == "PANAGOU":
+
+				key = "PANAGOU"
+
+				other_to_plots[key] = (\
+					J_mean,\
+					J_std,
+					idx)
+
+		# learner
+		print(to_plot_learner)
+		sorted(to_plot_learner, key=lambda x: x[0])
+		to_plot_learner = np.array(to_plot_learner,dtype=np.float32)
+		color_dmcts_idx = int(to_plot_learner[0,3])
+		axs[0,i].plot(to_plot_learner[:,0],to_plot_learner[:,1],color=colors[0],label="Learner",alpha=0.9)
+		axs[0,i].fill_between(to_plot_learner[:,0], to_plot_learner[:,1]-to_plot_learner[:,2], to_plot_learner[:,1]+to_plot_learner[:,2],\
+			color=colors[0],alpha=0.25)
+
+
+
 
 def plot_test_model(df_param,stats):
 
